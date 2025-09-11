@@ -1,0 +1,452 @@
+
+
+
+
+
+
+
+
+
+
+
+                                Theme 0. CPU SIMD
+
+  Unaligned Store can be pretty expensive. Most of the time, you wanna keep the 
+perspective to keep things aligned. Since, We are now using 128-bit wide vector,
+memory must be aligned to 4-bytes, which means the lowest 1-byte of the memory
+address must be cleared to zero.
+
+
+  128-bit wide SIMD, the hardest problem for me was hoisting out the for loop
+fetching texels from bitmap data. Since it atomically fetches 4 pixel data, it
+could really read from invalid memory, which is outside of the bitmap memory
+boundary.
+  A solution that emerged was clipping U and V. Then it is guaranteed to read
+from valid memory. But, it isn't the value we want to do math with and write to
+the screen buffer. And that's another problem. A solution for this is generating
+mask with SIMD comparison instructions. Whatever wrong values we read, as long as
+we read from valid memory, we will knock out the values from final pixel values
+with generated write-mask.
+  Sadly, it seems like there's no such thing like SIMD fetch. So, for loop for
+fetching texel will stay. What can I say?
+
+
+
+
+
+                            Theme 1. Asset System
+
+  "There's almost nothing to it in asset streaming." -Casey Muratori
+What are the considerations? First, the place where the game code and assets have to 
+agree on name of something. For example,
+            Bitmap *grassBitmap = LoadBitmap("grass_teal.bmp");
+is the line of code where the name "grassBitmap" and "grass_teal.bmp" binding
+occurs.
+  The engine must know also know what options does artist provide. Currently, 
+grass is array'd like
+                            Bitmap *grass[3];
+  Another problem we face here is that struct for the assets are statically
+reserved. We want to boil down to something smaller, or even nothing. We can 
+sneak in code that allocates memory for the struct inside bitmap loading routine 
+from the disk. Thus, a reserved piece shrinks down to sizeof(Bitmap) to 
+sizeof(Bitmap *);
+  I also want some kind of indirect approach to the asset. It is accessing the 
+data via pointer grass at this point. Maybe using enum, like ID_GRASS might work.
+  People tend to say writing background asset streaming system is hard. But, 
+casey says it isn't. Whether he is trippin' or not, there's only one way to
+find it out. Writing it myself.
+  What if at certain point, the bitmap we tryin to write ain't loaded yet? Should
+we stall the frame so our frame rate get hit? Or should we just not write it and 
+let the flicker appear to the users? Casey considers the first one always right.
+
+  - J. Blow
+  When OS has all the separate files, you are being more general, which often
+leads to be inefficient. Why do u want to pack asset files? In short,  OS tries
+to solve much general problem. They are not actually located near. Secondly, OS
+is very concerned with the fact that u might delete any of these files at any
+time. In the middle of deletion process, ur power might shut down and when ur
+power back up, it has to be able to salvage the data. More redundancy.
+Eliminate OS overhead of 1000~10000 files. Overhead is unpredictable across 
+platforms. You want to be in control as much as possible.
+
+  "This is actually a very true thing across all software development: When u r
+solving a specific problem u can often be very efficient, and when u r solving 
+a general problem u often can't be very efficient." -John Blow 2022
+
+  Create is allowed to be messy. Load will be clean.
+
+
+
+
+
+                            Theme 2. Particle System
+
+  Unlike the character, sometimes, phenomenon like liquids, gas, mist has no shape.
+Amorphous phenomenon has no actual pieces.
+  Emitter is some kind of shape who's job is to emit particles. Has parameter like
+what shape it is, where do particles start, etc.
+  Looks like randomness is necessary for good looking particle system. The more
+entrophy you pack in, may look more interesting. How can we implement "random"?
+  Jonawthan Blow once said that interpolating paticles in RGB leads to results 
+that are dull and muddy. According to Casey, transforming to HSV is pretty cheap 
+and worth it. For now, we'll just stick with RGB.
+
+2A. Random
+  First, generated random table from web and copy-pasta to my random table array.
+According to Casey's experience, you never want people to grab random numbers.
+You want people to have a "handle" to random series, so you can track according
+random stream. There might be a random stream which actually produces a random
+number. Particle systems might use it. Also, you might want a random stream
+to generate same number among multiple users' machine.
+
+
+2B. Lagrangian Method vs Eulerian Method
+  Lagrnagian Method is bad at handling density, meaning dealng with volumetric
+simulation, you have disadvantage. You can actually combine two schemes. How 
+would that work? Eulerian grid method is mainly for incompressible fluid.
+
+
+
+
+                                Theme 3. Font
+
+Character Set Encoding
+    ASCII / ANSI
+    
+    For example, the symbol for meat(肉) in Chinese has no encoding in ASCII.
+    256(8 bits) glyphs are all you will get out of ASCII.
+    Even in a basic situation, you need at least 3000 symbols in Chinese lettering.
+    
+    Recently, moved to UNICODE, encoding drastically more characters.
+    UTF-16 -> UTF-8
+    UTF-8 is a variable-length encoding. It is 8 bit character, but can double up the
+    character and chain them.
+
+Unicode
+    Pros :)
+    All glyphs have found their home. A single font can describe all of the symbols
+    human has ever used.
+    
+    Cons :(
+    You are stuck with that giant encoding. 16 million is way too big. Most of them
+    will be 0. Universally describing any language is pretty darn nasty.
+    
+    "Code Point" refers to the numerical slot that has been reserved for
+    particular glyph.
+
+
+Basic Typography
+    "gh" -> 'g' has a descender, while 'h' has an ascender. How does character glyph
+    relate to the basline? What is the maximum descender height? What is the 
+    maximum ascender height? Those are considerations in typography.
+    
+    <Mono or Mono-Spaced> -> old school terminal, typewriter.
+    Spaces are consistent. Looks dumb.
+                                vs
+    <Proportional>
+    Naive: Constant spacing for each letter.
+    Problem: "ij" can be closer than "gj".
+    The point being, the distance between letters heavily depend on the "pair" of
+    letters.
+    
+    "Kerning" typically refers to the delta between the normal spacing and
+    pair spacing.
+    
+    e.g.
+    A|B|Kerning
+    ------------
+    g|j|  -5
+    
+    If u are trying to make fonts that appear very tiny, there may be things
+    you might want not to do. "Hints" offer those info.
+
+
+Font Rendering
+    option1) Load TTF -> Turn in to triangles (Tessellation) and get outlined-
+      version of it. There's a caveat in it.
+      'S' -> have to pick some degree of fidelity of curves.
+    
+    option2) Load TTF -> Implicit Rasterization = Is pixel in a shape or not? 
+      Works in any resolution. Always, perfectly smooth curve. 99.9999%... it is an
+      overkill. Most games know their target resolution and font size.
+    
+    option3) Prerasterized Fonts ★★★
+      Build bitmaps that capture the font at certain resolution, like 1920x1080.
+      We will simply blt from the bitmap. No matter how complicated the glyph is,
+      no big change in performance. If you are in US, no worry about LICENSE for
+      this method. Other methods are technically software. There was a ruling that
+      says font files are instructions to computer on how to generate font in any
+      resolution, that is copywritable as "SOFTWARE". Font is still not copywritable.
+      If you were to trace your own outline, that is legal. Resulting font shape is
+      not copywritable. It's just an image.
+    
+    Font may be colored in fly. It can be monochrome which is 8-bit value, how much
+    coverage was.
+    
+    To sum it up, we need
+        Captured Font + Code Points + Rect Positioning Info + Kerning Table
+    
+    
+    Gonna use STB Library to bake font bitmaps.
+    Create by 'S'ean 'T'. 'B'arrett
+    
+    We'll use stb_truetype.h
+    They are sensibly made, integrates very cleanly.
+
+
+
+
+                            Theme 4. Debug Infrastructure
+
+Why?
+    Coax bugs to the surface. Locate bugs that are clearly present but difficult 
+    to pinpoint.
+
+Log
+    It isn't all about useless UNIX cluster-texts.
+    - Performance Counter Log
+    - Frame Recording & Jump
+    - Memory Consumption
+    - Diagrams: You can immediately see stuff trivially, instead of janky MS
+      watch window.
+
+
+
+
+                            Theme 5. Sorting Render Group
+
+Bubble Sort
+Merge Sort
+Radix Sort
+Quick Sort
+Insertion Sort
+Stable Sort
+etc.
+
+
+
+
+                                Theme 6. GPU/OpenGL
+
+CPU packs commands in the buffer and transmitted to GPU through PCI bus. GPU 
+actually executes those commands, not CPU. CPU just tells it to do so.
+
+open32.lib is just a point to link to OS services. It will either lead straight 
+to the driver or OS first and then driver.
+
+Dedicated 3d acceleration hardware is built-in these days.
+
+For all this time, Windows has been moving CPU rendered bitmap in the main 
+memory (16GB) to GPU's memory(1GB) silently. Then GPU has been encoding data to 
+HDMI/DVI format and sending to screen. It ain't always the case. This is the
+case when CPU and GPU are on separate card. Typical mobile setup share one bank
+of memory. Integrated Intel Skylake chips too.
+
+
+          CPU --- System Ram ----------- Graphics Ram --- GPU
+                               PCI bus
+
+So there's a speed hit when transferring between two sections. It's more about 
+latency. It isn't so much about bandwidth. It's like a very big pipe that is 
+very long.
+
+So why can't CPU do all the work? It is about a tradeoff in terms of memory 
+architectures and instruction architectures. CPU and GPU started very different
+in pre-millennium era. They are getting similar over the years. CPU was about 
+single thread fast heterogenous SISD. A huge amount of general stuff has been 
+crafted into GPU, and a huge amount of PERF specific stuff has been crafted into
+CPU. Both CPU and GPU are now set up to do both things.
+
+We don't necessarily know the exact GPU architecture, cuz NVIDIA won't tell us. 
+Basically, GPU consists of tons of ALUs. Unlike CPU is 4 or 8-wide, GPU is more
+like 16 or 32-wide.
+
+            CUDA core = GPU cores * width of ALU * number of ALUs
+
+don't be a fool. It's ridiculous.
+
+GPUs are designed to execute shader code which pretty much looks like a CPU code 
+16 or 32-wide. GPUs aren't set up to do CPUs' specialized random accessing memory,
+jumps, executing branched code, etc. They are made to do much more coherent code.
+It depends on parallelism.
+
+GPU rendering is pretty much like our software-rendering code. It masks out 
+untouched pixel from triangles. So how does 'if' work in GPU then? There's no 
+such thing as a branch not taken in GPU world. Loops are the same. They loop until
+the very last guy tests for the loop.
+
+Warp is a 16 or 32 guys who are in together. They are gonna go through loops 
+and branches all together always. To sum it up, GPUs are very 'masky', very 'wide'.
+
+There's a concept called 'mapped'. A portion of CPU side system RAM is mapped to
+GPU side graphics RAM. These days, GPU has a so called 'copy engine', a
+DMA controller. They take instructions to grab memory from system RAM. So, 
+'mapped' in nowadays ends up meaning putting something in a range of memory so 
+that the GPUs' copy engines can see and get. So when the GPU tries to grab a 
+memory, the memory better be in RAM, not virtual disk memory, at least. So, it 
+locks down the memory in the RAM until GPU reads it and confirms that it no 
+longer needs it. So, the concept tends to end up being a lot less about thinking 
+of in terms of shared memory like synchronization between it, and more about 
+transfers where we lock the memory in system side and tell the GPU to read from 
+it or write to it. So how are we gonna tell the GPU what to do? You start off 
+by taking some chunk of a system RAM, lock it down, put a known binary structured 
+thing that has pointers to other locked down pieces of memory, and GPU is 
+insructed to read from the top of that and do what is says. And this particular
+piece of memory is called "Push Buffer".
+
+
+
+        -------------------
+        Game Code
+        calls opengl32.dll
+        -------------------
+
+        Push Buffer (Command Buffer)
+
+
+
+        --------------------
+        opengl32.dll
+        dynamically linked
+        -------------------
+
+
+We have to call into opengl, direct3d, vulkan... whatever because we don't know
+the format of the buffer. We can't build it up manually. We have to call into
+that to construct a push buffer. Then at some point, we trust that the driver 
+will take the ring transition and kick it off.
+
+It gets handed off the PCI bus over the GPU and it will do the work while we do
+other things. We don't wait. That is a nutshell.
+
+Like in raspberry-pi or something, in a hardware we know the exact hardware 
+configuration of it, and we have the docs and everything, we could do the low-
+level version, where u know the format of push buffer. You know how ring 0 stuff
+does the work. But in PC, there's no way you can write it yourself.
+
+Those are the reasons why putting a triangle on your screen takes cubersome 
+steps. WE NEED ONE BEEEEFY CPU. AND FCK U NVIDIA.
+
+
+Q. What about Play Station architecture? They are like integrated Intel chips, 
+so they can short-circuit things. It is certainly a better architecture.
+
+Q. How do graphcis driver optimize for specific games?
+Driver writers will take a look at the game, what does it call, what does it do,
+and optimize things for the game. It will optimize things before it kicks off to
+GPU.
+
+Q. Why GDDR? You remember fetching memory for each 4 lanes in software render
+code? That's because the system memory architecture doesn't match with the 
+SIMD code. That's why GPU has it's own arthitectured memory so they can do it
+at one go.
+
+
+
+
+Geometry -> Vertex -> Pixel -> (*)
+
+this (*) stage is not really programmable in these days, where Blending belongs.
+Fixed Function is the way to perform blending.
+
+
+
+Nvidia --> EXT (multi-vendor) --> ARB (Architecture Review Board) says we want
+this want to be permanent part of openGL forward. --> Integrate to openGL 
+
+
+            (x, y, z Object Coordinates) --> (Projection Matrix) --> 
+    (Bilateral -1 ~ 1 Normalized Device Coordinates) --> glViewPort() -->
+                       (0~w, 0~h Window Coordinates)
+
+   Model Matrix is an artifact. You can say Projection Matrix just a matrix.
+
+
+
+                                Theme 7. 3D
+
+History
+  Pre-Quake games used sorting which overdrawing was a problem. So they 
+  sub-divided the portion of an entity to be drawn. But, when the primitive got 
+  smaller to about 3x3 pixel-size, calculation to dodge overdrawing cost more 
+  than overdrawing. Then, Quake used Z-buffer for drawing characters, not the 
+  world.
+
+Z-Buffer
+  It's more correctly called 'Depth Buffer', becuase it has really nothing to do
+  with Z coordinate. It's just about how 'deep' into the screen something is.
+  Framebuffer really doesn't care about alpha channel addition to our RGB, and
+  we will augment a buffer. It looks like below.
+
+        |R|G|B|A|  |Depth|Stencil|
+         8 8 8 8     24      8           
+
+  It will test per pixel to figure out whether or not something should be in
+  front of something. Therefore, it is order-independent. Drawing intersecting
+  objects become easy.
+
+  Stencil is a binary concept. If a stencil is equal to something, draw. Drawing
+  ciruclar outlined UI becomes easy.
+
+Caveat
+  There is one nasty problem comes along with it, 'Blending'. The problem here 
+  is that Blending is not order-independent.
+
+  Pure Lunacy Solution.
+    'Atomics' (Frame Buffer). Really the reason we have the problem is that, 
+    we are not sorting. We will store a linked list of RGBAZs per pixel where 
+    every time I add to a pixel, I add to a chain. So if there are 8 things
+    overlapping the pixel, there will be 8 nodes chained in the pixel. Then, I
+    write a 'shader' that does a resolution of that buffer. It sorts linked-
+    lists of every pixel. Obviously, there is a huge cost to it. To reduce some
+    cost, we can first draw opaque objects first, then objects with 
+    tranaparency whose pixels will be chained as a linked list. It is totally up
+    to shader, which means, it is totally up to you. Shaders are incredibly
+    complicated and powerful these days. They can pretty much do things you
+    could do in C code.
+
+  Z-Prepass.
+    Overdrawing?
+    Turn off the expensive cool super light shaders, then compute the final z
+    for the pixel first. Then when z == z, we will draw that. What that means is,
+    I will never draw a pixel if it's not a final one that I will see so that I
+    am smart enough to early out.
+
+
+
+
+                                Theme 8. Lighting
+
+  Ain't gonna simulate billions of photons in a scene. Pixar, Adobe, Maxwell, 
+  those can wait for hour to render super-realistic scenes. For games, it is 
+  not the case. It must be responsive.
+
+  Photons do not deem along a line! This is crucial. Degree of brightness you 
+  perceive is an amount of photons that hit your eye. Photon itself that goes 
+  along the line doesn't get stronger or weaker.
+
+  Given that,
+                               (Brightness = Count)
+  How many photons are gonna hit an eye away a mile from the post and an eye 
+  away two miles from the post each? Unless the lightsource is a perfect laser,
+  the amount will differ.
+
+  Consider an eye consists of a lens and a retina cells. The idea of a 
+  lens is to take a "cone" of light, instead of a "point" of light. That's why 
+  you use a lens. As the lens get further away from the light source, photons 
+  get spreaded in relatively larger area. "Inverse Square Law" is what it is. 
+  Again, a photon doesn't get weaker. It is about an integration of photons.
+
+  Direct view of a light is constant from any reasonable distance. The only way 
+  is to get so far away from it that your retina cells are no longer at a 
+  specific resolution to pick up the photons. The reason for that is the 
+  projection of the size of the light is exactly the inverse equation of the 
+  photon projection equation that spreading out the photons. They perfectly 
+  cancel.
+
+  In the real world, photons hits something in the air and scatter. This is 
+  called, "Participating Media". But it doesn't necessarily mean that those 
+  media will make the perceived light dimmer.
+
+
+END

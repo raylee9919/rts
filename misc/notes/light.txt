@@ -1,0 +1,47 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                    Lights
+
+
+1. Forward Rendering
+
+Traditionally, consists of 
+                        Opaque Pass -> Transparent Pass
+
+
+
+
+2. Deferred Shading
+
+:) Calculation on only displayed pixel. ~2500 dynamic lights in modern hardware.
+:( Only opqaue objects. e.g. Opaque object behind the transparent one.
+   Can only store one value per pixel. Limits on materials.
+
+            Geometry Pass -> Lighting Pass -> Transparent Pass
+
+
+
+
+3. Forward+ (Tiled Forward Shading)
+
+    Depth Prepass -> Light Culling Pass -> Opaque Pass -> Transparent Pass
+
+
+
+
+
+Lightmaps, Light Probes work for static lights.
