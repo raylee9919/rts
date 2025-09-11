@@ -103,7 +103,7 @@ update_console(Console *console, Game_State *game_state, Input *input)
             console->cbuf[--console->cbuf_at] = 0;
         }
         if (toggled_down_or_repeated(input, KEY_SPACE) &&
-            console->cbuf_at < arraycount(console->cbuf) - 1) 
+            console->cbuf_at < array_count(console->cbuf) - 1) 
         {
             console->cbuf[console->cbuf_at++] = ' ';
             console->cbuf[console->cbuf_at] = 0;
@@ -139,7 +139,7 @@ update_console(Console *console, Game_State *game_state, Input *input)
         }
 
         for (u8 key = KEY_A; key <= KEY_Z; ++key) {
-            if (console->cbuf_at >= arraycount(console->cbuf) - 1)
+            if (console->cbuf_at >= array_count(console->cbuf) - 1)
                 break;
 
             if (toggled_down_or_repeated(input, key)) {
@@ -155,7 +155,7 @@ update_console(Console *console, Game_State *game_state, Input *input)
         }
 
         for (u8 key = KEY_0; key <= KEY_9; ++key) {
-            if (console->cbuf_at >= arraycount(console->cbuf) - 1)
+            if (console->cbuf_at >= array_count(console->cbuf) - 1)
                 break;
 
             if (toggled_down_or_repeated(input, key)) {

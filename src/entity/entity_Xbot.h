@@ -161,7 +161,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             dst_cen*=0.333333f;
 
             f32 *euclidian_dist = (f32 *)malloc(sizeof(f32)*cdt->numtri);
-            SCOPE_EXIT(free(euclidian_dist));
+            scope_exit(free(euclidian_dist));
             for (int u = 0; u < cdt->numtri; ++u) {
                 v3 ucen = {};
                 for (int i = 0; i < 3; ++i)
@@ -172,7 +172,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             }
 
             Pair<f32, int> *dist = (Pair<f32, int> *)malloc(sizeof(Pair<f32, int>)*cdt->numtri);
-            SCOPE_EXIT(free(dist));
+            scope_exit(free(dist));
             for (int i = 0; i < cdt->numtri; ++i) {
                 dist[i].x = F32_MAX;
                 dist[i].y = i;
@@ -223,7 +223,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                 int u = dist[v].y;
                 int euv = cdt_edge(cdt->adj, u, v);
 
-                Assert(tmp_portal_count < arraycount(tmp_portals));
+                Assert(tmp_portal_count < array_count(tmp_portals));
                 tmp_portals[tmp_portal_count++] = {u, euv};
             }
 
@@ -232,7 +232,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             e->portal_count = 0;
 
             // @NOTE: Add src as a portal at the beginning.
-            Assert(e->portal_count < arraycount(e->portals));
+            Assert(e->portal_count < array_count(e->portals));
             e->portals[e->portal_count++] = Nav_Portal{{-1, e->position}, {-1, e->position}};
 
             for (int portal_index = tmp_portal_count - 1; portal_index >= 0; --portal_index) {
@@ -277,12 +277,12 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                 v3 left_point  = c + h1 * e->radius;
                 v3 right_point = d + h2 * e->radius;
 
-                Assert(e->portal_count < arraycount(e->portals));
+                Assert(e->portal_count < array_count(e->portals));
                 e->portals[e->portal_count++] = Nav_Portal{{left_point_index, left_point}, {right_point_index, right_point}};
             }
 
             // @NOTE: Add dst as a portal at the end.
-            Assert(e->portal_count < arraycount(e->portals));
+            Assert(e->portal_count < array_count(e->portals));
             e->portals[e->portal_count++] = Nav_Portal{{-1, p}, {-1, p}};
 
 
@@ -466,13 +466,13 @@ internal ENTITY_FUNCTION_DRAW(draw_Xbot)
 
         if (commands->draw_navmesh) {
             for (size_t i = q->front;
-                 i < (q->front + q->count) % arraycount(q->data);
-                 i = (i+1)%arraycount(q->data)) {
+                 i < (q->front + q->count) % array_count(q->data);
+                 i = (i+1)%array_count(q->data)) {
 
                 //push_mesh(render_group, game_state->game_assets->sphere_model->meshes, scale(translate(identity(), q->data[i]), V3(0.2f)), 0, 0, v2{1,1});
 
-                if (i != (q->front + q->count - 1) % arraycount(q->data)) {
-                    draw_line(render_group, q->data[i], q->data[(i+1)%arraycount(q->data)], v4{1,0,1,1});
+                if (i != (q->front + q->count - 1) % array_count(q->data)) {
+                    draw_line(render_group, q->data[i], q->data[(i+1)%array_count(q->data)], v4{1,0,1,1});
                 }
             }
 

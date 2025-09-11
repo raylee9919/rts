@@ -44,7 +44,7 @@ struct Camera : public Entity
         F            = _F;
         following    = _following;
 
-        Assert(world->camera_count < arraycount(world->cameras));
+        Assert(world->camera_count < array_count(world->cameras));
         world->cameras[world->camera_count++] = this;
 
         update      = update_Camera;

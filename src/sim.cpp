@@ -18,7 +18,7 @@ push_entity_(World *world, Memory_Arena *arena, umm size, v3 position)
     entity->orientation = Quaternion{1,0,0,0};
     entity->scaling     = v3{1,1,1};
 
-    Assert(world->entity_count < arraycount(world->entities));
+    Assert(world->entity_count < array_count(world->entities));
     world->entities[world->entity_count++] = entity;
 
     return entity;

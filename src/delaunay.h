@@ -236,14 +236,14 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     int count = (int)vertexcount;
 
     int *VIDX = (int *)malloc(sizeof(int)*count);
-    SCOPE_EXIT(free(VIDX));
+    scope_exit(free(VIDX));
     for (int i = 0; i < count; ++i) VIDX[i] = i;
 
     int *BIN = (int *)malloc(sizeof(int)*count);
-    SCOPE_EXIT(free(BIN));
+    scope_exit(free(BIN));
 
     v2 *positions = (v2 *)malloc(sizeof(v2)*(count+3));
-    SCOPE_EXIT(free(positions));
+    scope_exit(free(positions));
     for (int i = 0; i < count; ++i) {
         positions[i].x = vertices[i].position.z;
         positions[i].y = vertices[i].position.x;
@@ -301,24 +301,24 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     int maxnumtri = 2*(count+3);
 
     int (*tri)[3] = (int (*)[3])malloc(3*sizeof(int)*maxnumtri);
-    SCOPE_EXIT(free(tri));
+    scope_exit(free(tri));
     tri[0][0] = count-3;
     tri[0][1] = count-2;
     tri[0][2] = count-1;
 
     int (*adj)[3] = (int (*)[3])malloc(3*sizeof(int)*maxnumtri);
-    SCOPE_EXIT(free(adj));
+    scope_exit(free(adj));
     adj[0][0] = -1;
     adj[0][1] = -1;
     adj[0][2] = -1;
 
     s32 *trespassable = (s32 *)malloc(sizeof(s32)*maxnumtri);
-    SCOPE_EXIT(free(trespassable));
+    scope_exit(free(trespassable));
     for (int i = 0; i < maxnumtri; ++i) trespassable[i] = 1;
 
     int maxstk = (count-3);
     int *ts = (int *)malloc(maxstk*sizeof(int)); // @NOTE: Sloan suggests #point is good enough for 10,000. Assertion required.
-    SCOPE_EXIT(free(ts));
+    scope_exit(free(ts));
     int top = -1;
 
     int numtri = 1;
@@ -463,25 +463,25 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
     if (navmesh->constrain_count > 0) {
         int *tl = (int *)malloc(sizeof(int)*count*numtri);
-        SCOPE_EXIT(free(tl));
+        scope_exit(free(tl));
 
         int *tlcount = (int *)malloc(sizeof(int)*count);
-        SCOPE_EXIT(free(tlcount));
-        zeroarray(tlcount, count);
+        scope_exit(free(tlcount));
+        zero_array(tlcount, count);
 
         // Itersecting edges.
         int ielen = count*3;
         int (*ie)[2] = (int (*)[2])malloc(2*sizeof(int)*ielen);
         int ielo = 0;
         int iehi = 0;
-        SCOPE_EXIT(free(ie));
+        scope_exit(free(ie));
 
         // New edges.
         int nelen = count*3;
         int (*ne)[2] = (int (*)[2])malloc(2*sizeof(int)*nelen);
         int nelo = 0;
         int nehi = 0;
-        SCOPE_EXIT(free(ne));
+        scope_exit(free(ne));
 
         // Build triangle-list per vertex.
         int tlpitch = numtri;
@@ -790,12 +790,12 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
         // @NOTE: Make a hole.
         bool *visited = (bool *)malloc(sizeof(bool) * numtri);
-        SCOPE_EXIT(free(visited));
+        scope_exit(free(visited));
 
         // For each constrain polygon,
         for (u32 constrain_idx = 0; constrain_idx < navmesh->constrain_count; ++constrain_idx) {
             Nav_Constrain *constrain = navmesh->constrains + constrain_idx;
-            zeroarray(visited, numtri);
+            zero_array(visited, numtri);
             Queue<int> queue = {};
 
             // For each constrain edges,
@@ -867,11 +867,11 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
     // @NOTE: Remove triangles including super-triangle's vertex.
     bool *rmflag = (bool *)malloc(sizeof(bool)*numtri);
-    SCOPE_EXIT(free(rmflag));
-    zeroarray(rmflag, numtri);
+    scope_exit(free(rmflag));
+    zero_array(rmflag, numtri);
 
     int *trimap = (int *)malloc(sizeof(int)*numtri);
-    SCOPE_EXIT(free(trimap));
+    scope_exit(free(trimap));
 
     int result_numtri = numtri;
     for (int ti = 0; ti < numtri; ++ti) {

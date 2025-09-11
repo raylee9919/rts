@@ -2,8 +2,8 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 #define KB(X) (   X *  1024ll)
@@ -17,7 +17,7 @@
 static void *
 malloc_internal(umm size) {
     void *result = malloc(size);
-    zerosize(result, size);
+    zero_size(result, size);
     return result;
 }
 

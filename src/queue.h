@@ -21,16 +21,16 @@ T dequeue(Queue<T> *q) {
     Assert(q->count > 0);
 
     T result = q->data[q->front++];
-    q->front = (q->front) % arraycount(q->data);
+    q->front = (q->front) % array_count(q->data);
     --q->count;
     return result;
 }
 
 template<typename T>
 void enqueue(Queue<T> *q, T item) {
-    Assert(q->count < arraycount(q->data));
+    Assert(q->count < array_count(q->data));
 
-    size_t idx = ((q->front + q->count) % arraycount(q->data));
+    size_t idx = ((q->front + q->count) % array_count(q->data));
     q->data[idx] = item;
     ++q->count;
 }

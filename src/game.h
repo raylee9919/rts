@@ -13,12 +13,8 @@ struct Entity;
 
 #define MAX_ENTITY_COUNT 1024
 
-struct Animation_Channel {
-    Animation *animation;
-    f32 dt;
-};
-
-struct World {
+struct World 
+{
     Entity *entities[MAX_ENTITY_COUNT];
     u32 entity_count;
 
@@ -28,79 +24,8 @@ struct World {
     u32 next_entity_id;
 };
 
-struct Kerning {
-    u32         first;
-    u32         second;
-    s32         value;
-    Kerning     *prev;
-    Kerning     *next;
-};
-struct Kerning_List {
-    Kerning     *first;
-    Kerning     *last;
-    u32         count;
-};
-struct Kerning_Hashmap {
-    Kerning_List entries[1024];
-};
-
-internal  u32
-kerning_hash(Kerning_Hashmap *hashmap, u32 first, u32 second) 
+struct Game_Assets 
 {
-    // @TODO: better hash function.
-    u32 result = (first * 12 + second * 33) % arraycount(hashmap->entries);
-    return result;
-}
-
-internal void
-push_kerning(Kerning_Hashmap *hashmap, Kerning *kern, u32 entry_idx) 
-{
-    Assert(entry_idx < arraycount(hashmap->entries));
-    Kerning_List *list = hashmap->entries + entry_idx;
-    if (list->first) {
-        list->last->next = kern;
-        kern->prev = list->last;
-        kern->next = 0;
-        list->last = kern;
-        ++list->count;
-    } else {
-        list->first = kern;
-        list->last = kern;
-        kern->prev = 0;
-        kern->next = 0;
-        ++list->count;
-    }
-}
-
-internal s32
-get_kerning(Kerning_Hashmap *hashmap, u32 first, u32 second) 
-{
-    s32 result = 0;
-    u32 entry_idx = kerning_hash(hashmap, first, second);
-    Assert(entry_idx < arraycount(hashmap->entries));
-    for (Kerning *at = hashmap->entries[entry_idx].first; at; at = at->next) {
-        if (at->first == first && at->second == second) {
-            result = at->value;
-        }
-    }
-    return result;
-}
-
-struct Asset_Font {
-    u32             v_advance;
-    f32             ascent;
-    f32             descent;
-    f32             max_width;
-    Kerning_Hashmap kern_hashmap;
-    Asset_Glyph     *glyphs[256];
-    Kerning kernings[4096];
-
-    // @Temporary
-    Buffer buffer;
-    u64 writetime;
-};
-
-struct Game_Assets {
     Bitmap debug_bitmap;
 
     Asset_Font debug_font;
@@ -126,13 +51,15 @@ struct Game_Assets {
     Animation *xbot_attack;
 };
 
-enum Game_Mode {
+enum Game_Mode 
+{
     Game_Mode_Editor,
     Game_Mode_Game,
     Game_Mode_Menu,
 };
 
-struct Game_State {
+struct Game_State 
+{
     b32 initted;
 
     b32 editor_initted;
@@ -172,15 +99,11 @@ struct Game_State {
     Platform_Work_Queue *low_priority_queue;
     Work_Memory_Arena work_arenas[4];
 
-    b32 explorer;
-    char explorerpath[256];
-    Platform_File_List filelist;
-    b32 filelist_changed;
-
     Navmesh navmesh;
 };
 
-struct Load_Asset_Work_Data {
+struct Load_Asset_Work_Data 
+{
     Game_Assets         *game_assets;
     Memory_Arena        *assetArena;
     Asset_ID            assetID;

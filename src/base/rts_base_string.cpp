@@ -137,6 +137,6 @@ internal void
 copyz(char *src, char *dst) 
 {
     umm len = string_length(src);
-    copy_array(src, dst, len);
+    memory_copy(dst, src, len);
     src[len] = 0;
 }

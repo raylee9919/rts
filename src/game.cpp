@@ -14,32 +14,27 @@
 #define END_ENTITY
 
 // @Note: [.h]
-#include "rts_core.h"
-#include "rts_memory.h"
-#include "rts_string.h"
+#include "base/rts_base_inc.h"
 #include "rts_math.h"
 #include "rts_random.h"
 #include "rts_color.h"
-#include "rts_animation.h"
+#include "rts_asset.h"
+
 #include "intrinsics.h"
 #include "stack.h"
 #include "queue.h"
 #include "priority_queue.h"
-#include "asset.h"
 #include "input.h"
 #include "platform.h"
 #include "ui.h"
 Platform_Api os;
 Ui ui;
 #include "profiler.h"
-#include "model.h"
+
 #include "delaunay.h"
 #include "nav.h"
 #include "game.h"
 
-#include "asset_define.h"
-#include "asset.cpp"
-#include "animation.cpp"
 #include "renderer.h"
 #include "renderer.cpp"
 #include "ui.cpp"
@@ -52,10 +47,10 @@ Ui ui;
 #include "debug.h"
 
 // @Note: [.cpp]
-#include "rts_memory.cpp"
-#include "rts_string.cpp"
+#include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
 #include "rts_random.cpp"
+#include "rts_asset.cpp"
 
 #define GROUND_RES 20
 
@@ -134,7 +129,7 @@ debug_update_game_speed(Debug_State *debug_state, Input *input)
     if (input->keys[KEY_LEFTCTRL].is_down) {
         Debug_State *ds = debug_state;
         if (toggled_down(input, KEY_EQUAL) &&
-            ds->current_speed_idx < arraycount(ds->speed_slider) - 1) 
+            ds->current_speed_idx < array_count(ds->speed_slider) - 1) 
         {
             ++ds->current_speed_idx;
             ds->speed = ds->speed_slider[ds->current_speed_idx];
@@ -208,89 +203,6 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
 
 #include "map_loader.cpp"
 
-internal bool
-is_pathslash(char c) {
-    if (c == '/') return true;
-    if (c == '\\') return true;
-    return false;
-}
-
-internal char *
-getlastslash(char *path) {
-    umm len = string_length(path);
-    char *lastslash = path;
-    char *c = path;
-    for (int i = 0; i < len; ++i) {
-        if (is_pathslash(*c) && (i != len-1)) {
-            lastslash = c;
-        }
-        ++c;
-    }
-    return lastslash;
-}
-
-internal void
-uponedir(char *path) {
-    char *lastslash = getlastslash(path);
-    ++lastslash;
-    *lastslash++ = 0;
-}
-
-internal void
-downdir(char *path, char *dir) {
-    char *at = path + string_length(path);
-    umm len = string_length(dir);
-    if (!is_pathslash(*at))
-        *at++ = '/';
-    copyz(dir, at);
-    at += len;
-    *at = 0;
-}
-
-internal void
-foo(Game_State *gamestate)
-{
-    TIME_FUNCTION();
-    v4 color = V4(0.20f,0.20f,0.40f,0.5f);
-    v4 dircolor = V4(0.60f,0.20f,0.20f,0.5f);
-
-    Platform_File_List *list = &gamestate->filelist;
-
-    if (gamestate->filelist_changed) {
-        gamestate->filelist_changed = false;
-        gamestate->filelist = os.list_files(gamestate->explorerpath);
-    }
-
-    // UI 
-    ui.begin("File Lists", v2{0.5f, 0.5f});
-    for (u32 i = 0; i < gamestate->filelist.count; ++i) {
-        Platform_File_Info info = gamestate->filelist.infos[i];
-        Assert(info.type != TYPE_INVALID);
-        if (info.type == TYPE_FILE) {
-            if (ui.button(color, info.filename)) {
-                //ui.debugbitmap = load_image(&gamestate->asset_arena, info.filename); // @TODO: filename must be appended after the path.
-            }
-        } else if (info.type == TYPE_DIRECTORY) {
-            if (!(info.filename[0] == '.' && info.filename[1] == 0)) {
-                if (string_equal(info.filename, "..")) {
-                    if (ui.button(dircolor, "..")) {
-                        uponedir(gamestate->explorerpath);
-                        gamestate->filelist_changed = true;
-                    }
-                } else {
-                    if (ui.button(dircolor, info.filename)) {
-                        downdir(gamestate->explorerpath, info.filename);
-                        gamestate->filelist_changed = true;
-                    }
-                }
-            }
-        } else {
-            INVALID_CODE_PATH;
-        }
-    }
-    ui.end();
-}
-
 extern "C" // @main
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
@@ -304,9 +216,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     if (!game_state->initted) {
         game_state->initted = true;
-
-        os.get_working_directory(game_state->explorerpath, arraycount(game_state->explorerpath));
-        game_state->filelist_changed = true;
 
         init_arena(&game_state->total_arena, (u8 *)game_memory->total_memory + sizeof(Game_State), game_memory->total_memory_size - sizeof(Game_State));
 
@@ -329,7 +238,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         Memory_Arena *world_arena = &game_state->world_arena;
 
         game_state->mode = Game_Mode_Editor;
-        game_state->random_series = seed(1219);
+        game_state->random_series = rand_seed(1219);
         game_state->high_priority_queue = game_memory->high_priority_queue;
         game_state->low_priority_queue  = game_memory->low_priority_queue;
 
@@ -391,6 +300,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             load_animation(assets->xbot_attack, "skeleton_lord_attack", &game_state->asset_arena);
 
             load_font(&game_state->asset_arena, ASSET_FONT(noto_serif), &assets->debug_font);
+            load_font(&game_state->asset_arena, ASSET_FONT(noto_serif), &assets->console_font);
             load_font(&game_state->asset_arena, ASSET_FONT(gill_sans), &assets->menu_font);
             load_font(&game_state->asset_arena, ASSET_FONT(Karmina Regular), &assets->karmina);
 
@@ -432,16 +342,16 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             navmesh->vertex_size = 1000;
             navmesh->vertices = (Vertex *)malloc(sizeof(Vertex)*navmesh->vertex_size);
-            zeroarray(navmesh->vertices, navmesh->vertex_size);
+            zero_array(navmesh->vertices, navmesh->vertex_size);
 
             navmesh->constrain_size = 1000;
             navmesh->constrains = (Nav_Constrain *)malloc(sizeof(Nav_Constrain)*navmesh->constrain_size);
-            zeroarray(navmesh->constrains, navmesh->constrain_size);
+            zero_array(navmesh->constrains, navmesh->constrain_size);
             for (umm i = 0; i < navmesh->constrain_size; ++i) {
                 navmesh->constrains[i].edge_count = 0;
                 navmesh->constrains[i].edge_size = 1000;
                 navmesh->constrains[i].edges = (int (*)[2])malloc(sizeof(int)*2*navmesh->constrains[i].edge_size);
-                zerosize(navmesh->constrains[i].edges, sizeof(int)*2*navmesh->constrains[i].edge_size);
+                zero_size(navmesh->constrains[i].edges, sizeof(int)*2*navmesh->constrains[i].edge_size);
             }
 
             push_vertex(navmesh, v3{-50,0,-50});
@@ -594,14 +504,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 fclose(file);
                 ui.fadeout_text(V4(1.0f), "Save");
             }
-            if (ui.button(color, "File Explorer")) {
-                game_state->explorer = !game_state->explorer;
-            }
             ui.end();
-
-            if (game_state->explorer) {
-                foo(game_state);
-            }
 
             update_and_draw_entity_panel(game_state);
             // no update entities in editor mode.

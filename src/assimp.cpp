@@ -16,17 +16,14 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb_image.h"
 
-#include "rts_core.h"
-#include "rts_string.h"
+#include "base/rts_base_inc.h"
 #include "rts_math.h"
+#include "rts_asset.h"
 
 #include "assimp.h"
-#include "asset_define.h"
-#include "asset_model.h"
-#include "asset_animation.h"
 
 // @Note: [.cpp]
-#include "rts_string.cpp"
+#include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
 
 #define ASSIMP_PRINT_NODES              1
@@ -351,7 +348,7 @@ load_texture(aiMaterial *material, aiTextureType type)
         result->width  = x;
         result->height = y;
         result->pitch  = x*n;
-        copy(loaded_data, result->data, result->size);
+        memory_copy(result->data, loaded_data, result->size);
 
         stbi_image_free(loaded_data);
     }
@@ -585,7 +582,7 @@ create_output_animation_filepath(char *in_filepath, char *anim_name)
     }
     int filename_length = end - begin;
 
-    umm directory_length = arraycount(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_ANIMATION_DIRECTORY) + 1;
+    umm directory_length = array_count(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_ANIMATION_DIRECTORY) + 1;
     char *directory = malloc_array(char, directory_length);
     _snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_ANIMATION_DIRECTORY);
 
@@ -621,7 +618,7 @@ int main(void)
     Assimp::Importer importer;
     importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
-    for (u32 file_idx = 0; file_idx < arraycount(input_file_names); ++file_idx) 
+    for (u32 file_idx = 0; file_idx < array_count(input_file_names); ++file_idx) 
     {
         char *in_file_name = input_file_names[file_idx];
         const aiScene *model = importer.ReadFile(in_file_name, (aiProcess_Triangulate |
@@ -650,7 +647,7 @@ int main(void)
         hashmap.length = 500;
         hashmap.next_id = 0;
         hashmap.entries = malloc_array(Hash_Entry, hashmap.length);
-        zeroarray(hashmap.entries, hashmap.length);
+        zero_array(hashmap.entries, hashmap.length);
 
         //
         // Model

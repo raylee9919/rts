@@ -13,21 +13,21 @@
 
 #include <stdio.h>
 
+// -----------------------------------
 // @Note: [.h]
-#include "rts_core.h"
-#include "rts_memory.h"
-#include "rts_string.h"
+#include "base/rts_base_inc.h"
 #include "rts_math.h"
 #include "intrinsics.h"
-#include "asset.h"
-#include "model.h"
+
+#include "rts_asset.h"
+
 #include "input.h"
 #include "platform.h"
 #include "win32.h"
 
+// -----------------------------------
 // @Note: [.cpp]
-#include "rts_memory.cpp"
-#include "rts_string.cpp"
+#include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
 
 #include "win32_xinput.cpp"
@@ -418,7 +418,7 @@ Win32AddEntry(Platform_Work_Queue *Queue, Platform_Work_QueueCallback *Callback,
 {
     // TODO: Switch to InterlockedCompareExchange eventually
     // so that any thread can add?
-    u32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) % arraycount(Queue->Entries);
+    u32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) % array_count(Queue->Entries);
     Assert(NewNextEntryToWrite != Queue->NextEntryToRead);
     Platform_Work_QueueEntry *Entry = Queue->Entries + Queue->NextEntryToWrite;
     Entry->Callback = Callback;    Entry->Data = Data;
@@ -434,7 +434,7 @@ Win32DoNextWorkQueueEntry(Platform_Work_Queue *Queue)
     b32 shouldSleep = false;
 
     u32 OriginalNextEntryToRead = Queue->NextEntryToRead;
-    u32 NewNextEntryToRead = (OriginalNextEntryToRead + 1) % arraycount(Queue->Entries);
+    u32 NewNextEntryToRead = (OriginalNextEntryToRead + 1) % array_count(Queue->Entries);
     if (OriginalNextEntryToRead != Queue->NextEntryToWrite)
     {
         u32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToRead,
@@ -734,7 +734,7 @@ win32_unload_code(Win32_Loaded_Code *loaded)
     }
 
     loaded->is_valid = false;
-    zeroarray(loaded->functions, loaded->function_count);
+    zero_array(loaded->functions, loaded->function_count);
 }
 
 internal PLATFORM_GET_LAST_WRITE_TIME(win32_get_last_write_time_)
@@ -772,9 +772,9 @@ win32_build_exe_path_filename(Win32_State *state, char *filename, u32 unique, ch
     };
     String b = wrapz(filename);
     if (unique == 0) {
-        snprintf(dst, dst_count, "%.*s%.*s", (int)a.count, a.data, (int)b.count, b.data);
+        str_snprintf(dst, dst_count, "%.*s%.*s", (int)a.count, a.data, (int)b.count, b.data);
     } else {
-        snprintf(dst, dst_count, "%.*s%u%.*s", (int)a.count, a.data, unique, (int)b.count, b.data);
+        str_snprintf(dst, dst_count, "%.*s%u%.*s", (int)a.count, a.data, unique, (int)b.count, b.data);
     }
 }
 
@@ -926,7 +926,7 @@ PLATFORM_LIST_FILES(win32_list_files)
 
     umm len = string_length(path);
     char wildcard[MAX_PATH];
-    copy_array(path, wildcard, len);
+    memory_copy(wildcard, path, sizeof(*wildcard)*len);
     Assert(len + 2 < MAX_PATH);
     wildcard[len] = '/';
     wildcard[len+1] = '*';
@@ -963,13 +963,13 @@ PLATFORM_LIST_FILES(win32_list_files)
     return result;
 }
 
-#if __DEVELOPER
-int main()
+#if BUILD_DEBUG
+int main(int argc, char **argv) {
+    HINSTANCE hinst = GetModuleHandleA(0);
 #else
 int WINAPI
-WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) 
+WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
 #endif
-{
     Win32_State *state = &g_win32_state;
 
     win32_get_exe_filepath(state);
@@ -998,16 +998,13 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
 
 
 
-#if __DEVELOPER
-    HINSTANCE hinst = GetModuleHandleA(0);
-#endif
     HWND hwnd = win32_create_window(hinst);
 
     if (hwnd) 
     {
         state->default_window_handle = hwnd;
 
-#if !__DEVELOPER
+#if BUILD_RELEASE
         win32_toggle_fullscreen(hwnd);
 #endif
 
@@ -1019,7 +1016,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
         renderer_code.transient_dll_name = "renderer_temp.dll";
         renderer_code.dll_full_path = renderer_dll_path;
         renderer_code.lock_full_path = code_lock_path;
-        renderer_code.function_count = arraycount(win32_renderer_function_table_names);
+        renderer_code.function_count = array_count(win32_renderer_function_table_names);
         renderer_code.functions = (void **)&renderer_functions;
         renderer_code.function_names = win32_renderer_function_table_names;
         win32_load_code(state, &renderer_code);
@@ -1094,7 +1091,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
             game_code.transient_dll_name = "game_temp.dll";
             game_code.dll_full_path      = game_dll_path;
             game_code.lock_full_path     = code_lock_path;
-            game_code.function_count     = arraycount(win32_game_function_table_names);
+            game_code.function_count     = array_count(win32_game_function_table_names);
             game_code.functions          = (void **)&game;
             game_code.function_names     = win32_game_function_table_names;
 
@@ -1132,7 +1129,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
                             u8 slot      = win32_keycode_map[vk_code];
 
                             if (was_down != is_down) {
-                                if (event_queue.next_idx < arraycount(event_queue.events)) {
+                                if (event_queue.next_idx < array_count(event_queue.events)) {
                                     Event new_event = {};
                                     new_event.key = slot;
                                     if (is_down) {
@@ -1192,7 +1189,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
                 for (DWORD idx = 0; idx < XUSER_MAX_COUNT; idx++) 
                 {
                     XINPUT_STATE xinput_state;
-                    zerostruct(&xinput_state, XINPUT_STATE);
+                    zero_struct(&xinput_state);
                     result = xinput_get_state(idx, &xinput_state);
                     win32_xinput_handle_deadzone(&xinput_state);
                     if (result == ERROR_SUCCESS) {

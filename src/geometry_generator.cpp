@@ -81,13 +81,13 @@ generate_backfaced_cube(Mesh *mesh, Memory_Arena *arena, f32 scale)
         20,22,23,20,23,21
     };
 
-    u32 vertex_count = arraycount(vertices);
+    u32 vertex_count = array_count(vertices);
     mesh->vertex_count = vertex_count;
     mesh->vertices = push_array(arena, Vertex, vertex_count);
-    copy_array(vertices, mesh->vertices, vertex_count);
+    memory_copy(mesh->vertices, vertices, sizeof(*vertices)*vertex_count);
 
-    u32 index_count = arraycount(indices);
+    u32 index_count = array_count(indices);
     mesh->index_count = index_count;
     mesh->indices  = push_array(arena, u32, index_count);
-    copy_array(indices, mesh->indices, index_count);
+    memory_copy(mesh->indices, indices, sizeof(*indices)*index_count);
 }

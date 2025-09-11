@@ -34,7 +34,7 @@ toggled_down_or_repeated(Input *input, u8 idx) {
 internal void
 update_input_state(Input *input, Event_Queue *event_queue, f32 rdt) 
 {
-    for (u32 idx = 0; idx < arraycount(input->keys); ++idx) {
+    for (u32 idx = 0; idx < array_count(input->keys); ++idx) {
         Game_Key *key = input->keys + idx;
         input->keys[idx].toggled = false;
 

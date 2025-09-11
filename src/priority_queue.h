@@ -6,9 +6,6 @@
    $Notice: (C) Copyright 2025 by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-
-
-
 template<typename X, typename Y>
 struct Pair {
     union {
@@ -64,7 +61,7 @@ void heapifyUp(Priority_Queue<T> *pq, size_t index)
 template<typename T>
 void enqueue(Priority_Queue<T> *pq, T value)
 {
-    if (pq->size < arraycount(pq->items)) {
+    if (pq->size < array_count(pq->items)) {
         pq->items[pq->size++] = value;
         heapifyUp(pq, pq->size - 1);
     } else {

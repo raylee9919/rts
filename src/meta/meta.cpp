@@ -16,11 +16,10 @@
 namespace fs = std::filesystem;
 
 // @Note: [.h]
-#include "rts_core.h"
-#include "rts_string.h"
+#include "base/rts_base_inc.h"
 
 // @Note: [.cpp]
-#include "rts_string.cpp"
+#include "base/rts_base_inc.cpp"
 
 #define ENTITY_DIRECTORY "../src/entity"
 #define MAX_BUFFER_LENGTH 64 
@@ -114,7 +113,7 @@ char *entity_from_filepath(const char *filepath) {
     Assert(begin && end);
     unsigned int len = end - begin;
     result = new char[len + 1];
-    copy(begin, result, len);
+    memory_copy(result, begin, len);
     result[len] = 0;
 
     return result;
@@ -177,7 +176,7 @@ void begin_entity(Stream *stream) {
         int c = peek(stream);
         if (c == 'B') {
             char *buf = lex_identifier(stream);
-            SCOPE_EXIT(delete [] buf); // Works on early return too.
+            scope_exit(delete [] buf); // Works on early return too.
 
             if (string_equal(buf, "BEGIN_ENTITY")) {
                 return;
@@ -199,17 +198,17 @@ inline bool string_equals_float_type(char *string) {
 
 void parse_integer(Entity *entity, Stream *stream) {
     char *ident = lex_identifier(stream);
-    SCOPE_EXIT(delete [] ident);
+    scope_exit(delete [] ident);
 
     eat_whitespace(stream);
     int c = peek(stream);
     Assert(c == ';');
-    Assert(entity->membercount < arraycount(entity->members));
+    Assert(entity->membercount < array_count(entity->members));
     Entity_Member *member = entity->members + entity->membercount++;
 
     unsigned int len = string_length(ident);
-    Assert(len < arraycount(member->ident));
-    copy(ident, member->ident, len);
+    Assert(len < array_count(member->ident));
+    memory_copy(member->ident, ident, len);
     member->ident[len] = 0;
 
     member->type = TYPE_INTERGER;
@@ -217,17 +216,17 @@ void parse_integer(Entity *entity, Stream *stream) {
 
 void parse_float(Entity *entity, Stream *stream) {
     char *ident = lex_identifier(stream);
-    SCOPE_EXIT(delete [] ident);
+    scope_exit(delete [] ident);
 
     eat_whitespace(stream);
     int c = peek(stream);
     Assert(c == ';');
-    Assert(entity->membercount < arraycount(entity->members));
+    Assert(entity->membercount < array_count(entity->members));
     Entity_Member *member = entity->members + entity->membercount++;
 
     unsigned int len = string_length(ident);
-    Assert(len < arraycount(member->ident));
-    copy(ident, member->ident, len);
+    Assert(len < array_count(member->ident));
+    memory_copy(member->ident, ident, len);
     member->ident[len] = 0;
 
     member->type = TYPE_FLOAT;
@@ -235,17 +234,17 @@ void parse_float(Entity *entity, Stream *stream) {
 
 void parse_quaternion(Entity *entity, Stream *stream) {
     char *ident = lex_identifier(stream);
-    SCOPE_EXIT(delete [] ident);
+    scope_exit(delete [] ident);
 
     eat_whitespace(stream);
     int c = peek(stream);
     Assert(c == ';');
-    Assert(entity->membercount < arraycount(entity->members));
+    Assert(entity->membercount < array_count(entity->members));
     Entity_Member *member = entity->members + entity->membercount++;
 
     unsigned int len = string_length(ident);
-    Assert(len < arraycount(member->ident));
-    copy(ident, member->ident, len);
+    Assert(len < array_count(member->ident));
+    memory_copy(member->ident, ident, len);
     member->ident[len] = 0;
 
     member->type = TYPE_QUTERNION;
@@ -253,17 +252,17 @@ void parse_quaternion(Entity *entity, Stream *stream) {
 
 void parse_v3(Entity *entity, Stream *stream) {
     char *ident = lex_identifier(stream);
-    SCOPE_EXIT(delete [] ident);
+    scope_exit(delete [] ident);
 
     eat_whitespace(stream);
     int c = peek(stream);
     Assert(c == ';');
-    Assert(entity->membercount < arraycount(entity->members));
+    Assert(entity->membercount < array_count(entity->members));
     Entity_Member *member = entity->members + entity->membercount++;
 
     unsigned int len = string_length(ident);
-    Assert(len < arraycount(member->ident));
-    copy(ident, member->ident, len);
+    Assert(len < array_count(member->ident));
+    memory_copy(member->ident, ident, len);
     member->ident[len] = 0;
 
     member->type = TYPE_V3;
@@ -273,8 +272,8 @@ void fill(Entity_List *entitylist, Stream *stream) {
     Assert(entitylist->count < entitylist->capacity);
     Entity *entity = entitylist->entities + entitylist->count++;
     unsigned int len = string_length(stream->entityname);
-    Assert(len < arraycount(entity->name));
-    copy(stream->entityname, entity->name, len);
+    Assert(len < array_count(entity->name));
+    memory_copy(entity->name, stream->entityname, len);
     entity->name[len] = 0;
 
     if (string_equal(entity->name, "Entity")) {
@@ -292,7 +291,7 @@ void fill(Entity_List *entitylist, Stream *stream) {
             case 'u':
             {
                 char *buf = lex_identifier(stream);
-                SCOPE_EXIT(delete [] buf);
+                scope_exit(delete [] buf);
                 if (string_equals_integer_type(buf)) {
                     eat_whitespace(stream);
                     parse_integer(entity, stream);
@@ -302,7 +301,7 @@ void fill(Entity_List *entitylist, Stream *stream) {
             case 'f':
             {
                 char *buf = lex_identifier(stream);
-                SCOPE_EXIT(delete [] buf);
+                scope_exit(delete [] buf);
                 if (string_equals_float_type(buf)) {
                     eat_whitespace(stream);
                     parse_float(entity, stream);
@@ -312,7 +311,7 @@ void fill(Entity_List *entitylist, Stream *stream) {
             case 'v':
             {
                 char *buf = lex_identifier(stream);
-                SCOPE_EXIT(delete [] buf);
+                scope_exit(delete [] buf);
                 if (string_equal(buf, "v3")) {
                     eat_whitespace(stream);
                     parse_v3(entity, stream);
@@ -323,13 +322,13 @@ void fill(Entity_List *entitylist, Stream *stream) {
             {
                 if (c == 'E') {
                     char *buf = lex_identifier(stream);
-                    SCOPE_EXIT(delete [] buf);
+                    scope_exit(delete [] buf);
                     if (string_equal(buf, "END_ENTITY")) {
                         stop = true;
                     }
                 } else if (c == 'Q') {
                     char *buf = lex_identifier(stream);
-                    SCOPE_EXIT(delete [] buf);
+                    scope_exit(delete [] buf);
                     if (string_equal(buf, "Quaternion")) {
                         eat_whitespace(stream);
                         parse_quaternion(entity, stream);
@@ -584,7 +583,7 @@ void generate_entity_functions() {
     entitylist.count = 0;
     entitylist.capacity = 1024;
     entitylist.entities = new Entity[entitylist.capacity];
-    SCOPE_EXIT(delete [] entitylist.entities);
+    scope_exit(delete [] entitylist.entities);
 
     for (const auto &iter : fs::directory_iterator(ENTITY_DIRECTORY)) {
         const char *filepath = iter.path().generic_string().c_str();

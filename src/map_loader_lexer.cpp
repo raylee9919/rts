@@ -90,7 +90,7 @@ int peek_next_character(Lexer *lexer, int ahead = 0) {
 }
 
 void push_token(Lexer *lexer, Token token) {
-    Assert(lexer->token_count < arraycount(lexer->tokens));
+    Assert(lexer->token_count < array_count(lexer->tokens));
     lexer->tokens[lexer->token_count++] = token;
 }
 

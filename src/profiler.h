@@ -31,7 +31,7 @@ struct Profile_Block
 
     Profile_Block(const char *label, u32 index_)
     {
-        Assert(index_ < arraycount(g_profiler.anchors));
+        Assert(index_ < array_count(g_profiler.anchors));
         index = index_;
         Profile_Anchor *anchor = g_profiler.anchors + index;
         anchor->label = label;
@@ -55,7 +55,7 @@ cpu_cycle_to_ms(u64 cycle)
 internal void
 begin_profile()
 {
-    zerostruct(&g_profiler, Profiler);
+    zero_struct(&g_profiler);
     g_profiler.start_tsc = os.read_cpu_timer();
 }
 

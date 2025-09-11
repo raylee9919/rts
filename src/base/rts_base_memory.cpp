@@ -49,7 +49,7 @@ end_temporary_memory(Temporary_Memory *temporary_memory)
 {
     Memory_Arena *arena = temporary_memory->memory_arena;
     Assert(arena->used >= temporary_memory->used);
-    zerosize((u8 *)arena->base + temporary_memory->used, arena->used - temporary_memory->used);
+    zero_size((u8 *)arena->base + temporary_memory->used, arena->used - temporary_memory->used);
     arena->used = temporary_memory->used;
     Assert(arena->temp_count > 0);
     arena->temp_count--;

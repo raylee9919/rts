@@ -14,14 +14,13 @@
 #include <stdlib.h>
 
 // @Note: [.h]
-#include "rts_core.h"
-#include "rts_memory.h"
-#include "rts_string.h"
-#include "../asset.h"
+#include "base/rts_base_inc.h"
+#include "rts_math.h"
+
+#include "rts_asset.h"
 
 // @Note: [.cpp]
-#include "rts_memory.cpp"
-#include "rts_string.cpp"
+#include "base/rts_base_inc.cpp"
 
 global HDC hdc;
 global HBITMAP bitmap;
@@ -338,30 +337,30 @@ void parse(Parser *parser)
             break;
         }
 
-        Assert(parsed_font_count < arraycount(parsed_font_data));
+        Assert(parsed_font_count < array_count(parsed_font_data));
         Parsed_Font_Data *data = parsed_font_data + parsed_font_count++;
 
         eat_whitespace(parser);
         Token id = parse_line(parser);
-        copy_array(id.scratchbuffer, data->id, id.len);
+        memory_copy(data->id, id.scratchbuffer, id.len*sizeof(*id.scratchbuffer));
 
         eat_whitespace(parser);
         Token inputfilename = parse_line(parser);
         char inputfilepath[256];
         snprintf(inputfilepath, sizeof(inputfilepath), "%s%.*s", FONT_INPUT_DIRECTORY, inputfilename.len, inputfilename.scratchbuffer);
-        static_assert(arraycount(inputfilepath) <= arraycount(data->inputfilepath));
-        copy_array(inputfilepath, data->inputfilepath, arraycount(inputfilepath));
+        static_assert(array_count(inputfilepath) <= array_count(data->inputfilepath));
+        memory_copy(data->inputfilepath, inputfilepath, array_count(inputfilepath)*sizeof(*inputfilepath));
 
         eat_whitespace(parser);
         Token fontname = parse_line(parser);
-        copy_array(fontname.scratchbuffer, data->fontname, fontname.len);
+        memory_copy(data->fontname, fontname.scratchbuffer, fontname.len*sizeof(*fontname.scratchbuffer));
 
         eat_whitespace(parser);
         Token outputfilename = parse_line(parser);
         char outputfilepath[256];
         snprintf(outputfilepath, sizeof(outputfilepath), "%s%.*s", FONT_OUTPUT_DIRECTORY, outputfilename.len, outputfilename.scratchbuffer);
-        static_assert(arraycount(outputfilepath) <= arraycount(data->outputfilepath));
-        copy_array(outputfilepath, data->outputfilepath, arraycount(outputfilepath));
+        static_assert(array_count(outputfilepath) <= array_count(data->outputfilepath));
+        memory_copy(data->outputfilepath, outputfilepath, array_count(outputfilepath)*sizeof(*outputfilepath));
 
         eat_whitespace(parser);
         int fontsize = parse_integer(parser);

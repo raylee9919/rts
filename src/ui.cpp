@@ -73,7 +73,7 @@ void Ui::begin(char *label, v2 top_left_, b32 attachanchor)
 {
     if (attachanchor) {
         u32 id = crc32_hash(label, crc32_lut);
-        umm index = ui_hash(id) % arraycount(hashmap.entries);
+        umm index = ui_hash(id) % array_count(hashmap.entries);
         Ui_Element *element = hashmap.entries + index;
         for (;;) {
             if (element->id == id) {
@@ -185,7 +185,7 @@ void Ui::fadeout_text(v4 color, char *text)
     fadeout_texts[next_fadeout_text].t = UI_FADEOUT_TEXT_SET_TIME;
     fadeout_texts[next_fadeout_text].text = text;
     fadeout_texts[next_fadeout_text].color = color;
-    next_fadeout_text = (next_fadeout_text + 1) % arraycount(fadeout_texts);
+    next_fadeout_text = (next_fadeout_text + 1) % array_count(fadeout_texts);
 }
 
 b32 Ui::button(v4 color, char *text, char *desc)
@@ -501,7 +501,7 @@ void Ui::gizmo(v3 *position, m4x4 view_proj)
 
 void Ui::end_frame()
 {
-    for (u32 i = 0; i < arraycount(fadeout_texts); ++i) {
+    for (u32 i = 0; i < array_count(fadeout_texts); ++i) {
         Ui_Fadeout_Text *fadeout = fadeout_texts + i;
         if (fadeout->t > 0.0f) {
             f32 t = map01(fadeout->t, 0.0f, UI_FADEOUT_TEXT_SET_TIME);

@@ -7,10 +7,10 @@
    ======================================================================== */
 
 internal Random_Series
-seed(u32 seed) 
+rand_seed(u32 seed) 
 {
     Random_Series result = {};
-    result.state = random_table[seed % arraycount(random_table)];
+    result.state = random_table[seed % array_count(random_table)];
     return result;
 }
 

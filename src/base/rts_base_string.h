@@ -8,6 +8,10 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+#define STB_SPRINTF_IMPLEMENTATION
+#define STB_SPRINTF_DECORATE(name) str_##name
+#include "base/vendor/stb_sprintf.h"
+
 internal b32 is_alpha(int c);
 internal b32 is_digit(int c);
 internal b32 is_hexdigit(int c);

@@ -91,7 +91,7 @@ void load_map(char *filename, Game_State *game_state)
 #endif
 
     char filepath[512];
-    _snprintf(filepath, arraycount(filepath), "%s%s%s", ASSET_MAP_DIRECTORY, filename, ASSET_MAP_FILE_FORMAT);
+    _snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MAP_DIRECTORY, filename, ASSET_MAP_FILE_FORMAT);
 
     Buffer input = os.read_entire_file(filepath);
     Lexer *lexer = new Lexer(); // @Temporary

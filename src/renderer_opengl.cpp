@@ -111,7 +111,7 @@ opengl_create_compute_program(Opengl *gl, const char *csrc)
     {
         GLuint cshader = glCreateShader(GL_COMPUTE_SHADER);
         const GLchar *cunit[] = { g_shader_header, g_shared, csrc };
-        glShaderSource(cshader, arraycount(cunit), (const GLchar **)cunit, 0);
+        glShaderSource(cshader, array_count(cunit), (const GLchar **)cunit, 0);
         glCompileShader(cshader);
 
         program = glCreateProgram();
@@ -151,12 +151,12 @@ opengl_create_program(Opengl *gl, const char *vsrc,const char *fsrc)
     {
         GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
         const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
-        glShaderSource(vshader, arraycount(vunit), (const GLchar **)vunit, 0);
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
         glCompileShader(vshader);
 
         GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
         const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
-        glShaderSource(fshader, arraycount(funit), (const GLchar **)funit, 0);
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
         glCompileShader(fshader);
 
         program = glCreateProgram();
@@ -200,17 +200,17 @@ opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char
     {
         GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
         const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
-        glShaderSource(vshader, arraycount(vunit), (const GLchar **)vunit, 0);
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
         glCompileShader(vshader);
 
         GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
         const GLchar *gunit[] = { g_shader_header, g_shared, gsrc };
-        glShaderSource(gshader, arraycount(gunit), (const GLchar **)gunit, 0);
+        glShaderSource(gshader, array_count(gunit), (const GLchar **)gunit, 0);
         glCompileShader(gshader);
 
         GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
         const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
-        glShaderSource(fshader, arraycount(funit), (const GLchar **)funit, 0);
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
         glCompileShader(fshader);
 
         program = glCreateProgram();
@@ -260,22 +260,22 @@ opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, 
     {
         GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
         const GLchar *vunit[] = { g_shader_header, g_shared, vs };
-        glShaderSource(vshader, arraycount(vunit), (const GLchar **)vunit, 0);
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
         glCompileShader(vshader);
 
         GLuint tcshader = glCreateShader(GL_TESS_CONTROL_SHADER);
         const GLchar *tcsunit[] = { g_shader_header, g_shared, tcs };
-        glShaderSource(tcshader, arraycount(tcsunit), (const GLchar **)tcsunit, 0);
+        glShaderSource(tcshader, array_count(tcsunit), (const GLchar **)tcsunit, 0);
         glCompileShader(tcshader);
 
         GLuint teshader = glCreateShader(GL_TESS_EVALUATION_SHADER);
         const GLchar *tesunit[] = { g_shader_header, g_shared, tes };
-        glShaderSource(teshader, arraycount(tesunit), (const GLchar **)tesunit, 0);
+        glShaderSource(teshader, array_count(tesunit), (const GLchar **)tesunit, 0);
         glCompileShader(teshader);
 
         GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
         const GLchar *funit[] = { g_shader_header, g_shared, fs };
-        glShaderSource(fshader, arraycount(funit), (const GLchar **)funit, 0);
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
         glCompileShader(fshader);
 
         program = glCreateProgram();
@@ -330,27 +330,27 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
     {
         GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
         const GLchar *vunit[] = { g_shader_header, g_shared, vs };
-        glShaderSource(vshader, arraycount(vunit), (const GLchar **)vunit, 0);
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
         glCompileShader(vshader);
 
         GLuint tcshader = glCreateShader(GL_TESS_CONTROL_SHADER);
         const GLchar *tcsunit[] = { g_shader_header, g_shared, tcs };
-        glShaderSource(tcshader, arraycount(tcsunit), (const GLchar **)tcsunit, 0);
+        glShaderSource(tcshader, array_count(tcsunit), (const GLchar **)tcsunit, 0);
         glCompileShader(tcshader);
 
         GLuint teshader = glCreateShader(GL_TESS_EVALUATION_SHADER);
         const GLchar *tesunit[] = { g_shader_header, g_shared, tes };
-        glShaderSource(teshader, arraycount(tesunit), (const GLchar **)tesunit, 0);
+        glShaderSource(teshader, array_count(tesunit), (const GLchar **)tesunit, 0);
         glCompileShader(teshader);
 
         GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
         const GLchar *funit[] = { g_shader_header, g_shared, fs };
-        glShaderSource(fshader, arraycount(funit), (const GLchar **)funit, 0);
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
         glCompileShader(fshader);
 
         GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
         const GLchar *gunit[] = { g_shader_header, g_shared, gs };
-        glShaderSource(gshader, arraycount(gunit), (const GLchar **)gunit, 0);
+        glShaderSource(gshader, array_count(gunit), (const GLchar **)gunit, 0);
         glCompileShader(gshader);
 
         program = glCreateProgram();
@@ -562,7 +562,7 @@ gl_pbr_bind_texture_and_set_flags(Opengl *gl, Mesh *mesh, GLuint slot, GLenum wr
 internal void
 opengl_compile_shaders(Opengl *gl)
 {
-    snprintf(g_shared, arraycount(g_shared), R"(
+    snprintf(g_shared, array_count(g_shared), R"(
     #define MAX_BONE_PER_VERTEX %u
     #define MAX_BONE_PER_MESH   %u
     #define MAX_LIGHTS          %u
@@ -768,7 +768,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             GL_COLOR_ATTACHMENT0,
             GL_COLOR_ATTACHMENT1,
         };
-        glDrawBuffers(arraycount(attachments), attachments);
+        glDrawBuffers(array_count(attachments), attachments);
 
         Assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -847,14 +847,14 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         1,3,3,7,7,5,5,1,
         4,0,0,1,1,5,5,4,
     };
-    const u32 csm_frustum_index_count = arraycount(csm_frustum_offset);
+    const u32 csm_frustum_index_count = array_count(csm_frustum_offset);
     u32 csm_frustum_indices[csm_frustum_index_count * (CSM_COUNT + 1)];
     for (u32 level = 0; level < CSM_COUNT + 1; ++level) {
         for (u32 i = 0; i < csm_frustum_index_count; ++i) {
             csm_frustum_indices[level * csm_frustum_index_count + i] = 4 * level + csm_frustum_offset[i];
         }
     }
-    const u32 csm_outline_index_count = arraycount(csm_outline_offset);
+    const u32 csm_outline_index_count = array_count(csm_outline_offset);
     u32 csm_outline_indices[csm_outline_index_count * CSM_COUNT];
     for (u32 level = 0; level < CSM_COUNT; ++level) {
         for (u32 i = 0; i < csm_outline_index_count; ++i) {
@@ -1308,7 +1308,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
 
         glBindTextureUnit(0, gl->color_texture);
 
-        glBufferData(GL_ARRAY_BUFFER, arraycount(vertices) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, array_count(vertices) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glDisableVertexAttribArray(0);
@@ -1331,23 +1331,23 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             v4{0,0,1,0.1f},
         };
         if (frame->draw_csm_sphere) {
-            for (u32 i = 0; i < arraycount(colors); ++i) {
+            for (u32 i = 0; i < array_count(colors); ++i) {
                 colors[i].a = 0.01f;
             }
         }
 
         glUniformMatrix4fv(gl->simple_program.VP, 1, true, &frame->main_view_proj.e[0][0]);
-        glBufferData(GL_ARRAY_BUFFER, arraycount(frustum_positions) * sizeof(*frustum_positions), frustum_positions, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, array_count(frustum_positions) * sizeof(*frustum_positions), frustum_positions, GL_DYNAMIC_DRAW);
         for (u32 i = 0; i < CSM_COUNT; ++i) {
-            glUniform4fv(gl->simple_program.color, 1, (GLfloat *)&colors[i % arraycount(colors)]);
+            glUniform4fv(gl->simple_program.color, 1, (GLfloat *)&colors[i % array_count(colors)]);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, csm_frustum_index_count * sizeof(u32), csm_frustum_indices + csm_frustum_index_count*i, GL_DYNAMIC_DRAW);
             glDrawElements(GL_TRIANGLES, csm_frustum_index_count, GL_UNSIGNED_INT, (void *)0);
         }
 
         v4 solid_black = V4(V3(0),1);
         glUniform4fv(gl->simple_program.color, 1, (GLfloat *)&solid_black);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, arraycount(csm_outline_indices) * sizeof(u32), csm_outline_indices, GL_DYNAMIC_DRAW);
-        glDrawElements(GL_LINES, arraycount(csm_outline_indices), GL_UNSIGNED_INT, (void *)0);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, array_count(csm_outline_indices) * sizeof(u32), csm_outline_indices, GL_DYNAMIC_DRAW);
+        glDrawElements(GL_LINES, array_count(csm_outline_indices), GL_UNSIGNED_INT, (void *)0);
 
         glDisableVertexAttribArray(0);
         glEnable(GL_CULL_FACE);
@@ -1417,7 +1417,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                             v4 temp = frame->ortho_view_proj * V4(v[i].pos, 1);
                         }
 
-                        glBufferData(GL_ARRAY_BUFFER, arraycount(v) * sizeof(*v), v, GL_STATIC_DRAW);
+                        glBufferData(GL_ARRAY_BUFFER, array_count(v) * sizeof(*v), v, GL_STATIC_DRAW);
                         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
                         glDisableVertexAttribArray(0);

@@ -28,7 +28,7 @@ struct Render_Commands;
 #endif
 
 
-inline u32
+internal u32
 atomic_compare_exchange_u32(u32 volatile *value, u32 _new, u32 expected) 
 {
 #if __MSVC
@@ -39,7 +39,7 @@ atomic_compare_exchange_u32(u32 volatile *value, u32 _new, u32 expected)
     return result;
 }
 
-inline u32
+internal u32
 atomic_exchange_u32(u32 volatile *value, u32 _new) 
 {
 #if __MSVC
@@ -50,7 +50,7 @@ atomic_exchange_u32(u32 volatile *value, u32 _new)
     return result;
 }
 
-inline u64
+internal u64
 atomic_exchange_u64(u64 volatile *value, u64 _new) 
 {
 #if __MSVC
@@ -61,7 +61,7 @@ atomic_exchange_u64(u64 volatile *value, u64 _new)
     return result;
 }
 
-inline u32
+internal u32
 atomic_add_u32(u32 volatile *value, u32 addend) 
 {
 #if __MSVC
@@ -72,7 +72,7 @@ atomic_add_u32(u32 volatile *value, u32 addend)
     return result;
 }
 
-inline u64
+internal u64
 atomic_add_u64(u64 volatile *value, u64 addend) 
 {
 #if __MSVC
