@@ -11,8 +11,6 @@
 #include <Xinput.h>
 #include <xaudio2.h>
 
-#include <stdio.h>
-
 // -----------------------------------
 // @Note: [.h]
 #include "base/rts_base_inc.h"
@@ -352,7 +350,7 @@ win32_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         case WM_DESTROY: 
         {
-            // @TODO: Handle this as an error - recreate window?
+            // @Todo: Handle this as an error - recreate window?
             g_running = false;
         } break;
 
@@ -416,7 +414,7 @@ struct Platform_Work_Queue
 internal void
 Win32AddEntry(Platform_Work_Queue *Queue, Platform_Work_QueueCallback *Callback, void *Data) 
 {
-    // TODO: Switch to InterlockedCompareExchange eventually
+    // Todo: Switch to InterlockedCompareExchange eventually
     // so that any thread can add?
     u32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) % array_count(Queue->Entries);
     Assert(NewNextEntryToWrite != Queue->NextEntryToRead);
@@ -645,15 +643,15 @@ win32_init_audio() {
 
     hr = CoInitializeEx(0, COINIT_MULTITHREADED);
     if (FAILED(hr))
-        Assert(!"coinit failed"); // @TODO: error-handling
+        Assert(!"coinit failed"); // @Todo: error-handling
 
     IXAudio2 *xaudio = 0;
     if (FAILED(hr = XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR)))
-        Assert(!"XAudio init failed"); // @TODO: error-handling
+        Assert(!"XAudio init failed"); // @Todo: error-handling
 
     IXAudio2MasteringVoice *master_voice = 0;
     if (FAILED(hr = xaudio->CreateMasteringVoice(&master_voice)))
-        Assert(!"master voice creation failed"); // @TODO: error-handling
+        Assert(!"master voice creation failed"); // @Todo: error-handling
 
     WAVEFORMATEXTENSIBLE wfx = {};
     XAUDIO2_BUFFER buffer = {};
@@ -726,7 +724,7 @@ win32_unload_code(Win32_Loaded_Code *loaded)
 {
     if (loaded->dll)
     {
-        // @TODO: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
+        // @Todo: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
         // (despite our best efforts). Should we just make "never unload" be the policy?
 
         // FreeLibrary(GameCode->GameCodeDLL);
@@ -964,11 +962,13 @@ PLATFORM_LIST_FILES(win32_list_files)
 }
 
 #if BUILD_DEBUG
-int main(int argc, char **argv) {
+int main(int argc, char **argv) 
+{
     HINSTANCE hinst = GetModuleHandleA(0);
 #else
 int WINAPI
-WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
+WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) 
+{
 #endif
     Win32_State *state = &g_win32_state;
 
@@ -984,7 +984,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
     win32_build_exe_path_filename(state, "lock.tmp", code_lock_path, sizeof(code_lock_path));
 
     // @NOTE: Set the Windows schedular granularity to 1ms so that our Sleep() can be more granular.
-    UINT desired_schedular_ms = 1;
+    u32 desired_schedular_ms = 1;
     b32 sleep_is_granular = (timeBeginPeriod(desired_schedular_ms) == TIMERR_NOERROR);
     u64 cpu_timer_freq = win32_estimate_cpu_timer_frequency();
     f32 inv_cpu_timer_freq = 1.0 / cpu_timer_freq;
@@ -1004,7 +1004,10 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
     {
         state->default_window_handle = hwnd;
 
-#if BUILD_RELEASE
+#if BUILD_DEBUG
+        LPVOID base_address = (LPVOID)TB(2);
+#else
+        LPVOID base_address = 0;
         win32_toggle_fullscreen(hwnd);
 #endif
 
@@ -1020,8 +1023,8 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
         renderer_code.functions = (void **)&renderer_functions;
         renderer_code.function_names = win32_renderer_function_table_names;
         win32_load_code(state, &renderer_code);
-        if (!renderer_code.is_valid) {
-            // @TODO: Error Handling.
+        if (! renderer_code.is_valid) {
+            // @Todo: Error Handling.
             Assert(0);
         }
         umm renderer_memory_size = GB(1);
@@ -1032,13 +1035,6 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
 
         win32_load_xinput();
         //HRESULT init_audio_result = win32_init_audio();
-
-
-#if __DEVELOPER
-        LPVOID base_address = (LPVOID)TB(2);
-#else
-        LPVOID base_address = 0;
-#endif
 
         Game_Memory game_memory = {};
         umm total_memory_size = GB(2);
@@ -1176,9 +1172,6 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
                     input.prev_mouse_p = input.mouse.position;
                     input.mouse.position.x = map01(mouse_x, 0.0f, (f32)(window_dim.w - 1)) * (render_dim.w - 1);
                     input.mouse.position.y = map01(mouse_y, 0.0f, (f32)(window_dim.h - 1)) * (render_dim.h - 1);
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "%.2f, %.2f\n", input.mouse.position.x, input.mouse.position.y);
-                    OutputDebugStringA(buf);
 
                     win32_process_mouse_click(VK_LBUTTON, mouse);
                     win32_process_mouse_click(VK_MBUTTON, mouse);
@@ -1196,7 +1189,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
 
                     } 
                     else {
-                        // TODO: Diagnostic
+                        // Todo: Diagnostic
                     }
                 }
 
@@ -1254,10 +1247,10 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) {
                 }
             }
         } else {
-            // @TODO: Error handling.
+            // @Todo: Error handling.
         }
     } else {
-        // @TODO: Error handling.
+        // @Todo: Error handling.
     }
 
     return 0;
