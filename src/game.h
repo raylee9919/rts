@@ -7,7 +7,6 @@
    ======================================================================== */
 
 #include "animation.h"
-#include "random.h"
 
 struct Camera;
 struct Ui;

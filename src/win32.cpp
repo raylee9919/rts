@@ -7,24 +7,26 @@
    ======================================================================== */
 
 
-
-
 #include <windows.h>
 #include <Xinput.h>
 #include <xaudio2.h>
 
 #include <stdio.h>
 
-#include "types.h"
-#include "shared.h"
+// @Note: [.h]
+#include "rts_core.h"
 #include "intrinsics.h"
 #include "memory.cpp"
-#include "math.h"
+#include "rts_math.h"
 #include "asset.h"
 #include "model.h"
 #include "input.h"
 #include "platform.h"
 #include "win32.h"
+
+// @Note: [.cpp]
+#include "rts_string.cpp"
+#include "rts_math.cpp"
 
 #include "win32_xinput.cpp"
 #include "win32_keycode.cpp"
@@ -110,7 +112,7 @@ win32_xinput_handle_deadzone(XINPUT_STATE *state)
 #define XINPUT_DEAD_ZONE 2500
     f32 lx = state->Gamepad.sThumbLX;
     f32 ly = state->Gamepad.sThumbLY;
-    
+
     if (sqrt(lx*lx + ly*ly) < XINPUT_DEAD_ZONE) {
         state->Gamepad.sThumbLX = 0;
         state->Gamepad.sThumbLY = 0;
@@ -133,7 +135,7 @@ internal PLATFORM_OPEN_FILE(win32_open_file)
 {
     Platform_File_Handle result = {};
     static_assert(sizeof(HANDLE) <= sizeof(result.platform));
-    
+
     DWORD permissions = 0;
     DWORD creation = 0;
 
@@ -145,12 +147,12 @@ internal PLATFORM_OPEN_FILE(win32_open_file)
         permissions |= GENERIC_WRITE;
         creation = OPEN_ALWAYS;
     }
-    
+
     HANDLE handle = CreateFileA(filepath, permissions, FILE_SHARE_READ, 0, creation, 0, 0);
     Assert(handle != INVALID_HANDLE_VALUE);
 
     *(HANDLE *)&result.platform = handle;
-    
+
     return result;
 }
 
@@ -424,7 +426,7 @@ Win32AddEntry(Platform_Work_Queue *Queue, Platform_Work_QueueCallback *Callback,
     ReleaseSemaphore(Queue->SemaphoreHandle, 1, 0);
 }
 
-internal bool32
+internal b32
 Win32DoNextWorkQueueEntry(Platform_Work_Queue *Queue) 
 {
     b32 shouldSleep = false;
@@ -511,7 +513,7 @@ DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(win32_execute_system_command)
 
     PROCESS_INFORMATION process_info = {};
     if (CreateProcessA(command, commandline, 0, 0, FALSE, 0, 0, path, &startup_info, &process_info)) {
-         static_assert(sizeof(result.os_handle) >= sizeof(process_info.hProcess));
+        static_assert(sizeof(result.os_handle) >= sizeof(process_info.hProcess));
         *(HANDLE *)&result.os_handle = process_info.hProcess;
     } else {
         DWORD error_code = GetLastError();
@@ -548,19 +550,19 @@ DEBUG_PLATFORM_GET_PROCESS_STATE(win32_get_process_state)
 }
 
 #if 0
-  #define fourccRIFF 'RIFF'
-  #define fourccDATA 'data'
-  #define fourccFMT 'fmt '
-  #define fourccWAVE 'WAVE'
-  #define fourccXWMA 'XWMA'
-  #define fourccDPDS 'dpds'
+#define fourccRIFF 'RIFF'
+#define fourccDATA 'data'
+#define fourccFMT 'fmt '
+#define fourccWAVE 'WAVE'
+#define fourccXWMA 'XWMA'
+#define fourccDPDS 'dpds'
 #else
-  #define fourccRIFF 'FFIR'
-  #define fourccDATA 'atad'
-  #define fourccFMT ' tmf'
-  #define fourccWAVE 'EVAW'
-  #define fourccXWMA 'AMWX'
-  #define fourccDPDS 'sdpd'
+#define fourccRIFF 'FFIR'
+#define fourccDATA 'atad'
+#define fourccFMT ' tmf'
+#define fourccWAVE 'EVAW'
+#define fourccXWMA 'AMWX'
+#define fourccDPDS 'sdpd'
 #endif
 
 #if 0
@@ -724,11 +726,11 @@ win32_unload_code(Win32_Loaded_Code *loaded)
     {
         // @TODO: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
         // (despite our best efforts). Should we just make "never unload" be the policy?
-        
+
         // FreeLibrary(GameCode->GameCodeDLL);
         loaded->dll = 0;
     }
-    
+
     loaded->is_valid = false;
     zeroarray(loaded->functions, loaded->function_count);
 }
@@ -736,13 +738,13 @@ win32_unload_code(Win32_Loaded_Code *loaded)
 internal PLATFORM_GET_LAST_WRITE_TIME(win32_get_last_write_time_)
 {
     u64 result = 0;
-    
+
     WIN32_FILE_ATTRIBUTE_DATA data;
     if (GetFileAttributesExA(filepath, GetFileExInfoStandard, &data)) {
         result |= data.ftLastWriteTime.dwLowDateTime;
         result |= ((u64)data.ftLastWriteTime.dwHighDateTime << 32);
     }
-    
+
     return result;
 }
 
@@ -750,12 +752,12 @@ internal FILETIME
 win32_get_last_write_time(const char *filepath)
 {
     FILETIME result = {};
-    
+
     WIN32_FILE_ATTRIBUTE_DATA data;
     if (GetFileAttributesExA(filepath, GetFileExInfoStandard, &data)) {
         result = data.ftLastWriteTime;
     }
-    
+
     return result;
 }
 
@@ -892,7 +894,7 @@ win32_estimate_cpu_timer_frequency(void)
     if (os_elapsed) {
         cpu_freq = os_freq * cpu_elapsed / os_elapsed;
     }
-    
+
     return cpu_freq;
 }
 
@@ -1113,54 +1115,54 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
                 while (PeekMessageA(&msg, hwnd, 0, 0, PM_REMOVE)) 
                 {
                     switch(msg.message) {
-                    case WM_QUIT: {
-                        g_running = false;
-                    } break;
+                        case WM_QUIT: {
+                            g_running = false;
+                        } break;
 
-                    case WM_SYSKEYDOWN:
-                    case WM_SYSKEYUP:
-                    case WM_KEYDOWN:
-                    case WM_KEYUP: {
-                        u8 vk_code   = (u8)msg.wParam;
-                        b32 was_down = ((msg.lParam & (1 << 30)) != 0);
-                        b32 is_down  = ((msg.lParam & (1UL << 31)) == 0);
-                        b32 alt      = (msg.lParam & (1 << 29));
-                        u8 slot      = win32_keycode_map[vk_code];
+                        case WM_SYSKEYDOWN:
+                        case WM_SYSKEYUP:
+                        case WM_KEYDOWN:
+                        case WM_KEYUP: {
+                            u8 vk_code   = (u8)msg.wParam;
+                            b32 was_down = ((msg.lParam & (1 << 30)) != 0);
+                            b32 is_down  = ((msg.lParam & (1UL << 31)) == 0);
+                            b32 alt      = (msg.lParam & (1 << 29));
+                            u8 slot      = win32_keycode_map[vk_code];
 
-                        if (was_down != is_down) {
-                            if (event_queue.next_idx < arraycount(event_queue.events)) {
-                                Event new_event = {};
-                                new_event.key = slot;
-                                if (is_down) {
-                                    new_event.flag |= Event_Flag::PRESSED;
+                            if (was_down != is_down) {
+                                if (event_queue.next_idx < arraycount(event_queue.events)) {
+                                    Event new_event = {};
+                                    new_event.key = slot;
+                                    if (is_down) {
+                                        new_event.flag |= Event_Flag::PRESSED;
+                                    }
+                                    else {
+                                        new_event.flag |= Event_Flag::RELEASED;
+                                    }
+                                    event_queue.events[event_queue.next_idx++] = new_event;
                                 }
-                                else {
-                                    new_event.flag |= Event_Flag::RELEASED;
+
+                                if (alt && is_down) {
+                                    if (vk_code == VK_F4) {
+                                        g_running = false;
+                                    }
+                                    if (vk_code == VK_RETURN && msg.hwnd) {
+                                        win32_toggle_fullscreen(msg.hwnd);
+                                    }
                                 }
-                                event_queue.events[event_queue.next_idx++] = new_event;
+
                             }
+                        } break;
 
-                            if (alt && is_down) {
-                                if (vk_code == VK_F4) {
-                                    g_running = false;
-                                }
-                                if (vk_code == VK_RETURN && msg.hwnd) {
-                                    win32_toggle_fullscreen(msg.hwnd);
-                                }
-                            }
+                        case WM_MOUSEWHEEL: {
+                            s16 z_delta = (GET_WHEEL_DELTA_WPARAM(msg.wParam) / WHEEL_DELTA);
+                            input.mouse.wheel_delta = z_delta;
+                        } break;
 
-                        }
-                    } break;
-
-                    case WM_MOUSEWHEEL: {
-                        s16 z_delta = (GET_WHEEL_DELTA_WPARAM(msg.wParam) / WHEEL_DELTA);
-                        input.mouse.wheel_delta = z_delta;
-                    } break;
-
-                    default: {
-                        TranslateMessage(&msg);
-                        DispatchMessageA(&msg);
-                    } break;
+                        default: {
+                            TranslateMessage(&msg);
+                            DispatchMessageA(&msg);
+                        } break;
                     }
                 }
 

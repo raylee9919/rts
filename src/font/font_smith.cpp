@@ -20,10 +20,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../types.h"
-#include "../shared.h"
+// @Note: [.h]
+#include "rts_core.h"
+#include "rts_string.h"
 #include "../asset.h"
 #include "font_smith.h"
+
+// @Note: [.cpp]
+#include "rts_string.cpp"
 
 static HDC hdc;
 static HBITMAP bitmap;

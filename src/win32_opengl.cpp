@@ -6,24 +6,27 @@
    $Notice: (C) Copyright 2025 by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-
-
 #include <windows.h>
 #include <gl/gl.h>
 #include <tchar.h>
 
 #include <math.h>
 
-#include "types.h"
-#include "shared.h"
+// @Note: [.h]
+#include "rts_core.h"
+#include "rts_string.h"
 #include "memory.cpp"
-#include "math.h"
+#include "rts_math.h"
 #include "asset.h"
 #include "model.h"
 #include "input.h"
 
 #include "renderer.h"
 #include "win32_renderer.h"
+
+// @Note: [.cpp]
+#include "rts_string.cpp"
+#include "rts_math.cpp"
 
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB               0x2091

@@ -1,12 +1,15 @@
+#ifndef RTS_RANDOM_H
+#define RTS_RANDOM_H
 /* ========================================================================
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
+   $Creator: Seong Woo Lee $
    $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-u32 random_table[] = {
+global u32 random_table[] = 
+{
     0X785FD252, 0XC76E9A98, 0X3D9A5C28, 0XDDF7F80D, 0XDDA5C366, 0XF50D03B6, 0X1CEE0954, 0XCFDD36C9,
     0XF0914186, 0X91B2B160, 0X367BB303, 0X9C4377DE, 0X9C1D475B, 0XA7C9D2C8, 0XC90015E2, 0X3F8D6706,
     0X3C1B023A, 0X315D117E, 0XD1386694, 0XB2D985C8, 0XA875C6D5, 0X234CC6C6, 0X789A740C, 0X154E434C,
@@ -137,89 +140,20 @@ u32 random_table[] = {
     0X0A513FD4, 0X51A7823A, 0X1AB3C467, 0XE8E73333, 0X8FAAE1AD, 0X1423205F, 0X2E06FE4F, 0X0EFF3F00,
 };
 
-u32 max_in_random_table = 0Xffb7d659; 
+u32 max_in_random_table = 0xffb7d659; 
 u32 min_in_random_table = 0x002f7154; 
 
-struct Random_Series {
+struct Random_Series 
+{
     u32 state;
 };
 
-inline Random_Series
-seed(u32 seed) 
-{
-    Random_Series result = {};
-    result.state = random_table[seed % arraycount(random_table)];
-    return result;
-}
+internal Random_Series seed(u32 seed);
+internal u32 rand_next(Random_Series *series);
+internal f32 rand_unilateral(Random_Series *series);
+internal f32 rand_bilateral(Random_Series *series);
+internal v3 rand_v3(Random_Series *series, f32 min, f32 max);
+internal v3 rand_v3(Random_Series *series, v3 min, v3 max);
+internal f32 rand_range(Random_Series *series, f32 lo, f32 hi);
 
-inline u32
-rand_next(Random_Series *series)
-{
-#if 0
-    u32 result = random_table[series->next_idx++];
-    if (series->next_idx > array_count(random_table)) 
-    {
-        series->next_idx = 0;
-    }
-    return result;
-#else
-    u32 x = series->state;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    series->state = x;
-    return x;
-#endif
-}
-
-inline f32
-rand_unilateral(Random_Series *series)
-{
-#if 0
-    f32 d = (f32)(max_in_random_table - min_in_random_table);
-    f32 r = (f32)rand_next(series);
-    f32 t = safe_ratio(r - min_in_random_table, d);
-    f32 result = lerp(0.0f, 1.0f, t);
-    return result;
-#else
-    f32 d = (f32)(0xffffffff);
-    f32 r = (f32)rand_next(series);
-    f32 t = r / d;
-    f32 result = lerp(0.0f, 1.0f, t);
-    return result;
-#endif
-}
-
-inline f32
-rand_bilateral(Random_Series *series)
-{
-    f32 result = rand_unilateral(series) * 2.0f - 1.0f;
-    return result;
-}
-
-inline v3
-randv3(Random_Series *series, f32 min, f32 max) 
-{
-    v3 result;
-    for (int i = 0; i < 3; ++i) {
-        result.e[i] = rand_unilateral(series) * (max-min) + min;
-    }
-    return result;
-}
-
-inline v3
-randv3(Random_Series *series, v3 min, v3 max) 
-{
-    v3 result;
-    for (int i = 0; i < 3; ++i) {
-        result.e[i] = rand_unilateral(series) * (max.e[i]-min.e[i]) + min.e[i];
-    }
-    return result;
-}
-
-inline f32
-rand_range(Random_Series *series, f32 lo, f32 hi)
-{
-    f32 result = lerp(lo, rand_unilateral(series), hi);
-    return result;
-}
+#endif // RTS_RANDOM_H

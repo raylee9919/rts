@@ -2,12 +2,9 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
-
-
-
 
 #include <stdio.h>
 
@@ -15,17 +12,22 @@
 #include "vendor/assimp/scene.h"
 #include "vendor/assimp/postprocess.h"
 
+// @Note: [.h]
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb_image.h"
 
-#include "types.h"
-#include "shared.h"
-#include "math.h"
+#include "rts_core.h"
+#include "rts_string.h"
+#include "rts_math.h"
 
 #include "assimp.h"
 #include "asset_define.h"
 #include "asset_model.h"
 #include "asset_animation.h"
+
+// @Note: [.cpp]
+#include "rts_string.cpp"
+#include "rts_math.cpp"
 
 #define ASSIMP_PRINT_NODES              1
 #define ASSIMP_PRINT_NODE_TRASNFORM     0

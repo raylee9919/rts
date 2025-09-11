@@ -10,10 +10,13 @@
 
     
 
-Buffer read_entire_file(const char *filepath) {
+internal Buffer
+read_entire_file(const char *filepath) 
+{
     Buffer result = {};
     FILE *file = fopen(filepath, "rb");
-    if (file) {
+    if (file) 
+    {
         fseek(file, 0, SEEK_END);
         umm filesize = ftell(file);
         fseek(file, 0, SEEK_SET);
@@ -21,7 +24,9 @@ Buffer read_entire_file(const char *filepath) {
         result.count = filesize;
         Assert(fread(result.data, filesize, 1, file) == 1);
         fclose(file);
-    } else {
+    }
+    else 
+    {
         printf("[ERROR] Couldn't open file %s.\n", filepath);
     }
     return result;

@@ -14,7 +14,7 @@ if "%debug%"=="1" set release=0 && echo [Debug Build]
 if "%release%"=="1" set debug=0 && echo [Release Build]
 
 set compiler=cl
-set flags_common=/std:c++17 /nologo /FC /Z7 /utf-8 /D__DEVELOPER=1 /D__MSVC=1 /I..\src\vendor
+set flags_common=/std:c++17 /nologo /FC /Z7 /utf-8 /D__DEVELOPER=1 /D__MSVC=1 /I..\src /I..\src\vendor
 set flags_debug=/Od /DBUILD_DEBUG=1
 set flags_release=/O2 /DBUILD_DEBUG=0
 set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS /wd4456 /wd4100 /wd4189 /wd4505 /wd4201 /wd4477 /wd4311 /wd4302 /wd4005 /wd4244 /wd4706
@@ -36,10 +36,10 @@ if exist *.pdb del *.pdb
 call %compiler% %flags_compile% ..\src\font\font_smith.cpp /link %flags_linker% Gdi32.lib 
 
 :: Assimp
-call %compiler% %flags_compile% ..\src\assimp.cpp /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+call %compiler% %flags_compile% ..\src\assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
-call %compiler% /Fe:meta.exe %flags_compile% /EHsc ..\src\meta\main.cpp /link %flags_linker%
+call %compiler% ..\src\meta\meta.cpp /Fe:meta.exe %flags_compile% /link %flags_linker%
 meta.exe
 
 :: Renderers

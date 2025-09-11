@@ -2,31 +2,35 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// @TODO: Remove
+// @Todo: Remove
 #include <stdio.h>
 
-#include "meta/meta.h"
+// @Todo: Remove
+#define BEGIN_ENTITY
+#define END_ENTITY
 
-#include "types.h"
-#include "shared.h"
+// @Note: [.h]
+#include "rts_core.h"
+#include "rts_string.h"
+#include "rts_math.h"
+#include "rts_random.h"
+#include "rts_color.h"
 #include "intrinsics.h"
 #include "memory.cpp"
 #include "stack.h"
 #include "queue.h"
 #include "priority_queue.h"
 #include "asset.h"
-#include "math.h"
 #include "input.h"
 #include "platform.h"
 #include "ui.h"
 Platform_Api os;
 Ui ui;
 #include "profiler.h"
-#include "color.h"
 #include "model.h"
 #include "delaunay.h"
 #include "nav.h"
@@ -45,6 +49,11 @@ Ui ui;
 #include "console.cpp"
 
 #include "debug.h"
+
+// @Note: [.cpp]
+#include "rts_string.cpp"
+#include "rts_math.cpp"
+#include "rts_random.cpp"
 
 #define GROUND_RES 20
 

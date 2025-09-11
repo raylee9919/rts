@@ -1,33 +1,21 @@
-# Pioneer Game Engine
-![Pioneer](/data/branding/pioneer_banner.png "Pioneer")
-
-> Powered by ❤️
+# Handmade RTS
+![Game](data/branding/pioneer_banner.png "Game")
 
 ## Current Status
 This project was initiated for academic purposes and is not yet at an industrial-strength level.  
-[![Youtube](/data/branding/youtube_icon.png "Youtube")](https://www.youtube.com/@sungwoolee484)
-![Status](/data/branding/status.png "Status")  
+
+## Links
+[![Youtube](data/branding/youtube_icon.png "Youtube")](https://www.youtube.com/@sungwoolee484)
+![Status](data/branding/status.png "Status")  
 
 ## Build
-#### Windows (cl x64)
+#### Windows (MSVC cl x64)
 ``` console
-> cd src
 > build.bat
 ```
-Set the working directory to <code>data</code> folder and run <code>build\win32.exe</code>.  
-No seven layers of dependecy hell!
 
 
-## Why build from scratch?
-I simply wanted to understand how games worked under the hood.  
-It turned out to be a programmer's deepest rabbit hole.  
-Fortunately, being a control freak (I mean, who isn’t?), I was fascinated by the fact that making a game from the lowest level requires a superior skill set.  
-If everyone relies solely on Unity and Unreal Engine, there will be no one left to create the next Unity or Unreal.  
-No one will be left to build specialized game engines tailored for specific games.  
-
-
-
-## Credit
+## Courtesy of...
 Thanks to some apex programmers, like  
 - [Casey Muratori](https://x.com/cmuratori)
 - [Jonathan Blow](https://x.com/Jonathan_Blow)
