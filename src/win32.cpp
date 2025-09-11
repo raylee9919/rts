@@ -15,9 +15,10 @@
 
 // @Note: [.h]
 #include "rts_core.h"
-#include "intrinsics.h"
-#include "memory.cpp"
+#include "rts_memory.h"
+#include "rts_string.h"
 #include "rts_math.h"
+#include "intrinsics.h"
 #include "asset.h"
 #include "model.h"
 #include "input.h"
@@ -25,6 +26,7 @@
 #include "win32.h"
 
 // @Note: [.cpp]
+#include "rts_memory.cpp"
 #include "rts_string.cpp"
 #include "rts_math.cpp"
 

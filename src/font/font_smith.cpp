@@ -6,13 +6,6 @@
    $Notice: (C) Copyright 2024 by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#define KB(N) (    N  * 1024ll )
-#define MB(N) ( KB(N) * 1024ll )
-#define GB(N) ( MB(N) * 1024ll )
-#define TB(N) ( GB(N) * 1024ll )
-#define Assert(exp) if (!(exp)) { *(volatile int *)0 = 0; }
-#define MAX(a, b) (a > b ? a : b)
-
 #define ALLOC_SIZE GB(1)
 
 #include <windows.h>
@@ -22,25 +15,28 @@
 
 // @Note: [.h]
 #include "rts_core.h"
+#include "rts_memory.h"
 #include "rts_string.h"
 #include "../asset.h"
-#include "font_smith.h"
 
 // @Note: [.cpp]
+#include "rts_memory.cpp"
 #include "rts_string.cpp"
 
-static HDC hdc;
-static HBITMAP bitmap;
-static void *bits;
+global HDC hdc;
+global HBITMAP bitmap;
+global void *bits;
+global Memory_Arena g_main_arena;
+
 #define BITMAP_WIDTH  1024
 #define BITMAP_HEIGHT 1024
 
 #define FONT_INPUT_DIRECTORY "../data/input/font/"
 #define FONT_OUTPUT_DIRECTORY "../data/font/"
 
-// Memory
 internal void
-init_memory() {
+init_memory() 
+{
     void *base = VirtualAlloc(0, ALLOC_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     Assert(base != 0);
     g_main_arena.base = base;
@@ -48,15 +44,17 @@ init_memory() {
 }
 
 internal void
-flush(Memory_Arena *arena) {
+flush(Memory_Arena *arena) 
+{
     for (u32 i = 0; i < arena->used; ++i) {
         *((u8 *)arena->base + i) = 0;
     }
     arena->used = 0; 
 }
 
-static Buffer
-read_entire_file(const char *filepath) {
+internal Buffer
+read_entire_file(const char *filepath) 
+{
     Buffer result = {};
     FILE *file = fopen(filepath, "rb");
     if (file) {
@@ -73,8 +71,9 @@ read_entire_file(const char *filepath) {
     return result;
 }
 
-static void
-print_and_exit(const char *str) {
+internal void
+print_and_exit(const char *str) 
+{
     fprintf(stderr, "%s\n", str);
     exit(1);
 }
@@ -83,10 +82,10 @@ print_and_exit(const char *str) {
 // Font Asset
 // : this is your main concern.
 //
-static Asset_Glyph *
+internal Asset_Glyph *
 bake_glyph(u32 codepoint, TEXTMETRIC metric) 
 {
-    Asset_Glyph *result = push_struct(Asset_Glyph);
+    Asset_Glyph *result = push_struct(&g_main_arena, Asset_Glyph);
     wchar_t utf_codepoint = (wchar_t)codepoint;
     SIZE size;
     GetTextExtentPoint32W(hdc, &utf_codepoint, 1, &size);
@@ -146,7 +145,7 @@ bake_glyph(u32 codepoint, TEXTMETRIC metric)
     result->bitmap.pitch = result->bitmap.width * 4;
     result->bitmap.handle = 0;
     result->bitmap.size = result->bitmap.height * result->bitmap.width * 4;
-    result->bitmap.memory = push_size(result->bitmap.size);
+    result->bitmap.memory = push_size(&g_main_arena, result->bitmap.size);
 
     u8 *dst_row = (u8 *)result->bitmap.memory + (result->bitmap.height - 1 - margin) * result->bitmap.pitch + 4 * margin;
     pixel_row = (u32 *)bits + (BITMAP_HEIGHT - 1 - off_y) * BITMAP_WIDTH;
@@ -175,7 +174,7 @@ bake_glyph(u32 codepoint, TEXTMETRIC metric)
     return result;
 }
 
-static void
+internal void
 bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_height) 
 {
     TEXTMETRIC metric = {};
@@ -201,7 +200,7 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
 
             // Kerning.
             s32 kern_count = GetKerningPairsA(hdc, 0, 0);
-            KERNINGPAIR *kern_pairs = push_array(KERNINGPAIR, kern_count);
+            KERNINGPAIR *kern_pairs = push_array(&g_main_arena, KERNINGPAIR, kern_count);
             GetKerningPairsA(hdc, kern_count, kern_pairs);
 
             // Font header.
@@ -212,7 +211,7 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
             font_header.descent = (f32)metric.tmDescent;
             font_header.max_width = (f32)metric.tmMaxCharWidth;
 
-            Asset_Kerning *asset_kern_pairs = push_array(Asset_Kerning, kern_count);
+            Asset_Kerning *asset_kern_pairs = push_array(&g_main_arena, Asset_Kerning, kern_count);
             for (s32 idx = 0; idx < kern_count; ++idx) 
             {
                 KERNINGPAIR *kern_pair = kern_pairs + idx;
@@ -223,7 +222,7 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
             }
 
             // ABC. What a convenient name.
-            ABCs = push_array(ABC, hi - lo + 1);
+            ABCs = push_array(&g_main_arena, ABC, hi - lo + 1);
             GetCharABCWidthsA(hdc, lo, hi, ABCs);
 
             // write font header.

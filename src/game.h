@@ -6,8 +6,6 @@
    $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#include "animation.h"
-
 struct Camera;
 struct Ui;
 struct Debug_State;

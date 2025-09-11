@@ -15,12 +15,13 @@
 
 // @Note: [.h]
 #include "rts_core.h"
+#include "rts_memory.h"
 #include "rts_string.h"
 #include "rts_math.h"
 #include "rts_random.h"
 #include "rts_color.h"
+#include "rts_animation.h"
 #include "intrinsics.h"
-#include "memory.cpp"
 #include "stack.h"
 #include "queue.h"
 #include "priority_queue.h"
@@ -51,6 +52,7 @@ Ui ui;
 #include "debug.h"
 
 // @Note: [.cpp]
+#include "rts_memory.cpp"
 #include "rts_string.cpp"
 #include "rts_math.cpp"
 #include "rts_random.cpp"

@@ -1,4 +1,5 @@
-#ifndef ANIMATION_H
+#ifndef RTS_ANIMATION_H
+#define RTS_ANIMATION_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -52,7 +53,5 @@ struct Animation {
 
     Animation_Hash_Table hash_table;
 };
-
     
-#define ANIMATION_H
-#endif
+#endif // RTS_ANIMATION_H
