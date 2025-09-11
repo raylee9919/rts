@@ -15,19 +15,6 @@ struct Render_Commands;
 //
 // Compilers
 //
-#if __MSVC
-  #include <intrin.h>
-#elif __LLVM
-  #include <x86intrin.h>
-#endif
-
-#if __MSVC
-  #define __WRITE_BARRIER__ _WriteBarrier();
-#elif __LLVM
-
-#endif
-
-
 internal u32
 atomic_compare_exchange_u32(u32 volatile *value, u32 _new, u32 expected) 
 {
@@ -130,9 +117,6 @@ enum Platform_Open_File_Flag {
 #define PLATFORM_LIST_FILES(NAME) Platform_File_List NAME(char *path)
 typedef PLATFORM_LIST_FILES(Platform_List_Files);
 
-#define PLATFORM_GET_WORKING_DIRECTORY(NAME) void NAME(char *buffer, umm size)
-typedef PLATFORM_GET_WORKING_DIRECTORY(Platform_Get_Working_Directory);
-
 #define PLATFORM_OPEN_FILE(NAME) Platform_File_Handle NAME(char *filepath, u32 flags)
 typedef PLATFORM_OPEN_FILE(Platform_Open_File);
 
@@ -163,12 +147,6 @@ typedef PLATFORM_GET_SYSTEM_TIME(Platform_Get_System_Time);
 #define PLATFORM_GET_LAST_WRITE_TIME(NAME) u64 NAME(char *filepath)
 typedef PLATFORM_GET_LAST_WRITE_TIME(Platform_Get_Last_Write_Time);
 
-#define DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(NAME) Debug_Executing_Process NAME(char *path, char *command, char *commandline)
-typedef DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(Debug_Platform_Execute_System_Command);
-
-#define DEBUG_PLATFORM_GET_PROCESS_STATE(name) Debug_Process_State name(Debug_Executing_Process process)
-typedef DEBUG_PLATFORM_GET_PROCESS_STATE(Debug_Platform_Get_Process_State);
-
 struct Platform_Work_Queue;
 #define PLATFORM_WORK_QUEUE_CALLBACK(Name) void Name(Platform_Work_Queue *queue, void *data)
 typedef PLATFORM_WORK_QUEUE_CALLBACK(Platform_Work_QueueCallback);
@@ -182,7 +160,6 @@ struct Platform_Api
     Platform_Complete_All_Work  *complete_all_work;
     
     Platform_List_Files         *list_files;
-    Platform_Get_Working_Directory *get_working_directory;
     Platform_Open_File          *open_file;
     Platform_Close_File         *close_file;
     Platform_Get_File_Size      *get_file_size;
@@ -195,11 +172,6 @@ struct Platform_Api
     Platform_Get_Last_Write_Time *get_last_write_time;
 
     u64 cpu_timer_frequency;
-
-#if __DEVELOPER
-    Debug_Platform_Execute_System_Command *debug_platform_execute_system_command;
-    Debug_Platform_Get_Process_State *debug_platform_get_process_state;
-#endif
 };
 
 struct Game_Memory 

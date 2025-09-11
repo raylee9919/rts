@@ -48,6 +48,16 @@
 #  define read_only
 #endif
 
+#if COMPILER_CL
+#  include <intrin.h>
+#  define write_barrier() _WriteBarrier()
+#elif COMPILER_CLANG
+#  include <x86intrin.h>
+#  define write_barrier()  // @Todo:
+#endif
+
+
+
 
 // --------------------------------------
 // @Note: 3rd-party include
@@ -89,7 +99,6 @@ typedef Buffer String;
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
-#define Assume(exp)  Assert(exp)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define max(a, b) ( (a > b) ? a : b )

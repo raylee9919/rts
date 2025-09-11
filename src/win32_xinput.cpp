@@ -23,7 +23,7 @@ XInput_Set_State *xinput_set_state = xinput_set_state_stub;
 internal void
 win32_load_xinput() 
 {
-    HMODULE xinput_dll = LoadLibraryA(TEXT("xinput.dll"));
+    HMODULE xinput_dll = LoadLibraryW(L"xinput.dll");
     if (!xinput_dll) {
         // TODO: diagnostic.
     }
