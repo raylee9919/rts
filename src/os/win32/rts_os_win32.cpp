@@ -25,15 +25,6 @@ to_os_handle(HANDLE handle)
 }
 
 // --------------------------------------
-// @Note: Handle
-internal
-OS_HANDLE_VALID(win32_handle_valid)
-{
-    b32 result = (handle.e[0] != 0);
-    return result;
-}
-
-// --------------------------------------
 // @Note: Memory
 internal
 OS_QUERY_PAGE_SIZE(win32_query_page_size)
@@ -82,6 +73,14 @@ OS_DECOMMIT(win32_memory_decommit)
 
 // --------------------------------------
 // @Note: File
+internal
+OS_FILE_IS_VALID(win32_file_is_valid)
+{
+    HANDLE handle = to_win32_handle(file);
+    b32 result = (handle != INVALID_HANDLE_VALUE);
+    return result;
+}
+
 internal
 OS_FILE_OPEN(win32_file_open)
 {
@@ -140,7 +139,7 @@ OS_FILE_SIZE(win32_file_size)
 {
     HANDLE handle = to_win32_handle(file);
     if (handle == INVALID_HANDLE_VALUE)
-    { Assert(0); } // TODO: Error-Handling.
+    { Assert(0); } // @Todo: Error-Handling.
     LARGE_INTEGER file_size;
     GetFileSizeEx(handle, &file_size);
     u64 result = file_size.QuadPart;
@@ -188,15 +187,57 @@ OS_FILE_READ(win32_file_read)
 }
 
 internal
+OS_FILE_DELETE(win32_file_delete)
+{
+    Temporary_Arena scratch = scratch_begin();
+    Utf16 path16 = to_utf16(scratch.arena, path);
+    DeleteFileW((WCHAR *)path16.str);
+    scratch_end(scratch);
+}
+
+internal
+OS_FILE_MOVE(win32_file_move)
+{
+    Temporary_Arena scratch = scratch_begin();
+    Utf16 dst_path16 = to_utf16(scratch.arena, dst_path);
+    Utf16 src_path16 = to_utf16(scratch.arena, src_path);
+    MoveFileW((WCHAR *)src_path16.str, (WCHAR *)dst_path16.str);
+    scratch_end(scratch);
+}
+
+internal
 OS_FILE_COPY(win32_file_copy)
 {
     Temporary_Arena scratch = scratch_begin();
+    Utf16 dst_path16 = to_utf16(scratch.arena, dst_path);
+    Utf16 src_path16 = to_utf16(scratch.arena, src_path);
+    b32 result = CopyFileW((WCHAR *)src_path16.str, (WCHAR *)dst_path16.str, 0);
+    scratch_end(scratch);
+    return result;
+}
+
+internal
+OS_MAKE_DIRECTORY(win32_make_directory)
+{
+    Temporary_Arena scratch = scratch_begin();
+    Utf16 path16 = to_utf16(scratch.arena, path);
+    b32 result = true;
+    if (! CreateDirectoryW((WCHAR *)path16.str, 0))
     {
-        Utf16 src16 = to_utf16(scratch.arena, src);
-        Utf16 dst16 = to_utf16(scratch.arena, dst);
-        CopyFileW((WCHAR *)src16.str, (WCHAR *)dst16.str, FALSE);
+        DWORD error = GetLastError();
+        if (error != ERROR_ALREADY_EXISTS)
+        { result = false; }
     }
     scratch_end(scratch);
+    return result;
+}
+
+// --------------------------------------
+// @Note: Abort
+internal
+OS_ABORT(win32_abort)
+{
+    ExitProcess(1);
 }
 
 // --------------------------------------
@@ -204,17 +245,21 @@ OS_FILE_COPY(win32_file_copy)
 internal
 OS_INIT(os_win32_init)
 {
-    os.handle_valid = win32_handle_valid;
-
-    os.file_open  = win32_file_open;
-    os.file_close = win32_file_close;
-    os.file_read  = win32_file_read;
-    os.file_size  = win32_file_size;
-    os.file_copy  = win32_file_copy;
+    os.file_is_valid  = win32_file_is_valid;
+    os.file_open      = win32_file_open;
+    os.file_close     = win32_file_close;
+    os.file_size      = win32_file_size;
+    os.file_read      = win32_file_read;
+    os.file_delete    = win32_file_delete;
+    os.file_move      = win32_file_move;
+    os.file_copy      = win32_file_copy;
+    os.make_directory = win32_make_directory;
 
     os.query_page_size = win32_query_page_size;
     os.memory_reserve  = win32_memory_reserve;
     os.memory_release  = win32_memory_release;
     os.memory_commit   = win32_memory_commit;
     os.memory_decommit = win32_memory_decommit;
+
+    os.abort = win32_abort;
 }

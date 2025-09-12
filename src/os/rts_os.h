@@ -139,12 +139,10 @@ enum Os_Open_File_Flag {
 
 
 // -----------------------------------------
-// @Note: Handle
-#define OS_HANDLE_VALID(name) b32 name(Os_Handle handle)
-typedef OS_HANDLE_VALID(Os_Handle_valid);
-
-// -----------------------------------------
 // @Note: File
+#define OS_FILE_IS_VALID(name) b32 name(Os_Handle file)
+typedef OS_FILE_IS_VALID(Os_File_Is_Valid);
+
 #define OS_FILE_OPEN(name) Os_Handle name(Utf8 path, Os_File_Access_Flags flags)
 typedef OS_FILE_OPEN(Os_File_Open);
 
@@ -157,8 +155,17 @@ typedef OS_FILE_READ(Os_File_Read);
 #define OS_FILE_SIZE(name) u64 name(Os_Handle file)
 typedef OS_FILE_SIZE(Os_File_Size);
 
-#define OS_FILE_COPY(name) void name(Utf8 src, Utf8 dst)
+#define OS_FILE_DELETE(name) void name(Utf8 path)
+typedef OS_FILE_DELETE(Os_File_Delete);
+
+#define OS_FILE_MOVE(name) void name(Utf8 dst_path, Utf8 src_path)
+typedef OS_FILE_MOVE(Os_File_Move);
+
+#define OS_FILE_COPY(name) b32 name(Utf8 dst_path, Utf8 src_path)
 typedef OS_FILE_COPY(Os_File_Copy);
+
+#define OS_MAKE_DIRECTORY(name) b32 name(Utf8 path)
+typedef OS_MAKE_DIRECTORY(Os_Make_Directory);
 
 // -----------------------------------------
 // @Note: Memory
@@ -176,6 +183,12 @@ typedef OS_COMMIT(Os_Commit);
 
 #define OS_DECOMMIT(name) void name(void *ptr, u64 size)
 typedef OS_DECOMMIT(Os_Decommit);
+
+// -----------------------------------------
+// @Note: Abort
+#define OS_ABORT(name) void name(void)
+typedef OS_ABORT(Os_Abort);
+
 
 
 
@@ -197,13 +210,15 @@ typedef void Os_Complete_All_Work(Os_Work_Queue *queue);
 
 struct OS 
 {
-    Os_Handle_valid *handle_valid;
-
-    Os_File_Open    *file_open;
-    Os_File_Close   *file_close;
-    Os_File_Size    *file_size;
-    Os_File_Read    *file_read;
-    Os_File_Copy    *file_copy;
+    Os_File_Is_Valid    *file_is_valid;
+    Os_File_Open        *file_open;
+    Os_File_Close       *file_close;
+    Os_File_Size        *file_size;
+    Os_File_Read        *file_read;
+    Os_File_Delete      *file_delete;
+    Os_File_Move        *file_move;
+    Os_File_Copy        *file_copy;
+    Os_Make_Directory   *make_directory;
 
     Os_Query_Page_Size *query_page_size;
     Os_Reserve         *memory_reserve;
@@ -214,6 +229,8 @@ struct OS
     Os_Get_System_Time    *get_system_time;
     Os_Read_Cpu_Timer     *read_cpu_timer;
     Os_Get_Last_Write_Time *get_last_write_time;
+
+    Os_Abort *abort;
 
     u64 tsc_frequency;
 };

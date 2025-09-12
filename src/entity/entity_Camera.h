@@ -9,7 +9,8 @@
 
 DECLARE_ENTITY_FUNCTIONS(Camera);
 
-enum Camera_Type {
+enum Camera_Type 
+{
     Camera_Type_Perspective,
     Camera_Type_Orthographic
 };
@@ -24,6 +25,9 @@ struct Camera : public Entity
     f32 N;
     f32 F;
     END_ENTITY
+
+    v3 velocity;
+    v3 accel;
 
     m4x4 V;
     m4x4 P;
@@ -63,41 +67,52 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
     Game_Key *keys = input->keys;
     Mouse_Input mouse = input->mouse;
 
-    if (game_state->controlling_camera == camera) {
-        if (camera->following) {
+    if (game_state->controlling_camera == camera) 
+    {
+        if (camera->following) 
+        {
             camera->position = camera->following->position + v3{0.0f, 3.0f, 3.0f};
-        } else if (!input->interacted_ui) {
-            f32 C = input->dt * 10.0f;
-            if (keys[KEY_W].is_down) {
-                m4x4 rotation = quaternion_to_m4x4(camera->orientation);
-                camera->position += (rotation * V4(0, 0, -C, 0)).xyz;
-            }
-            if (keys[KEY_S].is_down) {
-                m4x4 rotation = quaternion_to_m4x4(camera->orientation);
-                camera->position += (rotation * V4(0, 0, C, 0)).xyz;
-            }
-            if (keys[KEY_D].is_down) {
-                m4x4 rotation = quaternion_to_m4x4(camera->orientation);
-                camera->position += (rotation * V4(C, 0, 0, 0)).xyz;
-            }
-            if (keys[KEY_A].is_down) {
-                m4x4 rotation = quaternion_to_m4x4(camera->orientation);
-                camera->position += (rotation * V4(-C, 0, 0, 0)).xyz;
-            }
+        }
+        else if (! input->interacted_ui) 
+        {
+            f32 dt = input->dt;
+            f32 accel_strength = 50.0f;
+            f32 friction = 7.0f;
+            f32 max_speed = 20.0f;
+            
+            m4x4 rotation = quaternion_to_m4x4(camera->orientation);
 
-            if (keys[KEY_Q].is_down) {
-                m4x4 rotation = quaternion_to_m4x4(camera->orientation);
-                camera->position += (rotation * V4(0, -C, 0, 0)).xyz;
-            }
-            if (keys[KEY_E].is_down) {
-                m4x4 rotation = quaternion_to_m4x4(camera->orientation);
-                camera->position += (rotation * V4(0, C, 0, 0)).xyz;
-            }
+            v3 desired_dir = {};
+            if (keys[KEY_W].is_down) { desired_dir = (rotation * V4( 0,  0, -1, 0)).xyz; }
+            if (keys[KEY_S].is_down) { desired_dir = (rotation * V4( 0,  0,  1, 0)).xyz; }
+            if (keys[KEY_D].is_down) { desired_dir = (rotation * V4( 1,  0,  0, 0)).xyz; }
+            if (keys[KEY_A].is_down) { desired_dir = (rotation * V4(-1,  0,  0, 0)).xyz; }
+            if (keys[KEY_Q].is_down) { desired_dir = (rotation * V4( 0, -1,  0, 0)).xyz; }
+            if (keys[KEY_E].is_down) { desired_dir = (rotation * V4( 0,  1,  0, 0)).xyz; }
 
-            if (mouse.is_down[Mouse_Left]) {
-                if (mouse.toggle[Mouse_Left]) {
+            if (length_square(desired_dir) > 0.0f)
+            { desired_dir = normalize(desired_dir); }
+
+            v3 target_accel = desired_dir * accel_strength;
+            camera->velocity += (dt*target_accel);
+
+            if (length_square(desired_dir) == 0.0f)
+            { camera->velocity -= camera->velocity * friction * dt; }
+
+            f32 speed = length(camera->velocity);
+            if (speed > max_speed) 
+            { camera->velocity = (camera->velocity / speed) * max_speed; }
+
+            camera->position += (dt*camera->velocity); 
+
+            if (mouse.is_down[Mouse_Left]) 
+            {
+                if (mouse.toggle[Mouse_Left]) 
+                {
                     input->prev_mouse_p = mouse.click_p[Mouse_Left];
-                } else {
+                } 
+                else 
+                {
                     v2 d = 0.5f * input->dt * (mouse.position - input->prev_mouse_p);
                     camera->orientation = build_quaternion(v3{0,1,0}, -d.x) * camera->orientation;
                     camera->orientation = build_quaternion((quaternion_to_m4x4(camera->orientation)*v4{1,0,0,0}).xyz, d.y) * camera->orientation;

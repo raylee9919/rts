@@ -395,15 +395,16 @@ int main(void)
             bitmap = CreateDIBSection(hdc, &info, DIB_RGB_COLORS, &bits, 0, 0);
             SelectObject(hdc, bitmap);
 
-            char outputfilepathtemp[256];
-            str_snprintf(outputfilepathtemp, sizeof(outputfilepathtemp), "%s_temp", data->outputfilepath);
-            FILE *out = fopen(outputfilepathtemp, "wb");
+            char output_file_path_tmp[256];
+            str_snprintf(output_file_path_tmp, sizeof(output_file_path_tmp), "%s_temp", data->outputfilepath);
+
+            FILE *out = fopen(output_file_path_tmp, "wb");
             if (out) 
             {
                 bake_font(data->inputfilepath, data->fontname, out, data->fontsize);
                 fclose(out);
-                CopyFileA(outputfilepathtemp, data->outputfilepath, FALSE);
-                DeleteFileA(outputfilepathtemp);
+                CopyFileA(output_file_path_tmp, data->outputfilepath, FALSE);
+                DeleteFileA(output_file_path_tmp);
                 printf("%s --> %s  ", data->inputfilepath, data->outputfilepath);
                 printf("[OK]\n");
             }

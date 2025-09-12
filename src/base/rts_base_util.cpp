@@ -14,7 +14,7 @@ read_entire_file(Arena *arena, Utf8 file_path)
 
     Os_Handle file = os.file_open(file_path, OS_FILE_ACCESS_READ);
     mmm file_size = 0;
-    if (os.handle_valid(file))
+    if (os.file_is_valid(file))
     {
         file_size = os.file_size(file);
         u8 *ptr = push_array(arena, u8, file_size);
