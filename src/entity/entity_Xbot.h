@@ -40,7 +40,7 @@ struct Xbot : public Entity
     void init(Game_State *game_state) {
         Entity::init();
 
-        radius = 0.5f;
+        //radius = 0.5f;
 
         velocity = {};
         accel = {};

@@ -33,13 +33,13 @@ pushd build
 if exist *.pdb del *.pdb
 
 :: Font
-call %compiler% %flags_compile% ..\src\font\font_smith.cpp /link %flags_linker% Gdi32.lib 
+rem call %compiler% %flags_compile% ..\src\font\font_smith.cpp /link %flags_linker% Gdi32.lib 
 
 :: Assimp
-call %compiler% %flags_compile% ..\src\assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+rem call %compiler% %flags_compile% ..\src\assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
-call %compiler% ..\src\meta\meta.cpp /Fe:meta.exe %flags_compile% /link %flags_linker%
+rem call %compiler% ..\src\meta\meta.cpp /Fe:meta.exe %flags_compile% /link %flags_linker%
 meta.exe
 
 :: Renderers
