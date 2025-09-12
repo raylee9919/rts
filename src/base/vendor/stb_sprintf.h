@@ -1,5 +1,5 @@
 // ---------------------------------------
-// @Note(lsw): Modified. %S for UTF
+// @Note(lsw): Modified. %S for UTF8
 
 // stb_sprintf - v1.10 - public domain snprintf() implementation
 // originally by Jeff Roberts / RAD Game Tools, 2015/10/20

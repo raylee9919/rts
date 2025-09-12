@@ -62,6 +62,16 @@
 #  define per_thread __thread
 #endif
 
+// -----------------------------------------------
+// @Note: Align Of
+#if COMPILER_CL || COMPILER_CLANG
+#  define align_of(t) __alignof(t)
+#elif COMPILER_GCC
+#  define align_of(t) __alignof__(t)
+#else
+#  error align_of is not defined in this compiler.
+#endif
+
 
 
 
@@ -108,8 +118,8 @@ typedef Buffer String;
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
-#define max(a, b) ( (a > b) ? a : b )
-#define min(a, b) ( (a < b) ? a : b )
+#define max(a, b) ( ((a) > (b)) ? (a) : (b) )
+#define min(a, b) ( ((a) < (b)) ? (a) : (b) )
 #define clamp(a, lo, hi) (min(max(a, lo), hi))
 #define clamp_lo(a, hi) (max(a, lo))
 #define clamp_hi(a, hi) (min(a, hi))
@@ -128,7 +138,7 @@ typedef Buffer String;
 #define memory_set(dst, byte, size) memset((dst), (byte), (size))
 #define memory_compare(a, b, size)  memcmp((a), (b), (size))
 #define memory_match(a, b, size)    (memory_compare((a), (b), (size)) == 0)
-#define zero_size(ptr, size)        memory_set((ptr), 0, (size))
+#define zero_memory(ptr, size)      memory_set((ptr), 0, (size))
 #define zero_struct(ptr)            memory_set((ptr), 0, sizeof(*(ptr)))
 #define zero_array(ptr, count)      memory_set((ptr), 0, sizeof(*(ptr))*(count))
 

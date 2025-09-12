@@ -8,50 +8,50 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#define ARENA_DEFAULT_RESERVE_SIZE  MB(64)
-// #define ARENA_DEFAULT_COMMIT_SIZE   KB(64)
-#define ARENA_HEADER_ALIGNED_SIZE 48
+#define ARENA_DEFAULT_RESERVE_SIZE  KB(64)
+#define ARENA_HEADER_ALIGNED_SIZE   40 
 
 struct Arena 
 {
-    Arena *next;
     Arena *prev;
     Arena *current;
 
-    mmm size;
-    mmm used;
+    u64 size;
+    u64 used;
     u8 *base;
 };
+static_assert(ARENA_HEADER_ALIGNED_SIZE <= sizeof(Arena));
 
-typedef u16 Arena_Flags;
-enum
+struct Arena_Position
 {
-    ARENA_PUSH_NO_ZERO,
+    Arena *arena;
+    u64 used;
 };
 
 struct Temporary_Arena 
 {
     Arena *arena;
-    mmm used;
+    Arena_Position position;
 };
 
 
-internal mmm get_page_aligned_size(mmm size);
+internal Arena *arena_alloc(u64 size);
+internal void arena_release(Arena *arena);
 
-internal Arena *arena_alloc(mmm size);
-internal void arena_dealloc(Arena *arena);
-internal void arena_pop(Arena *arena, mmm size);
+internal void arena_pop_to(Arena *arena, Arena_Position position);
+internal void arena_pop(Arena *arena, u64 size);
 internal void arena_clear(Arena *arena);
-internal void *arena_push_size(Arena *arena, mmm size, Arena_Flags flags);
+internal void *arena_push(Arena *arena, u64 size, u64 align);
 
-#define push_size(arena, size) arena_push_size(arena, size, 0)
-#define push_size_noz(arena, size) arena_push_size(arena, size, ARENA_PUSH_NO_ZERO) // @Note: Use it only when you know what you are doing!
-#define push_struct(arena, type) ((type *)push_size(arena, sizeof(type)))
-#define push_array(arena, type, count) ((type *)push_size(arena, sizeof(type)*count))
-#define push_array_noz(arena, type, count) ((type *)push_size_noz(arena, sizeof(type)*count))
+#define push_array_noz_aligned(a, T, n, align)  (T *)arena_push((a), sizeof(T)*(n), (align))
+#define push_array_aligned(a, T, n, align)      (T *)zero_memory(push_array_noz_aligned(a, T, n, align), sizeof(T)*(n))
+#define push_array_noz(a, T, n)                      push_array_noz_aligned(a, T, n, max(8, align_of(T)))
+#define push_array(a, T, n)                          push_array_aligned(a, T, n, max(8, align_of(T)))
 
-internal Temporary_Arena tmp_begin(Arena *arena);
-internal void tmp_end(Temporary_Arena tmp);
+#define push_struct_noz(a, T)                        push_array_noz(a, T, 1)
+#define push_struct(a, T)                            push_array(a, T, 1)
+
+#define push_size(a, s)                              arena_push(a, s, 8)
 
 internal Temporary_Arena scratch_begin(void);
 internal void scratch_end(Temporary_Arena tmp);

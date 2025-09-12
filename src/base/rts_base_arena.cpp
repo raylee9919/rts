@@ -7,30 +7,22 @@
    ======================================================================== */
 
 
-internal mmm
-get_page_aligned_size(mmm size)
-{
-    mmm page_size = os.query_page_size();
-    mmm result= align_pow2(size, page_size);
-    return result;
-}
-
 internal Arena *
-arena_alloc(mmm size = ARENA_DEFAULT_RESERVE_SIZE)
+arena_alloc(u64 size = ARENA_DEFAULT_RESERVE_SIZE)
 {
-    mmm arena_plus_requested_size = ARENA_HEADER_ALIGNED_SIZE + size;
-    mmm actual_size = get_page_aligned_size(arena_plus_requested_size);
+    u64 arena_plus_requested_size = ARENA_HEADER_ALIGNED_SIZE + size;
+    u64 page_size = os.query_page_size();
+    u64 actual_size = align_pow2(arena_plus_requested_size, page_size);
 
     b32 commit_now = true;
 
-    void *ptr = os.memory_reserve(actual_size, commit_now); // IMPORTANT: spec'ed to pass page-aligned size.
+    void *ptr = os.memory_reserve(actual_size, commit_now); // @Important: spec'ed to pass page-aligned size.
     Arena *result = (Arena *)ptr;
     {
         result->base     = (u8 *)ptr + ARENA_HEADER_ALIGNED_SIZE;
         result->size     = actual_size - ARENA_HEADER_ALIGNED_SIZE;
         result->used     = 0;
-        result->next     = NULL;
-        result->prev     = NULL;
+        result->prev     = 0;
         result->current  = result;
     }
 
@@ -38,7 +30,7 @@ arena_alloc(mmm size = ARENA_DEFAULT_RESERVE_SIZE)
 }
 
 internal void
-arena_dealloc(Arena *arena)
+arena_release(Arena *arena)
 {
     Arena *node = arena->current;
     while (node != NULL)
@@ -50,7 +42,19 @@ arena_dealloc(Arena *arena)
 }
 
 internal void
-arena_pop(Arena *arena, mmm size)
+arena_pop_to(Arena *arena, Arena_Position position)
+{
+    for (Arena *n = arena->current; n != position.arena; n = n->prev)
+    {
+        n->used = 0;
+    }
+
+    position.arena->used = position.used;
+    arena->current = position.arena;
+}
+
+internal void
+arena_pop(Arena *arena, u64 size)
 {
     Arena *node = arena->current;
     for (;;)
@@ -66,9 +70,9 @@ arena_pop(Arena *arena, mmm size)
         }
         else
         {
+            size -= node->used;
             node->used = 0;
             arena->current = node->prev;
-            size -= node->used;
             node = node->prev;
         }
     }
@@ -85,50 +89,30 @@ arena_clear(Arena *arena)
 }
 
 internal void *
-arena_push_size(Arena *arena, mmm size, Arena_Flags flags)
+arena_push(Arena *arena, u64 size, u64 align)
 {
-    void *result = NULL;
-
+    void *result = 0;
     Arena *current = arena->current;
+    u64 used_pre = align_pow2(current->used, align);
+    u64 used_pst = used_pre + size;
 
-    if (current->used + size <= current->size)
-    {
-        result = current->base + current->used;
-        current->used += size;
-    }
-    else
+    if (current->size < used_pst)
     {
         Arena *new_arena = arena_alloc(size);
         new_arena->prev = current;
+
         arena->current = new_arena;
 
         result = new_arena->base;
         new_arena->used += size;
     }
-
-    if (! (flags & ARENA_PUSH_NO_ZERO))
+    else
     {
-        zero_size(result, size);
+        result = current->base + used_pre;
+        current->used = used_pst;
     }
 
     return result;
-}
-
-internal Temporary_Arena
-tmp_begin(Arena *arena)
-{
-    Temporary_Arena result = {};
-    {
-        result.arena  = arena;
-        result.used   = arena->used;
-    }
-    return result;
-}
-
-internal void
-tmp_end(Temporary_Arena tmp)
-{
-    arena_pop(tmp.arena, tmp.arena->used - tmp.used);
 }
 
 internal Temporary_Arena
@@ -136,8 +120,10 @@ scratch_begin(void)
 {
     Temporary_Arena result = {};
     {
-        result.arena  = tctx.scratch_arena;
-        result.used   = tctx.scratch_arena->used;
+        result.arena = tctx.scratch_arena;
+
+        result.position.arena = tctx.scratch_arena->current;
+        result.position.used  = tctx.scratch_arena->current->used;
     }
     return result;
 }
@@ -145,5 +131,5 @@ scratch_begin(void)
 internal void
 scratch_end(Temporary_Arena tmp)
 {
-    arena_pop(tmp.arena, tmp.arena->used - tmp.used);
+    arena_pop_to(tmp.arena, tmp.position);
 }

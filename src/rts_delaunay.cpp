@@ -7,47 +7,11 @@
    ======================================================================== */
 
 
+// ---------------------------------------------------------------------------
+// @Note: cdt stands for 'constrained delaunay triangulation'.
 
-struct Nav_Constrain {
-    int (*edges)[2];
-    u32 edge_count;
-    u32 edge_size;
-};
-
-struct Cdt_Result {
-    int numtri;
-    int (*tri)[3];
-    int (*adj)[3];
-    s32 *trespassable;
-};
-
-struct Nav_Vertex {
-    int idx; // if it is < 0, it isn't in the array.
-    v3 position;
-};
-struct Nav_Portal {
-    Nav_Vertex left;
-    Nav_Vertex right;
-};
-
-struct Navmesh {
-    Cdt_Result cdt;
-
-    Vertex *vertices;
-    u32 vertex_size;
-    u32 vertex_count;
-
-    Nav_Constrain *constrains;
-    u32 constrain_size;
-    u32 constrain_count;
-
-    b32 is_constrain;
-    u32 first_vertex;
-};
-
-
-static u32
-cdt_partition_bin(int *VIDX, u32 lo, u32 hi, int *BIN) 
+internal u32
+cdt_bin_partition(int *VIDX, u32 lo, u32 hi, int *BIN) 
 {
     u32 j, k = lo;
 
@@ -66,17 +30,18 @@ cdt_partition_bin(int *VIDX, u32 lo, u32 hi, int *BIN)
     return k;
 }
 
-static void
-cdt_quicksort_bin(int *VIDX, u32 lo, u32 hi, int *BIN) 
+internal void
+cdt_bin_quicksort(int *VIDX, u32 lo, u32 hi, int *BIN) 
 {
-    if (hi > lo + 1) {
-        u32 mid = cdt_partition_bin(VIDX, lo, hi, BIN);
-        cdt_quicksort_bin(VIDX, lo, mid, BIN);
-        cdt_quicksort_bin(VIDX, mid + 1, hi, BIN);
+    if (hi > lo + 1) 
+    {
+        u32 mid = cdt_bin_partition(VIDX, lo, hi, BIN);
+        cdt_bin_quicksort(VIDX, lo, mid, BIN);
+        cdt_bin_quicksort(VIDX, mid + 1, hi, BIN);
     }
 }
 
-static bool
+internal b32
 cdt_point_in_triangle(v2 p, v2 a, v2 b, v2 c) 
 {
     v2 ab = b - a;
@@ -106,9 +71,9 @@ cdt_point_in_triangle(v2 p, v2 a, v2 b, v2 c)
     }
 }
 
-// @TODO: Identical vertices cases not handled. Meaning, there can be identical triangles with
-// different id, meaning, there might be more than 3 adjacent triangeles.
-static int 
+// @Todo: Identical vertices cases not handled. Meaning, there can be identical triangles with
+//        different id, meaning, there might be more than 3 adjacent triangeles.
+internal int 
 cdt_edge(int (*adj)[3], int L, int K) 
 {
     for (int e = 0; e < 3; ++e) {
@@ -121,7 +86,7 @@ cdt_edge(int (*adj)[3], int L, int K)
     return -1;
 }
 
-// @NOTE: Colinear isn't considered on left.
+// @Note: Colinear isn't considered on left.
 internal b32
 point_on_left(v2 p, v2 a, v2 b, b32 colinear = false) 
 {
@@ -133,7 +98,7 @@ point_on_left(v2 p, v2 a, v2 b, b32 colinear = false)
     return false;
 }
 
-// @NOTE: Colinear isn't considered on left.
+// @Note: Colinear isn't considered on left.
 internal b32
 point_on_right(v2 p, v2 a, v2 b, b32 colinear = false) 
 {
@@ -145,15 +110,15 @@ point_on_right(v2 p, v2 a, v2 b, b32 colinear = false)
     return false;
 }
 
-// @NOTE: Colinear points aren't considered intersecting.
-static bool
+// @Note: Colinear points aren't considered intersecting.
+internal b32
 cdt_intersect(v2 a1, v2 a2, v2 b1, v2 b2) 
 {
     v2 p = a2-a1;
     v2 q1 = b1-a2;
     v2 q2 = b2-a2;
-    float c1 = p.x*q1.y - p.y*q1.x;
-    float c2 = p.x*q2.y - p.y*q2.x;
+    f32 c1 = p.x*q1.y - p.y*q1.x;
+    f32 c2 = p.x*q2.y - p.y*q2.x;
     if (c1*c2 >= 0) return false;
 
     v2 q = b2-b1;
@@ -166,7 +131,7 @@ cdt_intersect(v2 a1, v2 a2, v2 b1, v2 b2)
     return true;
 }
 
-static bool
+internal b32
 is_convex(v2 a, v2 b, v2 c, v2 d) 
 {
     v2 s[4];
@@ -175,7 +140,7 @@ is_convex(v2 a, v2 b, v2 c, v2 d)
     s[2] = d-c;
     s[3] = a-d;
 
-    float cp[4];
+    f32 cp[4];
     for (int i = 0; i < 4; ++i) {
         int j = (i+1)%4;
         cp[i] = (s[i].x*s[j].y - s[i].y*s[j].x);
@@ -186,34 +151,35 @@ is_convex(v2 a, v2 b, v2 c, v2 d)
     return false;
 }
 
-bool cdt_bad(float xp, float x1, float x2, float x3, float yp, float y1, float y2, float y3) 
+internal b32
+cdt_bad(f32 xp, f32 x1, f32 x2, f32 x3, f32 yp, f32 y1, f32 y2, f32 y3) 
 {
-    // @NOTE: Determine if a pair of adjacent triangles form a convex quadrilateral with the maximum minimum angle.
+    // @Note: Determine if a pair of adjacent triangles form a convex quadrilateral with the maximum minimum angle.
 
-    float x13 = x1 - x3;
-    float x23 = x2 - x3;
-    float x1p = x1 - xp;
-    float x2p = x2 - xp;
+    f32 x13 = x1 - x3;
+    f32 x23 = x2 - x3;
+    f32 x1p = x1 - xp;
+    f32 x2p = x2 - xp;
 
-    float y13 = y1 - y3;
-    float y23 = y2 - y3;
-    float y1p = y1 - yp;
-    float y2p = y2 - yp;
+    f32 y13 = y1 - y3;
+    f32 y23 = y2 - y3;
+    f32 y1p = y1 - yp;
+    f32 y2p = y2 - yp;
 
-    float cosa = x13*x23 + y13*y23;
-    float cosb = x2p*x1p + y2p*y1p;
+    f32 cosa = x13*x23 + y13*y23;
+    f32 cosb = x2p*x1p + y2p*y1p;
 
-    bool result;
+    b32 result;
 
     if (cosa >= 0 && cosb >= 0) {
         result = false;
     } else if (cosa < 0 && cosb < 0) {
         result = true;
     } else {
-        float sina = x13*y23 - x23*y13;
-        float sinb = x2p*y1p - x1p*y2p;
+        f32 sina = x13*y23 - x23*y13;
+        f32 sinb = x2p*y1p - x1p*y2p;
 
-        float sinab = sina*cosb + sinb*cosa;
+        f32 sinab = sina*cosb + sinb*cosa;
 
         if (sinab < 0) {
             result = true;
@@ -225,7 +191,6 @@ bool cdt_bad(float xp, float x1, float x2, float x3, float yp, float y1, float y
     return result;
 }
 
-// @TODO: Remove malloc()
 internal Cdt_Result
 delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 {
@@ -233,60 +198,68 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     u64 tsc_begin = os.read_cpu_timer();
 #endif
 
+    Temporary_Arena scratch = scratch_begin();
+
     int count = (int)vertexcount;
 
-    int *VIDX = (int *)malloc(sizeof(int)*count);
-    scope_exit(free(VIDX));
-    for (int i = 0; i < count; ++i) VIDX[i] = i;
-
-    int *BIN = (int *)malloc(sizeof(int)*count);
-    scope_exit(free(BIN));
-
-    v2 *positions = (v2 *)malloc(sizeof(v2)*(count+3));
-    scope_exit(free(positions));
-    for (int i = 0; i < count; ++i) {
-        positions[i].x = vertices[i].position.z;
-        positions[i].y = vertices[i].position.x;
+    int *VIDX = push_array_noz(scratch.arena, int, count);
+    {
+        for (int i = 0; i < count; ++i) 
+        { VIDX[i] = i; }
     }
 
-    // @NOTE: Normalize while keeping aspect ratio.
-    float xmin =  F32_MAX;
-    float xmax = -F32_MAX;
-    float ymin =  F32_MAX;
-    float ymax = -F32_MAX;
+    int *BIN = push_array(scratch.arena, int, count);
 
-    for (int i = 0; i < count; ++i) {
-        float x = positions[i].x;
-        float z = positions[i].y;
+    v2 *positions = push_array(scratch.arena, v2, count + 3);
+    {
+        for (int i = 0; i < count; ++i) 
+        {
+            positions[i].x = vertices[i].position.z;
+            positions[i].y = vertices[i].position.x;
+        }
+    }
+
+    // @Note: Normalize while keeping aspect ratio.
+    f32 xmin =  F32_MAX;
+    f32 xmax = -F32_MAX;
+    f32 ymin =  F32_MAX;
+    f32 ymax = -F32_MAX;
+
+    for (int i = 0; i < count; ++i) 
+    {
+        f32 x = positions[i].x;
+        f32 z = positions[i].y;
         xmin = min(xmin, x);
         xmax = max(xmax, x);
         ymin = min(ymin, z);
         ymax = max(ymax, z);
     }
 
-    float invdmax = 1.0f / max(xmax - xmin, ymax - ymin);
+    f32 invdmax = ( 1.0f / max(xmax - xmin, ymax - ymin) );
 
-    for (int i = 0; i < count; ++i) {
+    for (int i = 0; i < count; ++i) 
+    {
         positions[i].x = (positions[i].x - xmin) * invdmax;
         positions[i].y = (positions[i].y - ymin) * invdmax;
     }
 
-    float invnxmax = 1.0f / ((xmax - xmin) * invdmax);
-    float invnymax = 1.0f / ((ymax - ymin) * invdmax);
+    f32 invnxmax = 1.0f / ((xmax - xmin) * invdmax);
+    f32 invnymax = 1.0f / ((ymax - ymin) * invdmax);
 
-    // @NOTE: Sort by proximity.
-    int ndiv = (int)(pow((float)count, 0.25f) + 0.5f);
-    for (int k = 0; k < count; ++k) {
-        float x = positions[k].x;
-        float y = positions[k].y;
+    // @Note: Sort by proximity.
+    int ndiv = (int)(pow((f32)count, 0.25f) + 0.5f);
+    for (int k = 0; k < count; ++k) 
+    {
+        f32 x = positions[k].x;
+        f32 y = positions[k].y;
         int i = int(y*ndiv*0.99f*invnxmax);
         int j = int(x*ndiv*0.99f*invnymax);
         int bin = (i % 2 == 0) ? i*ndiv+j+1 : (i+1)*ndiv-j;
         BIN[k] = bin;
     }
-    cdt_quicksort_bin(VIDX, 0, count, BIN);
+    cdt_bin_quicksort(VIDX, 0, count, BIN);
 
-    // Add super-triangle to vertex array.
+    // @Note: Add super-triangle to vertex array.
     positions[count].x   = -100;
     positions[count].y   = -100;
 
@@ -300,34 +273,38 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
     int maxnumtri = 2*(count+3);
 
-    int (*tri)[3] = (int (*)[3])malloc(3*sizeof(int)*maxnumtri);
-    scope_exit(free(tri));
-    tri[0][0] = count-3;
-    tri[0][1] = count-2;
-    tri[0][2] = count-1;
+    int (*tri)[3] = (int(*)[3])push_array(scratch.arena, int, 3*maxnumtri);
+    {
+        tri[0][0] = count-3;
+        tri[0][1] = count-2;
+        tri[0][2] = count-1;
+    }
 
-    int (*adj)[3] = (int (*)[3])malloc(3*sizeof(int)*maxnumtri);
-    scope_exit(free(adj));
-    adj[0][0] = -1;
-    adj[0][1] = -1;
-    adj[0][2] = -1;
+    int (*adj)[3] = (int(*)[3])push_array(scratch.arena, int, 3*maxnumtri);
+    {
+        adj[0][0] = -1;
+        adj[0][1] = -1;
+        adj[0][2] = -1;
+    }
 
-    s32 *trespassable = (s32 *)malloc(sizeof(s32)*maxnumtri);
-    scope_exit(free(trespassable));
-    for (int i = 0; i < maxnumtri; ++i) trespassable[i] = 1;
+    s32 *trespassable = push_array_noz(scratch.arena, s32, maxnumtri);
+    for (int i = 0; i < maxnumtri; ++i) 
+    { trespassable[i] = 1; }
 
     int maxstk = (count-3);
-    int *ts = (int *)malloc(maxstk*sizeof(int)); // @NOTE: Sloan suggests #point is good enough for 10,000. Assertion required.
-    scope_exit(free(ts));
+    int *ts = push_array(scratch.arena, int, maxstk); // @Note: Sloan suggests #point is good enough for 10,000. Assertion required.
     int top = -1;
 
     int numtri = 1;
 
-    for (int vii = 0; vii < count - 3; ++vii) {
+    for (int vii = 0; vii < count - 3; ++vii) 
+    {
         int p = VIDX[vii];
         //int ti = numtri - 1;
-        for (int ti = numtri - 1; ti >= 0; --ti) {
-            if (cdt_point_in_triangle(positions[p], positions[tri[ti][0]], positions[tri[ti][1]], positions[tri[ti][2]])) {
+        for (int ti = numtri - 1; ti >= 0; --ti) 
+        {
+            if (cdt_point_in_triangle(positions[p], positions[tri[ti][0]], positions[tri[ti][1]], positions[tri[ti][2]])) 
+            {
                 tri[numtri][0] = p;
                 tri[numtri][1] = tri[ti][1];
                 tri[numtri][2] = tri[ti][2];
@@ -342,12 +319,14 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                 int C = adj[ti][2];
 
                 // Update adj info of surrounding triangles.
-                if (B >= 0) {
+                if (B >= 0) 
+                {
                     int EBT = cdt_edge(adj, B, ti);
                     adj[B][EBT] = numtri;
                 }
 
-                if (C >= 0) {
+                if (C >= 0) 
+                {
                     int ECT = cdt_edge(adj, C, ti);
                     adj[C][ECT] = numtri+1;
                 }
@@ -399,17 +378,18 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                     int V2 = tri[R][ERA];
                     int V3 = tri[R][ERB];
 
-                    float xp = positions[P].x;
-                    float x1 = positions[V1].x;
-                    float x2 = positions[V2].x;
-                    float x3 = positions[V3].x;
+                    f32 xp = positions[P].x;
+                    f32 x1 = positions[V1].x;
+                    f32 x2 = positions[V2].x;
+                    f32 x3 = positions[V3].x;
 
-                    float yp = positions[P].y;
-                    float y1 = positions[V1].y;
-                    float y2 = positions[V2].y;
-                    float y3 = positions[V3].y;
+                    f32 yp = positions[P].y;
+                    f32 y1 = positions[V1].y;
+                    f32 y2 = positions[V2].y;
+                    f32 y3 = positions[V3].y;
 
-                    if (cdt_bad(xp,x1,x2,x3,yp,y1,y2,y3)) {
+                    if (cdt_bad(xp,x1,x2,x3,yp,y1,y2,y3)) 
+                    {
                         int A = adj[R][ERA];
                         int B = adj[R][ERB];
                         int C = adj[L][2];
@@ -452,59 +432,55 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
             }
         }
 
-        // @TODO: adjust triangle index according to direction and sorted bin.
+        // @Todo: adjust triangle index according to direction and sorted bin.
     }
 
-    // @NOTE: Check consistency of triangulation.
+    // @Note: Check consistency of triangulation.
     Assert(numtri == 2*(count-3)+1);
 
-    // @NOTE: Constrained Delaunay Triangulation.
-    Stack<Pair<int, int>> removestack = {};
+    if (navmesh->constrain_count > 0) 
+    {
+        int *tl = push_array(scratch.arena, int, count*numtri);
 
-    if (navmesh->constrain_count > 0) {
-        int *tl = (int *)malloc(sizeof(int)*count*numtri);
-        scope_exit(free(tl));
-
-        int *tlcount = (int *)malloc(sizeof(int)*count);
-        scope_exit(free(tlcount));
-        zero_array(tlcount, count);
+        int *tlcount = push_array(scratch.arena, int, count);
 
         // Itersecting edges.
         int ielen = count*3;
-        int (*ie)[2] = (int (*)[2])malloc(2*sizeof(int)*ielen);
+        int (*ie)[2] = (int(*)[2])push_array(scratch.arena, int, 2*ielen);
         int ielo = 0;
         int iehi = 0;
-        scope_exit(free(ie));
 
         // New edges.
         int nelen = count*3;
-        int (*ne)[2] = (int (*)[2])malloc(2*sizeof(int)*nelen);
+        int (*ne)[2] = (int(*)[2])push_array(scratch.arena, int, 2*nelen);
         int nelo = 0;
         int nehi = 0;
-        scope_exit(free(ne));
 
         // Build triangle-list per vertex.
         int tlpitch = numtri;
-        for (int T = 0; T < numtri; ++T) {
-            for (int i = 0; i < 3; ++i) {
+        for (int T = 0; T < numtri; ++T) 
+        {
+            for (int i = 0; i < 3; ++i) 
+            {
                 int V = tri[T][i];
                 *(tl + (V*tlpitch) + tlcount[V]++) = T;
             }
         }
 
 
-        // @NOTE: Iterate through constraint edges.
-        for (u32 constrain_idx = 0; constrain_idx < navmesh->constrain_count; ++constrain_idx) {
+        // @Note: Iterate through constraint edges.
+        for (u32 constrain_idx = 0; constrain_idx < navmesh->constrain_count; ++constrain_idx) 
+        {
             Nav_Constrain *constrain = navmesh->constrains + constrain_idx;
             for (u32 cei = 0; cei < constrain->edge_count; ++cei) {
                 int vi = constrain->edges[cei][0];
                 int vj = constrain->edges[cei][1];
 
 
-                // @NOTE: Skip if the edge is already in the triangulation.
+                // @Note: Skip if the edge is already in the triangulation.
                 int T = -1;
-                bool terminate = false;
-                bool alreadyin = false;
+                b32 terminate = false;
+                b32 alreadyin = false;
                 for (int ti = 0; ti < tlcount[vi]; ++ti) {
                     int tmpT = tl[vi*tlpitch + ti];
 
@@ -562,9 +538,9 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                     }
                 }
 
-                // @NOTE Iterate intersecting edges (ie).
+                // @Note Iterate intersecting edges (ie).
                 while (ielo != iehi) {
-                    // @NOTE: Remove an edge from the list.
+                    // @Note: Remove an edge from the list.
                     int vk = ie[ielo][0];
                     int vl = ie[ielo][1];
 
@@ -605,13 +581,13 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
                     if (!is_convex(positions[P], positions[V2], positions[V3], positions[V1])) {
                         if (cdt_intersect(positions[vi], positions[vj], positions[V1], positions[V2])) {
-                            // @NOTE: If strictly concave, and still intersects, put it back on.
+                            // @Note: If strictly concave, and still intersects, put it back on.
                             ie[iehi][0] = vk;
                             ie[iehi][1] = vl;
                             iehi = (iehi+1)%ielen;
                         }
                     } else {
-                        // @NOTE: If convex, swap diagonal.
+                        // @Note: If convex, swap diagonal.
                         int A = adj[R][ERA];
                         int B = adj[R][ERB];
                         int C = adj[L][ELC];
@@ -643,7 +619,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                             adj[C][ECL] = R;
                         }
 
-                        // @NOTE: Update triangle-list.
+                        // @Note: Update triangle-list.
                         //        Remove L from V1, Add L to V3
                         //        Remove R from V2, Add R to P 
                         for (int i = 0; i < tlcount[V1]; ++i) {
@@ -662,14 +638,14 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                         }
                         tl[P*tlpitch + tlcount[P]++] = R;
 
-                        // @NOTE: If still intersects, add to intersecting list.
+                        // @Note: If still intersects, add to intersecting list.
                         int ELR = cdt_edge(adj, L, R);
                         if (cdt_intersect(positions[vi], positions[vj], positions[P], positions[V3])) {
                             ie[iehi][0] = V3;
                             ie[iehi][1] = P;
                             iehi = (iehi+1)%ielen;
                         } else {
-                            // @NOTE: If not, place it on a list of newly created edges.
+                            // @Note: If not, place it on a list of newly created edges.
                             ne[nehi][0] = V3;
                             ne[nehi][1] = P;
                             nehi = (nehi+1)%nelen;
@@ -677,7 +653,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                     }
                 }
 
-                // @NOTE: Iterate over newly created edges.
+                // @Note: Iterate over newly created edges.
                 while (nelo != nehi) {
                     int vk = ne[nelo][0];
                     int vl = ne[nelo][1];
@@ -717,22 +693,22 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                     int P = tri[L][(ELR+2)%3];
                     int V3 = tri[R][(ERL+2)%3];
 
-                    float xp = positions[P].x;
-                    float x1 = positions[V1].x;
-                    float x2 = positions[V2].x;
-                    float x3 = positions[V3].x;
+                    f32 xp = positions[P].x;
+                    f32 x1 = positions[V1].x;
+                    f32 x2 = positions[V2].x;
+                    f32 x3 = positions[V3].x;
 
-                    float yp = positions[P].y;
-                    float y1 = positions[V1].y;
-                    float y2 = positions[V2].y;
-                    float y3 = positions[V3].y;
+                    f32 yp = positions[P].y;
+                    f32 y1 = positions[V1].y;
+                    f32 y2 = positions[V2].y;
+                    f32 y3 = positions[V3].y;
 
-                    // @NOTE: If it's constrained edge, skip.
+                    // @Note: If it's constrained edge, skip.
                     if ((vk==vi && vl==vj) || (vk==vj && vl==vi)) {
                         continue;
                     }
 
-                    // @NOTE: If delaunay-bad, swap.
+                    // @Note: If delaunay-bad, swap.
                     if (cdt_bad(xp,x1,x2,x3,yp,y1,y2,y3)) {
                         int A = adj[R][ERA];
                         int B = adj[R][ERB];
@@ -765,7 +741,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                             adj[C][ECL] = R;
                         }
 
-                        // @NOTE: Update triangle-list.
+                        // @Note: Update triangle-list.
                         //        Remove L from V1, Add L to V3
                         //        Remove R from V2, Add R to P 
                         for (int i = 0; i < tlcount[V1]; ++i) {
@@ -788,19 +764,19 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
             }
         }
 
-        // @NOTE: Make a hole.
-        bool *visited = (bool *)malloc(sizeof(bool) * numtri);
-        scope_exit(free(visited));
+        // @Note: Make a hole.
+        b32 *visited = push_array(scratch.arena, b32, numtri);
 
         // For each constrain polygon,
-        for (u32 constrain_idx = 0; constrain_idx < navmesh->constrain_count; ++constrain_idx) {
+        for (u32 constrain_idx = 0; constrain_idx < navmesh->constrain_count; ++constrain_idx) 
+        {
             Nav_Constrain *constrain = navmesh->constrains + constrain_idx;
             zero_array(visited, numtri);
             Queue<int> queue = {};
 
             // For each constrain edges,
             for (u32 e = 0; e < constrain->edge_count; ++e) {
-                // @NOTE: Find for starting BFS triangle.
+                // @Note: Find for starting BFS triangle.
                 int vk = constrain->edges[e][0];
                 int vl = constrain->edges[e][1];
 
@@ -837,12 +813,12 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                     for (int i = 0; i < 3; ++i) {
                         int R = adj[T][i];
                         if (R != -1) {
-                            bool in = false;
+                            b32 in = false;
 
                             int vk = tri[R][i];
                             int vl = tri[R][(i+1)%3];
 
-                            // @TODO: This is lunacy.
+                            // @Todo: This is lunacy.
                             for (u32 j = 0; j < constrain->edge_count; ++j) {
                                 if (constrain->edges[j][0] == vk && constrain->edges[j][1] == vl) {
                                     in = true;
@@ -861,21 +837,18 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
             }
         }
         // End of Making Hole.
-
     }
 
 
-    // @NOTE: Remove triangles including super-triangle's vertex.
-    bool *rmflag = (bool *)malloc(sizeof(bool)*numtri);
-    scope_exit(free(rmflag));
-    zero_array(rmflag, numtri);
-
-    int *trimap = (int *)malloc(sizeof(int)*numtri);
-    scope_exit(free(trimap));
+    // @Note: Remove triangles including super-triangle's vertex.
+    b32 *rmflag = push_array(scratch.arena, b32, numtri);
+    int *trimap = push_array(scratch.arena, int, numtri);
 
     int result_numtri = numtri;
-    for (int ti = 0; ti < numtri; ++ti) {
-        if (tri[ti][0] >= count-3 || tri[ti][1] >= count-3 || tri[ti][2] >= count-3) {
+    for (int ti = 0; ti < numtri; ++ti) 
+    {
+        if (tri[ti][0] >= count-3 || tri[ti][1] >= count-3 || tri[ti][2] >= count-3) 
+        {
             rmflag[ti] = 1;
             --result_numtri;
         }
@@ -901,30 +874,37 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     }
     Assert(idx == result_numtri);
 
-    for (int T = 0; T < numtri; ++T) {
+    for (int T = 0; T < numtri; ++T) 
+    {
         int idx = trimap[T];
-        if (idx >= 0) {
-            for (int i = 0; i < 3; ++i) {
+        if (idx >= 0) 
+        {
+            for (int i = 0; i < 3; ++i) 
+            {
                 result_adj[idx][i] = trimap[adj[T][i]];
             }
             result_trespassable[idx] = trespassable[T];
         }
     }
 
-    // @NOTE: Remap to original value.
+    // @Note: Remap to original value.
     //count-=3;
 
 #if __DEVELOPER
     u64 tsc_end = os.read_cpu_timer();
     f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.tsc_frequency;
-    printf("Generated Navmesh in %.2fms.\n", elapsed_ms);
+    printf("Generated Navmesh in %.6fms.\n", elapsed_ms);
 #endif
 
     Cdt_Result result = {};
-    result.numtri = result_numtri;
-    result.tri = result_tri;
-    result.adj = result_adj;
-    result.trespassable = result_trespassable;
+    {
+        result.numtri = result_numtri;
+        result.tri = result_tri;
+        result.adj = result_adj;
+        result.trespassable = result_trespassable;
+    }
+
+    scratch_end(scratch);
     return result;
 }
 

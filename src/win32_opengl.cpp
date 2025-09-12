@@ -396,7 +396,8 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
     Opengl *gl = push_struct(arena, Opengl);
     Opengl_Info *glinfo = push_struct(arena, Opengl_Info);
 
-    if (reload) {
+    if (reload) 
+    {
         Opengl *oldgl = (Opengl *)arena->base;
         gl->info = oldgl->info;
         gl->render_commands = oldgl->render_commands;
@@ -405,7 +406,9 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
         HGLRC glrc = wglGetCurrentContext();
         win32_load_wgl_extensions(gl);
         wglMakeCurrent(window_dc, glrc);
-    } else {
+    }
+    else 
+    {
         win32_set_pixel_format(gl, window_dc);
         win32_load_wgl_extensions(gl);
     }

@@ -22,20 +22,18 @@
 
 #include "input.h"
 
-#include "stack.h"
 #include "queue.h"
 #include "priority_queue.h"
 
-#include "ui.h"
+#include "rts_ui.h"
 Ui ui;
 
-#include "delaunay.h"
+#include "rts_delaunay.h"
 #include "nav.h"
 #include "rts_game.h"
 
 #include "renderer.h"
 #include "renderer.cpp"
-#include "ui.cpp"
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "sim.cpp"
@@ -49,6 +47,8 @@ Ui ui;
 #include "rts_math.cpp"
 #include "rts_random.cpp"
 #include "rts_asset.cpp"
+#include "rts_ui.cpp"
+#include "rts_delaunay.cpp"
 
 #define GROUND_RES 20
 
@@ -347,7 +347,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 navmesh->constrains[i].edge_count = 0;
                 navmesh->constrains[i].edge_size = 1000;
                 navmesh->constrains[i].edges = (int (*)[2])malloc(sizeof(int)*2*navmesh->constrains[i].edge_size);
-                zero_size(navmesh->constrains[i].edges, sizeof(int)*2*navmesh->constrains[i].edge_size);
+                zero_memory(navmesh->constrains[i].edges, sizeof(int)*2*navmesh->constrains[i].edge_size);
             }
 
             push_vertex(navmesh, v3{-50,0,-50});

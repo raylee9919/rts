@@ -44,7 +44,7 @@ rem meta.exe
 
 :: Renderers
 set renderer_export=-EXPORT:win32_load_renderer -EXPORT:win32_begin_frame -EXPORT:win32_end_frame -EXPORT:win32_cleanup
-rem call %compiler% %flags_compile% ..\src\win32_opengl.cpp /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
+call %compiler% %flags_compile% ..\src\win32_opengl.cpp /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
 
 :: Game
 call %compiler% %flags_compile% ..\src\rts_game.cpp /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render

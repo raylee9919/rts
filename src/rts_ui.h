@@ -1,3 +1,5 @@
+#ifndef RTS_UI_H
+#define RTS_UI_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -26,16 +28,16 @@ struct Ui_Fadeout_Text
     v4 color;
 };
 
-struct Ui 
+struct Ui
 {
     b32 initted;
+    Arena *arena;
 
-    struct Input *input;
-    struct Mouse_Input *mouse;
-    struct Arena *arena;
+    Input *input;
+    Mouse_Input *mouse;
     struct Render_Group *render_group;
-    struct Asset_Font *font;
-    struct Asset_Font *bigfont;
+    Asset_Font *font;
+    Asset_Font *bigfont;
 
     u32 hot;
     u32 active;
@@ -63,3 +65,5 @@ struct Ui
     void gizmo(v3 *position, m4x4 view_proj);
     void end_frame();
 };
+
+#endif // RTS_UI_H
