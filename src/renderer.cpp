@@ -130,7 +130,8 @@ string_op(u8 flag, Render_Group *render_group,
                 f32 min_x = cur_x;
                 cur_x += (B + C);
 
-                if (flag & String_Op_Get_Rect) {
+                if (flag & String_Op_Get_Rect) 
+                {
                     result.min.x = min(result.min.x, min_x);
                     result.max.x = max(result.max.x, max_x);
                 }
@@ -152,9 +153,10 @@ string_op(u8 flag, Render_Group *render_group,
                 v3 min = max - v3{bw, bh, 0};
 
                 if (flag & String_Op_Draw)
-                    push_bitmap(render_group, min, max, bitmap, color);
+                { push_bitmap(render_group, min, max, bitmap, color); }
 
-                if (flag & String_Op_Get_Rect) {
+                if (flag & String_Op_Get_Rect) 
+                {
                     result.min.x = min(result.min.x, min.x);
                     result.min.y = min(result.min.y, min.y);
                     result.max.x = max(result.max.x, max.x);
@@ -165,19 +167,18 @@ string_op(u8 flag, Render_Group *render_group,
             } break;
         }
 
-        if (*(ch + 1)) {
+        if (*(ch + 1)) 
+        {
             kern = (f32)get_kerning(&font->kern_hashmap, *ch, *(ch + 1));
-            if (font->glyphs[*(ch + 1)]) {
-                A = (f32)font->glyphs[*(ch + 1)]->A;
-            }
+            if (font->glyphs[*(ch + 1)]) 
+            { A = (f32)font->glyphs[*(ch + 1)]->A; }
             f32 advance_x = (A + kern);
             cur_x += advance_x;
         }
     }
 
-    if (result.min.x == F32_MAX) {
-        result = {};
-    }
+    if (result.min.x == F32_MAX) 
+    { result = {}; }
 
     return result;
 }
