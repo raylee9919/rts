@@ -32,14 +32,14 @@ struct Win32_Loaded_Code
 {
     b32 is_valid;
     u32 temp_dll_name;
-    
+
     char *transient_dll_name;
     char *dll_full_path;
     char *lock_full_path;
-    
+
     HMODULE dll;
     FILETIME dll_last_write_time;
-    
+
     u32 function_count;
     char **function_names;
     void **functions;
@@ -67,9 +67,9 @@ global Type_wglCreateContextAttribsARB *wglCreateContextAttribsARB;
 
 
 typedef BOOL Type_wglChoosePixelFormatARB(HDC hdc,
-                             const int *piAttribIList,
-                             const FLOAT *pfAttribFList,
-                             UINT nMaxFormats,
-                             int *piFormats,
-                             UINT *nNumFormats);
+                                          const int *piAttribIList,
+                                          const FLOAT *pfAttribFList,
+                                          UINT nMaxFormats,
+                                          int *piFormats,
+                                          UINT *nNumFormats);
 global Type_wglChoosePixelFormatARB *wglChoosePixelFormatARB;

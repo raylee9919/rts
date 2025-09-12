@@ -23,22 +23,26 @@ internal void copyz(char *src, char *dst);
 
 
 
-struct Utf8 {
+struct Utf8 
+{
     u8 *str;
     mmm len;
 };
 
-struct Utf16 {
+struct Utf16 
+{
     u16 *str;
     mmm len;
 };
 
-struct Utf32 {
+struct Utf32 
+{
     u32 *str;
     mmm len;
 };
 
-struct Unicode_Decode {
+struct Unicode_Decode 
+{
     u32 inc;
     u32 codepoint;
 };

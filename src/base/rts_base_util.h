@@ -1,3 +1,5 @@
+#ifndef RTS_BASE_UTIL_H
+#define RTS_BASE_UTIL_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -6,10 +8,7 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+internal Utf8 read_entire_file(Arena *arena, Utf8 file_path);
 
 
-#include "rts_base_core.cpp"
-#include "rts_base_thread_ctx.cpp"
-#include "rts_base_arena.cpp"
-#include "rts_base_string.cpp"
-#include "rts_base_util.cpp"
+#endif // RTS_BASE_UTIL_H

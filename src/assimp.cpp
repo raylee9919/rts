@@ -6,30 +6,40 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#include <stdio.h>
 
+// --------------------------------------
+// @Note: Assimp includes.
 #include "vendor/assimp/Importer.hpp"
 #include "vendor/assimp/scene.h"
 #include "vendor/assimp/postprocess.h"
 
+// --------------------------------------
 // @Note: [.h]
-#define STB_IMAGE_IMPLEMENTATION
-#include "vendor/stb_image.h"
-
 #include "base/rts_base_inc.h"
+#include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_asset.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "vendor/stb_image.h"
+
 #include "assimp.h"
 
+// --------------------------------------
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
+#include "os/rts_os.cpp"
 #include "rts_math.cpp"
+
+
+
 
 #define ASSIMP_PRINT_NODES              1
 #define ASSIMP_PRINT_NODE_TRASNFORM     0
 
-internal v3 aiv3_to_v3(aiVector3D ai_v) {
+internal v3
+aiv3_to_v3(aiVector3D ai_v) 
+{
     v3 v = {};
     v.x = ai_v.x;
     v.y = ai_v.y;
@@ -37,7 +47,9 @@ internal v3 aiv3_to_v3(aiVector3D ai_v) {
     return v;
 }
 
-internal Quaternion aiqt_to_qt(aiQuaternion ai_q) {
+internal Quaternion
+aiqt_to_qt(aiQuaternion ai_q) 
+{
     Quaternion q = {};
     q.w = ai_q.w;
     q.x = ai_q.x;
@@ -46,7 +58,9 @@ internal Quaternion aiqt_to_qt(aiQuaternion ai_q) {
     return q;
 }
 
-internal m4x4 ai_m4x4_to_m4x4(aiMatrix4x4 ai_mat) {
+internal m4x4
+ai_m4x4_to_m4x4(aiMatrix4x4 ai_mat) 
+{
     m4x4 mat = {};
     mat.e[0][0] = ai_mat.a1;
     mat.e[0][1] = ai_mat.a2;
@@ -71,12 +85,16 @@ internal m4x4 ai_m4x4_to_m4x4(aiMatrix4x4 ai_mat) {
     return mat;
 }
 
-internal umm string_length_with_null(char *str) {
+internal umm
+string_length_with_null(char *str) 
+{
     return (string_length(str) + 1);
 }
 
 internal s32 g_node_count;
-internal void debug_print_nodes(aiNode *node, u32 depth) {
+internal void
+debug_print_nodes(aiNode *node, u32 depth) 
+{
     g_node_count++;
     m4x4 transform = ai_m4x4_to_m4x4(node->mTransformation);
 
@@ -148,21 +166,26 @@ get_next_unfilled_bone_index(Asset_Vertex *asset_vertex)
     return 2222;
 }
 
-struct Hash_Slot {
+struct Hash_Slot 
+{
     char *name;
     s32 node_id; // this isn't the offset starting from the hash table slots!
     Hash_Slot *next;
 };
-struct Hash_Entry {
+struct Hash_Entry 
+{
     Hash_Slot *first;
 };
-struct Hashmap {
+struct Hashmap 
+{
     Hash_Entry *entries;
     umm length;
     s32 next_id;
 };
 
-internal u32 hash(char *key, u32 length) {
+internal u32
+hash(char *key, u32 length) 
+{
     u32 result = 0;
     for (char *c = key; *c; ++c) {
         result += *c;

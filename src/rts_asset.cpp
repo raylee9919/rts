@@ -18,18 +18,24 @@
     memory_copy(to, at, sizeof(type)*count); \
     at += (sizeof(type)*count);
 
+
+
 internal void
-load_model(Model *model, const char *filename, Arena *arena)
+load_model(Model *model, char *filename, Arena *arena)
 {
+    Temporary_Arena scratch = scratch_begin();
+
     Assert(model);
 
     char filepath[512];
     str_snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MESH_DIRECTORY, filename, ASSET_MESH_FILE_FORMAT);
 
-    Buffer entirefile = os.read_entire_file(filepath);
-
-    u8 *at  = entirefile.data;
-    u8 *end = at + entirefile.count;
+    // ----------------------------------------------
+    // @Note: read entire file.
+    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path8);
+    u8 *at  = entire_file.str;
+    u8 *end = at + entire_file.len;
 
     READ(model->mesh_count, u32);
 
@@ -95,7 +101,7 @@ load_model(Model *model, const char *filename, Arena *arena)
     }
 
     Assert(at == end);
-    os.memory_release(entirefile.data);
+    scratch_end(scratch);
 }
 
 internal u32
@@ -120,15 +126,17 @@ animation_hash(u32 id, u32 length) {
 internal void
 load_animation(Animation *anim, const char *filename, Arena *arena)
 {
+    Temporary_Arena scratch = scratch_begin();
     Assert(anim);
 
     char filepath[512];
     _snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_ANIMATION_DIRECTORY, filename, ASSET_ANIMATION_FILE_FORMAT);
 
-    Buffer entirefile = os.read_entire_file(filepath);
+    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path8);
 
-    u8 *at  = entirefile.data;
-    u8 *end = at + entirefile.count;
+    u8 *at  = entire_file.str;
+    u8 *end = at + entire_file.len;
 
     READ_COUNT(anim->name, char, string_length((char *)at) + 1);
 
@@ -191,7 +199,7 @@ load_animation(Animation *anim, const char *filename, Arena *arena)
             entry->first = slot;
         }
     }
-    os.memory_release(entirefile.data);
+    scratch_end(scratch);
 }
 
 // -------------------------------
@@ -199,10 +207,16 @@ load_animation(Animation *anim, const char *filename, Arena *arena)
 internal void
 load_font(Arena *arena, char *filepath, Asset_Font *font)
 {
-    os.memory_release(font->buffer.data);
-    font->buffer = os.read_entire_file(filepath);
-    u8 *at  = font->buffer.data;
-    u8 *end = at + font->buffer.count;
+    if (! font->arena)
+    { font->arena = arena_alloc(); }
+
+    arena_clear(font->arena);
+
+    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
+    font->buffer = read_entire_file(font->arena, file_path8);
+
+    u8 *at  = font->buffer.str;
+    u8 *end = at + font->buffer.len;
 
     // Parse font header.
     Asset_Font_Header *header = (Asset_Font_Header *)at;
@@ -229,8 +243,10 @@ load_font(Arena *arena, char *filepath, Asset_Font *font)
     }
 
     // Parse glyphs.
-    if (font->buffer.count) {
-        while (at < end) {
+    if (font->buffer.len) 
+    {
+        while (at < end) 
+        {
             Asset_Glyph *glyph = (Asset_Glyph *)at;
             Bitmap *bitmap = &glyph->bitmap;
             font->glyphs[glyph->codepoint] = glyph;
@@ -246,12 +262,15 @@ load_font(Arena *arena, char *filepath, Asset_Font *font)
 internal void
 load_image(Bitmap *bitmap, char *filepath, Arena *arena)
 {
+    Temporary_Arena scratch = scratch_begin();
+
     Assert(bitmap);
 
-    Buffer entirefile = os.read_entire_file(filepath);
+    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path8);
 
-    u8 *at  = entirefile.data;
-    u8 *end = at + entirefile.count;
+    u8 *at  = entire_file.str;
+    u8 *end = at + entire_file.len;
 
     READ(bitmap->bits_per_channel, s32);
     READ(bitmap->channel_count, s32);
@@ -264,7 +283,7 @@ load_image(Bitmap *bitmap, char *filepath, Arena *arena)
     READ_COUNT(bitmap->memory, u8, bitmap->size);
 
     Assert(at == end);
-    os.memory_release(entirefile.data);
+    scratch_end(scratch);
 }
 
 #undef READ

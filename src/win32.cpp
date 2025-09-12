@@ -135,76 +135,6 @@ win32_get_file_handle(Os_File_Handle *handle)
     return *(HANDLE *)&handle->platform;
 }
 
-internal OS_OPEN_FILE(win32_open_file)
-{
-    Os_File_Handle result = {};
-    static_assert(sizeof(HANDLE) <= sizeof(result.platform));
-
-    DWORD permissions = 0;
-    DWORD creation = 0;
-
-    if (flags & Open_File_Read) {
-        permissions |= GENERIC_READ;
-        creation = OPEN_EXISTING;
-    }
-    if (flags & Open_File_Write) {
-        permissions |= GENERIC_WRITE;
-        creation = OPEN_ALWAYS;
-    }
-
-    HANDLE handle = CreateFileA(filepath, permissions, FILE_SHARE_READ, 0, creation, 0, 0);
-    Assert(handle != INVALID_HANDLE_VALUE);
-
-    *(HANDLE *)&result.platform = handle;
-
-    return result;
-}
-
-internal OS_CLOSE_FILE(win32_close_file)
-{
-    HANDLE file = win32_get_file_handle(handle);
-
-    if (file)
-    { CloseHandle(file); }
-}
-
-internal OS_GET_FILE_SIZE(win32_get_file_size)
-{
-    u32 result = 0;
-    HANDLE win32_handle = win32_get_file_handle(handle);
-    if (win32_handle) {
-        LARGE_INTEGER win32_handlesize;
-        GetFileSizeEx(win32_handle, &win32_handlesize);
-        result = win32_handlesize.QuadPart;
-    }
-    return result;
-}
-
-internal OS_READ_FROM_FILE(win32_read_from_file) 
-{
-    HANDLE win32_handle = win32_get_file_handle(handle);
-    DWORD bytes_read;
-    if (ReadFile(win32_handle, dst, size, &bytes_read, 0) && (size == bytes_read)) {
-
-    } else {
-        Assert(0);
-    }
-}
-
-internal OS_READ_ENTIRE_FILE(win32_read_entire_file)
-{
-    Buffer result = {};
-    Os_File_Handle handle = win32_open_file(filepath, Open_File_Read);
-    umm filesize = win32_get_file_size(&handle);
-    result.count = filesize;
-    result.data = (u8 *)VirtualAlloc(0, filesize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    DWORD bytes_read;
-    HANDLE win32_handle = win32_get_file_handle(&handle); 
-    ReadFile(win32_handle, result.data, result.count, &bytes_read, 0);
-    CloseHandle(win32_handle);
-    return result;
-}
-
 internal void
 win32_process_keyboard(Game_Key *game_key, b32 is_down) 
 {
@@ -703,12 +633,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
     os_init();
     {
-        os.open_file                = win32_open_file;
-        os.close_file               = win32_close_file;
-        os.read_from_file           = win32_read_from_file;
-        os.read_entire_file         = win32_read_entire_file;
-        os.get_file_size            = win32_get_file_size;
-
         os.get_system_time          = win32_get_system_time;
         os.read_cpu_timer           = win32_read_cpu_timer;
         os.get_last_write_time      = win32_get_last_write_time_;
@@ -722,7 +646,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     win32_get_exe_filepath(state);
 
     char game_dll_path[WIN32_MAX_PATH_LENGTH];
-    win32_build_exe_path_filename(state, "game.dll", game_dll_path, sizeof(game_dll_path));
+    win32_build_exe_path_filename(state, "rts_game.dll", game_dll_path, sizeof(game_dll_path));
 
     char renderer_dll_path[WIN32_MAX_PATH_LENGTH];
     win32_build_exe_path_filename(state, "win32_opengl.dll", renderer_dll_path, sizeof(renderer_dll_path));

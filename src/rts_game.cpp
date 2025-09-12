@@ -6,8 +6,6 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// @Todo: Remove
-#include <stdio.h>
 
 // @Todo: Remove
 #define BEGIN_ENTITY
@@ -16,12 +14,10 @@
 // @Note: [.h]
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
-
-#include "rts_platform.h"
-
 #include "rts_math.h"
 #include "rts_random.h"
 #include "rts_color.h"
+#include "rts_platform.h"
 #include "rts_asset.h"
 
 #include "input.h"
@@ -64,7 +60,8 @@ Ui ui;
 internal void
 update_game_mode(Game_State *game_state, Input *input) 
 {
-    switch (game_state->mode) {
+    switch (game_state->mode) 
+    {
         case Game_Mode_Game: {
             if (toggled_down(input, KEY_ESC)) {
                 game_state->mode = Game_Mode_Menu;
@@ -213,11 +210,13 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     f32 draw_width  = input->draw_dim.w;
     f32 draw_height = input->draw_dim.h;
 
-    input->dt = clamp(input->dt, 0.001f, 0.1f); // @TODO: Warn on out-out-range refresh.
+    input->dt = clamp(input->dt, 0.001f, 0.1f); // @Todo: Warn on out-out-range refresh.
 
     if (! game_state->initted) 
     {
         game_state->initted = true;
+
+        thread_init();
 
         game_state->asset_arena = arena_alloc(GB(1));
         game_state->game_assets = push_struct(game_state->asset_arena, Game_Assets);
@@ -440,14 +439,13 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             v4 tmp = game_state->controlling_camera->VP * V4(get_centroid(navmesh, i), 1);
             v3 projected_position = (tmp.xyz / tmp.w);
             projected_position.xy = hadamard(binormal_to_normal(projected_position.xy), v2{draw_width, draw_height});
-        
+
             //push_shadowed_string(orthographic_group, projected_position, buf, &game_state->game_assets->times);
         }
     }
 
-    if (!ui.initted) { 
-        ui.init(input, game_state->ui_arena, orthographic_group, &assets->times, &assets->menu_font);
-    }
+    if (! ui.initted) 
+    { ui.init(input, game_state->ui_arena, orthographic_group, &assets->times, &assets->menu_font); }
 
     // @TODO: cleanup
     input->dt *= debug_state->speed;
@@ -455,7 +453,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     update_input_state(input, event_queue, input->actual_dt);
 
     update_game_mode(game_state, input);
-    switch (game_state->mode) {
+    switch (game_state->mode) 
+    {
         case Game_Mode_Game: {
             ui_dev(render_commands, game_state, input);
             update_entities(world, game_state, input);
@@ -520,7 +519,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     debug_draw_performance(orthographic_group, input, &assets->times);
 
-    { // @Render Commands
+    { // @Note: Render Commands
         render_commands->time = game_state->game_time;
 
         render_commands->input = *input;
@@ -531,7 +530,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         render_commands->wireframe_color = V4(0.9f, 0.9f, 0.9f, 1.0f);
 
-        { // @Skybox
+        { // @Note: Skybox
             render_commands->skybox_on = true;
             render_commands->skybox_mesh = &assets->skybox_mesh;
             render_commands->skybox_eye_view_proj = game_state->controlling_camera->VP;
@@ -540,11 +539,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
         }
 
-        { // @CSM
+        { // @Note: CSM
             render_commands->csm_to_light = normalize(V3(1,1,1));
             f32 csm_frustum_edge_length = 50.0f;
             m4x4 inv = inverse(game_state->game_camera->VP);
-            // @TODO: Renderer independent calculation!
+            // @Todo: Renderer independent calculation!
             v4 ndcs[4] = {
                 v4{-1,-1,-1, 1},
                 v4{ 1,-1,-1, 1},

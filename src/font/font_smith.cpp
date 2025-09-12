@@ -6,69 +6,36 @@
    $Notice: (C) Copyright 2024 by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#define ALLOC_SIZE GB(1)
 
-#include <windows.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-
-// @Note: [.h]
+// --------------------------------
+// @Note: [.cpp]
 #include "base/rts_base_inc.h"
+#include "os/rts_os.h"
 #include "rts_math.h"
-
 #include "rts_asset.h"
 
+// --------------------------------
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
+#include "os/rts_os.cpp"
+
+
+
+// --------------------------------
+// @Note: Defines.
+#define ALLOC_SIZE GB(1)
+#define BITMAP_WIDTH  1024
+#define BITMAP_HEIGHT 1024
+
 
 global HDC hdc;
 global HBITMAP bitmap;
 global void *bits;
-global Memory_Arena g_main_arena;
+global Arena *main_arena;
 
-#define BITMAP_WIDTH  1024
-#define BITMAP_HEIGHT 1024
 
 #define FONT_INPUT_DIRECTORY "../data/input/font/"
 #define FONT_OUTPUT_DIRECTORY "../data/font/"
-
-internal void
-init_memory() 
-{
-    void *base = VirtualAlloc(0, ALLOC_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
-    Assert(base != 0);
-    g_main_arena.base = base;
-    g_main_arena.size = ALLOC_SIZE;
-}
-
-internal void
-flush(Memory_Arena *arena) 
-{
-    for (u32 i = 0; i < arena->used; ++i) {
-        *((u8 *)arena->base + i) = 0;
-    }
-    arena->used = 0; 
-}
-
-internal Buffer
-read_entire_file(const char *filepath) 
-{
-    Buffer result = {};
-    FILE *file = fopen(filepath, "rb");
-    if (file) {
-        fseek(file, 0, SEEK_END);
-        umm filesize = ftell(file);
-        fseek(file, 0, SEEK_SET);
-        result.data = (u8 *)malloc(filesize);
-        result.count = filesize;
-        Assert(fread(result.data, filesize, 1, file) == 1);
-        fclose(file);
-    } else {
-        printf("[ERROR] Couldn't open file %s.\n", filepath);
-    }
-    return result;
-}
 
 internal void
 print_and_exit(const char *str) 
@@ -77,14 +44,12 @@ print_and_exit(const char *str)
     exit(1);
 }
 
-//
-// Font Asset
-// : this is your main concern.
-//
+// ----------------------------------
+// @Note: Your main concern.
 internal Asset_Glyph *
 bake_glyph(u32 codepoint, TEXTMETRIC metric) 
 {
-    Asset_Glyph *result = push_struct(&g_main_arena, Asset_Glyph);
+    Asset_Glyph *result = push_struct(main_arena, Asset_Glyph);
     wchar_t utf_codepoint = (wchar_t)codepoint;
     SIZE size;
     GetTextExtentPoint32W(hdc, &utf_codepoint, 1, &size);
@@ -144,7 +109,7 @@ bake_glyph(u32 codepoint, TEXTMETRIC metric)
     result->bitmap.pitch = result->bitmap.width * 4;
     result->bitmap.handle = 0;
     result->bitmap.size = result->bitmap.height * result->bitmap.width * 4;
-    result->bitmap.memory = push_size(&g_main_arena, result->bitmap.size);
+    result->bitmap.memory = push_size(main_arena, result->bitmap.size);
 
     u8 *dst_row = (u8 *)result->bitmap.memory + (result->bitmap.height - 1 - margin) * result->bitmap.pitch + 4 * margin;
     pixel_row = (u32 *)bits + (BITMAP_HEIGHT - 1 - off_y) * BITMAP_WIDTH;
@@ -199,7 +164,7 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
 
             // Kerning.
             s32 kern_count = GetKerningPairsA(hdc, 0, 0);
-            KERNINGPAIR *kern_pairs = push_array(&g_main_arena, KERNINGPAIR, kern_count);
+            KERNINGPAIR *kern_pairs = push_array(main_arena, KERNINGPAIR, kern_count);
             GetKerningPairsA(hdc, kern_count, kern_pairs);
 
             // Font header.
@@ -210,7 +175,7 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
             font_header.descent = (f32)metric.tmDescent;
             font_header.max_width = (f32)metric.tmMaxCharWidth;
 
-            Asset_Kerning *asset_kern_pairs = push_array(&g_main_arena, Asset_Kerning, kern_count);
+            Asset_Kerning *asset_kern_pairs = push_array(main_arena, Asset_Kerning, kern_count);
             for (s32 idx = 0; idx < kern_count; ++idx) 
             {
                 KERNINGPAIR *kern_pair = kern_pairs + idx;
@@ -221,7 +186,7 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
             }
 
             // ABC. What a convenient name.
-            ABCs = push_array(&g_main_arena, ABC, hi - lo + 1);
+            ABCs = push_array(main_arena, ABC, hi - lo + 1);
             GetCharABCWidthsA(hdc, lo, hi, ABCs);
 
             // write font header.
@@ -251,49 +216,56 @@ bake_font(const char *filename, const char *fontname, FILE* out, s32 cheese_heig
     }
 }
 
-struct Parser {
-    Buffer input;
+struct Parser 
+{
+    Arena *arena;
+    Utf8 input;
     int cursor;
 };
 
-struct Token {
+struct Token 
+{
     char scratchbuffer[1024];
     int len;
 };
 
-void init(Parser *parser, Buffer input)
+internal void
+eat_character(Parser *parser) 
 {
-    parser->input = input;
-}
-
-void eat_character(Parser *parser) {
     parser->cursor++;
 }
 
-int peek_character(Parser *parser) {
-    if (parser->cursor < parser->input.count) {
-        return parser->input.data[parser->cursor];
+internal int
+peek_character(Parser *parser) 
+{
+    if (parser->cursor < parser->input.len) {
+        return parser->input.str[parser->cursor];
     } else {
         return -1;
     }
 }
 
-void eat_whitespace(Parser *parser) {
+internal void
+eat_whitespace(Parser *parser) 
+{
     int c = peek_character(parser);
-    while (is_whitespace(c)) {
+    while (is_whitespace(c)) 
+    {
         eat_character(parser);
         c = peek_character(parser);
     }
 }
 
-Token parse_line(Parser *parser) {
+internal Token
+parse_line(Parser *parser) 
+{
     int c = peek_character(parser);
     Assert(is_alpha(c));
 
     Token result = {};
 
     int len = 0;
-    while (parser->cursor < parser->input.count && c != '\r' && c != '\n') {
+    while (parser->cursor < parser->input.len && c != '\r' && c != '\n') {
         result.scratchbuffer[len++] = c;
         eat_character(parser);
         c = peek_character(parser);
@@ -303,12 +275,14 @@ Token parse_line(Parser *parser) {
     return result;
 }
 
-int parse_integer(Parser *parser) {
+internal int
+parse_integer(Parser *parser) 
+{
     int c = peek_character(parser);
     Assert(is_digit(c));
 
     int result = 0;
-    while (parser->cursor < parser->input.count && is_digit(c)) {
+    while (parser->cursor < parser->input.len && is_digit(c)) {
         result = result * 10 + atoi(c);
         eat_character(parser);
         c = peek_character(parser);
@@ -317,7 +291,8 @@ int parse_integer(Parser *parser) {
     return result;
 }
 
-struct Parsed_Font_Data {
+struct Parsed_Font_Data 
+{
     char id[256];
     char inputfilepath[256];
     char fontname[256];
@@ -328,12 +303,13 @@ struct Parsed_Font_Data {
 Parsed_Font_Data parsed_font_data[1024];
 int parsed_font_count;
 
-void parse(Parser *parser)
+internal void
+parse(Parser *parser)
 {
     for (;;)
     {
         eat_whitespace(parser);
-        if (parser->cursor >= parser->input.count) {
+        if (parser->cursor >= parser->input.len) {
             break;
         }
 
@@ -347,7 +323,7 @@ void parse(Parser *parser)
         eat_whitespace(parser);
         Token inputfilename = parse_line(parser);
         char inputfilepath[256];
-        snprintf(inputfilepath, sizeof(inputfilepath), "%s%.*s", FONT_INPUT_DIRECTORY, inputfilename.len, inputfilename.scratchbuffer);
+        str_snprintf(inputfilepath, sizeof(inputfilepath), "%s%.*s", FONT_INPUT_DIRECTORY, inputfilename.len, inputfilename.scratchbuffer);
         static_assert(array_count(inputfilepath) <= array_count(data->inputfilepath));
         memory_copy(data->inputfilepath, inputfilepath, array_count(inputfilepath)*sizeof(*inputfilepath));
 
@@ -358,7 +334,7 @@ void parse(Parser *parser)
         eat_whitespace(parser);
         Token outputfilename = parse_line(parser);
         char outputfilepath[256];
-        snprintf(outputfilepath, sizeof(outputfilepath), "%s%.*s", FONT_OUTPUT_DIRECTORY, outputfilename.len, outputfilename.scratchbuffer);
+        str_snprintf(outputfilepath, sizeof(outputfilepath), "%s%.*s", FONT_OUTPUT_DIRECTORY, outputfilename.len, outputfilename.scratchbuffer);
         static_assert(array_count(outputfilepath) <= array_count(data->outputfilepath));
         memory_copy(data->outputfilepath, outputfilepath, array_count(outputfilepath)*sizeof(*outputfilepath));
 
@@ -370,53 +346,78 @@ void parse(Parser *parser)
 
 int main(void) 
 {
-    init_memory();
+    // -------------------------------
+    // @Note: init.
+    {
+        os_init();
+        thread_init();
+        main_arena = arena_alloc(MB(2));
+    }
 
-    Parser parser = {};
-    Buffer input = read_entire_file("../src/font/config");
-    init(&parser, input);
-    parse(&parser);
+    // -------------------------------
+    // @Note: parse config.
+    Parser *parser = 0;
+    {
+        Arena *arena = arena_alloc();
+        parser = push_struct(arena, Parser);
+        parser->arena = arena;
 
-    for (int i = 0; i < parsed_font_count; ++i) {
+        Utf8 config_file_path = utf8lit("../src/font/config");
+        Utf8 input = read_entire_file(parser->arena, config_file_path);
+        parser->input = input;
+    }
+    parse(parser);
+
+    // -------------------------------
+    // @Note: create bitmaps.
+    for (int i = 0; i < parsed_font_count; ++i) 
+    {
         Parsed_Font_Data *data = parsed_font_data + i;
 
         hdc = CreateCompatibleDC(0);
-        if (hdc) { 
+        if (hdc) 
+        {
             BITMAPINFO info = {};
-            info.bmiHeader.biSize           = sizeof(info.bmiHeader);
-            info.bmiHeader.biWidth          = BITMAP_WIDTH;
-            info.bmiHeader.biHeight         = BITMAP_HEIGHT;
-            info.bmiHeader.biPlanes         = 1;
-            info.bmiHeader.biBitCount       = 32;
-            info.bmiHeader.biCompression    = BI_RGB;
-            info.bmiHeader.biSizeImage      = 0;
-            info.bmiHeader.biXPelsPerMeter  = 0;
-            info.bmiHeader.biYPelsPerMeter  = 0;
-            info.bmiHeader.biClrUsed        = 0;
-            info.bmiHeader.biClrImportant   = 0;
+            {
+                info.bmiHeader.biSize           = sizeof(info.bmiHeader);
+                info.bmiHeader.biWidth          = BITMAP_WIDTH;
+                info.bmiHeader.biHeight         = BITMAP_HEIGHT;
+                info.bmiHeader.biPlanes         = 1;
+                info.bmiHeader.biBitCount       = 32;
+                info.bmiHeader.biCompression    = BI_RGB;
+                info.bmiHeader.biSizeImage      = 0;
+                info.bmiHeader.biXPelsPerMeter  = 0;
+                info.bmiHeader.biYPelsPerMeter  = 0;
+                info.bmiHeader.biClrUsed        = 0;
+                info.bmiHeader.biClrImportant   = 0;
+            }
 
             bitmap = CreateDIBSection(hdc, &info, DIB_RGB_COLORS, &bits, 0, 0);
             SelectObject(hdc, bitmap);
 
             char outputfilepathtemp[256];
-            snprintf(outputfilepathtemp, sizeof(outputfilepathtemp), "%s_temp", data->outputfilepath);
+            str_snprintf(outputfilepathtemp, sizeof(outputfilepathtemp), "%s_temp", data->outputfilepath);
             FILE *out = fopen(outputfilepathtemp, "wb");
-            if (out) {
+            if (out) 
+            {
                 bake_font(data->inputfilepath, data->fontname, out, data->fontsize);
                 fclose(out);
-                CopyFile(outputfilepathtemp, data->outputfilepath, FALSE);
+                CopyFileA(outputfilepathtemp, data->outputfilepath, FALSE);
                 DeleteFileA(outputfilepathtemp);
                 printf("%s --> %s  ", data->inputfilepath, data->outputfilepath);
                 printf("[OK]\n");
-            } else {
+            }
+            else 
+            {
                 fprintf(stderr, "[ERROR]: Couldn't open file.\n");
             }
-        } else {
+        } 
+        else 
+        {
             print_and_exit("[ERROR]: Couldn't create compatible HDC.");
         }
-
     }
 
-    printf("\n*** SUCCESSFUL! ***\n");
+    printf("\nSuccessfully generated font assets.\n");
     return 0;
 }

@@ -68,6 +68,7 @@
 // --------------------------------------
 // @Note: 3rd-party include
 #include <stdint.h>
+#include <stdio.h>
 #include <math.h>
 #include <string.h>
 
@@ -110,6 +111,8 @@ typedef Buffer String;
 #define max(a, b) ( (a > b) ? a : b )
 #define min(a, b) ( (a < b) ? a : b )
 #define clamp(a, lo, hi) (min(max(a, lo), hi))
+#define clamp_lo(a, hi) (max(a, lo))
+#define clamp_hi(a, hi) (min(a, hi))
 #define array_count(array) ( sizeof(array) / sizeof(array[0]) )
 #define offsetof(Type, Member) (size_t)&(((Type *)0)->Member)
 #define int_from_ptr(p) (U64)(((U8*)p) - 0)
@@ -163,6 +166,7 @@ internal u16 to_u16_safe(u32 x);
 internal u32 to_u32_safe(u64 x);
 internal s32 to_s32_safe(s64 x);
 internal umm to_raw(f32 val);
+
 
 
 

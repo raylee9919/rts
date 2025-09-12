@@ -15,7 +15,7 @@ struct Parser {
     Game_State *game_state;
 };
 
-void init(Lexer *lexer, Buffer input, Parser *parser, Game_State *game_state) {
+void init(Lexer *lexer, Utf8 input, Parser *parser, Game_State *game_state) {
     lexer->input = input;
     parser->lexer = lexer;
     parser->game_state = game_state;
@@ -86,14 +86,18 @@ void parse(Parser *parser) {
 
 void load_map(char *filename, Game_State *game_state) 
 {
+    Temporary_Arena scratch = scratch_begin();
+
 #if __DEVELOPER
     u64 tsc_begin = os.read_cpu_timer();
 #endif
 
     char filepath[512];
-    _snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MAP_DIRECTORY, filename, ASSET_MAP_FILE_FORMAT);
+    str_snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MAP_DIRECTORY, filename, ASSET_MAP_FILE_FORMAT);
 
-    Buffer input = os.read_entire_file(filepath);
+    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
+    Utf8 input = read_entire_file(scratch.arena, file_path8);
+
     Lexer *lexer = new Lexer(); // @Temporary
     Parser parser = {};
     init(lexer, input, &parser, game_state);
@@ -107,4 +111,6 @@ void load_map(char *filename, Game_State *game_state)
     f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.tsc_frequency;
     printf("Loaded map '%s' in %.2fms.\n", filename, elapsed_ms);
 #endif
+
+    scratch_end(scratch);
 }

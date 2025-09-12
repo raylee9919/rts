@@ -42,7 +42,7 @@ struct Lexer {
     s32 current_character_index = 1;
     s32 total_lines_processed = 0;
 
-    Buffer input;
+    Utf8 input;
     s32 input_cursor = 0;
 
     Token tokens[100000]; // @Temporary
@@ -66,8 +66,11 @@ inline bool starts_number(int c) {
     return false;
 }
 
-void eat_character(Lexer *lexer) {
-    if (lexer->input.data[lexer->input_cursor] == '\n') {
+internal void
+eat_character(Lexer *lexer) 
+{
+    if (lexer->input.str[lexer->input_cursor] == '\n') 
+    {
         // DoThisOnNewLine
         lexer->current_line_number++;
         lexer->total_lines_processed++;
@@ -78,14 +81,15 @@ void eat_character(Lexer *lexer) {
     lexer->current_character_index++;
 }
 
-int peek_next_character(Lexer *lexer, int ahead = 0) {
-    Assert(lexer->input.data != 0);
+internal int
+peek_next_character(Lexer *lexer, int ahead = 0) 
+{
+    Assert(lexer->input.str != 0);
 
-    if (lexer->input_cursor + ahead >= lexer->input.count) {
-        return -1;
-    }
+    if (lexer->input_cursor + ahead >= lexer->input.len) 
+    { return -1; }
 
-    int result = lexer->input.data[lexer->input_cursor + ahead];
+    int result = lexer->input.str[lexer->input_cursor + ahead];
     return result;
 }
 
@@ -212,7 +216,8 @@ void push_number(Lexer *lexer) {
 }
 
 void lexical_analysis(Lexer *lexer) {
-    while (lexer->input_cursor <= lexer->input.count) {
+    while (lexer->input_cursor <= lexer->input.len) 
+    {
         int c = peek_next_character(lexer);
         switch (c) {
             case -1:

@@ -20,6 +20,22 @@
 struct Bitmap;
 struct Render_Commands;
 
+
+struct Os_Handle
+{
+    u64 e[1];
+};
+
+typedef u32 Os_File_Access_Flags;
+enum
+{
+    OS_FILE_ACCESS_READ       = (1<<0),
+    OS_FILE_ACCESS_WRITE      = (1<<1),
+    OS_FILE_ACCESS_SHARED     = (1<<2),
+    OS_FILE_ACCESS_CREATE_NEW = (1<<3),
+};
+
+
 // --------------------------
 // @Note: Compilers
 internal u32
@@ -122,28 +138,27 @@ enum Os_Open_File_Flag {
 };
 
 
-#define OS_OPEN_FILE(NAME) Os_File_Handle NAME(char *filepath, u32 flags)
-typedef OS_OPEN_FILE(Os_Open_File);
-
-#define OS_CLOSE_FILE(NAME) void NAME(Os_File_Handle *handle)
-typedef OS_CLOSE_FILE(Os_Close_File);
-
-#define OS_GET_FILE_SIZE(NAME) u32 NAME(Os_File_Handle *handle)
-typedef OS_GET_FILE_SIZE(Os_Get_File_Size);
-
-#define OS_READ_FROM_FILE(NAME) void NAME(Os_File_Handle *handle, void *dst, umm size)
-typedef OS_READ_FROM_FILE(Os_Read_From_File);
-
-#define OS_READ_ENTIRE_FILE(NAME) Buffer NAME(char *filepath)
-typedef OS_READ_ENTIRE_FILE(Os_Read_Entire_File);
-
-
+// -----------------------------------------
+// @Note: Handle
+#define OS_HANDLE_VALID(name) b32 name(Os_Handle handle)
+typedef OS_HANDLE_VALID(Os_Handle_valid);
 
 // -----------------------------------------
 // @Note: File
+#define OS_FILE_OPEN(name) Os_Handle name(Utf8 path, Os_File_Access_Flags flags)
+typedef OS_FILE_OPEN(Os_File_Open);
+
+#define OS_FILE_CLOSE(name) void name(Os_Handle file)
+typedef OS_FILE_CLOSE(Os_File_Close);
+
+#define OS_FILE_READ(name) mmm name(Os_Handle file, void *dst, mmm size)
+typedef OS_FILE_READ(Os_File_Read);
+
+#define OS_FILE_SIZE(name) u64 name(Os_Handle file)
+typedef OS_FILE_SIZE(Os_File_Size);
+
 #define OS_FILE_COPY(name) void name(Utf8 src, Utf8 dst)
 typedef OS_FILE_COPY(Os_File_Copy);
-
 
 // -----------------------------------------
 // @Note: Memory
@@ -182,18 +197,19 @@ typedef void Os_Complete_All_Work(Os_Work_Queue *queue);
 
 struct OS 
 {
-    Os_Open_File          *open_file;
-    Os_Close_File         *close_file;
-    Os_Get_File_Size      *get_file_size;
-    Os_Read_From_File     *read_from_file;
-    Os_Read_Entire_File   *read_entire_file;
-    Os_File_Copy           *file_copy;
+    Os_Handle_valid *handle_valid;
 
-    Os_Query_Page_Size          *query_page_size;
-    Os_Reserve                  *memory_reserve;
-    Os_Release                  *memory_release;
-    Os_Commit                   *memory_commit;
-    Os_Decommit                 *memory_decommit;
+    Os_File_Open    *file_open;
+    Os_File_Close   *file_close;
+    Os_File_Size    *file_size;
+    Os_File_Read    *file_read;
+    Os_File_Copy    *file_copy;
+
+    Os_Query_Page_Size *query_page_size;
+    Os_Reserve         *memory_reserve;
+    Os_Release         *memory_release;
+    Os_Commit          *memory_commit;
+    Os_Decommit        *memory_decommit;
 
     Os_Get_System_Time    *get_system_time;
     Os_Read_Cpu_Timer     *read_cpu_timer;

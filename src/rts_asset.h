@@ -361,15 +361,17 @@ struct Asset_Font
     Asset_Glyph     *glyphs[256];
     Kerning kernings[4096];
 
-    // @Temporary
-    Buffer buffer;
+    // @Temporary: ?
+    Arena *arena;
+    Utf8 buffer;
+
     u64 writetime;
 };
 
 
 internal void load_font(Arena *arena, char *filepath, Asset_Font *font);
 internal void load_image(Bitmap *bitmap, char *filepath, Arena *arena);
-internal void load_model(Model *model, const char *filename, Arena *arena);
+internal void load_model(Model *model, char *filename, Arena *arena);
 internal u32 get_triangle_count(Model *model);
 internal u32 animation_hash(u32 id, u32 length);
 internal void load_animation(Animation *anim, const char *filename, Arena *arena);
