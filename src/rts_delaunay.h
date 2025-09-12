@@ -38,6 +38,7 @@ struct Nav_Portal
 
 struct Navmesh 
 {
+    Arena *arena;
     Cdt_Result cdt;
 
     Vertex *vertices;

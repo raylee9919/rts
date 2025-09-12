@@ -121,7 +121,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
  
         // @TEMPORARY
         // @TODO: This is not handling 'point-on-edge' case.
-        Navmesh *navmesh = &game_state->navmesh;
+        Navmesh *navmesh = game_state->navmesh;
         Cdt_Result *cdt = &navmesh->cdt;
 
         v2 flatposition = v2{e->position.z, e->position.x};

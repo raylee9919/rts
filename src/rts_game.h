@@ -94,7 +94,7 @@ struct Game_State
 
     u32 active_entity_id;
 
-    Navmesh navmesh;
+    Navmesh *navmesh;
 };
 
 #endif // RTS_GAME_H

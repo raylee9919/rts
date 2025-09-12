@@ -334,11 +334,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             render_commands->csm_varient_method = true;
 
             // @Temporary:
-            Navmesh *navmesh = &game_state->navmesh;
-
+            {
+                Arena *arena = arena_alloc();
+                game_state->navmesh = push_struct(arena, Navmesh);
+                game_state->navmesh->arena = arena;
+            }
+            Navmesh *navmesh = game_state->navmesh;
             navmesh->vertex_size = 1000;
+            //navmesh->vertices = push_array(navmesh->arena, Vertex, navmesh->vertex_size);
             navmesh->vertices = (Vertex *)malloc(sizeof(Vertex)*navmesh->vertex_size);
-            zero_array(navmesh->vertices, navmesh->vertex_size);
 
             navmesh->constrain_size = 1000;
             navmesh->constrains = (Nav_Constrain *)malloc(sizeof(Nav_Constrain)*navmesh->constrain_size);
@@ -425,8 +429,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     Render_Group *orthographic_group = begin_render_group(render_commands, MB(16));
 
 
-    // @TEMPORARY
-    Navmesh *navmesh = &game_state->navmesh;
+    // @Temporary:
+    Navmesh *navmesh = game_state->navmesh;
     Cdt_Result *cdt = &navmesh->cdt;
 
     if (render_commands->draw_navmesh) {
