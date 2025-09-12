@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 
 // @Note: [.h]
 #include "base/rts_base_inc.h"
+#include "os/rts_os.h"
 
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
@@ -352,7 +353,7 @@ void serialize_integer(char *ident, FILE *file) {
 void serialize_float(char *ident, FILE *file) {
     fprintf(file, R"===(        fprintf(file, R"ENTITY(; %s
     %%.6f : 0x%%X
-)ENTITY", e->%s, f32_to_raw(e->%s));
+)ENTITY", e->%s, to_raw(e->%s));
 
 )===", ident, ident, ident);
 }
@@ -362,7 +363,7 @@ void serialize_v3(char *ident, FILE *file) {
     %%.6f : 0x%%X
     %%.6f : 0x%%X
     %%.6f : 0x%%X
-)ENTITY", e->%s.x, f32_to_raw(e->%s.x), e->%s.y, f32_to_raw(e->%s.y), e->%s.z, f32_to_raw(e->%s.z));
+)ENTITY", e->%s.x, to_raw(e->%s.x), e->%s.y, to_raw(e->%s.y), e->%s.z, to_raw(e->%s.z));
 
 )===", ident, ident, ident, ident, ident, ident, ident);
 }
@@ -373,7 +374,7 @@ void serialize_quaternion(char *ident, FILE *file) {
     %%.6f : 0x%%X
     %%.6f : 0x%%X
     %%.6f : 0x%%X
-)ENTITY", e->%s.w, f32_to_raw(e->%s.w), e->%s.x, f32_to_raw(e->%s.x), e->%s.y, f32_to_raw(e->%s.y), e->%s.z, f32_to_raw(e->%s.z));
+)ENTITY", e->%s.w, to_raw(e->%s.w), e->%s.x, to_raw(e->%s.x), e->%s.y, to_raw(e->%s.y), e->%s.z, to_raw(e->%s.z));
 
 )===", ident, ident, ident, ident, ident, ident, ident, ident, ident);
 }
@@ -548,7 +549,7 @@ void parse_member_%s(%s *e, Parser *parser) {
 internal void
 parse_%s(Parser *parser) 
 {
-    %s *e = push_entity(parser->game_state->world, &parser->game_state->world_arena, %s, {});
+    %s *e = push_entity(parser->game_state->world, parser->game_state->world_arena, %s, {});
 
     eat_token(parser);
 

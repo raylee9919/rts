@@ -8,4 +8,209 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+
+#if OS_WINDOWS
+#  include "os/win32/rts_os_win32.h"
+#else
+#  error Undefined OS
+#endif
+
+#include "usb_hid_keys.h"
+
+struct Bitmap;
+struct Render_Commands;
+
+// --------------------------
+// @Note: Compilers
+internal u32
+atomic_compare_exchange_u32(u32 volatile *value, u32 _new, u32 expected) 
+{
+#if COMPILER_CL
+    u32 result = _InterlockedCompareExchange((long *)value, _new, expected);
+#else
+    u32 result = 0;
+#endif
+    return result;
+}
+
+internal u32
+atomic_exchange_u32(u32 volatile *value, u32 _new) 
+{
+#if COMPILER_CL
+    u32 result = _InterlockedExchange((long *)value, _new);
+#else
+    u32 result = 0;
+#endif
+    return result;
+}
+
+internal u64
+atomic_exchange_u64(u64 volatile *value, u64 _new) 
+{
+#if COMPILER_CL
+    u64 result = _InterlockedExchange64((long long *)value, _new);
+#else
+    u64 result = 0;
+#endif
+    return result;
+}
+
+internal u32
+atomic_add_u32(u32 volatile *value, u32 addend) 
+{
+#if COMPILER_CL
+    u32 result = _InterlockedExchangeAdd((long *)value, addend);
+#else
+    u32 result = 0;
+#endif
+    return result;
+}
+
+internal u64
+atomic_add_u64(u64 volatile *value, u64 addend) 
+{
+#if COMPILER_CL
+    u64 result = _InterlockedExchangeAdd64((long long *)value, addend);
+#else
+    u64 result = 0;
+#endif
+    return result;
+}
+
+struct Debug_Executing_Process {
+    u64 os_handle;
+};
+
+struct Debug_Process_State {
+    b32 started_successfully;
+    b32 is_running;
+    s32 return_code;
+};
+
+struct Os_File_Handle {
+    void *platform;
+};
+
+struct Os_Time {
+    u16 year;
+    u16 month;
+    u16 dayofweek;
+    u16 day;
+    u16 hour;
+    u16 minute;
+    u16 second;
+    u16 ms;
+};
+
+enum Os_File_Type {
+    TYPE_INVALID,
+    TYPE_FILE,
+    TYPE_DIRECTORY,
+};
+struct Os_File_Info {
+    Os_File_Type type;
+    char filename[256];
+};
+struct Os_File_List {
+    Os_File_Info infos[256];
+    umm count;
+};
+
+enum Os_Open_File_Flag {
+    Open_File_Read  = 0x1,
+    Open_File_Write = 0x2,
+};
+
+
+#define OS_OPEN_FILE(NAME) Os_File_Handle NAME(char *filepath, u32 flags)
+typedef OS_OPEN_FILE(Os_Open_File);
+
+#define OS_CLOSE_FILE(NAME) void NAME(Os_File_Handle *handle)
+typedef OS_CLOSE_FILE(Os_Close_File);
+
+#define OS_GET_FILE_SIZE(NAME) u32 NAME(Os_File_Handle *handle)
+typedef OS_GET_FILE_SIZE(Os_Get_File_Size);
+
+#define OS_READ_FROM_FILE(NAME) void NAME(Os_File_Handle *handle, void *dst, umm size)
+typedef OS_READ_FROM_FILE(Os_Read_From_File);
+
+#define OS_READ_ENTIRE_FILE(NAME) Buffer NAME(char *filepath)
+typedef OS_READ_ENTIRE_FILE(Os_Read_Entire_File);
+
+
+
+// -----------------------------------------
+// @Note: File
+#define OS_FILE_COPY(name) void name(Utf8 src, Utf8 dst)
+typedef OS_FILE_COPY(Os_File_Copy);
+
+
+// -----------------------------------------
+// @Note: Memory
+#define OS_QUERY_PAGE_SIZE(name) mmm name(void)
+typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
+
+#define OS_RESERVE(name) void *name(mmm size, b32 commit)
+typedef OS_RESERVE(Os_Reserve);
+
+#define OS_RELEASE(name) void name(void *ptr)
+typedef OS_RELEASE(Os_Release);
+
+#define OS_COMMIT(name) void name(void *ptr, u64 size)
+typedef OS_COMMIT(Os_Commit);
+
+#define OS_DECOMMIT(name) void name(void *ptr, u64 size)
+typedef OS_DECOMMIT(Os_Decommit);
+
+
+
+#define OS_READ_CPU_TIMER(NAME) u64 NAME()
+typedef OS_READ_CPU_TIMER(Os_Read_Cpu_Timer);
+
+#define OS_GET_SYSTEM_TIME(NAME) Os_Time NAME()
+typedef OS_GET_SYSTEM_TIME(Os_Get_System_Time);
+
+#define OS_GET_LAST_WRITE_TIME(NAME) u64 NAME(char *filepath)
+typedef OS_GET_LAST_WRITE_TIME(Os_Get_Last_Write_Time);
+
+struct Os_Work_Queue;
+#define OS_WORK_QUEUE_CALLBACK(Name) void Name(Os_Work_Queue *queue, void *data)
+typedef OS_WORK_QUEUE_CALLBACK(Os_Work_QueueCallback);
+
+typedef void Os_Add_Entry(Os_Work_Queue *queue, Os_Work_QueueCallback *callback, void *data);
+typedef void Os_Complete_All_Work(Os_Work_Queue *queue);
+
+struct OS 
+{
+    Os_Open_File          *open_file;
+    Os_Close_File         *close_file;
+    Os_Get_File_Size      *get_file_size;
+    Os_Read_From_File     *read_from_file;
+    Os_Read_Entire_File   *read_entire_file;
+    Os_File_Copy           *file_copy;
+
+    Os_Query_Page_Size          *query_page_size;
+    Os_Reserve                  *memory_reserve;
+    Os_Release                  *memory_release;
+    Os_Commit                   *memory_commit;
+    Os_Decommit                 *memory_decommit;
+
+    Os_Get_System_Time    *get_system_time;
+    Os_Read_Cpu_Timer     *read_cpu_timer;
+    Os_Get_Last_Write_Time *get_last_write_time;
+
+    u64 tsc_frequency;
+};
+global OS os;
+
+
+// --------------------------------
+// @Note: Init
+#define OS_INIT(name) void name(void)
+typedef OS_INIT(Os_Init);
+
+internal Os_Init os_init;
+
+
+
 #endif // RTS_OS_H

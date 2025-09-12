@@ -19,12 +19,12 @@
     at += (sizeof(type)*count);
 
 internal void
-load_model(Model *model, const char *filename, Memory_Arena *arena)
+load_model(Model *model, const char *filename, Arena *arena)
 {
     Assert(model);
 
     char filepath[512];
-    _snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MESH_DIRECTORY, filename, ASSET_MESH_FILE_FORMAT);
+    str_snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MESH_DIRECTORY, filename, ASSET_MESH_FILE_FORMAT);
 
     Buffer entirefile = os.read_entire_file(filepath);
 
@@ -95,7 +95,7 @@ load_model(Model *model, const char *filename, Memory_Arena *arena)
     }
 
     Assert(at == end);
-    os.free_memory(entirefile.data);
+    os.memory_release(entirefile.data);
 }
 
 internal u32
@@ -118,7 +118,7 @@ animation_hash(u32 id, u32 length) {
 }
 
 internal void
-load_animation(Animation *anim, const char *filename, Memory_Arena *arena)
+load_animation(Animation *anim, const char *filename, Arena *arena)
 {
     Assert(anim);
 
@@ -191,15 +191,15 @@ load_animation(Animation *anim, const char *filename, Memory_Arena *arena)
             entry->first = slot;
         }
     }
-    os.free_memory(entirefile.data);
+    os.memory_release(entirefile.data);
 }
 
 // -------------------------------
 // @Note: Font
 internal void
-load_font(Memory_Arena *arena, char *filepath, Asset_Font *font)
+load_font(Arena *arena, char *filepath, Asset_Font *font)
 {
-    os.free_memory(font->buffer.data);
+    os.memory_release(font->buffer.data);
     font->buffer = os.read_entire_file(filepath);
     u8 *at  = font->buffer.data;
     u8 *end = at + font->buffer.count;
@@ -244,7 +244,7 @@ load_font(Memory_Arena *arena, char *filepath, Asset_Font *font)
 }
 
 internal void
-load_image(Bitmap *bitmap, char *filepath, Memory_Arena *arena)
+load_image(Bitmap *bitmap, char *filepath, Arena *arena)
 {
     Assert(bitmap);
 
@@ -264,7 +264,7 @@ load_image(Bitmap *bitmap, char *filepath, Memory_Arena *arena)
     READ_COUNT(bitmap->memory, u8, bitmap->size);
 
     Assert(at == end);
-    os.free_memory(entirefile.data);
+    os.memory_release(entirefile.data);
 }
 
 #undef READ

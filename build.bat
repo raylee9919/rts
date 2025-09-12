@@ -33,21 +33,21 @@ pushd build
 if exist *.pdb del *.pdb
 
 :: Font
-call %compiler% %flags_compile% ..\src\font\font_smith.cpp /link %flags_linker% Gdi32.lib 
+rem call %compiler% %flags_compile% ..\src\font\font_smith.cpp /link %flags_linker% Gdi32.lib 
 
 :: Assimp
-call %compiler% %flags_compile% ..\src\assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+rem call %compiler% %flags_compile% ..\src\assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
-call %compiler% ..\src\meta\meta.cpp /Fe:meta.exe %flags_compile% /link %flags_linker%
-meta.exe
+rem call %compiler% ..\src\meta\meta.cpp /Fe:meta.exe %flags_compile% /link %flags_linker%
+rem eta.exe
 
 :: Renderers
 set renderer_export=-EXPORT:win32_load_renderer -EXPORT:win32_begin_frame -EXPORT:win32_end_frame -EXPORT:win32_cleanup
 call %compiler% %flags_compile% ..\src\win32_opengl.cpp /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export% gdi32.lib opengl32.lib user32.lib 
 
 :: Game
-call %compiler% %flags_compile% ..\src\game.cpp  /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
-call %compiler% %flags_compile% ..\src\win32.cpp     /link %flags_linker% User32.lib Gdi32.lib Winmm.lib Ole32.lib
+call %compiler% %flags_compile% ..\src\rts_game.cpp /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
+call %compiler% %flags_compile% ..\src\win32.cpp        /link %flags_linker%
 
 popd

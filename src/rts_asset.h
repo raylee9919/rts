@@ -367,12 +367,12 @@ struct Asset_Font
 };
 
 
-internal void load_font(Memory_Arena *arena, char *filepath, Asset_Font *font);
-internal void load_image(Bitmap *bitmap, char *filepath, Memory_Arena *arena);
-internal void load_model(Model *model, const char *filename, Memory_Arena *arena);
+internal void load_font(Arena *arena, char *filepath, Asset_Font *font);
+internal void load_image(Bitmap *bitmap, char *filepath, Arena *arena);
+internal void load_model(Model *model, const char *filename, Arena *arena);
 internal u32 get_triangle_count(Model *model);
 internal u32 animation_hash(u32 id, u32 length);
-internal void load_animation(Animation *anim, const char *filename, Memory_Arena *arena);
+internal void load_animation(Animation *anim, const char *filename, Arena *arena);
 
 
 // -------------------------------------

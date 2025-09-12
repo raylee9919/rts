@@ -6,17 +6,15 @@
    $Notice: (C) Copyright 2025 by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#include <windows.h>
-#include <gl/gl.h>
-#include <tchar.h>
-
-#include <math.h>
-
 // @Note: [.h]
 #include "base/rts_base_inc.h"
+#include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_asset.h"
 #include "input.h"
+
+#include <gl/gl.h>
+#include <tchar.h>
 
 #include "renderer.h"
 #include "win32_renderer.h"
@@ -377,8 +375,10 @@ win32_get_gl_functions(Opengl_Info info)
 }
 
 internal Opengl *
-win32_init_opengl(HDC window_dc, umm push_buffer_size, Memory_Arena *arena)
+win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
 {
+    os = os_init;
+
     b32 reload = false;
 
     if (arena->used) {
@@ -437,7 +437,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Memory_Arena *arena)
 
 WIN32_LOAD_RENDERER_ENTRY()
 {
-    Platform_Renderer *result = (Platform_Renderer *)win32_init_opengl(window_dc, push_buffer_size, renderer_arena);
+    Platform_Renderer *result = (Platform_Renderer *)win32_init_opengl(window_dc, push_buffer_size, renderer_arena, os_init);
     
     return result;
 }

@@ -104,7 +104,7 @@ void load_map(char *filename, Game_State *game_state)
 
 #if __DEVELOPER
     u64 tsc_end = os.read_cpu_timer();
-    f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.cpu_timer_frequency;
+    f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.tsc_frequency;
     printf("Loaded map '%s' in %.2fms.\n", filename, elapsed_ms);
 #endif
 }

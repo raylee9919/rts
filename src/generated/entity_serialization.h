@@ -15,23 +15,23 @@ internal ENTITY_FUNCTION_SERIALIZE(serialize_Camera)
 
         fprintf(file, R"ENTITY(; focal_length
     %.6f : 0x%X
-)ENTITY", e->focal_length, f32_to_raw(e->focal_length));
+)ENTITY", e->focal_length, to_raw(e->focal_length));
 
         fprintf(file, R"ENTITY(; width
     %.6f : 0x%X
-)ENTITY", e->width, f32_to_raw(e->width));
+)ENTITY", e->width, to_raw(e->width));
 
         fprintf(file, R"ENTITY(; height
     %.6f : 0x%X
-)ENTITY", e->height, f32_to_raw(e->height));
+)ENTITY", e->height, to_raw(e->height));
 
         fprintf(file, R"ENTITY(; N
     %.6f : 0x%X
-)ENTITY", e->N, f32_to_raw(e->N));
+)ENTITY", e->N, to_raw(e->N));
 
         fprintf(file, R"ENTITY(; F
     %.6f : 0x%X
-)ENTITY", e->F, f32_to_raw(e->F));
+)ENTITY", e->F, to_raw(e->F));
 
     }
 } // Camera
@@ -60,24 +60,24 @@ internal ENTITY_FUNCTION_SERIALIZE(serialize_Entity)
     %.6f : 0x%X
     %.6f : 0x%X
     %.6f : 0x%X
-)ENTITY", e->position.x, f32_to_raw(e->position.x), e->position.y, f32_to_raw(e->position.y), e->position.z, f32_to_raw(e->position.z));
+)ENTITY", e->position.x, to_raw(e->position.x), e->position.y, to_raw(e->position.y), e->position.z, to_raw(e->position.z));
 
         fprintf(file, R"ENTITY(; orientation
     %.6f : 0x%X
     %.6f : 0x%X
     %.6f : 0x%X
     %.6f : 0x%X
-)ENTITY", e->orientation.w, f32_to_raw(e->orientation.w), e->orientation.x, f32_to_raw(e->orientation.x), e->orientation.y, f32_to_raw(e->orientation.y), e->orientation.z, f32_to_raw(e->orientation.z));
+)ENTITY", e->orientation.w, to_raw(e->orientation.w), e->orientation.x, to_raw(e->orientation.x), e->orientation.y, to_raw(e->orientation.y), e->orientation.z, to_raw(e->orientation.z));
 
         fprintf(file, R"ENTITY(; scaling
     %.6f : 0x%X
     %.6f : 0x%X
     %.6f : 0x%X
-)ENTITY", e->scaling.x, f32_to_raw(e->scaling.x), e->scaling.y, f32_to_raw(e->scaling.y), e->scaling.z, f32_to_raw(e->scaling.z));
+)ENTITY", e->scaling.x, to_raw(e->scaling.x), e->scaling.y, to_raw(e->scaling.y), e->scaling.z, to_raw(e->scaling.z));
 
         fprintf(file, R"ENTITY(; radius
     %.6f : 0x%X
-)ENTITY", e->radius, f32_to_raw(e->radius));
+)ENTITY", e->radius, to_raw(e->radius));
 
     }
 } // Entity
@@ -95,7 +95,7 @@ internal ENTITY_FUNCTION_SERIALIZE(serialize_Ground)
         e->serialize_entity(entity, game_state, file);
         fprintf(file, R"ENTITY(; uv_scale
     %.6f : 0x%X
-)ENTITY", e->uv_scale, f32_to_raw(e->uv_scale));
+)ENTITY", e->uv_scale, to_raw(e->uv_scale));
 
     }
 } // Ground
@@ -127,11 +127,11 @@ internal ENTITY_FUNCTION_SERIALIZE(serialize_Xbot)
         e->serialize_entity(entity, game_state, file);
         fprintf(file, R"ENTITY(; speed
     %.6f : 0x%X
-)ENTITY", e->speed, f32_to_raw(e->speed));
+)ENTITY", e->speed, to_raw(e->speed));
 
         fprintf(file, R"ENTITY(; hp
     %.6f : 0x%X
-)ENTITY", e->hp, f32_to_raw(e->hp));
+)ENTITY", e->hp, to_raw(e->hp));
 
         fprintf(file, R"entity(; controlled
     %u

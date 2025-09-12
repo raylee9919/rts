@@ -10,7 +10,7 @@
 
     
 
-#define WIN32_LOAD_RENDERER(name) Platform_Renderer *name(HDC window_dc, umm push_buffer_size, struct Memory_Arena *renderer_arena)
+#define WIN32_LOAD_RENDERER(name) Platform_Renderer *name(HDC window_dc, umm push_buffer_size, struct Arena *renderer_arena, OS os_init)
 typedef WIN32_LOAD_RENDERER(Win32_Load_Renderer);
 #define WIN32_LOAD_RENDERER_ENTRY() WIN32_LOAD_RENDERER(win32_load_renderer)
 

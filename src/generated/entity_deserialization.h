@@ -98,7 +98,7 @@ void parse_member_Camera(Camera *e, Parser *parser) {
 internal void
 parse_Camera(Parser *parser) 
 {
-    Camera *e = push_entity(parser->game_state->world, &parser->game_state->world_arena, Camera, {});
+    Camera *e = push_entity(parser->game_state->world, parser->game_state->world_arena, Camera, {});
 
     eat_token(parser);
 
@@ -168,7 +168,7 @@ void parse_member_Crate(Crate *e, Parser *parser) {
 internal void
 parse_Crate(Parser *parser) 
 {
-    Crate *e = push_entity(parser->game_state->world, &parser->game_state->world_arena, Crate, {});
+    Crate *e = push_entity(parser->game_state->world, parser->game_state->world_arena, Crate, {});
 
     eat_token(parser);
 
@@ -250,7 +250,7 @@ void parse_member_Ground(Ground *e, Parser *parser) {
 internal void
 parse_Ground(Parser *parser) 
 {
-    Ground *e = push_entity(parser->game_state->world, &parser->game_state->world_arena, Ground, {});
+    Ground *e = push_entity(parser->game_state->world, parser->game_state->world_arena, Ground, {});
 
     eat_token(parser);
 
@@ -320,7 +320,7 @@ void parse_member_Rock(Rock *e, Parser *parser) {
 internal void
 parse_Rock(Parser *parser) 
 {
-    Rock *e = push_entity(parser->game_state->world, &parser->game_state->world_arena, Rock, {});
+    Rock *e = push_entity(parser->game_state->world, parser->game_state->world_arena, Rock, {});
 
     eat_token(parser);
 
@@ -418,7 +418,7 @@ void parse_member_Xbot(Xbot *e, Parser *parser) {
 internal void
 parse_Xbot(Parser *parser) 
 {
-    Xbot *e = push_entity(parser->game_state->world, &parser->game_state->world_arena, Xbot, {});
+    Xbot *e = push_entity(parser->game_state->world, parser->game_state->world_arena, Xbot, {});
 
     eat_token(parser);
 

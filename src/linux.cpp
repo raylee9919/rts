@@ -70,7 +70,7 @@ int main(int argc, char **argv)
         game_memory.high_priority_queue = &high_priority_queue;
         game_memory.low_priority_queue = &low_priority_queue;
 
-        Platform_Api *platform = &game_memory.platform;
+        OS *platform = &game_memory.platform;
         platform->platform_add_entry = Win32AddEntry;
         platform->platform_complete_all_work = win32_complete_all_work;
         platform->debug_platform_read_file = win32_read_entire_file;

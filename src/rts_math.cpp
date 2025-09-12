@@ -20,28 +20,6 @@ absolute(f32 val) {
 }
 
 internal f32
-clamp(f32 x, f32 low, f32 high) {
-    f32 result = x;
-    if (x < low) {
-        result = low;
-    } else if (x > high) {
-        result = high;
-    }
-    return result;
-}
-
-internal s32
-clamp(s32 x, s32 low, s32 high) {
-    s32 result = x;
-    if (x < low) {
-        result = low;
-    } else if (x > high) {
-        result = high;
-    }
-    return result;
-}
-
-internal f32
 clamp01(f32 x) {
     f32 result = clamp(x, 0.0f, 1.0f);
     return result;

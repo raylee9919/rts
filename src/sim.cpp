@@ -7,10 +7,10 @@
    ======================================================================== */
 
 #define push_entity(WORLD, ARENA, TYPE, POSITION) \
-    ((TYPE *)push_entity_(WORLD, ARENA, sizeof(TYPE), POSITION))
+    ((TYPE *)_push_entity(WORLD, ARENA, sizeof(TYPE), POSITION))
     
 internal Entity *
-push_entity_(World *world, Memory_Arena *arena, umm size, v3 position) 
+_push_entity(World *world, Arena *arena, umm size, v3 position) 
 {
     Entity *entity      = (Entity *)push_size(arena, size);
     entity->id          = world->next_entity_id++;

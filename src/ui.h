@@ -28,7 +28,7 @@ struct Ui {
 
     struct Input *input;
     struct Mouse_Input *mouse;
-    struct Memory_Arena *arena;
+    struct Arena *arena;
     struct Render_Group *render_group;
     struct Asset_Font *font;
     struct Asset_Font *bigfont;
@@ -45,7 +45,7 @@ struct Ui {
     Ui_Fadeout_Text fadeout_texts[32];
     u32 next_fadeout_text;
 
-    void init(Input *input, Memory_Arena *arena, Render_Group *render_group, Asset_Font *font, Asset_Font *bigfont);
+    void init(Input *input, Arena *arena, Render_Group *render_group, Asset_Font *font, Asset_Font *bigfont);
     b32 hot_begins(Rect2 rect);
     void begin(char *label, v2 top_left = v2{}, b32 attachanchor = true);
     void end();

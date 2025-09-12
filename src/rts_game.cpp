@@ -15,25 +15,27 @@
 
 // @Note: [.h]
 #include "base/rts_base_inc.h"
+#include "os/rts_os.h"
+
+#include "rts_platform.h"
+
 #include "rts_math.h"
 #include "rts_random.h"
 #include "rts_color.h"
 #include "rts_asset.h"
 
-#include "intrinsics.h"
+#include "input.h"
+
 #include "stack.h"
 #include "queue.h"
 #include "priority_queue.h"
-#include "input.h"
-#include "platform.h"
+
 #include "ui.h"
-Platform_Api os;
 Ui ui;
-#include "profiler.h"
 
 #include "delaunay.h"
 #include "nav.h"
-#include "game.h"
+#include "rts_game.h"
 
 #include "renderer.h"
 #include "renderer.cpp"
@@ -85,8 +87,6 @@ update_game_mode(Game_State *game_state, Input *input)
 internal void
 update_entities(World *world, Game_State *game_state, Input *input)
 {
-    TIME_FUNCTION();
-
     for (u32 idx = 0; idx < world->entity_count; ++idx) {
         Entity *entity = world->entities[idx];
         if (entity->id != 0) {
@@ -98,8 +98,6 @@ update_entities(World *world, Game_State *game_state, Input *input)
 internal void
 draw_entities(Game_State *game_state, Render_Commands *commands, Render_Group *render_group, Render_Group *orthographic_group, v3 center, v3 draw_dim)
 {
-    TIME_FUNCTION();
-
     World *world = game_state->world;
     for (u32 idx = 0; idx < world->entity_count; ++idx) {
         Entity *entity = world->entities[idx];
@@ -165,7 +163,7 @@ internal void
 debug_draw_performance(Render_Group *render_group, Input *input, Asset_Font *font) 
 {
     char buf[256];
-    snprintf(buf, 256, "actual mspf: %.4f | fps: %d", 1000.0f*input->actual_dt, round_f32_to_s32(1.0f/input->actual_dt));
+    snprintf(buf, 256, "actual mspf: %.4f | fps: %d", 1000.0f*input->actual_dt, (s32)(1.0f/input->actual_dt + 0.5f));
     v3 base = v3{10, input->draw_dim.y - 30.0f, 0};
     string_op(String_Op_Draw, render_group, base + V3(2,-2,-1), buf, font, RGBA_BLACK);
     string_op(String_Op_Draw, render_group, base, buf, font);
@@ -203,141 +201,140 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
 
 #include "map_loader.cpp"
 
-extern "C" // @main
+extern "C"
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
-    Game_State *game_state = (Game_State *)game_memory->total_memory;
+    Game_State *game_state = (Game_State *)game_memory->game_state;
+    if (game_state == 0)
+    { game_memory->game_state = game_state = push_struct(game_memory->arena, Game_State); }
+
     os = game_memory->os;
-    begin_profile();
+
     f32 draw_width  = input->draw_dim.w;
     f32 draw_height = input->draw_dim.h;
 
     input->dt = clamp(input->dt, 0.001f, 0.1f); // @TODO: Warn on out-out-range refresh.
 
-    if (!game_state->initted) {
+    if (! game_state->initted) 
+    {
         game_state->initted = true;
 
-        init_arena(&game_state->total_arena, (u8 *)game_memory->total_memory + sizeof(Game_State), game_memory->total_memory_size - sizeof(Game_State));
+        game_state->asset_arena = arena_alloc(GB(1));
+        game_state->game_assets = push_struct(game_state->asset_arena, Game_Assets);
 
-        init_subarena(&game_state->asset_arena, &game_state->total_arena, MB(1500));
-        game_state->game_assets = push_struct(&game_state->asset_arena, Game_Assets);
+        game_state->world_arena = arena_alloc(GB(1));
+        game_state->world = push_struct(game_state->world_arena, World);
 
-        init_subarena(&game_state->world_arena, &game_state->total_arena, MB(128));
-        game_state->world = push_struct(&game_state->world_arena, World);
+        game_state->debug_arena = arena_alloc(MB(128));
+        game_state->debug_state = push_struct(game_state->debug_arena, Debug_State);
 
-        init_subarena(&game_state->debug_arena, &game_state->total_arena, MB(128));
-        game_state->debug_state = push_struct(&game_state->debug_arena, Debug_State);
+        game_state->ui_arena = arena_alloc(MB(128));
 
-        init_subarena(&game_state->ui_arena, &game_state->total_arena, MB(128));
-
-        init_subarena(&game_state->frame_arena, &game_state->total_arena, MB(128));
-        game_state->frame_temporary_memory = begin_temporary_memory(&game_state->frame_arena);
+        game_state->frame_arena = arena_alloc(MB(128));
 
         World *world = game_state->world;
         world->next_entity_id = 1;
-        Memory_Arena *world_arena = &game_state->world_arena;
+        Arena *world_arena = game_state->world_arena;
 
         game_state->mode = Game_Mode_Editor;
         game_state->random_series = rand_seed(1219);
-        game_state->high_priority_queue = game_memory->high_priority_queue;
-        game_state->low_priority_queue  = game_memory->low_priority_queue;
-
 
         { // @Temporary
             Game_Assets *assets = game_state->game_assets;
+            Arena *asset_arena = game_state->asset_arena;
 
-            assets->sphere_model = push_struct(&game_state->asset_arena, Model);
-            load_model(assets->sphere_model, "sphere", &game_state->asset_arena);
+            assets->sphere_model = push_struct(asset_arena, Model);
+            load_model(assets->sphere_model, "sphere", asset_arena);
 
-            assets->plane_model = push_struct(&game_state->asset_arena, Model);
-            load_model(assets->plane_model, "plane", &game_state->asset_arena);
+            assets->plane_model = push_struct(asset_arena, Model);
+            load_model(assets->plane_model, "plane", asset_arena);
 
-            assets->rock_model = push_struct(&game_state->asset_arena, Model);
-            load_model(assets->rock_model, "rock", &game_state->asset_arena);
-            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Albedo], "textures/RockAlbedo.sbmp", &game_state->asset_arena);
-            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Metalic], "textures/RockMetalic.sbmp", &game_state->asset_arena);
-            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Normal], "textures/RockNormal.sbmp", &game_state->asset_arena);
-            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Roughness], "textures/RockRoughness.sbmp", &game_state->asset_arena);
+            assets->rock_model = push_struct(asset_arena, Model);
+            load_model(assets->rock_model, "rock", asset_arena);
+            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Albedo], "textures/RockAlbedo.sbmp", asset_arena);
+            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Metalic], "textures/RockMetalic.sbmp", asset_arena);
+            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Normal], "textures/RockNormal.sbmp", asset_arena);
+            load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Roughness], "textures/RockRoughness.sbmp", asset_arena);
 
-            assets->xbot_model = push_struct(&game_state->asset_arena, Model);
-            load_model(assets->xbot_model, "skeleton_lord", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Albedo], "textures/bodyColor.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Metalic], "textures/bodyMetalic.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Normal], "textures/bodyNormal.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Roughness], "textures/bodyRoughness.sbmp", &game_state->asset_arena);
+            assets->xbot_model = push_struct(asset_arena, Model);
+            load_model(assets->xbot_model, "skeleton_lord", asset_arena);
+            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Albedo], "textures/bodyColor.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Metalic], "textures/bodyMetalic.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Normal], "textures/bodyNormal.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[7].textures[Pbr_Texture_Roughness], "textures/bodyRoughness.sbmp", asset_arena);
 
-            load_image(&assets->xbot_model->meshes[4].textures[Pbr_Texture_Albedo], "textures/clothColor.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[4].textures[Pbr_Texture_Normal], "textures/clothNormal.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[4].textures[Pbr_Texture_Roughness], "textures/clothRoughness.sbmp", &game_state->asset_arena);
+            load_image(&assets->xbot_model->meshes[4].textures[Pbr_Texture_Albedo], "textures/clothColor.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[4].textures[Pbr_Texture_Normal], "textures/clothNormal.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[4].textures[Pbr_Texture_Roughness], "textures/clothRoughness.sbmp", asset_arena);
 
-            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Albedo], "textures/helmetColor.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Normal], "textures/helmetNormal.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Metalic], "textures/helmetMetalic.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Roughness], "textures/helmetRoughness.sbmp", &game_state->asset_arena);
+            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Albedo], "textures/helmetColor.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Normal], "textures/helmetNormal.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Metalic], "textures/helmetMetalic.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[9].textures[Pbr_Texture_Roughness], "textures/helmetRoughness.sbmp", asset_arena);
 
-            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Albedo], "textures/swordColor.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Normal], "textures/swordNormal.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Metalic], "textures/swordMetalic.sbmp", &game_state->asset_arena);
-            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Roughness], "textures/swordRoughness.sbmp", &game_state->asset_arena);
+            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Albedo], "textures/swordColor.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Normal], "textures/swordNormal.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Metalic], "textures/swordMetalic.sbmp", asset_arena);
+            load_image(&assets->xbot_model->meshes[1].textures[Pbr_Texture_Roughness], "textures/swordRoughness.sbmp", asset_arena);
 
-            assets->crate_model = push_struct(&game_state->asset_arena, Model);
-            load_model(assets->crate_model, "crate", &game_state->asset_arena);
-            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Albedo], "textures/crate_albedo.sbmp", &game_state->asset_arena);
-            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Normal], "textures/crate_normal.sbmp", &game_state->asset_arena);
-            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Metalic], "textures/crate_metalic.sbmp", &game_state->asset_arena);
-            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Roughness], "textures/crate_roughness.sbmp", &game_state->asset_arena);
+            assets->crate_model = push_struct(asset_arena, Model);
+            load_model(assets->crate_model, "crate", asset_arena);
+            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Albedo], "textures/crate_albedo.sbmp", asset_arena);
+            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Normal], "textures/crate_normal.sbmp", asset_arena);
+            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Metalic], "textures/crate_metalic.sbmp", asset_arena);
+            load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Roughness], "textures/crate_roughness.sbmp", asset_arena);
 
-            assets->xbot_idle = push_struct(&game_state->asset_arena, Animation);
-            load_animation(assets->xbot_idle, "skeleton_lord_idle", &game_state->asset_arena);
+            assets->xbot_idle = push_struct(asset_arena, Animation);
+            load_animation(assets->xbot_idle, "skeleton_lord_idle", asset_arena);
 
-            assets->xbot_run = push_struct(&game_state->asset_arena, Animation);
-            load_animation(assets->xbot_run, "skeleton_lord_run", &game_state->asset_arena);
+            assets->xbot_run = push_struct(asset_arena, Animation);
+            load_animation(assets->xbot_run, "skeleton_lord_run", asset_arena);
 
-            assets->xbot_die = push_struct(&game_state->asset_arena, Animation);
-            load_animation(assets->xbot_die, "skeleton_lord_die", &game_state->asset_arena);
+            assets->xbot_die = push_struct(asset_arena, Animation);
+            load_animation(assets->xbot_die, "skeleton_lord_die", asset_arena);
 
-            assets->xbot_attack = push_struct(&game_state->asset_arena, Animation);
-            load_animation(assets->xbot_attack, "skeleton_lord_attack", &game_state->asset_arena);
+            assets->xbot_attack = push_struct(asset_arena, Animation);
+            load_animation(assets->xbot_attack, "skeleton_lord_attack", asset_arena);
 
-            load_font(&game_state->asset_arena, ASSET_FONT(noto_serif), &assets->debug_font);
-            load_font(&game_state->asset_arena, ASSET_FONT(noto_serif), &assets->console_font);
-            load_font(&game_state->asset_arena, ASSET_FONT(gill_sans), &assets->menu_font);
-            load_font(&game_state->asset_arena, ASSET_FONT(Karmina Regular), &assets->karmina);
+            load_font(asset_arena, ASSET_FONT(noto_serif), &assets->debug_font);
+            load_font(asset_arena, ASSET_FONT(noto_serif), &assets->console_font);
+            load_font(asset_arena, ASSET_FONT(gill_sans), &assets->menu_font);
+            load_font(asset_arena, ASSET_FONT(Karmina Regular), &assets->karmina);
 
-            load_image(&game_state->game_assets->debug_bitmap, "../data/textures/doggo.sbmp", &game_state->asset_arena);
+            load_image(&game_state->game_assets->debug_bitmap, "../data/textures/doggo.sbmp", asset_arena);
 
             char *skybox_filenames[6] = {"textures/right.sbmp", "textures/left.sbmp", "textures/top.sbmp", "textures/bottom.sbmp", "textures/front.sbmp", "textures/back.sbmp"};
             for (u32 i = 0; i < 6; ++i) {
-                load_image(assets->skybox_textures + i, skybox_filenames[i], &game_state->asset_arena);
+                load_image(assets->skybox_textures + i, skybox_filenames[i], asset_arena);
             }
 
             // Cameras
-            game_state->game_camera = push_entity(world, &game_state->world_arena, Camera, V3(0,0,0));
+            game_state->game_camera = push_entity(world, world_arena, Camera, V3(0,0,0));
             game_state->game_camera->init(Camera_Type_Perspective, 0.5f, 0.5f, 100000.0f, world);
             game_state->game_camera->orientation = euler_to_quaternion(degrees_to_radian(-45), 0, 0);
             game_state->game_camera->position = v3{0,5,5};
 
-            game_state->debug_camera = push_entity(world, &game_state->world_arena, Camera, V3(0,0,0));
+            game_state->debug_camera = push_entity(world, world_arena, Camera, V3(0,0,0));
             game_state->debug_camera->init(Camera_Type_Perspective, 0.5f, 0.5f, 100000.0f, world);
             game_state->debug_camera->orientation = euler_to_quaternion(degrees_to_radian(-45), 0, 0);
             game_state->debug_camera->position += game_state->game_camera->position + v3{0,5,5};
 
-            game_state->orthographic_camera = push_entity(world, &game_state->world_arena, Camera, V3(0,0,0));
+            game_state->orthographic_camera = push_entity(world, world_arena, Camera, V3(0,0,0));
             game_state->orthographic_camera->init(Camera_Type_Orthographic, 0, -100, 100, world);
 
             game_state->controlling_camera = game_state->debug_camera;
 
-            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Albedo], "textures/wispy-grass-meadow_albedo.sbmp", &game_state->asset_arena);
-            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Normal], "textures/wispy-grass-meadow_normal-ogl.sbmp", &game_state->asset_arena);
-            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Roughness], "textures/wispy-grass-meadow_roughness.sbmp", &game_state->asset_arena);
-            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metalic], "textures/wispy-grass-meadow_metallic.sbmp", &game_state->asset_arena);
-            generate_backfaced_cube(&assets->skybox_mesh, &game_state->asset_arena, 10000);
+            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Albedo], "textures/wispy-grass-meadow_albedo.sbmp", asset_arena);
+            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Normal], "textures/wispy-grass-meadow_normal-ogl.sbmp", asset_arena);
+            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Roughness], "textures/wispy-grass-meadow_roughness.sbmp", asset_arena);
+            load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metalic], "textures/wispy-grass-meadow_metallic.sbmp", asset_arena);
+            generate_backfaced_cube(&assets->skybox_mesh, asset_arena, 10000);
 
             load_map("map1", game_state);
 
             render_commands->csm_varient_method = true;
 
-            // @TEMPORARY
+            // @Temporary:
             Navmesh *navmesh = &game_state->navmesh;
 
             navmesh->vertex_size = 1000;
@@ -388,13 +385,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             navmesh->cdt = delaunay_triangulate(navmesh->vertices, navmesh->vertex_count, navmesh);
         }
     }
-    end_temporary_memory(&game_state->frame_temporary_memory);
-    game_state->frame_temporary_memory = begin_temporary_memory(&game_state->frame_arena);
+    arena_clear(game_state->frame_arena);
 
     u64 writetime = os.get_last_write_time(ASSET_FONT(Times New Roman));
     if (writetime != game_state->game_assets->times.writetime) {
         game_state->game_assets->times.writetime = writetime;
-        load_font(&game_state->asset_arena, ASSET_FONT(Times New Roman), &game_state->game_assets->times);
+        load_font(game_state->asset_arena, ASSET_FONT(Times New Roman), &game_state->game_assets->times);
     }
 
     game_state->active_entity_id = render_commands->active_entity_id;
@@ -450,7 +446,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
 
     if (!ui.initted) { 
-        ui.init(input, &game_state->ui_arena, orthographic_group, &assets->times, &assets->menu_font);
+        ui.init(input, game_state->ui_arena, orthographic_group, &assets->times, &assets->menu_font);
     }
 
     // @TODO: cleanup
@@ -488,10 +484,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 game_state->controlling_camera = game_state->game_camera;
             }
             if (ui.button(color, "Save")) {
-                Platform_Time time = os.get_system_time();
+                Os_Time time = os.get_system_time();
                 char backuppath[128];
-                snprintf(backuppath, sizeof(backuppath), "map/backup/map1_%d_%d_%d_%d_%d_%d.smap", time.year, time.month, time.day, time.hour, time.minute, time.second);
-                os.copy_file("map/map1.smap", backuppath);
+                int len = str_snprintf(backuppath, sizeof(backuppath), "map/backup/map1_%d_%d_%d_%d_%d_%d.smap", time.year, time.month, time.day, time.hour, time.minute, time.second);
+                os.file_copy(utf8lit("map/map1.smap"), utf8((u8 *)backuppath, len));
 
                 FILE *file = fopen("map/map1.smap", "wb");
                 Assert(file);
@@ -574,5 +570,4 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
 
     ui.end_frame();
-    end_profile();
 }

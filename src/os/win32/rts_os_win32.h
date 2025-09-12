@@ -1,3 +1,5 @@
+#ifndef RTS_OS_WIN32_H
+#define RTS_OS_WIN32_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -6,19 +8,12 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#if OS_WINDOWS
-#  include "os/win32/rts_os_win32.cpp"
-#else
-#  error Undefined OS
-#endif
+#define NOMINMAX
+#define UNICODE
+#define _UNICODE
+#include <windows.h>
+#include <Xinput.h>
+#include <xaudio2.h>
 
 
-internal
-OS_INIT(os_init)
-{
-#if OS_WINDOWS
-    os_win32_init();
-#else
-#  error Undefined OS
-#endif
-}
+#endif // RTS_OS_WIN32_H

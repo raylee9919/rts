@@ -3,7 +3,7 @@
    $Date: $
    $Revision: $
    $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 #define pi32                3.141592f
@@ -88,8 +88,6 @@ struct Sphere {
 
 internal f32 square(f32 val);
 internal f32 absolute(f32 val);
-internal f32 clamp(f32 x, f32 low, f32 high);
-internal s32 clamp(s32 x, s32 low, s32 high);
 internal f32 clamp01(f32 x);
 internal f32 map(f32 x, f32 min, f32 max);
 internal f32 map01(f32 x, f32 min, f32 max);

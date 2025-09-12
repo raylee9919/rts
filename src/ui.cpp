@@ -48,7 +48,7 @@ crc32_hash(const char *str, u32 *lut)
     return crc;
 }
 
-void Ui::init(Input *input_, Memory_Arena *arena_, Render_Group *render_group_, Asset_Font *font_, Asset_Font *bigfont_) 
+void Ui::init(Input *input_, Arena *arena_, Render_Group *render_group_, Asset_Font *font_, Asset_Font *bigfont_) 
 {
     initted = true;
 

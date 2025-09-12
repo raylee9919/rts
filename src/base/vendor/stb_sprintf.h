@@ -1,3 +1,6 @@
+// ---------------------------------------
+// @Note(lsw): Modified. %S for UTF
+
 // stb_sprintf - v1.10 - public domain snprintf() implementation
 // originally by Jeff Roberts / RAD Game Tools, 2015/10/20
 // http://github.com/nothings/stb
@@ -599,6 +602,22 @@ STBSP__PUBLICDEF int STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB *callback,
          cs = 0;
          // copy the string in
          goto scopy;
+
+      case 'S': {
+         Utf8 utf = va_arg(va, Utf8);
+
+         s = (char *)utf.str;
+         sn = (const char *)(utf.str + utf.len);
+         l = (int)utf.len;
+
+         lead[0] = 0;
+         tail[0] = 0;
+         pr = 0;
+         dp = 0;
+         cs = 0;
+
+         goto scopy;
+      }
 
       case 'c': // char
          // get the character

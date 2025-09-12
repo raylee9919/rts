@@ -10,7 +10,7 @@
 
 // @NOTE: No back-face.
 internal void
-generate_plane(Mesh *mesh, Memory_Arena *arena, f32 length, u32 subdivision)
+generate_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
 {
     if (subdivision > 0) {
         f32 sublength = length / (f32)subdivision;
@@ -39,7 +39,7 @@ generate_plane(Mesh *mesh, Memory_Arena *arena, f32 length, u32 subdivision)
 
 // @NOTE: Do not use it except for quad tessellated terrain.
 internal void
-generate_backfaced_cube(Mesh *mesh, Memory_Arena *arena, f32 scale)
+generate_backfaced_cube(Mesh *mesh, Arena *arena, f32 scale)
 {
     Vertex vertices[] = {
         Vertex{v3{ 1, 1, 1}*scale, v3{ 1, 0, 0}, v2{0,1}, RGBA_WHITE, {}, {}},

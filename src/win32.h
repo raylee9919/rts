@@ -2,8 +2,8 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 struct Win32_Dimension 
@@ -49,6 +49,7 @@ struct Win32_Game_Function_Table
 {
     Game_Update_And_Render *update_and_render;
 };
+
 global char *win32_game_function_table_names[] =
 {
     "game_update_and_render"

@@ -2,11 +2,10 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define UNICODE
 #define _UNICODE
@@ -14,35 +13,41 @@
 #include <Xinput.h>
 #include <xaudio2.h>
 
+#pragma comment(lib, "user32")
+#pragma comment(lib, "gdi32")
+#pragma comment(lib, "winmm")
+#pragma comment(lib, "ole32")
+
 // -----------------------------------
 // @Note: [.h]
 #include "base/rts_base_inc.h"
-#include "rts_math.h"
-#include "intrinsics.h"
 
+#include "rts_math.h"
 #include "rts_asset.h"
 
 #include "input.h"
-#include "platform.h"
+#include "os/rts_os.h"
+
+#include "rts_platform.h"
 #include "win32.h"
 
 // -----------------------------------
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
+#include "os/rts_os.cpp"
 
 #include "win32_xinput.cpp"
 #include "win32_keycode.cpp"
 
-Platform_Api os;
-
 global Win32_State          g_win32_state;
 global b32                  g_running = true;
-global b32                  g_show_cursor;
+global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 
 #include "renderer.h"
 #include "win32_renderer.h"
+
 
 internal void
 win32_get_exe_filepath(Win32_State *state)
@@ -59,6 +64,7 @@ win32_get_exe_filepath(Win32_State *state)
 internal void 
 win32_toggle_fullscreen(HWND window)
 {
+    // @Note: In courtesy of Raymond Chen.
     DWORD style = GetWindowLong(window, GWL_STYLE);
     if (style & WS_OVERLAPPEDWINDOW) {
         MONITORINFO mi = { sizeof(mi) };
@@ -124,14 +130,14 @@ win32_xinput_handle_deadzone(XINPUT_STATE *state)
 }
 
 internal HANDLE
-win32_get_file_handle(Platform_File_Handle *handle)
+win32_get_file_handle(Os_File_Handle *handle)
 {
     return *(HANDLE *)&handle->platform;
 }
 
-internal PLATFORM_OPEN_FILE(win32_open_file)
+internal OS_OPEN_FILE(win32_open_file)
 {
-    Platform_File_Handle result = {};
+    Os_File_Handle result = {};
     static_assert(sizeof(HANDLE) <= sizeof(result.platform));
 
     DWORD permissions = 0;
@@ -154,16 +160,15 @@ internal PLATFORM_OPEN_FILE(win32_open_file)
     return result;
 }
 
-internal PLATFORM_CLOSE_FILE(win32_close_file)
+internal OS_CLOSE_FILE(win32_close_file)
 {
     HANDLE file = win32_get_file_handle(handle);
 
-    if (file) {
-        CloseHandle(file);
-    }
+    if (file)
+    { CloseHandle(file); }
 }
 
-internal PLATFORM_GET_FILE_SIZE(win32_get_file_size)
+internal OS_GET_FILE_SIZE(win32_get_file_size)
 {
     u32 result = 0;
     HANDLE win32_handle = win32_get_file_handle(handle);
@@ -175,7 +180,7 @@ internal PLATFORM_GET_FILE_SIZE(win32_get_file_size)
     return result;
 }
 
-internal PLATFORM_READ_FROM_FILE(win32_read_from_file) 
+internal OS_READ_FROM_FILE(win32_read_from_file) 
 {
     HANDLE win32_handle = win32_get_file_handle(handle);
     DWORD bytes_read;
@@ -186,10 +191,10 @@ internal PLATFORM_READ_FROM_FILE(win32_read_from_file)
     }
 }
 
-internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
+internal OS_READ_ENTIRE_FILE(win32_read_entire_file)
 {
     Buffer result = {};
-    Platform_File_Handle handle = win32_open_file(filepath, Open_File_Read);
+    Os_File_Handle handle = win32_open_file(filepath, Open_File_Read);
     umm filesize = win32_get_file_size(&handle);
     result.count = filesize;
     result.data = (u8 *)VirtualAlloc(0, filesize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -198,83 +203,6 @@ internal PLATFORM_READ_ENTIRE_FILE(win32_read_entire_file)
     ReadFile(win32_handle, result.data, result.count, &bytes_read, 0);
     CloseHandle(win32_handle);
     return result;
-}
-
-internal PLATFORM_FREE_MEMORY(win32_free_memory)
-{
-    if (memory) {
-        VirtualFree(memory, 0, MEM_RELEASE);
-    }
-}
-
-internal PLATFORM_COPY_FILE(win32_copy_file)
-{
-    CopyFileW(src, dst, FALSE);
-}
-
-internal void
-win32_begin_recording_input(Win32_State *win32_state) 
-{
-    win32_state->is_recording = 1;
-    const char *filename = "inputNstate.rec";
-    win32_state->record_file = CreateFileA(filename, GENERIC_WRITE,
-                                           0, 0, CREATE_ALWAYS, 0, 0);
-    DWORD bytes_written;
-    DWORD bytes_to_write = (DWORD)win32_state->game_memory_total_size;
-    Assert(bytes_to_write == win32_state->game_memory_total_size);
-    WriteFile(win32_state->record_file, win32_state->game_memory, 
-              (DWORD)win32_state->game_memory_total_size, &bytes_written, 0);
-}
-
-internal void
-win32_record_input(Win32_State *win32_state, Input *input) 
-{
-    DWORD bytes_written;
-    WriteFile(win32_state->record_file, input, sizeof(*input),
-              &bytes_written, 0);
-}
-
-internal void
-win32_end_input_recording(Win32_State *win32_state) 
-{
-    CloseHandle(win32_state->record_file);
-    win32_state->is_recording = 0;
-}
-
-internal void
-win32_begin_input_playback(Win32_State *win32_state) 
-{
-    win32_state->is_playing = 1;
-
-    const char *filename = "inputNstate.rec";
-    win32_state->record_file = CreateFileA(filename, GENERIC_READ,
-                                           FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-
-    DWORD bytes_read;
-    ReadFile(win32_state->record_file, win32_state->game_memory,
-             (DWORD)win32_state->game_memory_total_size, &bytes_read, 0);
-}
-
-internal void
-win32_end_input_playback(Win32_State *win32_state) 
-{
-    CloseHandle(win32_state->record_file);
-    win32_state->is_playing = 0;
-}
-
-internal void
-win32_playback_input(Win32_State *win32_state, Input *input) 
-{
-    DWORD bytes_read;
-    if (ReadFile(win32_state->record_file, input,
-                 sizeof(*input), &bytes_read, 0)) 
-    {
-        if (bytes_read == 0) 
-        {
-            win32_end_input_playback(win32_state);
-            win32_begin_input_playback(win32_state);
-        }
-    }
 }
 
 internal void
@@ -371,7 +299,7 @@ win32_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         case WM_SETCURSOR: 
         {
             if (g_show_cursor) {
-                result = DefWindowProcA(hwnd, msg, wparam, lparam);
+                result = DefWindowProcW(hwnd, msg, wparam, lparam);
             } else {
                 SetCursor(0);
             }
@@ -379,124 +307,11 @@ win32_window_callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         default: 
         {
-            result = DefWindowProcA(hwnd, msg, wparam, lparam);
+            result = DefWindowProcW(hwnd, msg, wparam, lparam);
         } break;
     }
 
     return result;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// Multi-Threading
-// 
-
-struct Platform_Work_QueueEntry 
-{
-    Platform_Work_QueueCallback *Callback;
-    void *Data;
-};
-
-struct Platform_Work_Queue 
-{
-    u32 volatile CompletionGoal;
-    u32 volatile CompletionCount;
-
-    u32 volatile NextEntryToWrite;
-    u32 volatile NextEntryToRead;
-    HANDLE SemaphoreHandle;
-
-    Platform_Work_QueueEntry Entries[256];
-};
-
-internal void
-Win32AddEntry(Platform_Work_Queue *Queue, Platform_Work_QueueCallback *Callback, void *Data) 
-{
-    // Todo: Switch to InterlockedCompareExchange eventually
-    // so that any thread can add?
-    u32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) % array_count(Queue->Entries);
-    Assert(NewNextEntryToWrite != Queue->NextEntryToRead);
-    Platform_Work_QueueEntry *Entry = Queue->Entries + Queue->NextEntryToWrite;
-    Entry->Callback = Callback;    Entry->Data = Data;
-    ++Queue->CompletionGoal;
-    _WriteBarrier();
-    Queue->NextEntryToWrite = NewNextEntryToWrite;
-    ReleaseSemaphore(Queue->SemaphoreHandle, 1, 0);
-}
-
-internal b32
-Win32DoNextWorkQueueEntry(Platform_Work_Queue *Queue) 
-{
-    b32 shouldSleep = false;
-
-    u32 OriginalNextEntryToRead = Queue->NextEntryToRead;
-    u32 NewNextEntryToRead = (OriginalNextEntryToRead + 1) % array_count(Queue->Entries);
-    if (OriginalNextEntryToRead != Queue->NextEntryToWrite)
-    {
-        u32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToRead,
-                                               NewNextEntryToRead,
-                                               OriginalNextEntryToRead);
-        if(Index == OriginalNextEntryToRead)
-        {        
-            Platform_Work_QueueEntry Entry = Queue->Entries[Index];
-            Entry.Callback(Queue, Entry.Data);
-            InterlockedIncrement((LONG volatile *)&Queue->CompletionCount);
-        }
-    } else {
-        shouldSleep = true;
-    }
-
-    return shouldSleep;
-}
-
-internal void
-win32_complete_all_work(Platform_Work_Queue *Queue) 
-{
-    while(Queue->CompletionGoal != Queue->CompletionCount) 
-    {
-        Win32DoNextWorkQueueEntry(Queue);
-    }
-
-    Queue->CompletionGoal = 0;
-    Queue->CompletionCount = 0;
-}
-
-DWORD WINAPI
-ThreadProc(LPVOID lpParameter) 
-{
-    Platform_Work_Queue *Queue = (Platform_Work_Queue *)lpParameter;
-
-    for(;;) 
-    {
-        if (Win32DoNextWorkQueueEntry(Queue)) 
-        {
-            WaitForSingleObjectEx(Queue->SemaphoreHandle, INFINITE, FALSE);
-        }
-    }
-}
-
-internal void
-win32_make_queue(Platform_Work_Queue *Queue, u32 ThreadCount) 
-{
-    Queue->CompletionGoal = 0;
-    Queue->CompletionCount = 0;
-
-    Queue->NextEntryToWrite = 0;
-    Queue->NextEntryToRead = 0;
-
-    u32 InitialCount = 0;
-    Queue->SemaphoreHandle = CreateSemaphoreEx(0,
-                                               InitialCount,
-                                               ThreadCount,
-                                               0, 0, SEMAPHORE_ALL_ACCESS);
-    for(u32 ThreadIndex = 0;
-        ThreadIndex < ThreadCount;
-        ++ThreadIndex) 
-    {
-        DWORD ThreadID;
-        HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Queue, 0, &ThreadID);
-        CloseHandle(ThreadHandle);
-    }
 }
 
 #if 0
@@ -648,9 +463,6 @@ win32_init_audio() {
 internal HWND
 win32_create_window(HINSTANCE hinst) 
 {
-#if BUILD_DEBUG
-    g_show_cursor = true;
-#endif
     
     WNDCLASSEXW wcex = {};
     {
@@ -693,7 +505,7 @@ win32_unload_code(Win32_Loaded_Code *loaded)
     zero_array(loaded->functions, loaded->function_count);
 }
 
-internal PLATFORM_GET_LAST_WRITE_TIME(win32_get_last_write_time_)
+internal OS_GET_LAST_WRITE_TIME(win32_get_last_write_time_)
 {
     u64 result = 0;
 
@@ -726,7 +538,13 @@ win32_build_exe_path_filename(Win32_State *state, char *filename, u32 unique, ch
         (umm)(state->one_past_last_exe_filepath_slash - state->exe_filepath),
         (u8 *)state->exe_filepath,
     };
-    String b = wrapz(filename);
+
+    String b = {};
+    {
+        b.data = (u8 *)filename;
+        b.count = string_length(filename);
+    }
+
     if (unique == 0) {
         str_snprintf(dst, dst_count, "%.*s%.*s", (int)a.count, a.data, (int)b.count, b.data);
     } else {
@@ -762,7 +580,7 @@ win32_load_code(Win32_State *state, Win32_Loaded_Code *loaded)
                 loaded->temp_dll_name = 0;
             }
 
-            if (CopyFile(src_dll_name, temp_dll_name, FALSE)) {
+            if (CopyFileA(src_dll_name, temp_dll_name, FALSE)) {
                 break;
             }
         }
@@ -826,7 +644,8 @@ win32_read_os_timer(void)
 internal u64
 win32_read_cpu_timer()
 {
-    return __rdtsc();
+    u64 result = __rdtsc();
+    return result;;
 }
 
 internal u64
@@ -856,9 +675,9 @@ win32_estimate_cpu_timer_frequency(void)
     return cpu_freq;
 }
 
-PLATFORM_GET_SYSTEM_TIME(win32_get_system_time)
+OS_GET_SYSTEM_TIME(win32_get_system_time)
 {
-    Platform_Time result = {};
+    Os_Time result = {};
     SYSTEMTIME st = {};
     GetSystemTime(&st);
     result.year = st.wYear;
@@ -872,62 +691,32 @@ PLATFORM_GET_SYSTEM_TIME(win32_get_system_time)
     return result;
 }
 
-PLATFORM_LIST_FILES(win32_list_files)
-{
-    Platform_File_List result = {};
-
-    WIN32_FIND_DATA finddata;
-    HANDLE hfind = INVALID_HANDLE_VALUE;
-    DWORD dwError=0;
-
-    umm len = string_length(path);
-    char wildcard[MAX_PATH];
-    memory_copy(wildcard, path, sizeof(*wildcard)*len);
-    Assert(len + 2 < MAX_PATH);
-    wildcard[len] = '/';
-    wildcard[len+1] = '*';
-    wildcard[len+2] = 0;
-
-    hfind = FindFirstFile(wildcard, &finddata);
-
-    if (hfind != INVALID_HANDLE_VALUE) {
-        do {
-            Platform_File_Info info = {};
-
-            if (finddata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                info.type = TYPE_DIRECTORY;
-                copyz(finddata.cFileName, info.filename);
-            } else {
-                info.type = TYPE_FILE;
-                copyz(finddata.cFileName, info.filename);
-            }
-
-            result.infos[result.count++] = info;
-        }
-        while (FindNextFile(hfind, &finddata) != 0);
-
-        dwError = GetLastError();
-        if (dwError != ERROR_NO_MORE_FILES) {
-            Assert(0);
-        }
-
-        FindClose(hfind);
-    } else {
-        Assert(0);
-    }
-
-    return result;
-}
-
 #if BUILD_DEBUG
-int main(int argc, char **argv) 
+int wmain(int argc, wchar_t *argv[]) 
 {
-    HINSTANCE hinst = GetModuleHandleA(0);
+    HINSTANCE hinst = GetModuleHandleW(0);
 #else
 int WINAPI
-WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd) 
+wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 {
 #endif
+
+    os_init();
+    {
+        os.open_file                = win32_open_file;
+        os.close_file               = win32_close_file;
+        os.read_from_file           = win32_read_from_file;
+        os.read_entire_file         = win32_read_entire_file;
+        os.get_file_size            = win32_get_file_size;
+
+        os.get_system_time          = win32_get_system_time;
+        os.read_cpu_timer           = win32_read_cpu_timer;
+        os.get_last_write_time      = win32_get_last_write_time_;
+        os.tsc_frequency            = win32_estimate_cpu_timer_frequency();
+    }
+    thread_init();
+
+
     Win32_State *state = &g_win32_state;
 
     win32_get_exe_filepath(state);
@@ -943,16 +732,7 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
 
     // @NOTE: Set the Windows schedular granularity to 1ms so that our Sleep() can be more granular.
     b32 sleep_is_granular = (timeBeginPeriod(1) == TIMERR_NOERROR);
-    u64 cpu_timer_freq = win32_estimate_cpu_timer_frequency();
-    f32 inv_cpu_timer_freq = 1.0 / cpu_timer_freq;
-
-
-    Platform_Work_Queue high_priority_queue = {};
-    win32_make_queue(&high_priority_queue, 6);
-
-    Platform_Work_Queue low_priority_queue = {};
-    win32_make_queue(&low_priority_queue, 2);
-
+    f32 inv_cpu_timer_freq = 1.0 / os.tsc_frequency;
 
 
     HWND hwnd = win32_create_window(hinst);
@@ -986,43 +766,23 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
     }
     umm renderer_memory_size = GB(1);
     void *renderer_memory = VirtualAlloc(0, renderer_memory_size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    Memory_Arena renderer_arena = {};
-    init_arena(&renderer_arena, renderer_memory, renderer_memory_size);
-    Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), &renderer_arena); 
+
+    Arena *renderer_arena = arena_alloc(MB(1));
+
+    Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
     win32_load_xinput();
     //HRESULT init_audio_result = win32_init_audio();
 
-    Game_Memory game_memory = {};
-    umm total_memory_size = GB(2);
-    game_memory.total_memory_size = total_memory_size;
-    state->game_memory = VirtualAlloc(base_address, total_memory_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    state->game_memory_total_size = total_memory_size;
-
-    game_memory.total_memory = (u8 *)state->game_memory;
-    game_memory.high_priority_queue = &high_priority_queue;
-    game_memory.low_priority_queue = &low_priority_queue;
-
-    game_memory.os.add_entry                = Win32AddEntry;
-    game_memory.os.complete_all_work        = win32_complete_all_work;
-    game_memory.os.list_files               = win32_list_files;
-    game_memory.os.open_file                = win32_open_file;
-    game_memory.os.close_file               = win32_close_file;
-    game_memory.os.read_from_file           = win32_read_from_file;
-    game_memory.os.read_entire_file         = win32_read_entire_file;
-    game_memory.os.copy_file                = win32_copy_file;
-    game_memory.os.get_file_size            = win32_get_file_size;
-    game_memory.os.free_memory              = win32_free_memory;
-    game_memory.os.get_system_time          = win32_get_system_time;
-    game_memory.os.read_cpu_timer           = win32_read_cpu_timer;
-    game_memory.os.get_last_write_time      = win32_get_last_write_time_;
-    game_memory.os.cpu_timer_frequency      = cpu_timer_freq;
-    os = game_memory.os;
+    Platform_Game_Memory game_memory = {};
+    {
+        game_memory.os = os;
+        game_memory.arena = arena_alloc();
+    }
 
 
     u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
     f32 desired_dt = 1.0f / (f32)monitor_refresh_rate;
-
 
     Input input = {};
     u8 win32_keycode_map[256];
@@ -1030,176 +790,169 @@ WinMain(HINSTANCE hinst, HINSTANCE deprecated, LPSTR cmd, int show_cmd)
 
     Event_Queue event_queue = {};
 
-    if (game_memory.total_memory)
+    u64 last_cpu_timer = win32_read_cpu_timer();
+
+    Win32_Game_Function_Table game = {};
+    Win32_Loaded_Code game_code = {};
+    game_code.transient_dll_name = "game_temp.dll";
+    game_code.dll_full_path      = game_dll_path;
+    game_code.lock_full_path     = code_lock_path;
+    game_code.function_count     = array_count(win32_game_function_table_names);
+    game_code.functions          = (void **)&game;
+    game_code.function_names     = win32_game_function_table_names;
+
+    win32_load_code(state, &game_code);
+
+    ShowWindow(hwnd, SW_SHOW);
+    while (g_running) 
     {
-        u64 last_cpu_timer = win32_read_cpu_timer();
+        v2u render_dim = {
+            1920, 1080,
+            //2560, 1440,
+        };
+        v2u window_dim = win32_get_window_dimension(hwnd);
 
-        Win32_Game_Function_Table game = {};
-        Win32_Loaded_Code game_code = {};
-        game_code.transient_dll_name = "game_temp.dll";
-        game_code.dll_full_path      = game_dll_path;
-        game_code.lock_full_path     = code_lock_path;
-        game_code.function_count     = array_count(win32_game_function_table_names);
-        game_code.functions          = (void **)&game;
-        game_code.function_names     = win32_game_function_table_names;
+        game_memory.executable_reloaded = false;
 
-        win32_load_code(state, &game_code);
+        input.mouse.wheel_delta = 0;
 
-        ShowWindow(hwnd, SW_SHOW);
-        while (g_running) 
+        MSG msg;
+        while (PeekMessageA(&msg, hwnd, 0, 0, PM_REMOVE)) 
         {
-            v2u render_dim = {
-                1920, 1080,
-                //2560, 1440,
-            };
-            v2u window_dim = win32_get_window_dimension(hwnd);
+            switch(msg.message) {
+                case WM_QUIT: {
+                    g_running = false;
+                } break;
 
-            game_memory.executable_reloaded = false;
+                case WM_SYSKEYDOWN:
+                case WM_SYSKEYUP:
+                case WM_KEYDOWN:
+                case WM_KEYUP: {
+                    u8 vk_code   = (u8)msg.wParam;
+                    b32 was_down = ((msg.lParam & (1 << 30))   != 0);
+                    b32 is_down  = ((msg.lParam & (1UL << 31)) == 0);
+                    b32 alt      = (msg.lParam & (1 << 29));
+                    u8 slot      = win32_keycode_map[vk_code];
 
-            input.mouse.wheel_delta = 0;
-
-            MSG msg;
-            while (PeekMessageA(&msg, hwnd, 0, 0, PM_REMOVE)) 
-            {
-                switch(msg.message) {
-                    case WM_QUIT: {
-                        g_running = false;
-                    } break;
-
-                    case WM_SYSKEYDOWN:
-                    case WM_SYSKEYUP:
-                    case WM_KEYDOWN:
-                    case WM_KEYUP: {
-                        u8 vk_code   = (u8)msg.wParam;
-                        b32 was_down = ((msg.lParam & (1 << 30))   != 0);
-                        b32 is_down  = ((msg.lParam & (1UL << 31)) == 0);
-                        b32 alt      = (msg.lParam & (1 << 29));
-                        u8 slot      = win32_keycode_map[vk_code];
-
-                        if (was_down != is_down) {
-                            if (event_queue.next_idx < array_count(event_queue.events)) {
-                                Event new_event = {};
-                                new_event.key = slot;
-                                if (is_down) {
-                                    new_event.flag |= Event_Flag::PRESSED;
-                                }
-                                else {
-                                    new_event.flag |= Event_Flag::RELEASED;
-                                }
-                                event_queue.events[event_queue.next_idx++] = new_event;
+                    if (was_down != is_down) {
+                        if (event_queue.next_idx < array_count(event_queue.events)) {
+                            Event new_event = {};
+                            new_event.key = slot;
+                            if (is_down) {
+                                new_event.flag |= Event_Flag::PRESSED;
                             }
-
-                            if (alt && is_down) {
-                                if (vk_code == VK_F4) {
-                                    g_running = false;
-                                }
-                                if (vk_code == VK_RETURN && msg.hwnd) {
-                                    win32_toggle_fullscreen(msg.hwnd);
-                                }
+                            else {
+                                new_event.flag |= Event_Flag::RELEASED;
                             }
-
+                            event_queue.events[event_queue.next_idx++] = new_event;
                         }
-                    } break;
 
-                    case WM_MOUSEWHEEL: {
-                        s16 z_delta = (GET_WHEEL_DELTA_WPARAM(msg.wParam) / WHEEL_DELTA);
-                        input.mouse.wheel_delta = z_delta;
-                    } break;
+                        if (alt && is_down) {
+                            if (vk_code == VK_F4) {
+                                g_running = false;
+                            }
+                            if (vk_code == VK_RETURN && msg.hwnd) {
+                                win32_toggle_fullscreen(msg.hwnd);
+                            }
+                        }
 
-                    default: {
-                        TranslateMessage(&msg);
-                        DispatchMessageA(&msg);
-                    } break;
-                }
+                    }
+                } break;
+
+                case WM_MOUSEWHEEL: {
+                    s16 z_delta = (GET_WHEEL_DELTA_WPARAM(msg.wParam) / WHEEL_DELTA);
+                    input.mouse.wheel_delta = z_delta;
+                } break;
+
+                default: {
+                    TranslateMessage(&msg);
+                    DispatchMessageA(&msg);
+                } break;
             }
+        }
 
-            {
-                Mouse_Input *mouse = &input.mouse;
+        {
+            Mouse_Input *mouse = &input.mouse;
 
-                POINT mouse_pos;
-                GetCursorPos(&mouse_pos);
-                ScreenToClient(hwnd, &mouse_pos);
-                f32 mouse_x = (f32)mouse_pos.x;
-                f32 mouse_y = ((f32)window_dim.h - 1.0f) - (f32)mouse_pos.y;
-                input.prev_mouse_p = input.mouse.position;
-                input.mouse.position.x = map01(mouse_x, 0.0f, (f32)(window_dim.w - 1)) * (render_dim.w - 1);
-                input.mouse.position.y = map01(mouse_y, 0.0f, (f32)(window_dim.h - 1)) * (render_dim.h - 1);
+            POINT mouse_pos;
+            GetCursorPos(&mouse_pos);
+            ScreenToClient(hwnd, &mouse_pos);
+            f32 mouse_x = (f32)mouse_pos.x;
+            f32 mouse_y = ((f32)window_dim.h - 1.0f) - (f32)mouse_pos.y;
+            input.prev_mouse_p = input.mouse.position;
+            input.mouse.position.x = map01(mouse_x, 0.0f, (f32)(window_dim.w - 1)) * (render_dim.w - 1);
+            input.mouse.position.y = map01(mouse_y, 0.0f, (f32)(window_dim.h - 1)) * (render_dim.h - 1);
 
-                win32_process_mouse_click(VK_LBUTTON, mouse);
-                win32_process_mouse_click(VK_MBUTTON, mouse);
-                win32_process_mouse_click(VK_RBUTTON, mouse);
+            win32_process_mouse_click(VK_LBUTTON, mouse);
+            win32_process_mouse_click(VK_MBUTTON, mouse);
+            win32_process_mouse_click(VK_RBUTTON, mouse);
+        }
+
+        DWORD result;    
+        for (DWORD idx = 0; idx < XUSER_MAX_COUNT; idx++) 
+        {
+            XINPUT_STATE xinput_state;
+            zero_struct(&xinput_state);
+            result = xinput_get_state(idx, &xinput_state);
+            win32_xinput_handle_deadzone(&xinput_state);
+            if (result == ERROR_SUCCESS) {
+
+            } 
+            else {
+                // Todo: Diagnostic
             }
+        }
 
-            DWORD result;    
-            for (DWORD idx = 0; idx < XUSER_MAX_COUNT; idx++) 
-            {
-                XINPUT_STATE xinput_state;
-                zero_struct(&xinput_state);
-                result = xinput_get_state(idx, &xinput_state);
-                win32_xinput_handle_deadzone(&xinput_state);
-                if (result == ERROR_SUCCESS) {
+        u64 cpu_timer = win32_read_cpu_timer();
+        f32 dt = (cpu_timer - last_cpu_timer) * inv_cpu_timer_freq;
+        last_cpu_timer = cpu_timer;
+        if (dt < desired_dt) {
+            s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
+            Sleep(ms);
+            dt = desired_dt;
+        }
+        input.dt        = dt;
+        input.actual_dt = dt;
+        input.draw_dim  = render_dim;
+        input.interacted_ui  = false;
 
-                } 
-                else {
-                    // Todo: Diagnostic
-                }
-            }
+        Render_Commands *render_commands = 0;
+        if (renderer_code.is_valid) {
+            render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim);
+        }
 
-            u64 cpu_timer = win32_read_cpu_timer();
-            f32 dt = (cpu_timer - last_cpu_timer) * inv_cpu_timer_freq;
-            last_cpu_timer = cpu_timer;
-            if (dt < desired_dt) {
-                s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
-                Sleep(ms);
-                dt = desired_dt;
-            }
-            input.dt        = dt;
-            input.actual_dt = dt;
-            input.draw_dim  = render_dim;
-            input.interacted_ui  = false;
+        if (game.update_and_render) {
+            game.update_and_render(&game_memory, &input, &event_queue, render_commands);
+        }
 
-            Render_Commands *render_commands = 0;
-            if (renderer_code.is_valid) {
-                render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim);
-            }
-
-            if (game.update_and_render) {
-                game.update_and_render(&game_memory, &input, &event_queue, render_commands);
-            }
-
-            if (input.quit_requested) {
-                g_running = false;
-            }
+        if (input.quit_requested) {
+            g_running = false;
+        }
 
 
 #if __DEVELOPER
-            b32 needs_to_be_reloaded = win32_check_for_code_change(&game_code);
-            if (needs_to_be_reloaded) {
-                win32_complete_all_work(&high_priority_queue);
-                win32_complete_all_work(&low_priority_queue);
-                win32_reload_code(state, &game_code);
-            }
+        b32 needs_to_be_reloaded = win32_check_for_code_change(&game_code);
+        if (needs_to_be_reloaded) {
+            win32_reload_code(state, &game_code);
+        }
 #endif
 
 
-            if (renderer_code.is_valid) {
-                if (renderer_was_reloaded) {
-                    ++render_commands->version;
-                    renderer_was_reloaded = false;
-                }
-                renderer_functions.end_frame(renderer, render_commands);
+        if (renderer_code.is_valid) {
+            if (renderer_was_reloaded) {
+                ++render_commands->version;
+                renderer_was_reloaded = false;
             }
-
-            // We are currently allocating redundant CPU/GPU memory.
-            if (win32_check_for_code_change(&renderer_code)) {
-                //renderer_functions.cleanup(renderer);
-                win32_reload_code(state, &renderer_code);
-                renderer_was_reloaded = true;
-                renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), &renderer_arena); 
-            }
+            renderer_functions.end_frame(renderer, render_commands);
         }
-    } else {
-        // @Todo: Error handling.
+
+        // We are currently allocating redundant CPU/GPU memory.
+        if (win32_check_for_code_change(&renderer_code)) {
+            //renderer_functions.cleanup(renderer);
+            win32_reload_code(state, &renderer_code);
+            renderer_was_reloaded = true;
+            renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os); 
+        }
     }
 
     return 0;

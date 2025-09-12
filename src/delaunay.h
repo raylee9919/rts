@@ -916,7 +916,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
 #if __DEVELOPER
     u64 tsc_end = os.read_cpu_timer();
-    f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.cpu_timer_frequency;
+    f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.tsc_frequency;
     printf("Generated Navmesh in %.2fms.\n", elapsed_ms);
 #endif
 
