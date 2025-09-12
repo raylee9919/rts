@@ -6,7 +6,8 @@
    $Notice: (C) Copyright 2025 by Sung Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// @Note: [.h]
+// -------------------------------------
+// @Note: [.cpp]
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_math.h"
@@ -19,9 +20,16 @@
 #include "renderer.h"
 #include "win32_renderer.h"
 
+// -------------------------------------
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
+
+
+#pragma comment(lib, "user32")
+#pragma comment(lib, "gdi32")
+#pragma comment(lib, "opengl32")
+
 
 
 #define WGL_CONTEXT_MAJOR_VERSION_ARB               0x2091
