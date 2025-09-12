@@ -3,7 +3,7 @@
    $Date: $
    $Revision: $
    $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 internal Random_Series

@@ -2,8 +2,8 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright 2024 by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 #define UI_BORDER_SIZE 3

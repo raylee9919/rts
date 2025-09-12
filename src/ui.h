@@ -2,28 +2,32 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright 2025 by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 
-struct Ui_Element {
+struct Ui_Element 
+{
     u32 id;
     v2 position;
     Ui_Element *next;
 };
 
-struct Ui_Hashmap {
+struct Ui_Hashmap 
+{
     Ui_Element entries[4096];
 };
 
-struct Ui_Fadeout_Text {
+struct Ui_Fadeout_Text 
+{
     f32 t;
     char *text;
     v4 color;
 };
 
-struct Ui {
+struct Ui 
+{
     b32 initted;
 
     struct Input *input;

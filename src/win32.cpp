@@ -21,7 +21,6 @@
 // -----------------------------------
 // @Note: [.h]
 #include "base/rts_base_inc.h"
-
 #include "rts_math.h"
 #include "rts_asset.h"
 
@@ -393,7 +392,6 @@ win32_init_audio() {
 internal HWND
 win32_create_window(HINSTANCE hinst) 
 {
-    
     WNDCLASSEXW wcex = {};
     {
         wcex.cbSize         = sizeof(wcex);
