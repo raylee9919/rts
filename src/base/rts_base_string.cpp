@@ -39,7 +39,7 @@ atoi(int c)
     return c - '0';
 }
 
-internal umm
+internal u64
 atoh(int c) 
 {
     if (is_digit(c)) 
@@ -48,7 +48,7 @@ atoh(int c)
         return 10 + ((c & 0xdf) - 'A');
 }
 
-internal umm
+internal u64
 string_length(const char *string)
 {
     u32 len = 0;
@@ -59,7 +59,7 @@ string_length(const char *string)
 }
 
 internal b32
-string_equal(char *str1, umm len1, char *str2, umm len2) 
+string_equal(char *str1, u64 len1, char *str2, u64 len2) 
 {
     b32 result = (len1 == len2);
 
@@ -78,7 +78,7 @@ string_equal(char *str1, umm len1, char *str2, umm len2)
 }
 
 internal b32
-string_equal(char *str1, umm len1, char *str2) 
+string_equal(char *str1, u64 len1, char *str2) 
 {
     return string_equal(str1, len1, str2, string_length(str2));
 }
@@ -118,7 +118,7 @@ s32_from_z(char *at)
 internal void
 copyz(char *src, char *dst) 
 {
-    umm len = string_length(src);
+    u64 len = string_length(src);
     memory_copy(dst, src, len);
     src[len] = 0;
 }
@@ -129,10 +129,10 @@ copyz(char *src, char *dst)
 
 // ----------------------------------
 // @Note: C-String
-internal mmm
+internal u64
 cstr_length(char *cstr)
 {
-    mmm result = 0;
+    u64 result = 0;
     for(;cstr[result]; result++);
     return result;
 }

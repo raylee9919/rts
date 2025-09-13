@@ -86,7 +86,6 @@ struct Sphere {
 
 
 
-internal f32 square(f32 val);
 internal f32 absolute(f32 val);
 internal f32 map(f32 x, f32 min, f32 max);
 internal f32 map01(f32 x, f32 min, f32 max);
@@ -133,7 +132,6 @@ internal v3 cross(v3 A, v3 B);
 internal f32 length_square(v3 A);
 internal f32 length(v3 A);
 internal v3 normalize(v3 a);
-internal v3 noz(v3 a);
 internal v3 lerp(v3 a, f32 t, v3 b);
 internal f32 distance(v3 a, v3 b);
 internal f32 distance(v2 a, v2 b);
@@ -182,11 +180,10 @@ internal b32 in_rect(Rect2 rect, v2 p);
 internal v2 get_dim(Rect2 rect);
 internal m4x4 trs_to_transform(v3 translation, Quaternion rotation, v3 scaling);
 internal Quaternion build_quaternion(v3 axis, f32 radian);
-internal Quaternion  rotate(Quaternion q0, v3 axis, f32 radian);
+internal Quaternion rotate(Quaternion q0, v3 axis, f32 radian);
 internal v3 project(v3 p, m4x4 view_proj);
 internal v2 V2(v2u v);
 internal m4x4 lookat(v3 eye, v3 center, v3 up_);
 internal m4x4 view_transform(v3 position, Quaternion orientation);
 internal m4x4 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 internal f32 degrees_to_radian(f32 x);
-internal b32 point_in_aabb(v3 p, AABB3 aabb);

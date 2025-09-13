@@ -23,7 +23,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb_image.h"
 
-#include "assimp.h"
+#include "rts_assimp.h"
 
 // --------------------------------------
 // @Note: [.cpp]
@@ -32,71 +32,16 @@
 #include "rts_math.cpp"
 
 
-
-
 #define ASSIMP_PRINT_NODES              1
 #define ASSIMP_PRINT_NODE_TRASNFORM     0
+global s32 g_node_count;
 
-internal v3
-aiv3_to_v3(aiVector3D ai_v) 
-{
-    v3 v = {};
-    v.x = ai_v.x;
-    v.y = ai_v.y;
-    v.z = ai_v.z;
-    return v;
-}
 
-internal Quaternion
-aiqt_to_qt(aiQuaternion ai_q) 
-{
-    Quaternion q = {};
-    q.w = ai_q.w;
-    q.x = ai_q.x;
-    q.y = ai_q.y;
-    q.z = ai_q.z;
-    return q;
-}
-
-internal m4x4
-ai_m4x4_to_m4x4(aiMatrix4x4 ai_mat) 
-{
-    m4x4 mat = {};
-    mat.e[0][0] = ai_mat.a1;
-    mat.e[0][1] = ai_mat.a2;
-    mat.e[0][2] = ai_mat.a3;
-    mat.e[0][3] = ai_mat.a4;
-
-    mat.e[1][0] = ai_mat.b1;
-    mat.e[1][1] = ai_mat.b2;
-    mat.e[1][2] = ai_mat.b3;
-    mat.e[1][3] = ai_mat.b4;
-
-    mat.e[2][0] = ai_mat.c1;
-    mat.e[2][1] = ai_mat.c2;
-    mat.e[2][2] = ai_mat.c3;
-    mat.e[2][3] = ai_mat.c4;
-
-    mat.e[3][0] = ai_mat.d1;
-    mat.e[3][1] = ai_mat.d2;
-    mat.e[3][2] = ai_mat.d3;
-    mat.e[3][3] = ai_mat.d4;
-
-    return mat;
-}
-
-internal umm
-string_length_with_null(char *str) 
-{
-    return (string_length(str) + 1);
-}
-
-internal s32 g_node_count;
 internal void
 debug_print_nodes(aiNode *node, u32 depth) 
 {
     g_node_count++;
-    m4x4 transform = ai_m4x4_to_m4x4(node->mTransformation);
+    m4x4 transform = m4x4_from_ai(node->mTransformation);
 
 #if ASSIMP_PRINT_NODES
     printf("%*s", depth << 1, "");
@@ -123,23 +68,27 @@ create_output_model_filepath(char *in_filepath)
 {
     char *begin = in_filepath;
     char *end   = in_filepath;
-    for (char *at = in_filepath; *at; ++at) {
-        if (*at == '/') {
+    for (char *at = in_filepath; *at; ++at) 
+    {
+        if (*at == '/') 
+        {
             begin = at + 1;
-        } else if (*at == '.') {
+        }
+        else if (*at == '.') 
+        {
             end = at;
         }
     }
     int filename_length = end - begin;
 
-    umm directory_length = string_length(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_MESH_DIRECTORY) + 1;
+    u64 directory_length = string_length(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_MESH_DIRECTORY) + 1;
     char *directory = malloc_array(char, directory_length);
-    _snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_MESH_DIRECTORY);
+    str_snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_MESH_DIRECTORY);
 
-    umm filepath_length = directory_length + filename_length + string_length(ASSET_MESH_FILE_FORMAT) + 1;
+    u64 filepath_length = directory_length + filename_length + string_length(ASSET_MESH_FILE_FORMAT) + 1;
 
     char *result = malloc_array(char, filepath_length);
-    _snprintf(result, filepath_length, "%s%.*s%s", directory, filename_length, begin, ASSET_MESH_FILE_FORMAT);
+    str_snprintf(result, filepath_length, "%s%.*s%s", directory, filename_length, begin, ASSET_MESH_FILE_FORMAT);
 
     return result;
 }
@@ -166,28 +115,12 @@ get_next_unfilled_bone_index(Asset_Vertex *asset_vertex)
     return 2222;
 }
 
-struct Hash_Slot 
-{
-    char *name;
-    s32 node_id; // this isn't the offset starting from the hash table slots!
-    Hash_Slot *next;
-};
-struct Hash_Entry 
-{
-    Hash_Slot *first;
-};
-struct Hashmap 
-{
-    Hash_Entry *entries;
-    umm length;
-    s32 next_id;
-};
-
 internal u32
 hash(char *key, u32 length) 
 {
     u32 result = 0;
-    for (char *c = key; *c; ++c) {
+    for (char *c = key; *c; ++c) 
+    {
         result += *c;
     }
     result %= length;
@@ -234,44 +167,14 @@ id_from_name(char *name, Hashmap *hashmap)
 }
 
 internal void
-swap_node(Asset_Node *nd1, Asset_Node *nd2)
-{
-    Asset_Node tmp = *nd1;
-    *nd1 = *nd2;
-    *nd2 = tmp;
-}
-
-// @TODO: Better sort, if slow.
-internal void
-sort_by_id(Asset_Node *nodes, u32 node_count)
-{
-    u32 i, j;
-    b32 swapped;
-    for (i = 0; i < node_count - 1; i++) {
-        swapped = false;
-        for (j = 0; j < node_count - i - 1; j++) {
-            if (nodes[j].id > nodes[j + 1].id) {
-                swap_node(&nodes[j], &nodes[j + 1]);
-                swapped = true;
-            }
-        }
-
-        if (swapped == false) {
-            break;
-        }
-    }
-}
-
-internal void
 fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashmap)
 {
-    //
-    // traverse through hierarchy, if certain name was in the hash-table,
-    // that slot will give us the index of that node in node array.
-    // If it wasn't, insert to the hash-table. Collision handling isn't much of
-    // a big deal. Then, that slot will contain a 'next_to_write' number of 
-    // the node array. Then increment 'next_to_write" by one.
-    //
+    // @Note: Traverse through hierarchy. If certain name was in the hash-table,
+    //        that slot will give us the index of that node in node array.
+    //        If it wasn't, insert to the hash-table. Collision handling isn't much of
+    //        a big deal. Then, that slot will contain a 'next_to_write' number of 
+    //        the node array. Then increment 'next_to_write" by one.
+
     aiNode *root = model->mRootNode;
 
     u32 debug_count = 0;
@@ -301,7 +204,7 @@ fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashma
 
         asset_node->id = id_from_name(node->mName.data, hashmap);
         asset_node->offset = identity();
-        asset_node->transform = ai_m4x4_to_m4x4(node->mTransformation);
+        asset_node->transform = m4x4_from_ai(node->mTransformation);
         asset_node->child_count = node->mNumChildren;
         asset_node->child_ids = malloc_array(s32, node->mNumChildren);
         for (u32 j = 0; j < node->mNumChildren; ++j) {
@@ -310,7 +213,7 @@ fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashma
     }
     assert(next_to_write == expected_node_count);
 
-    sort_by_id(asset_nodes, node_count);
+    quick_sort(asset_nodes, Asset_Node, node_count, asmp_cmp_ascending_node_id);
 
     for (u32 mesh_idx = 0; mesh_idx < model->mNumMeshes; ++mesh_idx) {
         aiMesh *mesh = model->mMeshes[mesh_idx];
@@ -319,7 +222,7 @@ fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashma
             for (u32 idx = 0; idx < node_count; ++idx) {
                 Asset_Node *asset_node = asset_nodes + idx;
                 if (id_from_name(bone->mName.data, hashmap) == asset_node->id) {
-                    asset_node->offset = ai_m4x4_to_m4x4(bone->mOffsetMatrix);
+                    asset_node->offset = m4x4_from_ai(bone->mOffsetMatrix);
                     ++debug_count;
                     break;
                 }
@@ -330,10 +233,9 @@ fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashma
     asset_model->root_bone_node_id = id_from_name(root->mName.data, hashmap);
 
 
-    // @Debug
-    for (s32 i = 0; i < (s32)node_count; ++i) {
-        assert(asset_model->nodes[i].id == i);
-    }
+    // @Note: Debug purpose.
+    for (s32 i = 0; i < (s32)node_count; ++i) 
+    { assert(asset_model->nodes[i].id == i); }
 }
 
 internal Asset_Texture *
@@ -479,7 +381,7 @@ fill_asset_meshes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashm
             aiFace *triangle = (mesh->mFaces + triangle_idx);
             assert(triangle->mNumIndices == 3);
             for (u32 i = 0; i < 3; ++i) {
-                umm idx_of_idx = (3 * triangle_idx + i);
+                u64 idx_of_idx = (3 * triangle_idx + i);
                 asset_mesh->indices[idx_of_idx] = triangle->mIndices[i];
             }
         }
@@ -605,20 +507,26 @@ create_output_animation_filepath(char *in_filepath, char *anim_name)
     }
     int filename_length = end - begin;
 
-    umm directory_length = array_count(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_ANIMATION_DIRECTORY) + 1;
+    u64 directory_length = array_count(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_ANIMATION_DIRECTORY) + 1;
     char *directory = malloc_array(char, directory_length);
-    _snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_ANIMATION_DIRECTORY);
+    str_snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_ANIMATION_DIRECTORY);
 
-    umm filepath_length = directory_length + filename_length + string_length(ASSET_ANIMATION_FILE_FORMAT) + 1;
+    u64 filepath_length = directory_length + filename_length + string_length(ASSET_ANIMATION_FILE_FORMAT) + 1;
 
     char *result = malloc_array(char, filepath_length);
-    _snprintf(result, filepath_length, "%s%.*s%s", directory, filename_length, begin, ASSET_ANIMATION_FILE_FORMAT);
+    str_snprintf(result, filepath_length, "%s%.*s%s", directory, filename_length, begin, ASSET_ANIMATION_FILE_FORMAT);
 
     return result;
 }
 
 int main(void)
 {
+    // -----------------------------------
+    // @Note: Init codebase.
+    os_init();
+    thread_init();
+
+
     char *input_file_names[] = {
         // "../data/xbot_idle.fbx",
         // "../data/xbot_run.fbx",
@@ -658,7 +566,8 @@ int main(void)
                                                                 aiProcess_JoinIdenticalVertices));
         g_node_count = 0;
 
-        if (!model) {
+        if (! model) 
+        {
             fprintf(stderr, "[ERROR]: Couldn't load file %s.\n", in_file_name);
             return -1;
         }
@@ -678,7 +587,8 @@ int main(void)
         Asset_Model asset_model = {};
         char *out_file_name = create_output_model_filepath(in_file_name);
         FILE *model_out = fopen(out_file_name, "wb");
-        if (!model_out) {
+        if (! model_out) 
+        {
             printf("[ERROR]: Couldn't open output file %s\n", out_file_name);
             return -1;
         }
@@ -720,7 +630,7 @@ int main(void)
             f32 anim_duration = (f32)(anim->mDuration / anim->mTicksPerSecond);
             u32 node_count    = anim->mNumChannels;
 
-            fwrite(anim->mName.data, sizeof(char) * string_length_with_null(anim->mName.data), 1, anim_out);
+            fwrite(anim->mName.data, sizeof(char) * cstr_length(anim->mName.data) + 1, 1, anim_out);
             fwrite_item(anim_duration, anim_out);
             fwrite_item(node_count, anim_out);
             for (u32 node_idx = 0;
@@ -743,7 +653,7 @@ int main(void)
                 for (u32 idx = 0; idx < translation_count; ++idx) {
                     aiVectorKey key = node->mPositionKeys[idx];
                     f32 dt = (f32)key.mTime * spt;
-                    v3 vec = aiv3_to_v3(key.mValue);
+                    v3 vec = v3_from_ai(key.mValue);
                     dt_v3_Pair dt_v3 = dt_v3_Pair{dt, vec};
                     fwrite_item(dt_v3, anim_out);
                 }
@@ -751,7 +661,7 @@ int main(void)
                 for (u32 idx = 0; idx < rotation_count; ++idx) {
                     aiQuatKey key = node->mRotationKeys[idx];
                     f32 dt = (f32)key.mTime * spt;
-                    Quaternion q = aiqt_to_qt(key.mValue);
+                    Quaternion q = quaternion_from_ai(key.mValue);
                     dt_qt_Pair dt_qt = dt_qt_Pair{dt, q};
                     fwrite_item(dt_qt, anim_out);
                 }
@@ -759,7 +669,7 @@ int main(void)
                 for (u32 idx = 0; idx < scaling_count; ++idx) {
                     aiVectorKey key = node->mScalingKeys[idx];
                     f32 dt = (f32)key.mTime * spt;
-                    v3 vec = aiv3_to_v3(key.mValue);
+                    v3 vec = v3_from_ai(key.mValue);
                     dt_v3_Pair dt_v3 = dt_v3_Pair{dt, vec};
                     fwrite_item(dt_v3, anim_out);
                 }
@@ -773,3 +683,67 @@ int main(void)
     printf("*** SUCCESSFUL! ***\n");
     return 0;
 }
+
+// -------------------------------
+// @Note: Quick Sort Compare Function
+internal b32
+asmp_cmp_ascending_node_id(void *a, void *b)
+{
+    Asset_Node *x = (Asset_Node *)a;
+    Asset_Node *y = (Asset_Node *)b;
+    b32 result = (x->id > y->id);
+    return result;
+}
+
+// -------------------------------
+// @Note: Conversion
+internal v3
+v3_from_ai(aiVector3D ai_v) 
+{
+    v3 v = {};
+    v.x = ai_v.x;
+    v.y = ai_v.y;
+    v.z = ai_v.z;
+    return v;
+}
+
+internal Quaternion
+quaternion_from_ai(aiQuaternion ai_q) 
+{
+    Quaternion q = {};
+    q.w = ai_q.w;
+    q.x = ai_q.x;
+    q.y = ai_q.y;
+    q.z = ai_q.z;
+    return q;
+}
+
+internal m4x4
+m4x4_from_ai(aiMatrix4x4 ai_mat) 
+{
+    m4x4 mat = {};
+    {
+        mat.e[0][0] = ai_mat.a1;
+        mat.e[0][1] = ai_mat.a2;
+        mat.e[0][2] = ai_mat.a3;
+        mat.e[0][3] = ai_mat.a4;
+
+        mat.e[1][0] = ai_mat.b1;
+        mat.e[1][1] = ai_mat.b2;
+        mat.e[1][2] = ai_mat.b3;
+        mat.e[1][3] = ai_mat.b4;
+
+        mat.e[2][0] = ai_mat.c1;
+        mat.e[2][1] = ai_mat.c2;
+        mat.e[2][2] = ai_mat.c3;
+        mat.e[2][3] = ai_mat.c4;
+
+        mat.e[3][0] = ai_mat.d1;
+        mat.e[3][1] = ai_mat.d2;
+        mat.e[3][2] = ai_mat.d3;
+        mat.e[3][3] = ai_mat.d4;
+    }
+
+    return mat;
+}
+

@@ -8,12 +8,6 @@
 
 
 internal f32
-square(f32 val) {
-    f32 result = val * val;
-    return result;
-}
-
-internal f32
 absolute(f32 val) {
     f32 result = (val > 0) ? val : -val;
     return result;
@@ -401,19 +395,6 @@ normalize(v3 a)
     f32 inv_len = (1.0f / length(r));
     r *= inv_len;
     return r;
-}
-
-internal v3
-noz(v3 a)
-{
-    v3 result = {};
-
-    f32 lensq = length_square(a);
-    if (lensq > square(0.0001f)) {
-        result = (1.0f / sqrt(lensq)) * a;
-    }
-
-    return result;
 }
 
 internal v3
@@ -1045,10 +1026,11 @@ V2(v2u v)
 }
 
 internal m4x4
-lookat(v3 eye, v3 center, v3 up_) {
+lookat(v3 eye, v3 center, v3 up_) 
+{
     v3 forward = normalize(center - eye);
-    v3 side = normalize(cross(normalize(up_), forward));
-    v3 up = normalize(cross(forward, side));
+    v3 side    = normalize(cross(normalize(up_), forward));
+    v3 up      = normalize(cross(forward, side));
 
     m4x4 result = camera_transform(-side, up, -forward, eye);
     return result;
@@ -1064,9 +1046,10 @@ view_transform(v3 position, Quaternion orientation) {
     return result;
 }
 
-// @TODO: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
+// @Todo: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
 internal m4x4
-ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z) {
+ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z) 
+{
     f32 a = safe_ratio(2.0f, max_x - min_x);
     f32 b = safe_ratio(min_x + max_x, min_x - max_x);
     f32 c = safe_ratio(2.0f, max_y - min_y);
@@ -1085,14 +1068,7 @@ ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z) {
 }
 
 internal f32
-degrees_to_radian(f32 x) {
+degrees_to_radian(f32 x) 
+{
     return x*pi32*0.005556f;
-}
-
-internal b32
-point_in_aabb(v3 p, AABB3 aabb) {
-    if (p.x >= aabb.min.x && p.x < aabb.max.x &&
-        p.y >= aabb.min.y && p.y < aabb.max.y &&
-        p.z >= aabb.min.z && p.z < aabb.max.z) return true;
-    return false;
 }

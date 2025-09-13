@@ -12,10 +12,10 @@ internal b32 is_hexdigit(int c);
 internal b32 is_alnum(int c) ;
 internal b32 is_whitespace(int c);
 internal int atoi(int c);
-internal umm atoh(int c);
-internal umm string_length(const char *string);
-internal b32 string_equal(char *str1, umm len1, char *str2, umm len2);
-internal b32 string_equal(char *str1, umm len1, char *str2);
+internal u64 atoh(int c);
+internal u64 string_length(const char *string);
+internal b32 string_equal(char *str1, u64 len1, char *str2, u64 len2);
+internal b32 string_equal(char *str1, u64 len1, char *str2);
 internal b32 string_equal(char *str1, char *str2);
 internal s32 s32_from_z_internal(char **at_init);
 internal s32 s32_from_z(char *at);
@@ -26,19 +26,19 @@ internal void copyz(char *src, char *dst);
 struct Utf8 
 {
     u8 *str;
-    mmm len;
+    u64 len;
 };
 
 struct Utf16 
 {
     u16 *str;
-    mmm len;
+    u64 len;
 };
 
 struct Utf32 
 {
     u32 *str;
-    mmm len;
+    u64 len;
 };
 
 struct Unicode_Decode 
@@ -63,7 +63,7 @@ enum
 };
 
 // Note: C-String
-internal mmm cstr_length(char *cstr);
+internal u64 cstr_length(char *cstr);
 
 // Note: Helper Functions.
 internal b32 is_alpha(u8 c);

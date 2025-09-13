@@ -351,7 +351,7 @@ int main(void)
     {
         os_init();
         thread_init();
-        main_arena = arena_alloc(MB(2));
+        main_arena = arena_alloc();
     }
 
     // -------------------------------
