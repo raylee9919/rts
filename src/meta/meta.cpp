@@ -25,6 +25,30 @@ namespace fs = std::filesystem;
 #define ENTITY_DIRECTORY "../src/entity"
 #define MAX_BUFFER_LENGTH 64 
 
+// -------------------------------------
+// @Note: Terminal Color. Use with %s
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
+
+internal void
+meta_print_ok(void)
+{
+    printf("[%sOK%s] ", KGRN, KNRM);
+}
+
+internal void
+meta_print_path(const char *path)
+{
+    printf("'%s%s%s'\n", KCYN, path, KNRM);
+}
+
 internal Buffer
 read_entire_file(const char *filepath) 
 {
@@ -92,7 +116,10 @@ void generate_entity_include_header() {
         }
     }
     fclose(file);
-    printf("[OK] Generated entity include header file '%s'.\n", generatedfilename);
+
+    meta_print_ok();
+    printf("Generated entity include header file in ");
+    meta_print_path(generatedfilename);
 }
 
 // @All files are spec'ed to have underscore after 'entity'.
@@ -430,7 +457,9 @@ void generate_entity_serialization_functions(Entity_List *entitylist, const char
     }
 
     fclose(file);
-    printf("[OK] Generated entity serialization functions in '%s'.\n", generated_filepath);
+    meta_print_ok();
+    printf("Generated entity serialization functions in ");
+    meta_print_path(generated_filepath);
 }
 
 void generate_entity_parse_inline(Entity_List *entitylist, const char *generated_filepath) {
@@ -448,7 +477,10 @@ void generate_entity_parse_inline(Entity_List *entitylist, const char *generated
     }
 
     fclose(file);
-    printf("[OK] Generated entity parse inline codes in '%s'.\n", generated_filepath);
+
+    meta_print_ok();
+    printf("Generated entity parse inline codes in ");
+    meta_print_path(generated_filepath);
 }
 
 void deserialize_integer(FILE *file, char *ident) {
@@ -576,7 +608,10 @@ parse_%s(Parser *parser)
     }
 
     fclose(file);
-    printf("[OK] Generated entity deserialization functions in '%s'.\n", generated_filepath);
+
+    meta_print_ok();
+    printf("Generated entity deserialization functions in ");
+    meta_print_path(generated_filepath);
 }
 
 void generate_entity_functions() {
@@ -609,7 +644,9 @@ void generate_entity_functions() {
     generate_entity_parse_inline(&entitylist, "../src/generated/entity_parse.inl" );
     generate_entity_deserialization_functions(&entitylist, "../src/generated/entity_deserialization.h");
 
-    printf("[OK] Successfully written entity functions.\n");
+
+    meta_print_ok();
+    printf("Successfully written entity functions.\n");
 }
 
 int main(void)
@@ -618,6 +655,7 @@ int main(void)
     generate_entity_functions();
 
 
-    printf("*** Metaprogramming Successful! ***\n\n");
+    meta_print_ok();
+    printf("Metaprogramming done.\n\n");
     return 0;
 }
