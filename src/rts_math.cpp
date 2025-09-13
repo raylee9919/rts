@@ -20,12 +20,6 @@ absolute(f32 val) {
 }
 
 internal f32
-clamp01(f32 x) {
-    f32 result = clamp(x, 0.0f, 1.0f);
-    return result;
-}
-
-internal f32
 map(f32 x, f32 min, f32 max) {
     f32 t;
     f32 range = max - min;
@@ -242,12 +236,6 @@ V3(f32 a)
     return v3{a,a,a};
 }
 
-internal v3
-V3(v3i a) 
-{
-    return v3{(f32)a.x,(f32)a.y,(f32)a.z};
-}
-
 internal b32
 operator == (v3 a, v3 b)
 {
@@ -461,22 +449,6 @@ point_line_distance(v2 p, v2 a, v2 b)
     f32 div = 1.0f / length(v);
     f32 result = absolute(u.x*v.y - u.y*v.x) * div;
     return result;
-}
-
-internal v3i
-V3i(s32 x, s32 y, s32 z)
-{
-    v3i v;
-    v.x = x;
-    v.y = y;
-    v.z = z;
-    return v;
-}
-
-internal v3i
-V3i(v3 a)
-{
-    return v3i{(s32)a.x, (s32)a.y, (s32)a.z};
 }
 
 internal v3

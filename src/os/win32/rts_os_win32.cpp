@@ -37,32 +37,15 @@ OS_QUERY_PAGE_SIZE(win32_query_page_size)
 internal
 OS_RESERVE(win32_memory_reserve)
 {
-    DWORD alloc_flags   = MEM_RESERVE;
-    DWORD protect_flags = PAGE_NOACCESS;
-    if (commit)
-    {
-        alloc_flags   |= MEM_COMMIT;
-        protect_flags = PAGE_READWRITE;
-    }
-
-    void *result = VirtualAlloc(0, size, alloc_flags, protect_flags);
+    void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
     return result;
-}
-
-internal
-OS_RELEASE(win32_memory_release)
-{
-    VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
 internal
 OS_COMMIT(win32_memory_commit)
 {
-    mmm page_size = win32_query_page_size();
-    mmm page_snapped_size = size;
-    page_snapped_size +=  page_size - 1;
-    page_snapped_size -= page_snapped_size % page_size;
-    VirtualAlloc(ptr, page_snapped_size, MEM_COMMIT, PAGE_READWRITE);
+    b32 result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
+    return result;
 }
 
 internal
@@ -70,6 +53,14 @@ OS_DECOMMIT(win32_memory_decommit)
 {
     VirtualFree(ptr, size, MEM_DECOMMIT);
 }
+
+internal
+OS_RELEASE(win32_memory_release)
+{
+    // @Note: size is not required in Windows, but necessary in other OSes.
+    VirtualFree(ptr, 0, MEM_RELEASE);
+}
+
 
 // --------------------------------------
 // @Note: File
@@ -149,7 +140,7 @@ OS_FILE_SIZE(win32_file_size)
 internal
 OS_FILE_READ(win32_file_read)
 {
-    mmm result = 0;
+    u64 result = 0;
 
     HANDLE handle = to_win32_handle(file);
 
@@ -161,15 +152,15 @@ OS_FILE_READ(win32_file_read)
     }
     else if (SetFilePointerEx(handle, off_li, 0, FILE_BEGIN))
     {
-        mmm bytes_to_read = size;
-        mmm bytes_actually_read = 0;
+        u64 bytes_to_read = size;
+        u64 bytes_actually_read = 0;
 
         u8 *ptr = (u8 *)dst;
         u8 *opl = ptr + bytes_to_read;
 
         for(;;)
         {
-            mmm unread = (mmm)(opl - ptr);
+            u64 unread = (u64)(opl - ptr);
             DWORD to_read = (DWORD)(min(unread, U32_MAX));
             DWORD did_read = 0;
             if(! ReadFile(handle, ptr, to_read, &did_read, 0))
@@ -257,9 +248,9 @@ OS_INIT(os_win32_init)
 
     os.query_page_size = win32_query_page_size;
     os.memory_reserve  = win32_memory_reserve;
-    os.memory_release  = win32_memory_release;
     os.memory_commit   = win32_memory_commit;
     os.memory_decommit = win32_memory_decommit;
+    os.memory_release  = win32_memory_release;
 
     os.abort = win32_abort;
 }

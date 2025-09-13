@@ -88,7 +88,6 @@ struct Sphere {
 
 internal f32 square(f32 val);
 internal f32 absolute(f32 val);
-internal f32 clamp01(f32 x);
 internal f32 map(f32 x, f32 min, f32 max);
 internal f32 map01(f32 x, f32 min, f32 max);
 internal f32 map01_binormal(f32 x, f32 min, f32 max);
@@ -117,7 +116,6 @@ internal v2 normalize(v2 a);
 internal v3 V3(f32 x, f32 y, f32 z);
 internal v3 V3(v2 xy, f32 z);
 internal v3 V3(f32 a);
-internal v3 V3(v3i a);
 internal b32 operator == (v3 a, v3 b);
 internal v3 operator - (const v3 &in);
 internal v3 operator * (f32 A, v3 B);
@@ -140,8 +138,6 @@ internal v3 lerp(v3 a, f32 t, v3 b);
 internal f32 distance(v3 a, v3 b);
 internal f32 distance(v2 a, v2 b);
 internal f32 point_line_distance(v2 p, v2 a, v2 b);
-internal v3i V3i(s32 x, s32 y, s32 z);
-internal v3i V3i(v3 a);
 internal v3 linear_to_srgb(v3 c);
 internal v3 srgb_to_linear(v3 c);
 internal v4 V4(f32 x);

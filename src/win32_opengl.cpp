@@ -389,16 +389,17 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
 
     b32 reload = false;
 
-    if (arena->used) {
-        reload = true;
-    }
+    // @Todo: broke
+    // if (arena->used) 
+    // { reload = true; }
+
 
     Opengl *gl = push_struct(arena, Opengl);
     Opengl_Info *glinfo = push_struct(arena, Opengl_Info);
 
     if (reload) 
     {
-        Opengl *oldgl = (Opengl *)arena->base;
+        Opengl *oldgl = push_struct(arena, Opengl);
         gl->info = oldgl->info;
         gl->render_commands = oldgl->render_commands;
 

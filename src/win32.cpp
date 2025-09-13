@@ -689,7 +689,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     umm renderer_memory_size = GB(1);
     void *renderer_memory = VirtualAlloc(0, renderer_memory_size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
-    Arena *renderer_arena = arena_alloc(MB(1));
+    Arena *renderer_arena = arena_alloc();
 
     Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 

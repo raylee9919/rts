@@ -183,9 +183,8 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
     ui.checkbox(&render_commands->wireframe_mode, color, "Wireframe", "Draw meshes' wireframe.");
     ui.checkbox(&render_commands->draw_navmesh, color, "Navmesh", "Draw Navigation Mesh.");
     ui.checkbox(&render_commands->draw_csm_frustum, color, "CSM Frustum", "Draw frustum volume for cascaded shadow mapping.");
-    if (ui.checkbox(&render_commands->csm_varient_method, color, "CSM Valient's Method", "Use Valient's algorithm introduced in Shaderx book.")) {
-        ui.checkbox(&render_commands->draw_csm_sphere, color, "CSM Draw Sphere", "Not implemented.");
-    }
+    if (ui.checkbox(&render_commands->csm_varient_method, color, "CSM Valient's Method", "Use Valient's algorithm introduced in Shaderx book.")) 
+    { ui.checkbox(&render_commands->draw_csm_sphere, color, "CSM Draw Sphere", "Not implemented."); }
     if (ui.button(color, "Switch Camera", "Switch between game camera and debug camera.")) {
         if (game_state->controlling_camera == game_state->game_camera) {
             game_state->controlling_camera = game_state->debug_camera;
@@ -218,18 +217,18 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         thread_init();
 
-        game_state->asset_arena = arena_alloc(GB(1));
+        game_state->asset_arena = arena_alloc();
         game_state->game_assets = push_struct(game_state->asset_arena, Game_Assets);
 
-        game_state->world_arena = arena_alloc(GB(1));
+        game_state->world_arena = arena_alloc();
         game_state->world = push_struct(game_state->world_arena, World);
 
-        game_state->debug_arena = arena_alloc(MB(128));
+        game_state->debug_arena = arena_alloc();
         game_state->debug_state = push_struct(game_state->debug_arena, Debug_State);
 
-        game_state->ui_arena = arena_alloc(MB(128));
+        game_state->ui_arena = arena_alloc();
 
-        game_state->frame_arena = arena_alloc(MB(128));
+        game_state->frame_arena = arena_alloc();
 
         World *world = game_state->world;
         world->next_entity_id = 1;
@@ -341,8 +340,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
             Navmesh *navmesh = game_state->navmesh;
             navmesh->vertex_size = 1000;
-            //navmesh->vertices = push_array(navmesh->arena, Vertex, navmesh->vertex_size);
-            navmesh->vertices = (Vertex *)malloc(sizeof(Vertex)*navmesh->vertex_size);
+            navmesh->vertices = push_array(navmesh->arena, Vertex, navmesh->vertex_size);
+            //navmesh->vertices = (Vertex *)malloc(sizeof(Vertex)*navmesh->vertex_size);
 
             navmesh->constrain_size = 1000;
             navmesh->constrains = (Nav_Constrain *)malloc(sizeof(Nav_Constrain)*navmesh->constrain_size);
@@ -473,7 +472,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         } break;
 
         case Game_Mode_Editor: {
-            if (!game_state->editor_initted) {
+            if (!game_state->editor_initted) 
+            {
                 game_state->editor_initted = true;
                 update_entities(world, game_state, input);
                 game_state->controlling_camera = game_state->debug_camera;
@@ -482,11 +482,14 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             ui_dev(render_commands, game_state, input);
             ui.begin("Editor Panel", V2(0.6f, 0.7f));
             v4 color = V4(0.2f,0.8f,0.2f,0.4f);
-            if (ui.button(color, "Play")) {
+            if (ui.button(color, "Play")) 
+            {
                 game_state->mode = Game_Mode_Game;
                 game_state->controlling_camera = game_state->game_camera;
             }
-            if (ui.button(color, "Save")) {
+
+            if (ui.button(color, "Save")) 
+            {
                 Os_Time time = os.get_system_time();
                 char backuppath[128];
                 int len = str_snprintf(backuppath, sizeof(backuppath), "map/backup/map1_%d_%d_%d_%d_%d_%d.smap", time.year, time.month, time.day, time.hour, time.minute, time.second);
@@ -494,9 +497,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
                 FILE *file = fopen("map/map1.smap", "wb");
                 Assert(file);
-                for (u32 entityidx = 0; entityidx < world->entity_count; ++entityidx) {
+                for (u32 entityidx = 0; entityidx < world->entity_count; ++entityidx) 
+                {
                     Entity *entity = world->entities[entityidx];
-                    if (entity->serialize) {
+                    if (entity->serialize) 
+                    {
                         entity->serialize(entity, game_state, file);
                     }
                 }

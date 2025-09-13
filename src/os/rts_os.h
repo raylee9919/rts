@@ -149,7 +149,7 @@ typedef OS_FILE_OPEN(Os_File_Open);
 #define OS_FILE_CLOSE(name) void name(Os_Handle file)
 typedef OS_FILE_CLOSE(Os_File_Close);
 
-#define OS_FILE_READ(name) mmm name(Os_Handle file, void *dst, mmm size)
+#define OS_FILE_READ(name) u64 name(Os_Handle file, void *dst, u64 size)
 typedef OS_FILE_READ(Os_File_Read);
 
 #define OS_FILE_SIZE(name) u64 name(Os_Handle file)
@@ -169,20 +169,21 @@ typedef OS_MAKE_DIRECTORY(Os_Make_Directory);
 
 // -----------------------------------------
 // @Note: Memory
-#define OS_QUERY_PAGE_SIZE(name) mmm name(void)
+#define OS_QUERY_PAGE_SIZE(name) u64 name(void)
 typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
 
-#define OS_RESERVE(name) void *name(mmm size, b32 commit)
+#define OS_RESERVE(name) void *name(u64 size)
 typedef OS_RESERVE(Os_Reserve);
 
-#define OS_RELEASE(name) void name(void *ptr)
-typedef OS_RELEASE(Os_Release);
-
-#define OS_COMMIT(name) void name(void *ptr, u64 size)
+#define OS_COMMIT(name) b32 name(void *ptr, u64 size)
 typedef OS_COMMIT(Os_Commit);
 
 #define OS_DECOMMIT(name) void name(void *ptr, u64 size)
 typedef OS_DECOMMIT(Os_Decommit);
+
+#define OS_RELEASE(name) void name(void *ptr, u64 size)
+typedef OS_RELEASE(Os_Release);
+
 
 // -----------------------------------------
 // @Note: Abort
@@ -222,9 +223,9 @@ struct OS
 
     Os_Query_Page_Size *query_page_size;
     Os_Reserve         *memory_reserve;
-    Os_Release         *memory_release;
     Os_Commit          *memory_commit;
     Os_Decommit        *memory_decommit;
+    Os_Release         *memory_release;
 
     Os_Get_System_Time    *get_system_time;
     Os_Read_Cpu_Timer     *read_cpu_timer;

@@ -120,9 +120,14 @@ typedef Buffer String;
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define max(a, b) ( ((a) > (b)) ? (a) : (b) )
 #define min(a, b) ( ((a) < (b)) ? (a) : (b) )
-#define clamp(a, lo, hi) (min(max(a, lo), hi))
-#define clamp_lo(a, hi) (max(a, lo))
-#define clamp_hi(a, hi) (min(a, hi))
+
+// -------------------------------------
+// @Note: Clamp
+#define clamp(a, lo, hi)    (min(max(a, lo), hi))
+#define clamp_lo(a, lo)     (max(a, lo))
+#define clamp_hi(a, hi)     (min(a, hi))
+#define clamp01(a)          clamp(a, 0, 1)
+
 #define array_count(array) ( sizeof(array) / sizeof(array[0]) )
 #define offsetof(Type, Member) (size_t)&(((Type *)0)->Member)
 #define int_from_ptr(p) (U64)(((U8*)p) - 0)
