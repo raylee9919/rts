@@ -78,6 +78,7 @@ internal u8 to_forward_slash(u8 c);
 #define utf8lit(str) utf8((u8 *)str, sizeof(str) - 1)
 internal Utf8 utf8(u8 *str, u64 len);
 internal Utf16 utf16(u16 *str, u64 len);
+internal Utf16 utf16c(u16 *ptr);
 internal Utf32 utf32(u32 *str, u64 len);
 
 // Note: Encoding/Decoding.

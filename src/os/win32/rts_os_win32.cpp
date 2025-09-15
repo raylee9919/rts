@@ -24,8 +24,9 @@ to_os_handle(HANDLE handle)
     return result;
 }
 
+
 // --------------------------------------
-// @Note: Memory
+// @Note: System Info
 internal
 OS_QUERY_PAGE_SIZE(win32_query_page_size)
 {
@@ -34,6 +35,44 @@ OS_QUERY_PAGE_SIZE(win32_query_page_size)
     return info.dwPageSize;
 }
 
+internal
+OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
+{
+    Temporary_Arena scratch = scratch_begin();
+    Utf8 result = {};
+
+    switch(path)
+    {
+        case OS_SYSTEM_PATH_KIND_INITIAL: {
+            result = os.initial_path;
+        } break;
+
+        case OS_SYSTEM_PATH_KIND_CURRENT: {
+            DWORD length = GetCurrentDirectoryW(0, 0);
+            u16 *memory = push_array(scratch.arena, u16, length + 1);
+            length = GetCurrentDirectoryW(length + 1, (WCHAR *)memory);
+            result = to_utf8(arena, utf16(memory, length));
+        } break;
+
+        case OS_SYSTEM_PATH_KIND_BINARY: {
+            result = os.binary_path;
+        } break;
+
+        case OS_SYSTEM_PATH_KIND_APPDATA: {
+            result = os.appdata_path;
+        } break;
+
+        default: {
+            Assert(! "invalid default case.");
+        } break;
+    }
+
+    scratch_end(scratch);
+    return result;
+}
+
+// --------------------------------------
+// @Note: Memory
 internal
 OS_RESERVE(win32_memory_reserve)
 {
@@ -236,6 +275,8 @@ OS_ABORT(win32_abort)
 internal
 OS_INIT(os_win32_init)
 {
+    // ---------------------------------------------
+    // @Note: init functions.
     os.file_is_valid  = win32_file_is_valid;
     os.file_open      = win32_file_open;
     os.file_close     = win32_file_close;
@@ -247,10 +288,50 @@ OS_INIT(os_win32_init)
     os.make_directory = win32_make_directory;
 
     os.query_page_size = win32_query_page_size;
+    os.string_from_system_path_kind = win32_string_from_system_path_kind;
+
     os.memory_reserve  = win32_memory_reserve;
     os.memory_commit   = win32_memory_commit;
     os.memory_decommit = win32_memory_decommit;
     os.memory_release  = win32_memory_release;
 
     os.abort = win32_abort;
+
+
+    // ---------------------------------------------
+    // @Note: gather paths.
+    os.arena = arena_alloc();
+
+    {
+        Utf8 binary_path = {};
+        Utf8 appdata_path = {};
+        {
+            Temporary_Arena tmp = temporary_arena_begin(os.arena);
+
+            {
+                u64 size = KB(32);
+                u16 *buffer = push_array_noz(tmp.arena, u16, size);
+                DWORD length = GetModuleFileNameW(0, (WCHAR *)buffer, size);
+                binary_path = to_utf8(tmp.arena, utf16(buffer, length));
+                binary_path = utf8_path_chop_last_slash(binary_path);
+            }
+
+            {
+                u64 size = KB(32);
+                u16 *buffer = push_array_noz(tmp.arena, u16, size);
+                if (SUCCEEDED(SHGetFolderPathW(0, CSIDL_APPDATA, 0, 0, (WCHAR *)buffer)))
+                {
+                    appdata_path = to_utf8(tmp.arena, utf16c(buffer));
+                }
+            }
+
+            temporary_arena_end(tmp);
+        }
+        {
+            os.binary_path  = utf8_copy(os.arena, binary_path);
+            os.initial_path = os.binary_path;
+            os.appdata_path = utf8_copy(os.arena, appdata_path);
+        }
+    }
+
 }

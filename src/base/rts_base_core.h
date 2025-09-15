@@ -106,12 +106,6 @@ typedef double      f64;
 typedef size_t      mmm;
 typedef uintptr_t   umm;
 typedef intptr_t    smm;
-struct Buffer 
-{
-    umm count;
-    u8 *data;
-};
-typedef Buffer String;
 
 
 #define CONCAT(A, B) A##B

@@ -211,6 +211,15 @@ utf16(u16 *str, u64 len)
     return result;
 }
 
+internal Utf16
+utf16c(u16 *ptr)
+{
+    u16 *p = ptr;
+    for (;*p; ++p);
+    Utf16 result = utf16(ptr, p - ptr);
+    return result;
+}
+
 internal Utf32
 utf32(u32 *str, u64 len)
 {

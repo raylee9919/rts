@@ -93,21 +93,25 @@ atomic_add_u64(u64 volatile *value, u64 addend)
     return result;
 }
 
-struct Debug_Executing_Process {
+struct Debug_Executing_Process 
+{
     u64 os_handle;
 };
 
-struct Debug_Process_State {
+struct Debug_Process_State 
+{
     b32 started_successfully;
     b32 is_running;
     s32 return_code;
 };
 
-struct Os_File_Handle {
+struct Os_File_Handle 
+{
     void *platform;
 };
 
-struct Os_Time {
+struct Os_Time 
+{
     u16 year;
     u16 month;
     u16 dayofweek;
@@ -118,23 +122,37 @@ struct Os_Time {
     u16 ms;
 };
 
+
 enum Os_File_Type {
     TYPE_INVALID,
     TYPE_FILE,
     TYPE_DIRECTORY,
 };
-struct Os_File_Info {
+struct Os_File_Info 
+{
     Os_File_Type type;
     char filename[256];
 };
-struct Os_File_List {
+struct Os_File_List 
+{
     Os_File_Info infos[256];
     umm count;
 };
 
-enum Os_Open_File_Flag {
+enum Os_Open_File_Flag 
+{
     Open_File_Read  = 0x1,
     Open_File_Write = 0x2,
+};
+
+enum Os_System_Path_Kind
+{
+    OS_SYSTEM_PATH_KIND_NULL,
+    OS_SYSTEM_PATH_KIND_INITIAL,
+    OS_SYSTEM_PATH_KIND_CURRENT,
+    OS_SYSTEM_PATH_KIND_BINARY,
+    OS_SYSTEM_PATH_KIND_APPDATA,
+    OS_SYSTEM_PATH_KIND_COUNT,
 };
 
 
@@ -167,11 +185,17 @@ typedef OS_FILE_COPY(Os_File_Copy);
 #define OS_MAKE_DIRECTORY(name) b32 name(Utf8 path)
 typedef OS_MAKE_DIRECTORY(Os_Make_Directory);
 
-// -----------------------------------------
-// @Note: Memory
+// --------------------------------------
+// @Note: System Info
 #define OS_QUERY_PAGE_SIZE(name) u64 name(void)
 typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
 
+#define OS_STRING_FROM_SYSTEM_PATH_KIND(name) Utf8 name(Arena *arena, Os_System_Path_Kind path)
+typedef OS_STRING_FROM_SYSTEM_PATH_KIND(Os_String_From_System_Find_Kind);
+
+
+// ---------------------------------------
+// @Note: Memory
 #define OS_RESERVE(name) void *name(u64 size)
 typedef OS_RESERVE(Os_Reserve);
 
@@ -211,6 +235,8 @@ typedef void Os_Complete_All_Work(Os_Work_Queue *queue);
 
 struct OS 
 {
+    Arena *arena;
+
     Os_File_Is_Valid    *file_is_valid;
     Os_File_Open        *file_open;
     Os_File_Close       *file_close;
@@ -221,7 +247,9 @@ struct OS
     Os_File_Copy        *file_copy;
     Os_Make_Directory   *make_directory;
 
-    Os_Query_Page_Size *query_page_size;
+    Os_Query_Page_Size              *query_page_size;
+    Os_String_From_System_Find_Kind *string_from_system_path_kind;
+
     Os_Reserve         *memory_reserve;
     Os_Commit          *memory_commit;
     Os_Decommit        *memory_decommit;
@@ -234,6 +262,10 @@ struct OS
     Os_Abort *abort;
 
     u64 tsc_frequency;
+
+    Utf8 binary_path;
+    Utf8 initial_path;
+    Utf8 appdata_path;
 };
 global OS os;
 
