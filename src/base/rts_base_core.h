@@ -90,6 +90,7 @@
 #define internal        static
 #define global          static
 #define local_persist   static
+#define no_name_mangle  extern "C"
 
 typedef int8_t      s8;  
 typedef int16_t     s16; 

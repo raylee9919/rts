@@ -19,7 +19,8 @@ map(f32 x, f32 min, f32 max) {
     f32 range = max - min;
     if (range != 0.0f) {
         t = ((x - min) / range);
-    } else {
+    } 
+    else {
         t = 0.0f;
     }
     return t;

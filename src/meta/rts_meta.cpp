@@ -581,7 +581,7 @@ void parse_member_%s(%s *e, Parser *parser) {
 internal void
 parse_%s(Parser *parser) 
 {
-    %s *e = push_entity(parser->game_state->world, parser->game_state->world_arena, %s, {});
+    %s *e = push_entity(parser->game_state->world, %s, {});
 
     eat_token(parser);
 

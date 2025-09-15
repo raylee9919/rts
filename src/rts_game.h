@@ -17,6 +17,8 @@ struct Entity;
 
 struct World 
 {
+    Arena *arena;
+
     Entity *entities[MAX_ENTITY_COUNT];
     u32 entity_count;
 
@@ -71,7 +73,6 @@ struct Game_State
     Arena *asset_arena;
     Game_Assets *game_assets;
 
-    Arena *world_arena;
     World *world;
 
     Arena *debug_arena;
@@ -87,7 +88,7 @@ struct Game_State
     Random_Series random_series;
 
     Camera *controlling_camera;
-    m4x4 view_proj; // @Ain't thrilled about it. -Ray
+    m4x4 view_proj; // @Todo: bad :<
     Camera *game_camera;
     Camera *debug_camera;
     Camera *orthographic_camera;
