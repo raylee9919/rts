@@ -26,7 +26,7 @@ if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
 if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
 
 
-:: ------------ Project ------------ ::
+:: ---------------------------- Project ---------------------------- ::
 if not exist build mkdir build
 pushd build
 
@@ -47,7 +47,7 @@ set renderer_export=-EXPORT:win32_load_renderer -EXPORT:win32_begin_frame -EXPOR
 call %compiler% %flags_compile% ..\src\win32_opengl.cpp /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
 
 :: Game
-call %compiler% %flags_compile% ..\src\rts_game.cpp /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
-call %compiler% %flags_compile% ..\src\win32.cpp    /Fe:rts          /link %flags_linker%
+call %compiler% %flags_compile% ..\src\rts_game.cpp  /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
+call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker%
 
 popd

@@ -23,6 +23,8 @@ struct Win32_Code
 {
     b32 is_valid;
 
+    u8 temp_dll_path_prefix;
+    Utf8 temp_dll_name;
     Utf8 temp_dll_path;
     Utf8 dll_path;
     Utf8 lock_path;

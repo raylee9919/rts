@@ -244,8 +244,7 @@ win32_code_unload(Win32_Code *loaded)
     {
         // @Todo: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
         //        (despite our best efforts). Should we just make "never unload" be the policy?
-
-        // FreeLibrary(GameCode->GameCodeDLL);
+        // FreeLibrary(loaded->dll);
         loaded->dll = 0;
     }
 
@@ -267,6 +266,8 @@ win32_code_load(Win32_State *state, Win32_Code *loaded)
     if (attr.size > 0)
     {
         // load the temporary dll so we could write to the real dll and check the modified time of it.
+        loaded->temp_dll_path_prefix = (loaded->temp_dll_path_prefix + 1) % 2;
+        temp_dll_path = utf8f(scratch.arena, "%S/%S_%d.dll", state->binary_path, loaded->temp_dll_name, loaded->temp_dll_path_prefix);
         os.file_copy(temp_dll_path, dll_path);
 
         Utf16 temp_dll_path16 = to_utf16(scratch.arena, temp_dll_path);
@@ -305,11 +306,7 @@ internal void
 win32_code_reload(Win32_State *state, Win32_Code *loaded)
 {
     win32_code_unload(loaded);
-    for (u32 attempt = 0; (! loaded->is_valid) && (attempt < 100); ++attempt) 
-    {
-        win32_code_load(state, loaded);
-        Sleep(100);
-    }
+    win32_code_load(state, loaded);
 }
 
 internal b32
@@ -389,7 +386,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
-#if BUILD_DEBUG
+#if !BUILD_DEBUG
     win32_toggle_fullscreen(hwnd);
 #endif
 
@@ -398,12 +395,14 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     Win32_Renderer_Function_Table renderer_functions = {};
     Win32_Code renderer_code = {};
     {
-        renderer_code.temp_dll_path  = utf8f(win32.arena, "%S/renderer_temp.dll", win32.binary_path);
+        renderer_code.temp_dll_name  = utf8lit("renderer_temp");
+        renderer_code.temp_dll_path  = utf8f(win32.arena, "%S/%S.dll", win32.binary_path, renderer_code.temp_dll_name);
         renderer_code.dll_path       = win32.renderer_dll_path;
         renderer_code.lock_path      = win32.lock_path;
         renderer_code.function_count = array_count(win32_renderer_function_table_names);
         renderer_code.functions      = (void **)&renderer_functions;
         renderer_code.function_names = win32_renderer_function_table_names;
+        renderer_code.last_modified  = win32_get_last_modified(renderer_code.dll_path);
     }
     win32_code_load(&win32, &renderer_code);
     if (! renderer_code.is_valid) 
@@ -430,12 +429,14 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     Win32_Game_Function_Table game = {};
     Win32_Code game_code = {};
     {
-        game_code.temp_dll_path      = utf8f(win32.arena, "%S/game_temp.dll", win32.binary_path);
+        game_code.temp_dll_name      = utf8lit("game_temp");
+        game_code.temp_dll_path      = utf8f(win32.arena, "%S/%S.dll", win32.binary_path, game_code.temp_dll_name);
         game_code.dll_path           = win32.game_dll_path;
         game_code.lock_path          = win32.lock_path;
         game_code.function_count     = array_count(win32_game_function_table_names);
         game_code.functions          = (void **)&game;
         game_code.function_names     = win32_game_function_table_names;
+        game_code.last_modified      = win32_get_last_modified(game_code.dll_path);
     }
 
     win32_code_load(&win32, &game_code);
@@ -557,11 +558,11 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
 
         // @Fix: Hot Code Reloading
-        // b32 needs_to_be_reloaded = win32_code_modified(&game_code);
-        // if (needs_to_be_reloaded) 
-        // {
-        //     win32_code_reload(&win32, &game_code);
-        // }
+        if (win32_code_modified(&game_code)) 
+        {
+            win32_code_reload(&win32, &game_code); 
+            game_code.last_modified = win32_get_last_modified(game_code.dll_path);
+        }
 
 
         if (renderer_code.is_valid) 
