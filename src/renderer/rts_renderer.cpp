@@ -201,7 +201,7 @@ string_dim(char *str, Asset_Font *font) {
 }
 
 internal Render_Group *
-begin_render_group(Render_Commands *frame, umm size) {
+begin_render_group(Render_Commands *frame, u64 size) {
     Assert(frame->push_buffer_used + sizeof(Render_Group) + size <= frame->push_buffer_size);
 
     Render_Group *group = (Render_Group *)(frame->push_buffer_base + frame->push_buffer_used);

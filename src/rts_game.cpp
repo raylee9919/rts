@@ -32,8 +32,9 @@ Ui ui;
 #include "nav.h"
 #include "rts_game.h"
 
-#include "renderer.h"
-#include "renderer.cpp"
+#include "renderer/rts_renderer.h"
+#include "renderer/rts_renderer.cpp"
+
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "rts_sim.h"

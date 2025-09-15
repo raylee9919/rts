@@ -26,16 +26,13 @@ GL_DEBUG_CALLBACK(opengl_debug_callback)
     char *error = (char *)message;
     switch (severity) 
     {
-        case GL_DEBUG_SEVERITY_LOW: 
-        {
+        case GL_DEBUG_SEVERITY_LOW: {
 
         } break;
-        case GL_DEBUG_SEVERITY_MEDIUM: 
-        {
+        case GL_DEBUG_SEVERITY_MEDIUM: {
             // Assert(0);
         } break;
-        case GL_DEBUG_SEVERITY_HIGH: 
-        {
+        case GL_DEBUG_SEVERITY_HIGH: {
             Assert(0);
         } break;
     }

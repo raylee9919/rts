@@ -297,7 +297,8 @@ OPENGL_FUNCTION(glCheckFramebufferStatus);
 OPENGL_FUNCTION(glUniform4f);
 OPENGL_FUNCTION(glUniform2f);
 
-struct Opengl_Info {
+struct Opengl_Info 
+{
     b32 modern_context;
 
     char *vendor;
@@ -310,7 +311,8 @@ struct Opengl_Info {
     b32 opengl_arb_framebuffer_object;
 };
 
-struct Sprite_Program {
+struct Sprite_Program 
+{
     s32 id;
 
     s32 mvp;
@@ -318,7 +320,8 @@ struct Sprite_Program {
     s32 texture;
 };
 
-enum Pbr_Program_Flags {
+enum Pbr_Program_Flags 
+{
     Pbr_Has_albedo    = (1 << 0),
     Pbr_Has_normal    = (1 << 1),
     Pbr_Has_roughness = (1 << 2),
@@ -327,7 +330,9 @@ enum Pbr_Program_Flags {
     Pbr_Has_orm       = (1 << 5),
     Pbr_No_Lighting   = (1 << 6),
 };
-struct Pbr_Program {
+
+struct Pbr_Program 
+{
     s32 id;
 
     s32 world_transform;
@@ -353,7 +358,8 @@ struct Pbr_Program {
     s32 csm_z_spans;
 };
 
-struct Ground_Program {
+struct Ground_Program 
+{
     s32 id;
 
     s32 entity_id;
@@ -374,13 +380,15 @@ struct Ground_Program {
     s32 csm_z_spans;
 };
 
-struct Skybox_Program {
+struct Skybox_Program 
+{
     s32 id;
     
     s32 view_proj;
 };
 
-struct Shadowmap_Program {
+struct Shadowmap_Program 
+{
     s32 id;
 
     s32 world_transform;
@@ -390,7 +398,8 @@ struct Shadowmap_Program {
     s32 light_view_projs;
 };
 
-struct Shadowmap_Ground_Program {
+struct Shadowmap_Ground_Program 
+{
     s32 id;
 
     s32 model;
@@ -400,18 +409,21 @@ struct Shadowmap_Ground_Program {
     s32 light_view_projs;
 };
 
-struct Simple_Program {
+struct Simple_Program 
+{
     s32 id;
 
     s32 VP;
     s32 color;
 };
 
-struct Blt_Program {
+struct Blt_Program 
+{
     s32 id;
 };
 
-struct Circle_Program {
+struct Circle_Program 
+{
     s32 id;
 
     s32 model;
@@ -433,7 +445,7 @@ struct Opengl
     Render_Commands render_commands;
 
     u8 *push_buffer;
-    umm push_buffer_size;
+    u64 push_buffer_size;
 
     GLuint  vao;
     GLuint  vbo;

@@ -7,7 +7,7 @@
    ======================================================================== */
 
 // -------------------------------------
-// @Note: [.cpp]
+// @Note: [.h]
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_math.h"
@@ -17,7 +17,7 @@
 #include <gl/gl.h>
 #include <tchar.h>
 
-#include "renderer.h"
+#include "renderer/rts_renderer.h"
 #include "win32_renderer.h"
 
 // -------------------------------------
@@ -291,18 +291,6 @@ RENDERER_END_FRAME(win32_end_frame)
     }
 }
 
-RENDERER_CLEANUP(win32_cleanup)
-{
-#if 0
-    // CPU-Side resource.
-    Opengl *gl = (Opengl *)renderer;
-    win32_renderer_free(gl->push_buffer);
-    win32_renderer_free(gl);
-
-    // @TODO: GPU-Side resource.
-#endif
-}
-
 internal void
 win32_get_gl_functions(Opengl_Info info)
 {
@@ -375,7 +363,8 @@ win32_get_gl_functions(Opengl_Info info)
     WGL_GET_PROC_ADDRESS(glUniform4f);
     WGL_GET_PROC_ADDRESS(glUniform2f);
 
-    if (info.opengl_arb_framebuffer_object) {
+    if (info.opengl_arb_framebuffer_object) 
+    {
         WGL_GET_PROC_ADDRESS(glGenFramebuffers);
         WGL_GET_PROC_ADDRESS(glBindFramebuffer);
         WGL_GET_PROC_ADDRESS(glFramebufferTexture2D);

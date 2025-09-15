@@ -6,12 +6,6 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#define NOMINMAX
-#define UNICODE
-#define _UNICODE
-#include <windows.h>
-#include <xaudio2.h>
-
 
 // -----------------------------------
 // @Note: [.h]
@@ -32,14 +26,15 @@
 #include "os/rts_os.cpp"
 
 
+
 // -----------------------------------
 // @Note: Globals
-global Win32_State win32;
+global Win32_State          win32;
 global b32                  g_running = true;
 global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 
-#include "renderer.h"
+#include "renderer/rts_renderer.h"
 #include "win32_renderer.h"
 
 
@@ -277,7 +272,7 @@ win32_code_unload(Win32_Code *loaded)
 }
 
 internal void
-win32_code_load(Win32_State *state, Win32_Code *loaded)
+win32_code_load(Win32_Code *loaded)
 {
     Temporary_Arena scratch = scratch_begin();
 
@@ -291,7 +286,7 @@ win32_code_load(Win32_State *state, Win32_Code *loaded)
     {
         // load the temporary dll so we could write to the real dll and check the modified time of it.
         loaded->temp_dll_path_prefix = (loaded->temp_dll_path_prefix + 1) % 2;
-        temp_dll_path = utf8f(scratch.arena, "%S/%S_%d.dll", state->binary_path, loaded->temp_dll_name, loaded->temp_dll_path_prefix);
+        temp_dll_path = utf8f(scratch.arena, "%S/%S_%d.dll", win32.binary_path, loaded->temp_dll_name, loaded->temp_dll_path_prefix);
         os.file_copy(temp_dll_path, dll_path);
 
         Utf16 temp_dll_path16 = to_utf16(scratch.arena, temp_dll_path);
@@ -327,10 +322,10 @@ win32_code_load(Win32_State *state, Win32_Code *loaded)
 }
 
 internal void
-win32_code_reload(Win32_State *state, Win32_Code *loaded)
+win32_code_reload(Win32_Code *loaded)
 {
     win32_code_unload(loaded);
-    win32_code_load(state, loaded);
+    win32_code_load(loaded);
 }
 
 internal b32
@@ -392,8 +387,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     // ----------------------------------------
     // @Note: create window.
     HWND hwnd = win32_create_window(hinst);
-    if (! hwnd)
-    { Assert(! "Win32: Couldn't create window."); }
+    if (! hwnd) { Assert(! "Win32: Couldn't create window."); }
 
 
     // ----------------------------------------
@@ -428,17 +422,18 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         renderer_code.function_names = win32_renderer_function_table_names;
         renderer_code.last_modified  = win32_get_last_modified(renderer_code.dll_path);
     }
-    win32_code_load(&win32, &renderer_code);
+    win32_code_load(&renderer_code);
     if (! renderer_code.is_valid) 
-    { Assert(0); }
-    u64 renderer_memory_size = GB(1);
-    void *renderer_memory = VirtualAlloc(0, renderer_memory_size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    { Assert(! "Couldn't load the renderer code."); }
 
     Arena *renderer_arena = arena_alloc();
     Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
+
+
+
     u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
-    f32 desired_dt = 1.0f / (f32)monitor_refresh_rate;
+    f32 desired_dt = (1.0f / (f32)monitor_refresh_rate);
 
     Input input = {};
     u8 win32_keycode_map[256];
@@ -446,7 +441,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
     Event_Queue event_queue = {};
 
-    u64 old_counter = os.perf_counter();
+
+
 
     Win32_Game_Function_Table game = {};
     Win32_Code game_code = {};
@@ -460,9 +456,10 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         game_code.function_names     = win32_game_function_table_names;
         game_code.last_modified      = win32_get_last_modified(game_code.dll_path);
     }
+    win32_code_load(&game_code);
 
-    win32_code_load(&win32, &game_code);
 
+    u64 old_counter = os.perf_counter();
     while (g_running) 
     {
         v2u render_dim = {
@@ -582,7 +579,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         // @Fix: Hot Code Reloading
         if (win32_code_modified(&game_code)) 
         {
-            win32_code_reload(&win32, &game_code); 
+            win32_code_reload(&game_code); 
             game_code.last_modified = win32_get_last_modified(game_code.dll_path);
         }
 

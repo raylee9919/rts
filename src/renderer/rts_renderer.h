@@ -6,7 +6,7 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// @TODO: This value must be shared by graphics APIs.
+// @Todo: This value must be shared by graphics APIs.
 #define MAX_LIGHTS              10
 #define SHADOWMAP_RESOLUTION    1024
 #define CSM_COUNT               4
@@ -25,10 +25,8 @@ typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
 #define RENDERER_END_FRAME(NAME) void NAME(Platform_Renderer *renderer, Render_Commands *frame)
 typedef RENDERER_END_FRAME(Renderer_End_Frame);
 
-#define RENDERER_CLEANUP(NAME) void NAME(Platform_Renderer *renderer)
-typedef RENDERER_CLEANUP(Renderer_Cleanup);
-
-enum Render_Type { 
+enum Render_Type 
+{
     eRender_Invalid = 0,
 
     eRender_Mesh,
@@ -37,17 +35,20 @@ enum Render_Type {
     eRender_Line,
 };
 
-struct Render_Entity_Header {
+struct Render_Entity_Header 
+{
     Render_Type type;
-    umm size;
+    u64 size;
 };
 
-struct Render_Quad {
+struct Render_Quad 
+{
     Render_Entity_Header header;
     Bitmap *bitmap;
 };
 
-struct Render_Mesh {
+struct Render_Mesh 
+{
     Render_Entity_Header header;
     Mesh *mesh;
     m4x4 world_transform;
@@ -57,7 +58,8 @@ struct Render_Mesh {
     v4 tint;
 };
 
-struct Render_Triangles {
+struct Render_Triangles 
+{
     Render_Entity_Header header;
     Vertex *vertices;
     u32 vertexcount;
@@ -66,13 +68,15 @@ struct Render_Triangles {
     v4 color;
 };
 
-struct Render_Line {
+struct Render_Line 
+{
     Render_Entity_Header header;
     v3 p[2];
     v4 color;
 };
 
-struct Render_Bitmap {
+struct Render_Bitmap 
+{
     Render_Entity_Header header;
     Bitmap *bitmap;
     v4 color;
@@ -80,30 +84,34 @@ struct Render_Bitmap {
     v3 max;
 };
 
-struct Textured_Vertex {
+struct Textured_Vertex 
+{
     v3 pos;
     v2 uv;
 };
 
-struct Render_Group {
-    umm capacity;
-    umm used;
+struct Render_Group 
+{
+    u64 capacity;
+    u64 used;
     u8 *base;
 };
 
-struct Platform_Renderer {
+struct Platform_Renderer 
+{
     void *platform;
 };
 
-struct Render_Commands {
+struct Render_Commands 
+{
     u32 version;
     f32 time;
     
     v2u window_dim;
     v2u render_dim;
     
-    umm push_buffer_size;
-    umm push_buffer_used;
+    u64 push_buffer_size;
+    u64 push_buffer_used;
     u8 *push_buffer_base;
 
     Mesh *sphere_mesh;
