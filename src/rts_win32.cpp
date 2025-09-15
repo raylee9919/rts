@@ -10,7 +10,6 @@
 #define UNICODE
 #define _UNICODE
 #include <windows.h>
-#include <Xinput.h>
 #include <xaudio2.h>
 
 
@@ -32,9 +31,6 @@
 #include "rts_math.cpp"
 #include "os/rts_os.cpp"
 
-#include "win32_xinput.cpp"
-#include "win32_keycode.cpp"
-
 
 // -----------------------------------
 // @Note: Globals
@@ -50,6 +46,34 @@ global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 // ----------------------------------------------------
 // @Note: Input.
 // @Todo: bad :(
+internal void
+win32_map_keycode_to_hid_key_code(u8 *map) 
+{
+    map[VK_BACK]      = KEY_BACKSPACE;
+    map[VK_TAB]       = KEY_TAB;
+    map[VK_RETURN]    = KEY_ENTER;
+    map[VK_SHIFT]     = KEY_LEFTSHIFT;
+    map[VK_LSHIFT]    = KEY_LEFTSHIFT;
+    map[VK_CONTROL]   = KEY_LEFTCTRL;
+    map[VK_LCONTROL]  = KEY_LEFTCTRL;
+    map[VK_LMENU]     = KEY_LEFTALT;
+    map[VK_ESCAPE]    = KEY_ESC;
+    map[VK_SPACE]     = KEY_SPACE;
+    map[VK_OEM_3]     = KEY_HASHTILDE;
+    map[VK_LEFT]      = KEY_LEFT;
+    map[VK_RIGHT]     = KEY_RIGHT;
+    map[VK_UP]        = KEY_UP;
+    map[VK_DOWN]      = KEY_DOWN;
+    map[VK_OEM_PLUS]  = KEY_EQUAL;
+    map[VK_OEM_MINUS] = KEY_MINUS;
+    for (char c = 'A'; c <= 'Z'; ++c)
+    { map[c] = KEY_A + (c - 'A'); }
+    for (char c = 0x30; c <= 0x39; ++c) // 0~9
+    { map[c] = KEY_0 + (c - 0x30); }
+    for (char c = VK_F1; c <= VK_F12; ++c)
+    { map[c] = KEY_F1 + (c - VK_F1); }
+}
+
 internal void
 win32_process_keyboard(Game_Key *game_key, b32 is_down) 
 {
@@ -412,8 +436,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
     Arena *renderer_arena = arena_alloc();
     Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
-
-    win32_load_xinput();
 
     u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
     f32 desired_dt = 1.0f / (f32)monitor_refresh_rate;
