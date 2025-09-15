@@ -35,6 +35,19 @@ enum
     OS_FILE_ACCESS_CREATE_NEW = (1<<3),
 };
 
+typedef u32 Os_File_Flags;
+enum
+{
+    OS_FILE_FLAG_DIRECTORY = (1<<0),
+};
+
+struct Os_File_Attributes
+{
+    Os_File_Flags flags;
+    u64 size;
+    u64 last_modified;
+};
+
 
 // --------------------------
 // @Note: Compilers
@@ -193,6 +206,9 @@ typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
 #define OS_STRING_FROM_SYSTEM_PATH_KIND(name) Utf8 name(Arena *arena, Os_System_Path_Kind path)
 typedef OS_STRING_FROM_SYSTEM_PATH_KIND(Os_String_From_System_Find_Kind);
 
+#define OS_ATTRIBUTES_FROM_FILE_PATH(name) Os_File_Attributes name(Utf8 path)
+typedef OS_ATTRIBUTES_FROM_FILE_PATH(Os_Attributes_From_File_Path);
+
 
 // ---------------------------------------
 // @Note: Memory
@@ -249,6 +265,7 @@ struct OS
 
     Os_Query_Page_Size              *query_page_size;
     Os_String_From_System_Find_Kind *string_from_system_path_kind;
+    Os_Attributes_From_File_Path    *attributes_from_file_path;
 
     Os_Reserve         *memory_reserve;
     Os_Commit          *memory_commit;

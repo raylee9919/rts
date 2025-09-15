@@ -71,6 +71,34 @@ OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
     return result;
 }
 
+internal Os_File_Attributes
+win32_file_attributes_from_find_data(WIN32_FIND_DATAW find_data)
+{
+    Os_File_Attributes result = {};
+
+    if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    { result.flags |= OS_FILE_FLAG_DIRECTORY; }
+
+    result.size = (((u64)find_data.nFileSizeHigh) << 32) | (find_data.nFileSizeLow);
+    result.last_modified = (((u64)find_data.ftLastWriteTime.dwHighDateTime) << 32) | (find_data.ftLastWriteTime.dwLowDateTime);
+    return result;
+}
+
+internal
+OS_ATTRIBUTES_FROM_FILE_PATH(win32_attributes_from_file_path)
+{
+    Temporary_Arena scratch = scratch_begin();
+
+    WIN32_FIND_DATAW find_data = {};
+    Utf16 path16 = to_utf16(scratch.arena, path);
+    HANDLE handle = FindFirstFileW((WCHAR *)path16.str, &find_data);
+    FindClose(handle);
+    Os_File_Attributes result = win32_file_attributes_from_find_data(find_data);
+
+    scratch_end(scratch);
+    return result;
+}
+
 // --------------------------------------
 // @Note: Memory
 internal
@@ -287,8 +315,9 @@ OS_INIT(os_win32_init)
     os.file_copy      = win32_file_copy;
     os.make_directory = win32_make_directory;
 
-    os.query_page_size = win32_query_page_size;
+    os.query_page_size              = win32_query_page_size;
     os.string_from_system_path_kind = win32_string_from_system_path_kind;
+    os.attributes_from_file_path    = win32_attributes_from_file_path;
 
     os.memory_reserve  = win32_memory_reserve;
     os.memory_commit   = win32_memory_commit;

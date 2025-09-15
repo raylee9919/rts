@@ -671,11 +671,38 @@ int main(void)
 
     arena = arena_alloc();
 
-    generate_entity_include_header();
-    generate_entity_functions();
+    Utf8 art_path = {};
+    Utf8 data_path = {};
+    {
+        Temporary_Arena scratch = scratch_begin();
+
+        Utf8 binary_path = os.string_from_system_path_kind(scratch.arena, OS_SYSTEM_PATH_KIND_BINARY);
+        Utf8 local_data_path = utf8f(scratch.arena, "%S/data", binary_path);
+        Utf8 binary_parent_path = utf8_path_chop_last_slash(binary_path);
+        Utf8 parent_data_path = utf8f(scratch.arena, "%S/data", binary_parent_path);
+
+        Os_File_Attributes local_data_attr  = os.attributes_from_file_path(local_data_path);
+        Os_File_Attributes parent_data_attr = os.attributes_from_file_path(parent_data_path);
+
+        if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
+        { data_path = utf8_copy(arena, local_data_path); }
+        else if (parent_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
+        { data_path = utf8_copy(arena, parent_data_path); }
+
+        scratch_end(scratch);
+    }
 
 
-    meta_print_ok();
-    printf("Metaprogramming done.\n\n");
+    {
+        generate_entity_include_header();
+        generate_entity_functions();
+    }
+
+
+    {
+        meta_print_ok();
+        printf("Metaprogramming done.\n\n");
+    }
+
     return 0;
 }
