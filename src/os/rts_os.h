@@ -9,13 +9,8 @@
    ======================================================================== */
 
 
-#if OS_WINDOWS
-#  include "os/win32/rts_os_win32.h"
-#else
-#  error Undefined OS
-#endif
-
 #include "usb_hid_keys.h"
+
 
 struct Bitmap;
 struct Render_Commands;
@@ -47,6 +42,37 @@ struct Os_File_Attributes
     u64 size;
     u64 last_modified;
 };
+
+enum Os_System_Path_Kind
+{
+    OS_SYSTEM_PATH_KIND_NULL,
+    OS_SYSTEM_PATH_KIND_INITIAL,
+    OS_SYSTEM_PATH_KIND_CURRENT,
+    OS_SYSTEM_PATH_KIND_BINARY,
+    OS_SYSTEM_PATH_KIND_APPDATA,
+    OS_SYSTEM_PATH_KIND_COUNT,
+};
+
+struct Os_File_Info
+{
+    Utf8 name;
+    Os_File_Attributes attributes;
+};
+
+struct Os_File_Iterator
+{
+    u8 opaque[1024];
+};
+
+
+// --------------------------
+// @Note: OS Include
+#if OS_WINDOWS
+#  include "os/win32/rts_os_win32.h"
+#else
+#  error Undefined OS
+#endif
+
 
 
 // --------------------------
@@ -123,50 +149,18 @@ struct Os_File_Handle
     void *platform;
 };
 
-struct Os_Time 
+struct Date_Time
 {
     u16 year;
-    u16 month;
-    u16 dayofweek;
-    u16 day;
-    u16 hour;
-    u16 minute;
-    u16 second;
-    u16 ms;
+    u8 month;
+    u8 day_of_week;
+    u8 day;
+    u8 hour;
+    u8 minute;
+    u8 second;
+    u8 milliseconds;
 };
 
-
-enum Os_File_Type {
-    TYPE_INVALID,
-    TYPE_FILE,
-    TYPE_DIRECTORY,
-};
-struct Os_File_Info 
-{
-    Os_File_Type type;
-    char filename[256];
-};
-struct Os_File_List 
-{
-    Os_File_Info infos[256];
-    umm count;
-};
-
-enum Os_Open_File_Flag 
-{
-    Open_File_Read  = 0x1,
-    Open_File_Write = 0x2,
-};
-
-enum Os_System_Path_Kind
-{
-    OS_SYSTEM_PATH_KIND_NULL,
-    OS_SYSTEM_PATH_KIND_INITIAL,
-    OS_SYSTEM_PATH_KIND_CURRENT,
-    OS_SYSTEM_PATH_KIND_BINARY,
-    OS_SYSTEM_PATH_KIND_APPDATA,
-    OS_SYSTEM_PATH_KIND_COUNT,
-};
 
 
 // -----------------------------------------
@@ -197,6 +191,17 @@ typedef OS_FILE_COPY(Os_File_Copy);
 
 #define OS_MAKE_DIRECTORY(name) b32 name(Utf8 path)
 typedef OS_MAKE_DIRECTORY(Os_Make_Directory);
+
+// --------------------------------------
+// @Note: File Iterator
+#define OS_FILE_ITERATOR_BEGIN(name) Os_File_Iterator *name(Arena *arena, Utf8 path)
+typedef OS_FILE_ITERATOR_BEGIN(Os_File_Iterator_Begin);
+
+#define OS_FILE_ITERATOR_NEXT(name) b32 name(Arena *arena, Os_File_Iterator *it, Os_File_Info *out_info)
+typedef OS_FILE_ITERATOR_NEXT(Os_File_Iterator_Next);
+
+#define OS_FILE_ITERATOR_END(name) void name(Os_File_Iterator *it)
+typedef OS_FILE_ITERATOR_END(Os_File_Iterator_End);
 
 // --------------------------------------
 // @Note: System Info
@@ -230,24 +235,17 @@ typedef OS_RELEASE(Os_Release);
 #define OS_ABORT(name) void name(void)
 typedef OS_ABORT(Os_Abort);
 
+// -----------------------------------------
+// @Note: Performance Counter
+#define OS_PERF_COUNTER(name) u64 name(void)
+typedef OS_PERF_COUNTER(Os_Perf_Counter);
+
+// --------------------------------------
+// @Note: Time
+#define OS_DATE_TIME_CURRENT(name) Date_Time name(void)
+typedef OS_DATE_TIME_CURRENT(Os_Date_Time_Current);
 
 
-
-#define OS_READ_CPU_TIMER(NAME) u64 NAME()
-typedef OS_READ_CPU_TIMER(Os_Read_Cpu_Timer);
-
-#define OS_GET_SYSTEM_TIME(NAME) Os_Time NAME()
-typedef OS_GET_SYSTEM_TIME(Os_Get_System_Time);
-
-#define OS_GET_LAST_WRITE_TIME(NAME) u64 NAME(char *filepath)
-typedef OS_GET_LAST_WRITE_TIME(Os_Get_Last_Write_Time);
-
-struct Os_Work_Queue;
-#define OS_WORK_QUEUE_CALLBACK(Name) void Name(Os_Work_Queue *queue, void *data)
-typedef OS_WORK_QUEUE_CALLBACK(Os_Work_QueueCallback);
-
-typedef void Os_Add_Entry(Os_Work_Queue *queue, Os_Work_QueueCallback *callback, void *data);
-typedef void Os_Complete_All_Work(Os_Work_Queue *queue);
 
 struct OS 
 {
@@ -263,6 +261,10 @@ struct OS
     Os_File_Copy        *file_copy;
     Os_Make_Directory   *make_directory;
 
+    Os_File_Iterator_Begin  *file_iterator_begin;
+    Os_File_Iterator_Next   *file_iterator_next;
+    Os_File_Iterator_End    *file_iterator_end;
+
     Os_Query_Page_Size              *query_page_size;
     Os_String_From_System_Find_Kind *string_from_system_path_kind;
     Os_Attributes_From_File_Path    *attributes_from_file_path;
@@ -272,13 +274,16 @@ struct OS
     Os_Decommit        *memory_decommit;
     Os_Release         *memory_release;
 
-    Os_Get_System_Time    *get_system_time;
-    Os_Read_Cpu_Timer     *read_cpu_timer;
-    Os_Get_Last_Write_Time *get_last_write_time;
-
     Os_Abort *abort;
 
-    u64 tsc_frequency;
+    Os_Perf_Counter *perf_counter;
+    u64 perf_counter_freq;
+    f32 perf_counter_freq_inv;
+    f64 perf_counter_freq_inv64;
+
+    Os_Date_Time_Current *date_time_current;
+
+    b32 sleep_is_granular;
 
     Utf8 binary_path;
     Utf8 initial_path;

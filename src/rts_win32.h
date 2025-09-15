@@ -6,39 +6,29 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-struct Win32_Dimension 
-{
-    int width;
-    int height;
-};
 
 #define WIN32_MAX_PATH_LENGTH MAX_PATH
 struct Win32_State 
 {
-    HWND default_window_handle;
+    Arena *arena;
+    HWND main_hwnd;
 
-    char exe_filepath[WIN32_MAX_PATH_LENGTH];
-    char *one_past_last_exe_filepath_slash;
-
-    HANDLE      record_file;
-    b32         is_recording;
-    b32         is_playing;
-
-    void        *game_memory;
-    umm         game_memory_total_size;
+    Utf8 binary_path;
+    Utf8 game_dll_path;
+    Utf8 renderer_dll_path;
+    Utf8 lock_path;
 };
 
-struct Win32_Loaded_Code
+struct Win32_Code
 {
     b32 is_valid;
-    u32 temp_dll_name;
 
-    char *transient_dll_name;
-    char *dll_full_path;
-    char *lock_full_path;
+    Utf8 temp_dll_path;
+    Utf8 dll_path;
+    Utf8 lock_path;
 
     HMODULE dll;
-    FILETIME dll_last_write_time;
+    u64 last_modified;
 
     u32 function_count;
     char **function_names;
@@ -50,17 +40,25 @@ struct Win32_Game_Function_Table
     Game_Update_And_Render *update_and_render;
 };
 
-global char *win32_game_function_table_names[] =
+global read_only char *win32_game_function_table_names[] =
 {
     "game_update_and_render"
 };
 
 
+// ----------------------------------------------------
+// @Note: Window
+internal LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+internal HWND win32_create_window(HINSTANCE hinst);
+internal void win32_toggle_fullscreen(HWND window);
+internal v2u win32_client_size_from_hwnd(HWND hwnd);
 
 
+
+
+// ----------------------------------------------------
+// @Note: OpenGL
 #define WGL_GET_PROC_ADDRESS(Name) Name = (Type_##Name *)wglGetProcAddress(#Name)
-
-
 
 typedef HGLRC Type_wglCreateContextAttribsARB(HDC hDC, HGLRC hShareContext, const int *attribList);
 global Type_wglCreateContextAttribsARB *wglCreateContextAttribsARB;

@@ -99,6 +99,91 @@ OS_ATTRIBUTES_FROM_FILE_PATH(win32_attributes_from_file_path)
     return result;
 }
 
+// ----------------------------------------
+// @Note: File Iterator
+OS_FILE_ITERATOR_BEGIN(win32_file_iterator_begin)
+{
+    Win32_File_Find_Data *file_find_data = push_struct(arena, Win32_File_Find_Data);
+    Os_File_Iterator *it = (Os_File_Iterator *)file_find_data;
+    path = utf8_skip_chop_whitespace(path);
+    path = utf8_path_chop_last_slash(path);
+    if (path.len != 0)
+    {
+        Temporary_Arena tmp = temporary_arena_begin(arena);
+        path = utf8f(tmp.arena, "%S*", path);
+        Utf16 path16 = to_utf16(tmp.arena, path);
+        file_find_data->handle = FindFirstFileW((WCHAR *)path16.str, &file_find_data->find_data);
+        temporary_arena_end(tmp);
+    }
+    return it;
+}
+
+internal
+OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
+{
+    b32 result = 0;
+    Win32_File_Find_Data *file_find_data = (Win32_File_Find_Data *)it;
+    WIN32_FIND_DATAW find_data = {};
+
+    for (;;)
+    {
+        // @Note: first, check initial results from FindFirstFile (dumb Windows API... never
+        //        have 2 entry points (and thus caller codepaths) to return the same stuff!)
+        b32 first_was_returned = 0;
+        if (! file_find_data->returned_first)
+        {
+            result = (file_find_data->handle != 0 && file_find_data->handle != INVALID_HANDLE_VALUE);
+            find_data = file_find_data->find_data;
+            file_find_data->returned_first = 1;
+            first_was_returned = 1;
+        }
+
+        // @Note: if we didn't return the first, OR the first was not good, then proceed to FindNextFile
+        if (first_was_returned == 0)
+        {
+            result = FindNextFileW(file_find_data->handle, &find_data);
+        }
+
+        // rjf: check for filename validity. if it's invalid, skip.
+        b32 filename_is_invalid = (find_data.cFileName[0] == '.' &&
+                                   (find_data.cFileName[1] == 0 ||
+                                    find_data.cFileName[1] == '.'));
+        if (result == 0 || filename_is_invalid == 0)
+        {
+            break;
+        }
+    }
+
+    // @Note: fill output
+    if (result != 0)
+    {
+        Utf16 name16 = {0};
+        name16.str = (u16 *)find_data.cFileName;
+        name16.len = 0;
+        for (u64 idx = 0; idx < MAX_PATH; idx += 1)
+        {
+            if (find_data.cFileName[idx] == 0)
+            {
+                break;
+            }
+            name16.len++;
+        }
+        zero_struct(out_info);
+        out_info->name = to_utf8(arena, name16);
+        out_info->attributes = win32_file_attributes_from_find_data(find_data);
+    }
+
+    return result;
+}
+
+internal
+OS_FILE_ITERATOR_END(win32_file_iterator_end)
+{
+    Win32_File_Find_Data *file_find_data = (Win32_File_Find_Data *)it;
+    FindClose(file_find_data->handle);
+}
+
+
 // --------------------------------------
 // @Note: Memory
 internal
@@ -299,6 +384,47 @@ OS_ABORT(win32_abort)
 }
 
 // --------------------------------------
+// @Note: Performance Counter
+internal
+OS_PERF_COUNTER(win32_perf_counter)
+{
+    LARGE_INTEGER value;
+    QueryPerformanceCounter(&value);
+    return value.QuadPart;
+}
+
+internal u64
+win32_perf_counter_frequency(void)
+{
+    LARGE_INTEGER value;
+    QueryPerformanceFrequency(&value);
+    return value.QuadPart;
+}
+
+
+// --------------------------------------
+// @Note: Time
+internal
+OS_DATE_TIME_CURRENT(win32_date_time_current)
+{
+    SYSTEMTIME st = {};
+    GetSystemTime(&st);
+    Date_Time result = {};
+    {
+        result.year         = (u16)st.wYear;
+        result.month        = (u8)st.wMonth;
+        result.day_of_week  = (u8)st.wDayOfWeek;
+        result.day          = (u8)st.wDay;
+        result.hour         = (u8)st.wHour;
+        result.minute       = (u8)st.wMinute;
+        result.second       = (u8)st.wSecond;
+        result.milliseconds = (u16)st.wMilliseconds;
+    }
+    return result;
+}
+
+
+// --------------------------------------
 // @Note: Init
 internal
 OS_INIT(os_win32_init)
@@ -319,12 +445,25 @@ OS_INIT(os_win32_init)
     os.string_from_system_path_kind = win32_string_from_system_path_kind;
     os.attributes_from_file_path    = win32_attributes_from_file_path;
 
+    os.file_iterator_begin = win32_file_iterator_begin;
+    os.file_iterator_next  = win32_file_iterator_next;
+    os.file_iterator_end   = win32_file_iterator_end;
+
     os.memory_reserve  = win32_memory_reserve;
     os.memory_commit   = win32_memory_commit;
     os.memory_decommit = win32_memory_decommit;
     os.memory_release  = win32_memory_release;
 
     os.abort = win32_abort;
+
+    os.perf_counter = win32_perf_counter;
+    os.perf_counter_freq = win32_perf_counter_frequency();
+    os.perf_counter_freq_inv64 = (1.0 / (f64)os.perf_counter_freq);
+    os.perf_counter_freq_inv   = (1.0 / (f32)os.perf_counter_freq);
+
+    os.date_time_current = win32_date_time_current;
+
+    os.sleep_is_granular = (timeBeginPeriod(1) == TIMERR_NOERROR);
 
 
     // ---------------------------------------------

@@ -195,7 +195,7 @@ internal Cdt_Result
 delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 {
 #if __DEVELOPER
-    u64 tsc_begin = os.read_cpu_timer();
+    u64 pc_begin = os.perf_counter();
 #endif
 
     Temporary_Arena scratch = scratch_begin();
@@ -891,8 +891,8 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     //count-=3;
 
 #if __DEVELOPER
-    u64 tsc_end = os.read_cpu_timer();
-    f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.tsc_frequency;
+    u64 pc_end = os.perf_counter();
+    f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os.perf_counter_freq_inv;
     printf("Generated Navmesh in %.6fms.\n", elapsed_ms);
 #endif
 

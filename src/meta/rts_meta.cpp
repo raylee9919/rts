@@ -27,11 +27,12 @@ namespace fs = std::filesystem;
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
 
-#define ENTITY_DIRECTORY "../src/entity"
 #define MAX_BUFFER_LENGTH 64 
 
 
 Arena *arena;
+Utf8 src_path;
+Utf8 entity_dir;
 
 
 internal void
@@ -47,25 +48,33 @@ meta_print_path(const char *path)
 }
 
 internal void
-generate_entity_include_header() 
+meta_generate_entity_include_header() 
 {
-    const char *generatedfilename = "../src/generated/entity.h";
-    FILE *file = fopen(generatedfilename, "wb");
+    Temporary_Arena scratch = scratch_begin();
+
+    Utf8 entity_include_header_file_path = utf8f(scratch.arena, "%S/generated/entity.h", src_path);
+    char *generated_file_path = (char *)entity_include_header_file_path.str;
+
+    FILE *file = fopen(generated_file_path, "wb");
     Assert(file);
     fprintf(file, "#include \"entity/entity_Entity.h\"\n");
-    for (const auto &iter : fs::directory_iterator(ENTITY_DIRECTORY)) 
+    for (const auto &iter : fs::directory_iterator((char *)entity_dir.str)) 
     {
         const char *filepath = iter.path().generic_string().c_str();
         char *filename = (char *)get_filename_from_filepath(filepath);
-        if (!string_equal(filename, "entity_Entity.h")) {
+        if (! string_equal(filename, "entity_Entity.h")) 
+        {
             fprintf(file, "#include \"entity/%s\"\n", filename);
         }
     }
     fclose(file);
 
+    // log.
     meta_print_ok();
     printf("Generated entity include header file in ");
-    meta_print_path(generatedfilename);
+    meta_print_path(generated_file_path);
+
+    scratch_end(scratch);
 }
 
 internal char *
@@ -626,42 +635,50 @@ parse_%s(Parser *parser)
 }
 
 internal void
-generate_entity_functions() 
+meta_generate_entity_functions()
 {
-    Entity_List entitylist;
+    Entity_List entitylist = {};
     {
         entitylist.count    = 0;
         entitylist.capacity = 1024;
         entitylist.entities = new Entity[entitylist.capacity];
     }
-    scope_exit(delete [] entitylist.entities);
 
-    for (const auto &iter : fs::directory_iterator(ENTITY_DIRECTORY)) 
+    for (const auto &iter : fs::directory_iterator((char *)entity_dir.str)) 
     {
-        const char *filepath = iter.path().generic_string().c_str();
-        Utf8 input = read_entire_file(arena, utf8lit(filepath));
+        char *path = (char *)(iter.path().generic_string().c_str());
+
+        Utf8 input = {};
+        {
+            FILE *file = fopen(path, "rb");
+            fseek(file, 0, SEEK_END);
+            size_t len = ftell(file);
+            fseek(file, 0, SEEK_SET);
+            char *input_c = (char *)malloc(sizeof(char) * len);
+            fread(input_c, len, 1, file);
+            fclose(file);
+            input = utf8c((u8 *)input_c);
+        }
+
         Stream stream = {};
-        init(&stream, input, filepath);
+        init(&stream, input, path);
         fill(&entitylist, &stream);
         delete [] stream.entityname;
     }
 
-#if 0 // @To check if the list is filled out as desired.
-    for (unsigned int i = 0; i < entitylist.len; ++i) {
-        Entity *entity = entitylist.entities + i;
-        for (unsigned int j = 0; j < entity->membercount; ++j) {
-            Entity_Member *member = entity->members + j;
-            printf("%u %s\n", member->type, member->ident);
-        }
+    {
+        generate_entity_serialization_functions(&entitylist, "../src/generated/entity_serialization.h");
+        generate_entity_parse_inline(&entitylist, "../src/generated/entity_parse.inl" );
+        generate_entity_deserialization_functions(&entitylist, "../src/generated/entity_deserialization.h");
     }
-#endif
 
-    generate_entity_serialization_functions(&entitylist, "../src/generated/entity_serialization.h");
-    generate_entity_parse_inline(&entitylist, "../src/generated/entity_parse.inl" );
-    generate_entity_deserialization_functions(&entitylist, "../src/generated/entity_deserialization.h");
+    // log.
+    {
+        meta_print_ok();
+        printf("Successfully written entity functions.\n");
+    }
 
-    meta_print_ok();
-    printf("Successfully written entity functions.\n");
+    delete entitylist.entities;
 }
 
 int main(void)
@@ -671,31 +688,16 @@ int main(void)
 
     arena = arena_alloc();
 
-    Utf8 art_path = {};
-    Utf8 data_path = {};
     {
-        Temporary_Arena scratch = scratch_begin();
-
-        Utf8 binary_path = os.string_from_system_path_kind(scratch.arena, OS_SYSTEM_PATH_KIND_BINARY);
-        Utf8 local_data_path = utf8f(scratch.arena, "%S/data", binary_path);
-        Utf8 binary_parent_path = utf8_path_chop_last_slash(binary_path);
-        Utf8 parent_data_path = utf8f(scratch.arena, "%S/data", binary_parent_path);
-
-        Os_File_Attributes local_data_attr  = os.attributes_from_file_path(local_data_path);
-        Os_File_Attributes parent_data_attr = os.attributes_from_file_path(parent_data_path);
-
-        if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
-        { data_path = utf8_copy(arena, local_data_path); }
-        else if (parent_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
-        { data_path = utf8_copy(arena, parent_data_path); }
-
-        scratch_end(scratch);
+        Utf8 binary_parent_path = utf8_path_chop_last_slash(os.binary_path);
+        src_path    = utf8f(arena, "%S/src", binary_parent_path);
+        entity_dir = utf8f(arena, "%S/src/entity", binary_parent_path);
     }
 
 
     {
-        generate_entity_include_header();
-        generate_entity_functions();
+        meta_generate_entity_include_header();
+        meta_generate_entity_functions();
     }
 
 

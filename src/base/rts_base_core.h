@@ -62,6 +62,8 @@
 #  define per_thread __thread
 #endif
 
+#define read_timer_stamp_counter() __rdtsc()
+
 // -----------------------------------------------
 // @Note: Align Of
 #if COMPILER_CL || COMPILER_CLANG

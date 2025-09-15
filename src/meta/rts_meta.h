@@ -19,8 +19,6 @@
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
 
-
-
 enum Member_Type 
 {
     TYPE_INTERGER,
@@ -60,21 +58,5 @@ struct Stream
     Utf8 input;
     char *entityname;
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif // RTS_META_H

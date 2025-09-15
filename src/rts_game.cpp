@@ -210,11 +210,11 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
-    Game_State *game_state = (Game_State *)game_memory->game_state;
+    Game_State *game_state = (Game_State *)platform->game_state;
     if (game_state == 0)
-    { game_memory->game_state = game_state = push_struct(game_memory->arena, Game_State); }
+    { platform->game_state = game_state = push_struct(platform->arena, Game_State); }
 
-    os = game_memory->os;
+    os = platform->os;
 
     f32 draw_width  = input->draw_dim.w;
     f32 draw_height = input->draw_dim.h;
@@ -304,6 +304,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             assets->xbot_attack = push_struct(asset_arena, Animation);
             load_animation(assets->xbot_attack, "skeleton_lord_attack", asset_arena);
 
+
+            load_font(asset_arena, ASSET_FONT(Times New Roman), &assets->times);
             load_font(asset_arena, ASSET_FONT(noto_serif), &assets->debug_font);
             load_font(asset_arena, ASSET_FONT(noto_serif), &assets->console_font);
             load_font(asset_arena, ASSET_FONT(gill_sans), &assets->menu_font);
@@ -407,14 +409,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
     arena_clear(game_state->frame_arena);
 
-    u64 writetime = os.get_last_write_time(ASSET_FONT(Times New Roman));
-    if (writetime != game_state->game_assets->times.writetime) {
-        game_state->game_assets->times.writetime = writetime;
-        load_font(game_state->asset_arena, ASSET_FONT(Times New Roman), &game_state->game_assets->times);
-    }
 
     game_state->active_entity_id = render_commands->active_entity_id;
     game_state->view_proj = game_state->controlling_camera->VP;
+
 
     World *world = game_state->world;
     Game_Assets *assets = game_state->game_assets;
@@ -511,7 +509,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             if (ui.button(color, "Save")) 
             {
-                Os_Time time = os.get_system_time();
+                Date_Time time = os.date_time_current();
                 char backuppath[128];
                 int len = str_snprintf(backuppath, sizeof(backuppath), "map/backup/map1_%d_%d_%d_%d_%d_%d.smap", time.year, time.month, time.day, time.hour, time.minute, time.second);
                 os.file_copy(utf8lit("map/map1.smap"), utf8((u8 *)backuppath, len));

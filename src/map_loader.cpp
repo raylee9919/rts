@@ -90,7 +90,7 @@ void load_map(char *filename, Game_State *game_state)
     Temporary_Arena scratch = scratch_begin();
 
 #if __DEVELOPER
-    u64 tsc_begin = os.read_cpu_timer();
+    u64 pc_begin = os.perf_counter();
 #endif
 
     char filepath[512];
@@ -108,8 +108,8 @@ void load_map(char *filename, Game_State *game_state)
     delete lexer;
 
 #if __DEVELOPER
-    u64 tsc_end = os.read_cpu_timer();
-    f32 elapsed_ms = 1000.0f * (tsc_end-tsc_begin) / os.tsc_frequency;
+    u64 pc_end = os.perf_counter();
+    f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os.perf_counter_freq_inv;
     printf("Loaded map '%s' in %.2fms.\n", filename, elapsed_ms);
 #endif
 

@@ -8,16 +8,18 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-struct Platform_Game_Memory 
+struct Platform
 {
+    Arena *arena;
+
     OS os;
     b32 executable_reloaded;
 
-    Arena *arena;
     void *game_state;
+    Utf8 data_path;
 };
 
-#define GAME_UPDATE_AND_RENDER(name) void name(struct Platform_Game_Memory *game_memory,\
+#define GAME_UPDATE_AND_RENDER(name) void name(struct Platform *platform,\
                                                struct Input *input,\
                                                struct Event_Queue *event_queue,\
                                                struct Render_Commands *render_commands)

@@ -364,8 +364,6 @@ struct Asset_Font
     // @Temporary: ?
     Arena *arena;
     Utf8 buffer;
-
-    u64 writetime;
 };
 
 

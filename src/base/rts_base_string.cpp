@@ -191,6 +191,7 @@ to_forward_slash(u8 c)
     return (c == '\\' ? '/' : c);
 }
 
+
 // ----------------------------------
 // @Note: String Constructors
 internal Utf8
@@ -199,6 +200,15 @@ utf8(u8 *str, u64 len)
     Utf8 result = {};
     result.str = str;
     result.len = len;
+    return result;
+}
+
+internal Utf8
+utf8c(u8 *ptr)
+{
+    u8 *p = ptr;
+    for (;*p; ++p);
+    Utf8 result = utf8(ptr, p - ptr);
     return result;
 }
 
@@ -523,4 +533,47 @@ utf8f(Arena *arena, char *fmt, ...)
     result = utf8fv(arena, fmt, args);
     va_end(args);
     return result;
+}
+
+
+// --------------------------------------------
+// @Note: Chop/Slash Helpers.
+internal Utf8
+utf8_skip_whitespace(Utf8 str)
+{
+    u64 first_non_ws = 0;
+    for (u64 idx = 0; idx < str.len; idx += 1)
+    {
+        first_non_ws = idx;
+        if (! is_whitespace(str.str[idx]))
+        {
+            break;
+        }
+        else if (idx == str.len - 1)
+        {
+            first_non_ws = 1;
+        }
+    }
+    return utf8_substr(str, first_non_ws, str.len);
+}
+
+internal Utf8
+utf8_chop_whitespace(Utf8 str)
+{
+    u64 first_ws_at_end = str.len;
+    for (u64 idx = str.len - 1; idx < str.len; idx -= 1)
+    {
+        if(! is_whitespace(str.str[idx]))
+        {
+            break;
+        }
+        first_ws_at_end = idx;
+    }
+    return utf8_substr(str, 0, first_ws_at_end);
+}
+
+internal Utf8
+utf8_skip_chop_whitespace(Utf8 str)
+{
+    return utf8_skip_whitespace(utf8_chop_whitespace(str));
 }
