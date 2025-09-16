@@ -26,6 +26,11 @@
 #include "os/rts_os.cpp"
 
 
+// -----------------------------------
+// @Note: Windows Additional Libs
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi")
+
 
 // -----------------------------------
 // @Note: Globals
@@ -203,6 +208,34 @@ win32_create_window(HINSTANCE hinst)
                                 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                                 0, 0, hinst, 0);
     return hwnd;
+}
+
+internal void
+win32_window_dark_mode(HWND hwnd)
+{
+    HMODULE uxtheme = LoadLibraryExW(L"uxtheme.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    BOOL(WINAPI *func)() = 0;
+    if (uxtheme)
+    {
+        func = (BOOL(WINAPI *)())GetProcAddress(uxtheme, MAKEINTRESOURCEA(132));
+    }
+
+    if (func)
+    {
+        BOOL high_contrast = false;
+        HIGHCONTRAST hc = {sizeof(hc)};
+        if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0))
+        {
+            high_contrast = (HCF_HIGHCONTRASTON & hc.dwFlags) != 0;
+        }
+
+        BOOL use_dark_mode = (func() && !high_contrast);
+
+        if (use_dark_mode)
+        {
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &use_dark_mode, sizeof(BOOL));
+        }
+    }
 }
 
 internal void 
@@ -388,6 +421,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     // @Note: create window.
     HWND hwnd = win32_create_window(hinst);
     if (! hwnd) { Assert(! "Win32: Couldn't create window."); }
+    win32_window_dark_mode(hwnd);
+
 
 
     // ----------------------------------------
