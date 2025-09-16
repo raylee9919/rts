@@ -34,5 +34,5 @@ For anyone looking to take the first step in building a game from scratch, I hig
 
 
 ## Links
-[<img src="data/branding/youtube_icon.png" width="64"/>](https://www.youtube.com/@sungwoolee484)
+[<img src="data/branding/youtube_icon.png" width="64"/>](https://www.youtube.com/@seongwoolee9919)
 [<img src="data/branding/x_icon.png" width="64"/>](https://www.x.com/raylee9919)
