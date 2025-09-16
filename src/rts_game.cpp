@@ -536,12 +536,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             if (ui.button(color, "Save")) 
             {
-                Date_Time time = os.date_time_current();
-                char backuppath[128];
-                int len = str_snprintf(backuppath, sizeof(backuppath), "map/backup/map1_%d_%d_%d_%d_%d_%d.smap", time.year, time.month, time.day, time.hour, time.minute, time.second);
-                os.file_copy(utf8lit("map/map1.smap"), utf8((u8 *)backuppath, len));
+                Temporary_Arena scratch = scratch_begin();
+                scope_exit(scratch_end(scratch));
 
-                FILE *file = fopen("map/map1.smap", "wb");
+                Date_Time time = os.date_time_current();
+                Utf8 map_save_path = utf8f(scratch.arena, "%S/map/map1.smap", platform->data_path);
+                Utf8 map_back_path = utf8f(scratch.arena, "%S/map/backup/map1_%d_%d_%d_%d_%d_%d.smap", platform->data_path, time.year, time.month, time.day, time.hour, time.minute, time.second);
+                os.file_copy(map_back_path, map_save_path);
+
+                FILE *file = fopen((char *)map_save_path.str, "wb");
                 Assert(file);
                 for (u32 entityidx = 0; entityidx < world->entity_count; ++entityidx) 
                 {
@@ -553,6 +556,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 }
                 fclose(file);
                 ui.fadeout_text(V4(1.0f), "Save");
+                
             }
             ui.end();
 
