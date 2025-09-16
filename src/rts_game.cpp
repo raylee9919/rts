@@ -7,7 +7,8 @@
    ======================================================================== */
 
 
-// @Todo: Remove
+// @Todo: We are testing our metaprogramming currently. Those defines are kind of 
+//        API for serializing data types of entity known to serialization module.
 #define BEGIN_ENTITY
 #define END_ENTITY
 
@@ -19,29 +20,21 @@
 #include "rts_random.h"
 #include "rts_platform.h"
 #include "rts_asset.h"
-
-#include "input.h"
-
-#include "queue.h"
-#include "priority_queue.h"
-
+#include "rts_input.h"
+#include "queue.h"              // -------> @Todo: cleanup
+#include "priority_queue.h"     // -----------------^
 #include "rts_ui.h"
-Ui ui;
-
 #include "rts_delaunay.h"
-#include "nav.h"
+#include "rts_nav.h"
 #include "rts_game.h"
-
 #include "renderer/rts_renderer.h"
 #include "renderer/rts_renderer.cpp"
-
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "rts_sim.h"
-#include "input.cpp"
-#include "console.cpp"
+#include "rts_console.h"
+#include "rts_debug.h"
 
-#include "debug.h"
 
 // ---------------------------------
 // @Note: [.cpp]
@@ -49,35 +42,36 @@ Ui ui;
 #include "rts_math.cpp"
 #include "rts_random.cpp"
 #include "rts_asset.cpp"
+#include "rts_input.cpp"
 #include "rts_ui.cpp"
 #include "rts_delaunay.cpp"
+#include "rts_nav.cpp"
 #include "rts_sim.cpp"
+#include "rts_console.cpp"
+#include "rts_debug.cpp"
 
-// @Todo: Remove
-#define GROUND_RES 20
-#define WORLD_RESOLUTION 16
-#define GROUND_SIZE 100
-
-#define ASSET_FONT(NAME) "font/"#NAME".sfnt"
 
 internal void
-update_game_mode(Game_State *game_state, Input *input) 
+game_update_mode(Game_State *game_state, Input *input) 
 {
     switch (game_state->mode) 
     {
         case Game_Mode_Game: {
-            if (toggled_down(input, KEY_ESC)) {
+            if (toggled_down(input, KEY_ESC)) 
+            {
                 game_state->mode = Game_Mode_Menu;
             }
         } break;
 
         case Game_Mode_Menu: {
-            if (toggled_down(input, KEY_ESC)) {
+            if (toggled_down(input, KEY_ESC)) 
+            {
                 game_state->mode = Game_Mode_Game;
             }
         } break;
 
         case Game_Mode_Editor: { 
+
         } break;
 
         INVALID_DEFAULT_CASE;
@@ -128,58 +122,6 @@ update_and_draw_entity_panel(Game_State *game_state)
 }
 
 internal void
-debug_update_game_speed(Debug_State *debug_state, Input *input)
-{
-    debug_state->speed_fade_t -= input->actual_dt;
-    if (input->keys[KEY_LEFTCTRL].is_down) 
-    {
-        Debug_State *ds = debug_state;
-        if (toggled_down(input, KEY_EQUAL) &&
-            ds->current_speed_idx < array_count(ds->speed_slider) - 1) 
-        {
-            ++ds->current_speed_idx;
-            ds->speed = ds->speed_slider[ds->current_speed_idx];
-            ds->speed_fade_t = 1.0f;
-        }
-
-        if (toggled_down(input, KEY_MINUS) &&
-            ds->current_speed_idx != 0) 
-        {
-            --ds->current_speed_idx;
-            ds->speed = ds->speed_slider[ds->current_speed_idx];
-            ds->speed_fade_t = 1.0f;
-        }
-    }
-}
-
-internal void
-debug_draw_performance(Render_Group *render_group, Input *input, Asset_Font *font) 
-{
-    char buf[256];
-    snprintf(buf, 256, "actual mspf: %.4f | fps: %d", 1000.0f*input->actual_dt, (s32)(1.0f/input->actual_dt + 0.5f));
-    v3 base = v3{10, input->draw_dim.y - 30.0f, 0};
-    string_op(String_Op_Draw, render_group, base + V3(2,-2,-1), buf, font, RGBA_BLACK);
-    string_op(String_Op_Draw, render_group, base, buf, font);
-}
-
-internal void
-draw_game_speed_text(Debug_State *debug_state, Input *input, Render_Group *render_group, Asset_Font *font)
-{
-    if (debug_state->speed_fade_t > epsilon_f32) 
-    {
-        char *text = debug_state->speed_text[debug_state->current_speed_idx];
-        v2 dim = get_dim(string_rect(text, {}, font));
-        f32 alpha = lerp(0.0f, debug_state->speed_fade_t, 1.0f);
-        f32 dy = 30*lerp(1.0f, debug_state->speed_fade_t, 0.0f);
-        v2 cen = v2{0.5f * input->draw_dim.w, 0.7f * input->draw_dim.h - dy};
-        cen += v2{10, -10};
-        string_op(String_Op_Draw, render_group, V3(cen-0.5f*dim, -1), text, font, V4(V3(0.0f), alpha));
-        cen -= v2{10, -10};
-        string_op(String_Op_Draw, render_group, V3(cen-0.5f*dim, 0), text, font, V4(V3(1.0f), alpha));
-    }
-}
-
-internal void
 update_cameras(World *world, Game_State *game_state, Input *input)
 {
     for (u32 idx = 0; idx < world->camera_count; ++idx) 
@@ -197,8 +139,7 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
     ui.checkbox(&render_commands->wireframe_mode, color, "Wireframe", "Draw meshes' wireframe.");
     ui.checkbox(&render_commands->draw_navmesh, color, "Navmesh", "Draw Navigation Mesh.");
     ui.checkbox(&render_commands->draw_csm_frustum, color, "CSM Frustum", "Draw frustum volume for cascaded shadow mapping.");
-    if (ui.checkbox(&render_commands->csm_varient_method, color, "CSM Valient's Method", "Use Valient's algorithm introduced in Shaderx book.")) 
-    { ui.checkbox(&render_commands->draw_csm_sphere, color, "CSM Draw Sphere", "Not implemented."); }
+    ui.checkbox(&render_commands->csm_varient_method, color, "CSM Valient's Method", "Use Valient's algorithm introduced in Shaderx book.");
     if (ui.button(color, "Switch Camera", "Switch between game camera and debug camera.")) 
     {
         if (game_state->controlling_camera == game_state->game_camera) 
@@ -219,7 +160,7 @@ no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
     Game_State *game_state = (Game_State *)platform->game_state;
-    if (game_state == 0)
+    if (! game_state)
     { platform->game_state = game_state = push_struct(platform->arena, Game_State); }
 
     os = platform->os;
@@ -416,13 +357,16 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 }
             }
 
+            // @Todo: not neat.
             begin_constrain(navmesh);
-            push_vertex(navmesh, v3{ 1.0f, 0, 3.0f});
-            push_vertex(navmesh, v3{ 3.0f, 0, 2.0f});
-            push_vertex(navmesh, v3{ 2.0f, 0,-2.0f});
-            push_vertex(navmesh, v3{-1.0f, 0,-4.0f});
-            push_vertex(navmesh, v3{-3.0f, 0,-3.0f});
-            push_vertex(navmesh, v3{-4.0f, 0, 1.0f});
+            {
+                push_vertex(navmesh, v3{ 1.0f, 0, 3.0f});
+                push_vertex(navmesh, v3{ 3.0f, 0, 2.0f});
+                push_vertex(navmesh, v3{ 2.0f, 0,-2.0f});
+                push_vertex(navmesh, v3{-1.0f, 0,-4.0f});
+                push_vertex(navmesh, v3{-3.0f, 0,-3.0f});
+                push_vertex(navmesh, v3{-4.0f, 0, 1.0f});
+            }
             end_constrain(navmesh);
 
             for (u32 i = 0; i < navmesh->vertex_count; ++i)
@@ -451,7 +395,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         debug_state->initted = true;
 
         Debug_State *ds = debug_state;
-        init_console(&ds->console, &assets->console_font);
+        console_init(&ds->console, &assets->console_font);
 
         ds->speed = 1.0f;
         ds->current_speed_idx = 3;
@@ -501,7 +445,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     game_state->real_time += input->actual_dt;
     update_input_state(input, event_queue, input->actual_dt);
 
-    update_game_mode(game_state, input);
+    game_update_mode(game_state, input);
     switch (game_state->mode) 
     {
         case Game_Mode_Game: {
@@ -510,11 +454,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
 
-            update_console(&debug_state->console, game_state, input);
-            draw_console(&debug_state->console, orthographic_group, game_state->real_time, draw_width, draw_height);
+            console_update(&debug_state->console, game_state, input);
+            console_draw(&debug_state->console, orthographic_group, game_state->real_time, draw_width, draw_height);
 
             debug_update_game_speed(debug_state, input);
-            draw_game_speed_text(debug_state, input, orthographic_group, &assets->menu_font);
+            debug_draw_game_speed_text(debug_state, input, orthographic_group, &assets->menu_font);
         } break;
 
         case Game_Mode_Editor: {
@@ -565,8 +509,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             update_cameras(world, game_state, input);
             draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
 
-            update_console(&debug_state->console, game_state, input);
-            draw_console(&debug_state->console, orthographic_group, game_state->real_time, draw_width, draw_height);
+            console_update(&debug_state->console, game_state, input);
+            console_draw(&debug_state->console, orthographic_group, game_state->real_time, draw_width, draw_height);
         } break;
 
         case Game_Mode_Menu: {

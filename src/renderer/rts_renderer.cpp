@@ -57,7 +57,8 @@ draw_triangles(Render_Group *group, Vertex *vertices, u32 vertexcount, u32 *indi
 }
 
 internal void
-draw_line(Render_Group *group, v3 a, v3 b, v4 color) {
+draw_line(Render_Group *group, v3 a, v3 b, v4 color) 
+{
     Render_Line *piece = push_render_entity(group, Render_Line);
     piece->p[0] = a;
     piece->p[1] = b;
@@ -102,10 +103,13 @@ push_bordered_rect(Render_Group *group, Rect2 rect, f32 z, v4 color, f32 borderl
     }
 }
 
-enum String_Op : u8 {
-    String_Op_Draw     = 0x1,
-    String_Op_Get_Rect = 0x2,
+typedef u8 String_Op;
+enum
+{
+    String_Op_Draw     = (1<<0), 
+    String_Op_Get_Rect = (1<<1),
 };
+
 internal Rect2
 string_op(u8 flag, Render_Group *render_group,
           v3 left_bottom,
@@ -118,8 +122,10 @@ string_op(u8 flag, Render_Group *render_group,
     f32 kern  = 0.0f;
     f32 A     = 0.0f;
 
-    for (const char *ch = str; *ch; ++ch) {
-        switch (*ch) {
+    for (const char *ch = str; *ch; ++ch) 
+    {
+        switch (*ch) 
+        {
             case ' ': {
                 Asset_Glyph *glyph = font->glyphs[*ch];
                 Assert(glyph);
@@ -184,24 +190,28 @@ string_op(u8 flag, Render_Group *render_group,
 }
 
 internal void
-push_shadowed_string(Render_Group *group, v3 leftbottom, char *str, Asset_Font *font, v4 color = v4{1,1,1,1}) {
+push_shadowed_string(Render_Group *group, v3 leftbottom, char *str, Asset_Font *font, v4 color = v4{1,1,1,1}) 
+{
     const v4 shadowcolor = v4{0.2f, 0.2f, 0.2f, 0.9f};
     string_op(String_Op_Draw, group, leftbottom+v3{2,-2,0}, str, font, shadowcolor);
     string_op(String_Op_Draw, group, leftbottom, str, font, color);
 }
 
 internal Rect2
-string_rect(char *str, v3 left_bottom, Asset_Font *font) {
+string_rect(char *str, v3 left_bottom, Asset_Font *font) 
+{
     return string_op(String_Op_Get_Rect, 0, left_bottom, str, font);
 }
 
 internal v2
-string_dim(char *str, Asset_Font *font) {
+string_dim(char *str, Asset_Font *font) 
+{
     return get_dim(string_op(String_Op_Get_Rect, 0, {}, str, font));
 }
 
 internal Render_Group *
-begin_render_group(Render_Commands *frame, u64 size) {
+begin_render_group(Render_Commands *frame, u64 size) 
+{
     Assert(frame->push_buffer_used + sizeof(Render_Group) + size <= frame->push_buffer_size);
 
     Render_Group *group = (Render_Group *)(frame->push_buffer_base + frame->push_buffer_used);

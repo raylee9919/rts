@@ -208,6 +208,9 @@ typedef OS_FILE_ITERATOR_END(Os_File_Iterator_End);
 #define OS_QUERY_PAGE_SIZE(name) u64 name(void)
 typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
 
+#define OS_CARET_BLINK_TIME(name) u32 name(void)
+typedef OS_CARET_BLINK_TIME(Os_Caret_Blink_Time);
+
 #define OS_STRING_FROM_SYSTEM_PATH_KIND(name) Utf8 name(Arena *arena, Os_System_Path_Kind path)
 typedef OS_STRING_FROM_SYSTEM_PATH_KIND(Os_String_From_System_Find_Kind);
 
@@ -266,6 +269,7 @@ struct OS
     Os_File_Iterator_End    *file_iterator_end;
 
     Os_Query_Page_Size              *query_page_size;
+    Os_Caret_Blink_Time             *caret_blink_time;
     Os_String_From_System_Find_Kind *string_from_system_path_kind;
     Os_Attributes_From_File_Path    *attributes_from_file_path;
 

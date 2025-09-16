@@ -36,6 +36,14 @@ OS_QUERY_PAGE_SIZE(win32_query_page_size)
 }
 
 internal
+OS_CARET_BLINK_TIME(win32_caret_blink_time)
+{
+    UINT val = GetCaretBlinkTime();
+    u32 result = val;
+    return result;
+}
+
+internal
 OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -442,6 +450,7 @@ OS_INIT(os_win32_init)
     os.make_directory = win32_make_directory;
 
     os.query_page_size              = win32_query_page_size;
+    os.caret_blink_time             = win32_caret_blink_time;
     os.string_from_system_path_kind = win32_string_from_system_path_kind;
     os.attributes_from_file_path    = win32_attributes_from_file_path;
 

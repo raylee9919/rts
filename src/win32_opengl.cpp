@@ -12,7 +12,7 @@
 #include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_asset.h"
-#include "input.h"
+#include "rts_input.h"
 
 #include <gl/gl.h>
 #include <tchar.h>

@@ -10,20 +10,18 @@
 // -----------------------------------
 // @Note: [.h]
 #include "base/rts_base_inc.h"
+#include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_asset.h"
-
-#include "input.h"
-#include "os/rts_os.h"
-
+#include "rts_input.h"
 #include "rts_platform.h"
 #include "rts_win32.h"
 
 // -----------------------------------
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
-#include "rts_math.cpp"
 #include "os/rts_os.cpp"
+#include "rts_math.cpp"
 
 
 // -----------------------------------

@@ -7,7 +7,8 @@
    ======================================================================== */
 
 template<typename X, typename Y>
-struct Pair {
+struct Pair 
+{
     union {
         struct {
             X x;
@@ -35,13 +36,15 @@ bool operator < (Pair<X, Y> a, Pair<X, Y> b)
 }
 
 template<typename T>
-struct Priority_Queue {
+struct Priority_Queue 
+{
     T items[256];
     size_t size;
 };
 
 template<typename T>
-void swap(T *a, T *b) {
+void swap(T *a, T *b) 
+{
     T tmp = *a;
     *a = *b;
     *b = tmp;
@@ -76,15 +79,18 @@ void heapifyDown(Priority_Queue <T> *pq, size_t index)
     size_t left = 2 * index + 1;
     size_t right = 2 * index + 2;
 
-    if (left < pq->size
-        && pq->items[left] < pq->items[smallest])
+    if (left < pq->size && pq->items[left] < pq->items[smallest])
+    {
         smallest = left;
+    }
 
-    if (right < pq->size
-        && pq->items[right] < pq->items[smallest])
+    if (right < pq->size && pq->items[right] < pq->items[smallest])
+    {
         smallest = right;
+    }
 
-    if (smallest != index) {
+    if (smallest != index) 
+    {
         swap(&pq->items[index], &pq->items[smallest]);
         heapifyDown(pq, smallest);
     }
@@ -93,12 +99,15 @@ void heapifyDown(Priority_Queue <T> *pq, size_t index)
 template<typename T>
 T dequeue(Priority_Queue<T> *pq)
 {
-    if (pq->size) {
+    if (pq->size) 
+    {
         T item = pq->items[0];
         pq->items[0] = pq->items[--pq->size];
         heapifyDown(pq, 0);
         return item;
-    } else {
+    }
+    else 
+    {
         INVALID_CODE_PATH;
         return {};
     }

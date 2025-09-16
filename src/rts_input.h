@@ -6,7 +6,8 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-enum Mouse_Enum {
+enum Mouse_Enum 
+{
     Mouse_Left,
     Mouse_Middle,
     Mouse_Right,
@@ -15,7 +16,9 @@ enum Mouse_Enum {
 
     Mouse_Count
 };
-struct Mouse_Input {
+
+struct Mouse_Input 
+{
     b32 is_down[Mouse_Count];
     b32 toggle[Mouse_Count];
 
@@ -24,26 +27,33 @@ struct Mouse_Input {
     s32 wheel_delta;
 };
 
-enum Event_Flag : u8 {
+enum Event_Flag : u8 
+{
     PRESSED  = 0x1,
     RELEASED = 0x2,
 };
-struct Event {
+
+struct Event 
+{
     u8 key;
     u8 flag;
 };
-struct Event_Queue {
+
+struct Event_Queue 
+{
     Event events[256];
     u32 next_idx;
 };
 
-struct Game_Key {
+struct Game_Key 
+{
     b32 is_down;
     b32 toggled;
     f32 pressed_time;
 };
 
-struct Input {
+struct Input 
+{
     f32 actual_dt;
     f32 dt;
 

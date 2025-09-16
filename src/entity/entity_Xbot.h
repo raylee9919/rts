@@ -2,8 +2,8 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright 2025 by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 DECLARE_ENTITY_FUNCTIONS(Xbot);
@@ -96,19 +96,22 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
     f32 dt = input->dt;
 
     // Dead?
-    if (e->flags & Flag_Dead) {
-        if (e->hp <= 0.0f) {
+    if (e->flags & Flag_Dead) 
+    {
+        if (e->hp <= 0.0f) 
+        {
             e->die();
         }
     }
 
-    if ((input->mouse.is_down[Mouse_Right] && input->mouse.toggle[Mouse_Right])) {
+    if ((input->mouse.is_down[Mouse_Right] && input->mouse.toggle[Mouse_Right])) 
+    {
         e->command = Command_Move;
 
         f32 x = map01_binormal(input->mouse.position.x, 0, input->draw_dim.x);
         f32 y = map01_binormal(input->mouse.position.y, 0, input->draw_dim.y);
         m4x4 inv_view_proj = inverse(game_state->controlling_camera->VP);
-        // @TODO: Graphics API-independent
+        // @Todo: Graphics API-independent
         v4 up = inv_view_proj * v4{x, y, 1, 1};
         up.xyz /= up.w;
         v3 o = game_state->controlling_camera->position;
@@ -119,8 +122,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
 
         e->destination = p;
  
-        // @TEMPORARY
-        // @TODO: This is not handling 'point-on-edge' case.
+        // @Todo: This is not handling 'point-on-edge' case.
         Navmesh *navmesh = game_state->navmesh;
         Cdt_Result *cdt = &navmesh->cdt;
 
@@ -150,10 +152,10 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
         }
 
         //
-        // @TODO: A* Algorithm -> Stupid Simple Funnel Algorithm -> Add Radius (Minkowski?) -> Steering/Boid-Style Collision
+        // @Todo: A* Algorithm -> Stupid Simple Funnel Algorithm -> Add Radius (Minkowski?) -> Steering/Boid-Style Collision
         //
         if (T != -1) {
-            // @NOTE: A* Algorithm
+            // @Note: A* Algorithm
             v3 dst_cen = {};
             for (int i = 0; i < 3; ++i) {
                 dst_cen += navmesh->vertices[cdt->tri[T][i]].position;
@@ -180,9 +182,10 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             dist[S].x = euclidian_dist[S];
 
             Priority_Queue<Pair<f32, Pair<int, int>>> pq = {};
-            enqueue(&pq, {dist[S].x, {S, -1}}); // @TODO: Is putting -1 in here correct?
+            enqueue(&pq, {dist[S].x, {S, -1}}); // @Todo: Is putting -1 in here correct?
 
-            while (pq.size > 0) {
+            while (pq.size > 0) 
+            {
                 auto item = dequeue(&pq);
                 int u = item.y.x;
                 int in_edge = item.y.y;
@@ -191,20 +194,29 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                     break;
                 }
 
-                for (int i = 0; i < 3; ++i) {
+                for (int i = 0; i < 3; ++i) 
+                {
                     int v = cdt->adj[u][i];
-                    if (v != -1 && cdt->trespassable[v]) {
+                    if (v != -1 && cdt->trespassable[v]) 
+                    {
                         int out_edge = cdt_edge(cdt->adj, u, v);
                         f32 width;
-                        if (in_edge == -1) {
+                        
+                        if (in_edge == -1) 
+                        {
                             width = F32_MAX;
-                        } else {
+                        }
+                        else 
+                        {
                             width = calculate_width(navmesh, u, in_edge, out_edge);
                         }
-                        if (width > 2.0f * e->radius) {
-                            // @TODO: Cache centroid_distance().
+
+                        if (width > 2.0f * e->radius) 
+                        {
+                            // @Todo: Cache centroid_distance().
                             f32 newdist = dist[u].x + centroid_distance(navmesh, u, v) + euclidian_dist[v];
-                            if (dist[v].x > newdist) {
+                            if (dist[v].x > newdist) 
+                            {
                                 dist[v].x = newdist;
                                 dist[v].y = u;
                                 enqueue(&pq, {newdist, {v, cdt_edge(cdt->adj, v, u)}});
@@ -215,11 +227,12 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             }
 
 
-            // @NOTE: Portal list before inflating radii.
+            // @Note: Portal list before inflating radii.
             Pair<int, int> tmp_portals[256] = {};
             umm tmp_portal_count = 0;
 
-            for (int v = T; dist[v].y != v; v = dist[v].y) {
+            for (int v = T; dist[v].y != v; v = dist[v].y) 
+            {
                 int u = dist[v].y;
                 int euv = cdt_edge(cdt->adj, u, v);
 
@@ -227,15 +240,15 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                 tmp_portals[tmp_portal_count++] = {u, euv};
             }
 
-
-            // @NOTE: Fill actual portal list by inflating vertices by radii.
+            // @Note: Fill actual portal list by inflating vertices by radii.
             e->portal_count = 0;
 
-            // @NOTE: Add src as a portal at the beginning.
+            // @Note: Add src as a portal at the beginning.
             Assert(e->portal_count < array_count(e->portals));
             e->portals[e->portal_count++] = Nav_Portal{{-1, e->position}, {-1, e->position}};
 
-            for (int portal_index = tmp_portal_count - 1; portal_index >= 0; --portal_index) {
+            for (int portal_index = tmp_portal_count - 1; portal_index >= 0; --portal_index) 
+            {
                 Pair<int, int> portal = tmp_portals[portal_index];
                 int u = portal.x;
                 int euv = portal.y;
@@ -262,7 +275,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                 v3 h1 = normalize(p + q);
                 v3 h2 = normalize(r + s);
 
-                // @TODO: Correctness.
+                // @Todo: Correctness.
                 if (dot(h1, k) > 0) {
                     h1 = -h1;
                 }
@@ -281,7 +294,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                 e->portals[e->portal_count++] = Nav_Portal{{left_point_index, left_point}, {right_point_index, right_point}};
             }
 
-            // @NOTE: Add dst as a portal at the end.
+            // @Note: Add dst as a portal at the end.
             Assert(e->portal_count < array_count(e->portals));
             e->portals[e->portal_count++] = Nav_Portal{{-1, p}, {-1, p}};
 
@@ -290,7 +303,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             e->debug_portal_edge_count = 0;
 #endif
 
-            // @NOTE: Stupid Simple Funnel Algorithm
+            // @Note: Stupid Simple Funnel Algorithm (ssf)
             clear(&e->queue);
 
             int funnel_apex_index  = e->portal_count - 1;
@@ -301,7 +314,8 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             v3 left_funnel  = e->position;
             v3 right_funnel = e->position;
 
-            for (u32 portal_index = 0; portal_index < e->portal_count; ++portal_index) {
+            for (u32 portal_index = 0; portal_index < e->portal_count; ++portal_index) 
+            {
                 Nav_Portal portal = e->portals[portal_index];
 
                 v3 left_point  = portal.left.position;
@@ -315,24 +329,31 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
 
                 // Update left funnel.
                 b32 left_changed = false;
-                if (ssf_on_right(left_point, funnel_apex, left_funnel)) {
-                    if (!ssf_equal(left_funnel, left_point)) {
+                if (ssf_on_right(left_point, funnel_apex, left_funnel)) 
+                {
+                    if (!ssf_equal(left_funnel, left_point)) 
+                    {
                         left_changed = true;
                     }
                     left_funnel = left_point;
                     left_funnel_index = portal_index;
                 }
 
-                if (ssf_on_left(right_point, funnel_apex, right_funnel)) {
+                if (ssf_on_left(right_point, funnel_apex, right_funnel)) 
+                {
                     right_funnel = right_point;
                     right_funnel_index = portal_index;
                 }
 
-                if (!ssf_on_right(right_funnel, funnel_apex, left_funnel)) {
-                    if (left_changed) {
+                if (!ssf_on_right(right_funnel, funnel_apex, left_funnel)) 
+                {
+                    if (left_changed) 
+                    {
                         funnel_apex = right_funnel;
                         funnel_apex_index = right_funnel_index;
-                    } else {
+                    }
+                    else 
+                    {
                         funnel_apex = left_funnel;
                         funnel_apex_index = left_funnel_index;
                     }
@@ -349,38 +370,51 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
 
             enqueue(&e->queue, p);
         }
-
     }
 
-    if (e->command == Command_Move) {
-        if (!empty(&e->queue)) {
+    if (e->command == Command_Move) 
+    {
+        if (! empty(&e->queue)) 
+        {
             v3 waypoint = peek(&e->queue);
             f32 dist = distance(e->position, waypoint);
-            if (waypoint == e->destination) {
-                // @TODO: Fix twitching character when he starts near the destination point.
+            if (waypoint == e->destination) 
+            {
+                // @Fix: twitching character when he starts near the destination point.
                 const f32 stop_radius = 1.0f;
-                if (dist > stop_radius) {
+                if (dist > stop_radius) 
+                {
                     e->move(waypoint, dt);
-                } else {
+                }
+                else 
+                {
                     f32 t = map01(dist, 0.0f, stop_radius);
                     e->transition_t = lerp(0.0f, t, 0.7f);
                     dequeue(&e->queue);
                 }
-            } else {
+            }
+            else 
+            {
                 const f32 waypoint_reached_radius = 0.20f;
-                if (dist > waypoint_reached_radius) {
+                if (dist > waypoint_reached_radius) 
+                {
                     e->move(waypoint, dt);
-                } else {
+                }
+                else 
+                {
                     dequeue(&e->queue);
                 }
             }
-        } else {
+        }
+        else 
+        {
             e->command = Command_Stop;
         }
     }
 
     // Animation, Position
-    if (!(e->flags & Flag_Dead)) {
+    if (! (e->flags & Flag_Dead)) 
+    {
         f32 norm = smoothstep(e->transition_t, 0, 1);
         m4x4 rotation = quaternion_to_m4x4(e->orientation);
         f32 T = lerp(0.0f, e->transition_t, 1.0f);
@@ -390,58 +424,79 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
         e->transition_t -= dt;
         e->transition_t = clamp01(e->transition_t);
 
-        if (e->model) {
+        if (e->model) 
+        {
             f32 v = length(e->velocity);
             f32 lo = 0.0001f;
             f32 hi = 0.7f;
             Animation_Channel *channel = &e->animation_channels[0];
 
-            if (v <= lo) {
+            if (v <= lo) 
+            {
                 Animation *new_anim = e->idle_animation;
-                if (channel->animation != new_anim) {
+                if (channel->animation != new_anim) 
+                {
                     channel->animation = new_anim;
                     channel->dt = 0.0f;
                 }
                 eval(e->model, channel->animation, channel->dt, e->animation_transform, true);
                 accumulate(channel, dt);
-            } else if (v > hi) {
+            } 
+            else if (v > hi) 
+            {
                 Animation *new_anim = e->running_animation;
-                if (channel->animation != new_anim) {
+                if (channel->animation != new_anim) 
+                {
                     channel->animation = new_anim;
                     channel->dt = 0.0f;
                 }
                 eval(e->model, channel->animation, channel->dt, e->animation_transform, true);
                 accumulate(channel, dt);
-            } else {
+            } 
+            else 
+            {
                 f32 t = map01(v, lo, hi);
-                if (channel->animation == e->idle_animation) {
+                if (channel->animation == e->idle_animation) 
+                {
                     interpolate(e->model, channel->animation, channel->dt, t, e->running_animation, 0.0f);
-                } else {
+                } 
+                else 
+                {
                     interpolate(e->model, e->idle_animation, 0.0f, t, channel->animation, channel->dt);
                 }
                 eval(e->model, 0, 0, e->animation_transform, false);
             }
         }
-    } else if (e->command = Command_Dieing) {
+    } 
+    else if (e->command = Command_Dieing) 
+    {
         Animation_Channel *channel = &e->animation_channels[0];
 
         f32 lo = 0.0f;
         f32 hi = 0.1f;
         f32 t = map(e->transition_t, lo, hi);
 
-        if (t < 1.0f) {
+        if (t < 1.0f) 
+        {
             interpolate(e->model, channel->animation, channel->dt, t, e->die_animation, 0.0f);
             eval(e->model, 0, 0, e->animation_transform, false);
-        } else {
+        }
+        else 
+        {
             eval(e->model, e->die_animation, e->transition_t - hi, e->animation_transform, true);
-            if (e->transition_t >= e->die_animation->duration) {
+            if (e->transition_t >= e->die_animation->duration) 
+            {
                 e->flags |= Flag_Dead;
             }
         }
         e->transition_t += dt;
-    } else if (e->flags & Flag_Dead) {
+    } 
+    else if (e->flags & Flag_Dead) 
+    {
         eval(e->model, e->die_animation, e->die_animation->duration, e->animation_transform, true);
-    } else {
+    }
+    else 
+    {
         INVALID_CODE_PATH;
     }
 };
@@ -461,10 +516,12 @@ internal ENTITY_FUNCTION_DRAW(draw_Xbot)
     commands->debug_transform = transform;
     commands->debug_radius = e->radius;
 
-    if (e->command == Command_Move) {
+    if (e->command == Command_Move) 
+    {
         Queue<v3> *q = &e->queue;
 
-        if (commands->draw_navmesh) {
+        if (commands->draw_navmesh) 
+        {
             for (size_t i = q->front;
                  i < (q->front + q->count) % array_count(q->data);
                  i = (i+1)%array_count(q->data)) {

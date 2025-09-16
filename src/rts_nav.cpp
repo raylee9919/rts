@@ -7,11 +7,9 @@
    ======================================================================== */
 
 
-
-    
-
 internal v3
-get_centroid(Navmesh *navmesh, int triangleindex) {
+get_centroid(Navmesh *navmesh, int triangleindex) 
+{
     v3 result = {};
     for (int i = 0; i < 3; ++i) {
         result += navmesh->vertices[navmesh->cdt.tri[triangleindex][i]].position;
@@ -21,7 +19,8 @@ get_centroid(Navmesh *navmesh, int triangleindex) {
 }
 
 internal f32
-centroid_distance(Navmesh *navmesh, int a, int b) {
+centroid_distance(Navmesh *navmesh, int a, int b) 
+{
     v3 ca = get_centroid(navmesh, a);
     v3 cb = get_centroid(navmesh, b);
     f32 result = distance(ca, cb);
@@ -51,7 +50,7 @@ ssf_equal(v3 a, v3 b)
     return false;
 }
 
-// @NOTE: Reference: Efficient Triangulation-Based Pathfinding -Douglas Jon Demyen
+// @Note: Reference: Efficient Triangulation-Based Pathfinding -Douglas Jon Demyen
 internal b32
 is_obtuse(v2 a, v2 b, v2 c)
 {
@@ -72,19 +71,21 @@ search_width(Navmesh *navmesh, v2 C, int T, int E, f32 d)
     v2 U = v2{navmesh->vertices[Ui].position.z, navmesh->vertices[Ui].position.x};
     v2 V = v2{navmesh->vertices[Vi].position.z, navmesh->vertices[Vi].position.x};
 
-    if (is_obtuse(C, U, V) || is_obtuse(C, V, U)) {
+    if (is_obtuse(C, U, V) || is_obtuse(C, V, U)) 
+    {
         return d;
     }
 
     f32 d2 = point_line_distance(C, U, V);
 
-    if (d2 > d) {
+    if (d2 > d) 
+    {
         return d;
     }
 
     int L = cdt->adj[T][E];
-    if (L == -1) return d2;
-    if (!cdt->trespassable[L]) return d2;
+    if (L == -1) { return d2; }
+    if (! cdt->trespassable[L]) { return d2; }
 
     int ELT = cdt_edge(cdt->adj, L, T);
     int E2 = (ELT+1)%3;
@@ -101,9 +102,12 @@ calculate_width(Navmesh *navmesh, int T, int Ei, int Eo)
     Cdt_Result *cdt = &navmesh->cdt;
 
     int E;
-    if (((Eo+1)%3) == Ei) {
+    if (((Eo+1)%3) == Ei) 
+    {
         E = Ei;
-    } else {
+    }
+    else 
+    {
         E = Eo;
     }
 
@@ -122,18 +126,21 @@ calculate_width(Navmesh *navmesh, int T, int Ei, int Eo)
     f32 d = min(length(a), length(b));
 
     // Right or obtuse angle.
-    if (dot(c, -b) <= 0 || dot(-c, a) <= 0) {
+    if (dot(c, -b) <= 0 || dot(-c, a) <= 0) 
+    {
         return d;
     }
 
     // If edge AB is constrained.
     int ETL = (E+1)%3;
     int L = cdt->adj[T][ETL];
-    if (L == -1) {
+    if (L == -1) 
+    {
         return point_line_distance(C, A, B);
     }
-    if (!cdt->trespassable[L]) {
-        // @TODO: Test this function.
+    if (!cdt->trespassable[L]) 
+    {
+        // @Todo: Test this function.
         return point_line_distance(C, A, B);
     }
 

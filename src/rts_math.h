@@ -31,14 +31,6 @@ union v3 {
     f32 e[3];
 };
 
-struct v3i {
-    s32 x, y, z;
-};
-
-struct v3u {
-    u32 x, y, z;
-};
-
 union v4 {
     struct {
         union {
@@ -63,28 +55,20 @@ union v4 {
     f32 e[4];
 };
 
-struct m4x4 {
+struct m4x4 
+{
     f32 e[4][4];
 };
 
-struct Quaternion {
+struct Quaternion 
+{
     f32 w, x, y, z;
 };
 
-struct Rect2 {
+struct Rect2 
+{
     v2 min, max;
 };
-
-struct AABB3 {
-    v3 min, max;
-};
-
-struct Sphere {
-    v3 center;
-    f32 radius;
-};
-
-
 
 internal f32 absolute(f32 val);
 internal f32 map(f32 x, f32 min, f32 max);

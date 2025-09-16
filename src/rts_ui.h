@@ -8,7 +8,6 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-
 struct Ui_Element 
 {
     u32 id;
@@ -65,5 +64,7 @@ struct Ui
     void gizmo(v3 *position, m4x4 view_proj);
     void end_frame();
 };
+
+global Ui ui;
 
 #endif // RTS_UI_H
