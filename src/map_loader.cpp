@@ -6,6 +6,9 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+// @Todo: This loader is mangled with metaprogramming module, which isn't neat.
+//        Adds crazy blackbox to the code. This must be resolved.
+
 #include "map_loader_lexer.cpp"
 
 struct Parser 
@@ -16,29 +19,34 @@ struct Parser
     Game_State *game_state;
 };
 
-void init(Lexer *lexer, Utf8 input, Parser *parser, Game_State *game_state) {
+void init(Lexer *lexer, Utf8 input, Parser *parser, Game_State *game_state) 
+{
     lexer->input = input;
     parser->lexer = lexer;
     parser->game_state = game_state;
 }
 
-Token *peek_token(Parser *parser, int ahead = 0) {
+Token *peek_token(Parser *parser, int ahead = 0) 
+{
     Assert(parser->token_cursor + ahead < parser->lexer->token_count);
     return parser->lexer->tokens + parser->token_cursor + ahead;
 }
 
-void eat_token(Parser *parser) {
+void eat_token(Parser *parser) 
+{
     ++parser->token_cursor;
 }
 
-s32 parse_integer(Parser *parser) {
+s32 parse_integer(Parser *parser) 
+{
     Token *token = peek_token(parser);
     Assert(token && token->type == TOKEN_INTEGER);
     eat_token(parser);
     return token->integer_value;
 }
 
-f32 parse_float(Parser *parser) {
+f32 parse_float(Parser *parser) 
+{
     f32 result;
 
     Token *token = peek_token(parser);
@@ -66,14 +74,15 @@ f32 parse_float(Parser *parser) {
         break;\
     }
 
-void parse(Parser *parser) {
+void parse(Parser *parser) 
+{
     Lexer *lexer = parser->lexer;
     while (1) {
         Token *token = peek_token(parser);
         switch (token->type) {
             case TOKEN_IDENT:
             {
-#include "generated/entity_parse.inl" // @Metaprogramming: Ugly, but kinda works.
+#include "generated/entity_parse.inl" // @Note: Metaprogramming: Ugly, but kinda works.
                 INVALID_CODE_PATH;
             } break;
 
@@ -85,7 +94,7 @@ void parse(Parser *parser) {
     }
 }
 
-void load_map(char *filename, Game_State *game_state) 
+void load_map(Utf8 file_path, Game_State *game_state) 
 {
     Temporary_Arena scratch = scratch_begin();
 
@@ -93,11 +102,7 @@ void load_map(char *filename, Game_State *game_state)
     u64 pc_begin = os.perf_counter();
 #endif
 
-    char filepath[512];
-    str_snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MAP_DIRECTORY, filename, ASSET_MAP_FILE_FORMAT);
-
-    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
-    Utf8 input = read_entire_file(scratch.arena, file_path8);
+    Utf8 input = read_entire_file(scratch.arena, file_path);
 
     Lexer *lexer = new Lexer(); // @Temporary
     Parser parser = {};
@@ -110,7 +115,7 @@ void load_map(char *filename, Game_State *game_state)
 #if __DEVELOPER
     u64 pc_end = os.perf_counter();
     f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os.perf_counter_freq_inv;
-    printf("Loaded map '%s' in %.2fms.\n", filename, elapsed_ms);
+    printf("Loaded map '%s' in %.2fms.\n", file_path.str, elapsed_ms);
 #endif
 
     scratch_end(scratch);

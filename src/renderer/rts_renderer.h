@@ -13,6 +13,16 @@
 static_assert(CSM_COUNT > 0, "CSM_COUNT must be bigger than 0!");
 
 
+// ------------------------------------------------------
+// @Note: Color Constants.
+#define RGBA_WHITE      v4{1.0f, 1.0f, 1.0f, 1.0f}
+#define RGBA_BLACK      v4{0.0f, 0.0f, 0.0f, 1.0f}
+#define RGBA_RED        v4{1.0f, 0.0f, 0.0f, 1.0f}
+#define RGBA_GREEN      v4{0.0f, 1.0f, 0.0f, 1.0f}
+#define RGBA_BLUE       v4{0.0f, 0.0f, 1.0f, 1.0f}
+#define RGBA_MAGENTA    v4{1.0f, 0.0f, 1.0f, 1.0f}
+
+
 struct Render_Commands;
 struct Platform_Renderer;
 struct Mesh;

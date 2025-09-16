@@ -21,19 +21,15 @@
 
 
 internal void
-load_model(Model *model, char *filename, Arena *arena)
+asset_load_model(Model *model, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
 
     Assert(model);
 
-    char filepath[512];
-    str_snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_MESH_DIRECTORY, filename, ASSET_MESH_FILE_FORMAT);
-
     // ----------------------------------------------
     // @Note: read entire file.
-    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
-    Utf8 entire_file = read_entire_file(scratch.arena, file_path8);
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
     u8 *at  = entire_file.str;
     u8 *end = at + entire_file.len;
 
@@ -124,16 +120,12 @@ animation_hash(u32 id, u32 length) {
 }
 
 internal void
-load_animation(Animation *anim, const char *filename, Arena *arena)
+asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
     Assert(anim);
 
-    char filepath[512];
-    _snprintf(filepath, array_count(filepath), "%s%s%s", ASSET_ANIMATION_DIRECTORY, filename, ASSET_ANIMATION_FILE_FORMAT);
-
-    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
-    Utf8 entire_file = read_entire_file(scratch.arena, file_path8);
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
 
     u8 *at  = entire_file.str;
     u8 *end = at + entire_file.len;
@@ -205,15 +197,14 @@ load_animation(Animation *anim, const char *filename, Arena *arena)
 // -------------------------------
 // @Note: Font
 internal void
-load_font(Arena *arena, char *filepath, Asset_Font *font)
+asset_load_font(Arena *arena, Utf8 file_path, Asset_Font *font)
 {
     if (! font->arena)
     { font->arena = arena_alloc(); }
 
     arena_clear(font->arena);
 
-    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
-    font->buffer = read_entire_file(font->arena, file_path8);
+    font->buffer = read_entire_file(font->arena, file_path);
 
     u8 *at  = font->buffer.str;
     u8 *end = at + font->buffer.len;
@@ -229,7 +220,8 @@ load_font(Arena *arena, char *filepath, Asset_Font *font)
 
     // Parse kerning pairs.
     Assert(kern_count < array_count(font->kernings));
-    for (u32 count = 0; count < kern_count; ++count) {
+    for (u32 count = 0; count < kern_count; ++count) 
+    {
         Asset_Kerning *asset_kern = (Asset_Kerning *)at;
 
         Kerning *kern = font->kernings + count;
@@ -260,14 +252,13 @@ load_font(Arena *arena, char *filepath, Asset_Font *font)
 }
 
 internal void
-load_image(Bitmap *bitmap, char *filepath, Arena *arena)
+asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
 
     Assert(bitmap);
 
-    Utf8 file_path8 = utf8((u8 *)filepath, cstr_length(filepath));
-    Utf8 entire_file = read_entire_file(scratch.arena, file_path8);
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
 
     u8 *at  = entire_file.str;
     u8 *end = at + entire_file.len;

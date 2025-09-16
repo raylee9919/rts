@@ -9,9 +9,12 @@
    ======================================================================== */
 #pragma pack(push, 1)
 
+// @Todo: Clean those.
 #define MAX_BONE_PER_VERTEX     4
 #define MAX_BONE_PER_MESH       200
+
 #define PATH_TO_DATA_FROM_BUILD         "../data/"
+
 #define ASSET_MESH_FILE_FORMAT          ".smsh"
 #define ASSET_MESH_DIRECTORY            "mesh/"
 #define ASSET_ANIMATION_FILE_FORMAT     ".sanm"
@@ -19,7 +22,10 @@
 #define ASSET_MAP_FILE_FORMAT           ".smap"
 #define ASSET_MAP_DIRECTORY             "map/"
 
-struct Asset_Vertex {
+
+
+struct Asset_Vertex 
+{
     v3  pos;
     v3  normal;
     v2  uv;
@@ -30,7 +36,8 @@ struct Asset_Vertex {
     f32 node_weights[MAX_BONE_PER_VERTEX];
 };
 
-struct Asset_Texture {
+struct Asset_Texture 
+{
     s32 bits_per_channel;
     s32 channel_count;
     s32 width;
@@ -40,7 +47,8 @@ struct Asset_Texture {
     void *data;
 };
 
-struct Asset_Mesh {
+struct Asset_Mesh 
+{
     u32 vertex_count;
     Asset_Vertex *vertices;
 
@@ -68,13 +76,15 @@ struct Asset_Mesh {
 #endif
 };
 
-struct Asset_Material {
+struct Asset_Material 
+{
     v3 color_ambient;
     v3 color_diffuse;
     v3 color_specular;
 };
 
-struct Asset_Node {
+struct Asset_Node 
+{
     s32 id;
 
     m4x4 offset;     // mesh-space to bone-space. aiBone... if unavailable, set to no-op matrix...?
@@ -84,7 +94,8 @@ struct Asset_Node {
     s32 *child_ids;
 };
 
-struct Asset_Model {
+struct Asset_Model 
+{
     u32 mesh_count;
     Asset_Mesh *meshes;
 
@@ -96,17 +107,20 @@ struct Asset_Model {
     Asset_Node *nodes;
 };
 
-struct dt_v3_Pair {
+struct dt_v3_Pair 
+{
     f32 dt;
     v3 vec;
 };
 
-struct dt_qt_Pair {
+struct dt_qt_Pair 
+{
     f32 dt;
     Quaternion q;
 };
 
-struct Asset_Animation_Node {
+struct Asset_Animation_Node 
+{
     s32 id;
 
     u32 translation_count;
@@ -118,7 +132,8 @@ struct Asset_Animation_Node {
     dt_v3_Pair  *scalings;
 };
 
-struct Asset_Animation {
+struct Asset_Animation 
+{
     char *name;
 
     f32  duration;
@@ -367,12 +382,12 @@ struct Asset_Font
 };
 
 
-internal void load_font(Arena *arena, char *filepath, Asset_Font *font);
-internal void load_image(Bitmap *bitmap, char *filepath, Arena *arena);
-internal void load_model(Model *model, char *filename, Arena *arena);
+internal void asset_load_font(Arena *arena, Utf8 file_path, Asset_Font *font);
+internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
+internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena);
+internal void asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena);
 internal u32 get_triangle_count(Model *model);
 internal u32 animation_hash(u32 id, u32 length);
-internal void load_animation(Animation *anim, const char *filename, Arena *arena);
 
 
 // -------------------------------------
