@@ -211,6 +211,7 @@ win32_create_window(HINSTANCE hinst)
 internal void
 win32_window_update_dark_mode(HWND hwnd)
 {
+    // @Note: not really necessary... but why not?
     HMODULE uxtheme = LoadLibraryExW(L"uxtheme.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
     BOOL(WINAPI *func)() = 0;
     if (uxtheme)
@@ -586,7 +587,10 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         if (dt < desired_dt) 
         {
             s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
-            // @Todo: us sleep
+            if (os.sleep_is_granular)
+            {
+                // @Todo: what?
+            }
             Sleep(ms);
             dt = desired_dt;
         }
@@ -609,7 +613,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         { g_running = false; }
 
 
-        // @Fix: Hot Code Reloading
         if (win32_code_modified(&game_code)) 
         {
             win32_code_reload(&game_code); 
