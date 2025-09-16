@@ -193,7 +193,7 @@ win32_create_window(HINSTANCE hinst)
         wcex.cbClsExtra     = 0;
         wcex.cbWndExtra     = 0;
         wcex.hInstance      = hinst;
-        wcex.hIcon          = LoadIcon(NULL, IDI_APPLICATION);
+        wcex.hIcon          = LoadIcon(hinst, L"Icon");
         wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
         wcex.hbrBackground  = (HBRUSH)GetStockObject(BLACK_BRUSH);
         wcex.lpszMenuName   = NULL;
@@ -211,7 +211,7 @@ win32_create_window(HINSTANCE hinst)
 }
 
 internal void
-win32_window_dark_mode(HWND hwnd)
+win32_window_update_dark_mode(HWND hwnd)
 {
     HMODULE uxtheme = LoadLibraryExW(L"uxtheme.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
     BOOL(WINAPI *func)() = 0;
@@ -421,7 +421,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     // @Note: create window.
     HWND hwnd = win32_create_window(hinst);
     if (! hwnd) { Assert(! "Win32: Couldn't create window."); }
-    win32_window_dark_mode(hwnd);
+    win32_window_update_dark_mode(hwnd);
 
 
 
