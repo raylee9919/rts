@@ -153,6 +153,16 @@ debug_update_game_speed(Debug_State *debug_state, Input *input)
 }
 
 internal void
+debug_draw_performance(Render_Group *render_group, Input *input, Asset_Font *font) 
+{
+    char buf[256];
+    snprintf(buf, 256, "actual mspf: %.4f | fps: %d", 1000.0f*input->actual_dt, (s32)(1.0f/input->actual_dt + 0.5f));
+    v3 base = v3{10, input->draw_dim.y - 30.0f, 0};
+    string_op(String_Op_Draw, render_group, base + V3(2,-2,-1), buf, font, RGBA_BLACK);
+    string_op(String_Op_Draw, render_group, base, buf, font);
+}
+
+internal void
 draw_game_speed_text(Debug_State *debug_state, Input *input, Render_Group *render_group, Asset_Font *font)
 {
     if (debug_state->speed_fade_t > epsilon_f32) 
@@ -167,16 +177,6 @@ draw_game_speed_text(Debug_State *debug_state, Input *input, Render_Group *rende
         cen -= v2{10, -10};
         string_op(String_Op_Draw, render_group, V3(cen-0.5f*dim, 0), text, font, V4(V3(1.0f), alpha));
     }
-}
-
-internal void
-debug_draw_performance(Render_Group *render_group, Input *input, Asset_Font *font) 
-{
-    char buf[256];
-    snprintf(buf, 256, "actual mspf: %.4f | fps: %d", 1000.0f*input->actual_dt, (s32)(1.0f/input->actual_dt + 0.5f));
-    v3 base = v3{10, input->draw_dim.y - 30.0f, 0};
-    string_op(String_Op_Draw, render_group, base + V3(2,-2,-1), buf, font, RGBA_BLACK);
-    string_op(String_Op_Draw, render_group, base, buf, font);
 }
 
 internal void
@@ -205,7 +205,8 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
         {
             game_state->controlling_camera = game_state->debug_camera;
         } 
-        else {
+        else 
+        {
             game_state->controlling_camera = game_state->game_camera;
         }
     }
@@ -384,17 +385,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             Navmesh *navmesh = game_state->navmesh;
             navmesh->vertex_size = 1000;
             navmesh->vertices = push_array(navmesh->arena, Vertex, navmesh->vertex_size);
-            //navmesh->vertices = (Vertex *)malloc(sizeof(Vertex)*navmesh->vertex_size);
 
             navmesh->constrain_size = 1000;
-            navmesh->constrains = (Nav_Constrain *)malloc(sizeof(Nav_Constrain)*navmesh->constrain_size);
-            zero_array(navmesh->constrains, navmesh->constrain_size);
-            for (umm i = 0; i < navmesh->constrain_size; ++i) 
+            navmesh->constrains = push_array(navmesh->arena, Nav_Constrain, navmesh->constrain_size);
+
+            for (u32 i = 0; i < navmesh->constrain_size; ++i) 
             {
                 navmesh->constrains[i].edge_count = 0;
                 navmesh->constrains[i].edge_size = 1000;
-                navmesh->constrains[i].edges = (int (*)[2])malloc(sizeof(int)*2*navmesh->constrains[i].edge_size);
-                zero_memory(navmesh->constrains[i].edges, sizeof(int)*2*navmesh->constrains[i].edge_size);
+                navmesh->constrains[i].edges = (int(*)[2])push_size(navmesh->arena, sizeof(int)*2*navmesh->constrains[i].edge_size);
             }
 
             push_vertex(navmesh, v3{-50,0,-50});
@@ -402,9 +401,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             push_vertex(navmesh, v3{ 50,0, 50});
             push_vertex(navmesh, v3{ 50,0,-50});
 
-            for (umm i = 0; i < game_state->world->entity_count; ++i) {
+            for (u32 i = 0; i < game_state->world->entity_count; ++i) 
+            {
                 Entity *e = game_state->world->entities[i];
-                if (e->flags & Flag_Navmesh) {
+                if (e->flags & Flag_Navmesh) 
+                {
                     m4x4 transform = translate(scale(identity(), e->scaling), e->position);
                     begin_constrain(navmesh);
                     push_vertex(navmesh, (transform*v4{-1.0f, 0,-1.0f, 1}).xyz);
@@ -424,13 +425,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             push_vertex(navmesh, v3{-4.0f, 0, 1.0f});
             end_constrain(navmesh);
 
-            for (umm i = 0; i < navmesh->vertex_count; ++i){
+            for (u32 i = 0; i < navmesh->vertex_count; ++i)
+            {
                 navmesh->vertices[i].position.y = 0.01f;
             }
 
             navmesh->cdt = delaunay_triangulate(navmesh->vertices, navmesh->vertex_count, navmesh);
         }
     }
+    // @Note: this temporary frame arena must be cleared every frame.
     arena_clear(game_state->frame_arena);
 
 
@@ -443,7 +446,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     Debug_State *debug_state = (Debug_State *)game_state->debug_state;
     Console *console = &debug_state->console;
 
-    if (!debug_state->initted) 
+    if (! debug_state->initted) 
     {
         debug_state->initted = true;
 
@@ -493,7 +496,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     if (! ui.initted) 
     { ui.init(input, game_state->ui_arena, orthographic_group, &assets->times, &assets->menu_font); }
 
-    // @TODO: cleanup
+    // @Todo: cleanup
     input->dt *= debug_state->speed;
     game_state->real_time += input->actual_dt;
     update_input_state(input, event_queue, input->actual_dt);
