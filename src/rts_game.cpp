@@ -502,7 +502,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 }
                 fclose(file);
                 ui.fadeout_text(V4(1.0f), "Save");
-                
             }
             ui.end();
 

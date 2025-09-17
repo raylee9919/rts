@@ -120,8 +120,6 @@ internal v3 lerp(v3 a, f32 t, v3 b);
 internal f32 distance(v3 a, v3 b);
 internal f32 distance(v2 a, v2 b);
 internal f32 point_line_distance(v2 p, v2 a, v2 b);
-internal v3 linear_to_srgb(v3 c);
-internal v3 srgb_to_linear(v3 c);
 internal v4 V4(f32 x);
 internal v4 V4(f32 r, f32 g, f32 b, f32 a);
 internal v4 V4(v2 rg, f32 b, f32 a);

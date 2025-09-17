@@ -433,20 +433,6 @@ point_line_distance(v2 p, v2 a, v2 b)
     return result;
 }
 
-internal v3
-linear_to_srgb(v3 c)
-{
-    return v3{(f32)pow(c.x, 2.2f), (f32)pow(c.y, 2.2f), (f32)pow(c.z, 2.2f)};
-}
-
-internal v3
-srgb_to_linear(v3 c)
-{
-    f32 t = 0.454545f;
-    return v3{(f32)pow(c.x, t), (f32)pow(c.y, t), (f32)pow(c.z, t)};
-}
-
-
 //
 // v4
 //

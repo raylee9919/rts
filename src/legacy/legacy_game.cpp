@@ -2,14 +2,14 @@
    $File: $
    $Date: $
    $Revision: $
-   $Creator: Sung Woo Lee $
-   $Notice: (C) Copyright %s by Sung Woo Lee. All Rights Reserved. $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
 
 /*
-// software SIMD was darn fun. Much insights, infos.
-// I just wanted to leave it here.
+// @Note: Software SIMD was darn fun. Much insights, infos.
+//        I just wanted to leave it here.
 internal void
 draw_bitmap_fast(Bitmap *buffer, v2 origin, v2 axisX, v2 axisY, Bitmap *bmp, v4 color)
 {
