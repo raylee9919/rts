@@ -27,6 +27,7 @@
 // -----------------------------------
 // @Note: Windows Additional Libs
 #include <dwmapi.h>
+#include <psapi.h>
 #pragma comment(lib, "dwmapi")
 
 
@@ -386,7 +387,6 @@ int WINAPI
 wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 {
 #endif
-
     // ----------------------------------------
     // @Note: init core.
     os_init();
@@ -427,6 +427,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     HWND hwnd = win32_create_window(hinst);
     if (! hwnd) { Assert(! "Win32: Couldn't create window."); }
     win32_window_update_dark_mode(hwnd);
+
 
 
 
@@ -499,16 +500,30 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     win32_code_load(&game_code);
 
 
+    // ----------------------------------------
+    // @Note: Main Loop
     u64 old_counter = os.perf_counter();
     while (g_running) 
     {
+        {
+            // @Temporary: just learning win32 calls to gather memory status.
+            MEMORYSTATUSEX ms;
+            ms.dwLength = sizeof(ms);
+            GlobalMemoryStatusEx(&ms);
+
+
+            HANDLE proc = GetCurrentProcess();
+            PROCESS_MEMORY_COUNTERS pmc;
+            GetProcessMemoryInfo(proc,  &pmc, sizeof(pmc));
+            CloseHandle(proc);
+        }
+
+        // @Note: draw resolution.
         v2u render_dim = {
             1920, 1080,
             //2560, 1440,
         };
         v2u window_dim = win32_client_size(hwnd);
-
-        platform.executable_reloaded = false;
 
         input.mouse.wheel_delta = 0;
 
@@ -565,8 +580,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
                     }
                 } break;
 
-                case WM_MOUSEWHEEL: 
-                {
+                case WM_MOUSEWHEEL: {
                     if (! win32_window_focused(hwnd))
                     { break;}
 
@@ -574,8 +588,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
                     input.mouse.wheel_delta = z_delta;
                 } break;
 
-                default: 
-                {
+                default: {
                     TranslateMessage(&msg);
                     DispatchMessage(&msg);
                 } break;
@@ -652,7 +665,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             renderer_functions.end_frame(renderer, render_commands);
         }
 
-        // @Todo: We are currently allocating redundant CPU/GPU memory.
+        // @Fix: We are currently allocating redundant CPU/GPU memory.
         //if (win32_code_modified(&renderer_code)) 
         //{
         //    //renderer_functions.cleanup(renderer);

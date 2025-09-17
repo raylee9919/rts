@@ -13,7 +13,6 @@ struct Platform
     Arena *arena;
 
     OS os;
-    b32 executable_reloaded;
 
     void *game_state;
     Utf8 data_path;
