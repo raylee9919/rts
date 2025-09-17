@@ -9,7 +9,7 @@
    ======================================================================== */
 #pragma pack(push, 1)
 
-// @Todo: Clean those.
+// @Todo: Clean those mangled gibberish.
 #define MAX_BONE_PER_VERTEX     4
 #define MAX_BONE_PER_MESH       200
 
@@ -376,7 +376,7 @@ struct Asset_Font
     Asset_Glyph     *glyphs[256];
     Kerning kernings[4096];
 
-    // @Temporary: ?
+    // @Temporary:
     Arena *arena;
     Utf8 buffer;
 };

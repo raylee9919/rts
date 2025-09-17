@@ -7,12 +7,12 @@
    ======================================================================== */
 
 
-
-// @NOTE: No back-face.
+// @Note: No back-face.
 internal void
-generate_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
+geogen_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
 {
-    if (subdivision > 0) {
+    if (subdivision > 0) 
+    {
         f32 sublength = length / (f32)subdivision;
         u32 patch_count = subdivision*subdivision;
         u32 vertex_count = 4*patch_count;
@@ -22,8 +22,10 @@ generate_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
         f32 min = -length * 0.5f;
 
         Vertex *at = mesh->vertices;
-        for (u32 z = 0; z < subdivision; ++z) {
-            for (u32 x = 0; x < subdivision; ++x) {
+        for (u32 z = 0; z < subdivision; ++z) 
+        {
+            for (u32 x = 0; x < subdivision; ++x) 
+            {
                 at[0] = Vertex{ v3{min + x*sublength, 0, min + z*sublength}, v3{0,1,0}, v2{x*sublength, 1 - z*sublength}, v4{1,1,1,1}, v3{1,0,0}, {}, {}};
                 at[1] = Vertex{ v3{min + x*sublength, 0, min + (z+1)*sublength}, v3{0,1,0}, v2{x*sublength, 1 - (z+1)*sublength}, v4{1,1,1,1}, v3{1,0,0}, {}, {}};
                 at[2] = Vertex{ v3{min + (x+1)*sublength, 0, min + z*sublength}, v3{0,1,0}, v2{(x+1)*sublength, 1 - z*sublength}, v4{1,1,1,1}, v3{1,0,0}, {}, {}};
@@ -32,16 +34,19 @@ generate_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
             }
         }
 
-    } else {
+    } 
+    else 
+    {
         INVALID_CODE_PATH;
     }
 }
 
-// @NOTE: Do not use it except for quad tessellated terrain.
+// @Note: Do not use it except for quad tessellated terrain.
 internal void
-generate_backfaced_cube(Mesh *mesh, Arena *arena, f32 scale)
+geogen_backfaced_cube(Mesh *mesh, Arena *arena, f32 scale)
 {
-    Vertex vertices[] = {
+    Vertex vertices[] = 
+    {
         Vertex{v3{ 1, 1, 1}*scale, v3{ 1, 0, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
         Vertex{v3{ 1,-1, 1}*scale, v3{ 1, 0, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
         Vertex{v3{ 1,-1,-1}*scale, v3{ 1, 0, 0}, v2{1,0}, RGBA_WHITE, {}, {}},

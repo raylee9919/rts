@@ -27,8 +27,9 @@
 #include "rts_delaunay.h"
 #include "rts_nav.h"
 #include "rts_game.h"
+#include "rts_geogen.h"
 #include "renderer/rts_renderer.h"
-#include "renderer/rts_renderer.cpp"
+#include "renderer/rts_renderer.cpp" // @Todo: mangeld with generated entity header currently.
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "rts_sim.h"
@@ -42,6 +43,7 @@
 #include "rts_math.cpp"
 #include "rts_random.cpp"
 #include "rts_asset.cpp"
+#include "rts_geogen.cpp"
 #include "rts_input.cpp"
 #include "rts_ui.cpp"
 #include "rts_delaunay.cpp"
@@ -311,7 +313,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
 
 
-            generate_backfaced_cube(&assets->skybox_mesh, asset_arena, 10000);
+            geogen_backfaced_cube(&assets->skybox_mesh, asset_arena, 10000);
 
             load_map(utf8f(scratch.arena, "%S/map/map1.smap", platform->data_path), game_state);
 

@@ -7,9 +7,6 @@
    ======================================================================== */
 
 
-#include "geometry_generator.cpp"
-
-
 #define push_render_entity(GROUP, STRUCT)  (STRUCT *)__push_render_entity(GROUP, sizeof(STRUCT), e##STRUCT)
 internal Render_Entity_Header *
 __push_render_entity(Render_Group *renderGroup, u32 size, Render_Type type)

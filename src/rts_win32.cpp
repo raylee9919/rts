@@ -28,6 +28,7 @@
 // @Note: Windows Additional Libs
 #include <dwmapi.h>
 #include <psapi.h>
+
 #pragma comment(lib, "dwmapi")
 
 
@@ -76,8 +77,8 @@ win32_map_keycode_to_hid_key_code(u8 *map)
 internal void
 win32_process_keyboard(Game_Key *game_key, b32 is_down) 
 {
-    if (is_down) game_key->is_down = true; 
-    else game_key->is_down = false;
+    if (is_down) { game_key->is_down = true; }
+    else         { game_key->is_down = false; }
 }
 
 internal void
@@ -88,16 +89,9 @@ win32_process_mouse_click(s32 vk, Mouse_Input *mouse)
 
     switch(vk) 
     {
-        case VK_LBUTTON: {
-            E = Mouse_Left;
-        } break;
-        case VK_MBUTTON: { 
-            E = Mouse_Middle;
-        } break;
-        case VK_RBUTTON: {
-            E = Mouse_Right;
-        } break;
-
+        case VK_LBUTTON: { E = Mouse_Left;   } break;
+        case VK_MBUTTON: { E = Mouse_Middle; } break;
+        case VK_RBUTTON: { E = Mouse_Right;  } break;
         INVALID_DEFAULT_CASE;
     }
 
@@ -481,7 +475,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     win32_map_keycode_to_hid_key_code(win32_keycode_map);
 
     Event_Queue event_queue = {};
-
 
 
 
