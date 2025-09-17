@@ -52,6 +52,7 @@ global read_only char *win32_game_function_table_names[] =
 // @Note: Window
 internal LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 internal HWND win32_create_window(HINSTANCE hinst);
+internal b32 win32_window_focused(HWND hwnd);
 internal void win32_toggle_fullscreen(HWND window);
 internal v2u win32_client_size_from_hwnd(HWND hwnd);
 

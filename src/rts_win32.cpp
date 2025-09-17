@@ -208,6 +208,12 @@ win32_create_window(HINSTANCE hinst)
     return hwnd;
 }
 
+internal b32
+win32_window_focused(HWND hwnd)
+{
+    return hwnd == GetFocus();
+}
+
 internal void
 win32_window_update_dark_mode(HWND hwnd)
 {
@@ -518,30 +524,40 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
                 case WM_SYSKEYUP:
                 case WM_KEYDOWN:
                 case WM_KEYUP: {
+                    if (! win32_window_focused(hwnd))
+                    { break;}
+
                     u8 vk_code   = (u8)msg.wParam;
                     b32 was_down = ((msg.lParam & (1 << 30))   != 0);
                     b32 is_down  = ((msg.lParam & (1UL << 31)) == 0);
                     b32 alt      = (msg.lParam & (1 << 29));
                     u8 slot      = win32_keycode_map[vk_code];
 
-                    if (was_down != is_down) {
-                        if (event_queue.next_idx < array_count(event_queue.events)) {
+                    if (was_down != is_down) 
+                    {
+                        if (event_queue.next_idx < array_count(event_queue.events)) 
+                        {
                             Event new_event = {};
                             new_event.key = slot;
-                            if (is_down) {
+                            if (is_down) 
+                            {
                                 new_event.flag |= Event_Flag::PRESSED;
                             }
-                            else {
+                            else 
+                            {
                                 new_event.flag |= Event_Flag::RELEASED;
                             }
                             event_queue.events[event_queue.next_idx++] = new_event;
                         }
 
-                        if (alt && is_down) {
-                            if (vk_code == VK_F4) {
+                        if (alt && is_down) 
+                        {
+                            if (vk_code == VK_F4) 
+                            {
                                 g_running = false;
                             }
-                            if (vk_code == VK_RETURN && msg.hwnd) {
+                            if (vk_code == VK_RETURN && msg.hwnd) 
+                            {
                                 win32_toggle_fullscreen(msg.hwnd);
                             }
                         }
@@ -549,18 +565,24 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
                     }
                 } break;
 
-                case WM_MOUSEWHEEL: {
+                case WM_MOUSEWHEEL: 
+                {
+                    if (! win32_window_focused(hwnd))
+                    { break;}
+
                     s16 z_delta = (GET_WHEEL_DELTA_WPARAM(msg.wParam) / WHEEL_DELTA);
                     input.mouse.wheel_delta = z_delta;
                 } break;
 
-                default: {
+                default: 
+                {
                     TranslateMessage(&msg);
                     DispatchMessage(&msg);
                 } break;
             }
         }
 
+        if (win32_window_focused(hwnd))
         {
             Mouse_Input *mouse = &input.mouse;
 
