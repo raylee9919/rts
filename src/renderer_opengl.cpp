@@ -7,8 +7,6 @@
    ======================================================================== */
 
 
-#include <stdio.h> // @TODO: Remove
-
 global const char *g_shader_header = 
 #include "shader/header.glsl"
 
@@ -47,9 +45,12 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     result.vendor         = (char *)glGetString(GL_VENDOR);
     result.renderer       = (char *)glGetString(GL_RENDERER);
     result.version        = (char *)glGetString(GL_VERSION);
-    if (result.modern_context) {
+    if (result.modern_context) 
+    {
         result.shading_language_version = (char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
-    } else {
+    }
+    else 
+    {
         result.shading_language_version = "(none)";
     }
     
@@ -66,7 +67,7 @@ opengl_get_info(Opengl *gl, b32 modern_context)
             else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
-            // @TODO: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
+            // @Todo: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
         }
     }
     
@@ -87,12 +88,12 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     }
     
     if ((major > 2) || ((major == 2) && (minor >= 1))) {
-        // @NOTE: We _believe_ we have sRGB textures in 2.1 and above automatically.
+        // @Note: We _believe_ we have sRGB textures in 2.1 and above automatically.
         result.opengl_ext_texture_sgb = true;
     }
     
     if (major >= 3) {
-        // @NOTE: We _believe_ we have framebuffer objects in 3.0 and above automatically.
+        // @Note: We _believe_ we have framebuffer objects in 3.0 and above automatically.
         result.opengl_arb_framebuffer_object=true;
     }
     
@@ -133,7 +134,7 @@ opengl_create_compute_program(Opengl *gl, const char *csrc)
 
         glDeleteShader(cshader);
     } else {
-        // TODO: handling.
+        // Todo: handling.
     }
     
     return program;
@@ -182,7 +183,7 @@ opengl_create_program(Opengl *gl, const char *vsrc,const char *fsrc)
         glDeleteShader(vshader);
         glDeleteShader(fshader);
     } else {
-        // @TODO: Error-Handling.
+        // @Todo: Error-Handling.
     }
     
     return program;
@@ -242,7 +243,7 @@ opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char
         glDeleteShader(gshader);
         glDeleteShader(fshader);
     } else {
-        // @TODO: Error-Handling.
+        // @Todo: Error-Handling.
     }
     
     return program;
@@ -312,7 +313,7 @@ opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, 
         glDeleteShader(teshader);
         glDeleteShader(fshader);
     } else {
-        // @TODO: Error-Handling.
+        // @Todo: Error-Handling.
     }
     
     return program;
@@ -392,7 +393,7 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
         glDeleteShader(gshader);
         glDeleteShader(fshader);
     } else {
-        // @TODO: Error-Handling.
+        // @Todo: Error-Handling.
     }
     
     return program;
@@ -559,7 +560,7 @@ gl_pbr_bind_texture_and_set_flags(Opengl *gl, Mesh *mesh, GLuint slot, GLenum wr
 internal void
 opengl_compile_shaders(Opengl *gl)
 {
-    snprintf(g_shared, array_count(g_shared), R"(
+    str_snprintf(g_shared, array_count(g_shared), R"(
     #define MAX_BONE_PER_VERTEX %u
     #define MAX_BONE_PER_MESH   %u
     #define MAX_LIGHTS          %u
@@ -709,7 +710,7 @@ opengl_compile_shaders(Opengl *gl)
 }
 
 internal Render_Commands *
-opengl_begin_frame(Opengl *gl, v2u window_dim, v2u render_dim)
+opengl_frame_begin(Opengl *gl, v2u window_dim, v2u render_dim)
 {
     Render_Commands *frame = &gl->render_commands;
 
@@ -724,7 +725,7 @@ opengl_begin_frame(Opengl *gl, v2u window_dim, v2u render_dim)
 }
 
 internal void
-opengl_end_frame(Opengl *gl, Render_Commands *frame)
+opengl_frame_end(Opengl *gl, Render_Commands *frame)
 {
     u32 window_width  = frame->window_dim.w;
     u32 window_height = frame->window_dim.h;
@@ -732,7 +733,9 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
     u32 render_height = frame->render_dim.h;
 
 
-    { // @Frame texture
+    // -------------------------------------
+    // @Note: Frame Texture
+    {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
 
         glDeleteRenderbuffers(1, &gl->depth_buffer);
@@ -781,7 +784,8 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // @TODO: Robust Scissor Test
+    // -------------------------------------
+    // @Todo: Scissor Test?
     //glEnable(GL_SCISSOR_TEST);
     //glScissor(0, 0, window_width, window_height);
 
@@ -800,22 +804,25 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
     glFrontFace(GL_CCW);
 
 
-    // @Csm Frustum
+    // -------------------------------------
+    // @Note: CSM Frustum
     v3 *csm_frustum_positions = frame->csm_frustum_positions;
     f32 distance_between_near_and_far = distance(0.5f * (csm_frustum_positions[0] + csm_frustum_positions[3]),
                                                  0.5f * (csm_frustum_positions[4] + csm_frustum_positions[7]));
     const u32 frustum_point_count = 8 + (CSM_COUNT - 1) * 4;
     v3 frustum_positions[frustum_point_count] = {};
-    frustum_positions[0] = csm_frustum_positions[0];
-    frustum_positions[3] = csm_frustum_positions[3];
-    frustum_positions[1] = csm_frustum_positions[1];
-    frustum_positions[2] = csm_frustum_positions[2];
-    frustum_positions[frustum_point_count - 4] = csm_frustum_positions[4];
-    frustum_positions[frustum_point_count - 1] = csm_frustum_positions[7];
-    frustum_positions[frustum_point_count - 3] = csm_frustum_positions[5];
-    frustum_positions[frustum_point_count - 2] = csm_frustum_positions[6];
+    {
+        frustum_positions[0] = csm_frustum_positions[0];
+        frustum_positions[3] = csm_frustum_positions[3];
+        frustum_positions[1] = csm_frustum_positions[1];
+        frustum_positions[2] = csm_frustum_positions[2];
+        frustum_positions[frustum_point_count - 4] = csm_frustum_positions[4];
+        frustum_positions[frustum_point_count - 1] = csm_frustum_positions[7];
+        frustum_positions[frustum_point_count - 3] = csm_frustum_positions[5];
+        frustum_positions[frustum_point_count - 2] = csm_frustum_positions[6];
+    }
 
-    // @NOTE: If you change CSM_COUNT, you need to add interpolation value in here!
+    // @Note: If you change CSM_COUNT, you need to add interpolation value in here!
     const f32 frustum_z_weights[CSM_COUNT - 1] = {
         0.25f, 0.50f, 0.75f
     };
@@ -867,7 +874,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                 center += frustum_positions[level*4 + i];
             }
             center *= 0.125f;
-            m4x4 light_view = lookat(center + frame->csm_to_light, center, v3{0,1,0}); // @TODO: Fit z?
+            m4x4 light_view = lookat(center + frame->csm_to_light, center, v3{0,1,0}); // @Todo: Fit z?
 
             v3 min = V3(F32_MAX);
             v3 max = V3(-F32_MAX);
@@ -881,7 +888,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                 max.z = max(max.z, lp.z);
             }
 
-            f32 depth = max.z - min.z; // @TODO: Fit z?
+            f32 depth = max.z - min.z; // @Todo: Fit z?
 
             m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.0, depth*2.0);
             light_view_projs[level] = light_proj * light_view;
@@ -902,13 +909,17 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             v3 c = lerp(AB, t, CD);
 
             m4x4 light_view = lookat(c + frame->csm_to_light * r, c, V3(0,1,0));
-            m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // @TODO: Constant min and max depths
+            m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // @Todo: Constant min and max depths
             light_view_projs[level] = light_proj * light_view;
         }
     }
 
 
-    { // @Shadowmap
+
+    // -------------------------------------
+    // @Note: Shadow map, which is basically a orthographiclly viewed depth map
+    //        from directional light's perspective.
+    {
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -937,15 +948,15 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                 group_at += entity->size;
                 switch (entity->type)
                 {
-                    case eRender_Mesh: 
-                    {
+                    case eRender_Mesh: {
                         Render_Mesh *piece = (Render_Mesh *)entity;
                         Mesh *mesh = piece->mesh;
 
                         glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
                         glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
                         glUniform1i(shadowmap_program->is_skeletal, piece->animation_transforms ? 1 : 0);
-                        if (piece->animation_transforms) {
+                        if (piece->animation_transforms) 
+                        {
                             glUniformMatrix4fv(shadowmap_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
                         }
 
@@ -967,8 +978,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                         glDisableVertexAttribArray(6);
                     } break;
 
-                    default: 
-                    {
+                    default: {
                     } break;
                 }
             }
@@ -979,12 +989,16 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    { // @Skybox
+    // -------------------------------------
+    // @Note: Skybox
+    {
         glDisable(GL_CULL_FACE);
-        if (!gl->skybox_texture) {
+        if (! gl->skybox_texture) 
+        {
             glGenTextures(1, &gl->skybox_texture);
             glBindTexture(GL_TEXTURE_CUBE_MAP, gl->skybox_texture);
-            for (u32 i = 0; i < 6; ++i) {
+            for (u32 i = 0; i < 6; ++i) 
+            {
                 Bitmap *texture = frame->skybox_textures[i];
                 // @Temporary: 
                 glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, texture->width, texture->height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture->memory);
@@ -995,7 +1009,9 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                 glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); 
             }
-        } else {
+        } 
+        else 
+        {
             glBindTexture(GL_TEXTURE_CUBE_MAP, gl->skybox_texture);
         }
 
@@ -1017,7 +1033,10 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         glEnable(GL_CULL_FACE);
     }
 
-    { // @Framebuffer Texture
+
+    // -------------------------------------
+    // @Note: Framebuffer Texture
+    {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
         glViewport(0, 0, render_width, render_height);
 
@@ -1030,7 +1049,9 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        { // @Pbr
+        // -------------------------------------
+        // @Note: PBR
+        {
             Pbr_Program *pbr_program = &gl->pbr_program;
             glUseProgram(pbr_program->id);
 
@@ -1103,9 +1124,8 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
 
                             glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
 
-                            // Seems like a perf loss. -Ray
-                            if (piece->entity_id != 0 &&
-                                frame->active_entity_id == piece->entity_id) 
+                            // @Todo: seems like a perf loss.
+                            if (piece->entity_id != 0 && frame->active_entity_id == piece->entity_id) 
                             {
                                 glDisable(GL_DEPTH_TEST);
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -1120,8 +1140,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                         } break;
 
-                        default: 
-                        {
+                        default: {
                         } break;
                     }
                 }
@@ -1129,7 +1148,9 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             }
         }
 
-        { // @Triangles
+        // -------------------------------------
+        // @Note: Triangles
+        {
             Simple_Program *simple_program = &gl->simple_program;
             glUseProgram(simple_program->id);
 
@@ -1176,7 +1197,9 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        { // @Unit Circle
+        // -------------------------------------
+        // @Note: Unit Circle
+        {
             Circle_Program *circle_program = &gl->circle_program;
             glUseProgram(circle_program->id);
 
@@ -1205,7 +1228,10 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             glDisableVertexAttribArray(0);
         }
 
-        { // @Line
+
+        // -------------------------------------
+        // @Note: Lines
+        {
             Simple_Program *simple_program = &gl->simple_program;
             glUseProgram(simple_program->id);
 
@@ -1255,8 +1281,12 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             glEnable(GL_DEPTH_TEST);
         }
 
-        { // @Mouse Picking
-            if (!frame->input.interacted_ui) { // @Temporary
+        // -------------------------------------
+        // @Note: Mouse Picking
+        {
+            // @Temporary:
+            if (! frame->input.interacted_ui) 
+            {
                 glBindTexture(GL_TEXTURE_2D, gl->id_texture);
 
                 u32 entity_id;
@@ -1265,12 +1295,16 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                 glReadBuffer(GL_COLOR_ATTACHMENT1);
                 glReadPixels(mousex, mousey, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT, &entity_id);
                 
-                if (frame->input.mouse.is_down[Mouse_Left] && frame->input.mouse.toggle[Mouse_Left]) {
+                if (frame->input.mouse.is_down[Mouse_Left] && frame->input.mouse.toggle[Mouse_Left]) 
+                {
                     frame->toggled_down_mouse_position = frame->input.mouse.position;
                     frame->toggled_down_entity_id = entity_id;
-                } else if (!frame->input.mouse.is_down[Mouse_Left] && frame->input.mouse.toggle[Mouse_Left]) {
+                }
+                else if (!frame->input.mouse.is_down[Mouse_Left] && frame->input.mouse.toggle[Mouse_Left]) 
+                {
                     if (frame->toggled_down_entity_id == entity_id &&
-                        distance(frame->toggled_down_mouse_position, frame->input.mouse.position) < 1.0f) {
+                        distance(frame->toggled_down_mouse_position, frame->input.mouse.position) < 1.0f) 
+                    {
                         frame->active_entity_id = entity_id;
                     }
                 }
@@ -1283,8 +1317,9 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-
-    { // @Blt
+    // -------------------------------------
+    // @Note: Blt
+    {
         glDisable(GL_DEPTH_TEST);
         Blt_Program *program = &gl->blt_program;
         s32 pid = program->id;
@@ -1312,7 +1347,8 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         glDisableVertexAttribArray(2);
     }
 
-    // @Csm Frustum
+    // -------------------------------------
+    // @Note: CSM Frustum
     if (frame->draw_csm_frustum) 
     {
         glDisable(GL_DEPTH_TEST);
@@ -1327,15 +1363,16 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
             v4{0,1,0,0.1f},
             v4{0,0,1,0.1f},
         };
-        if (frame->draw_csm_sphere) {
-            for (u32 i = 0; i < array_count(colors); ++i) {
-                colors[i].a = 0.01f;
-            }
+        if (frame->draw_csm_sphere) 
+        {
+            for (u32 i = 0; i < array_count(colors); ++i) 
+            { colors[i].a = 0.01f; }
         }
 
         glUniformMatrix4fv(gl->simple_program.VP, 1, true, &frame->main_view_proj.e[0][0]);
         glBufferData(GL_ARRAY_BUFFER, array_count(frustum_positions) * sizeof(*frustum_positions), frustum_positions, GL_DYNAMIC_DRAW);
-        for (u32 i = 0; i < CSM_COUNT; ++i) {
+        for (u32 i = 0; i < CSM_COUNT; ++i) 
+        {
             glUniform4fv(gl->simple_program.color, 1, (GLfloat *)&colors[i % array_count(colors)]);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, csm_frustum_index_count * sizeof(u32), csm_frustum_indices + csm_frustum_index_count*i, GL_DYNAMIC_DRAW);
             glDrawElements(GL_TRIANGLES, csm_frustum_index_count, GL_UNSIGNED_INT, (void *)0);
@@ -1351,7 +1388,10 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
         glEnable(GL_DEPTH_TEST);
     }
 
-    { // @Orthographic
+
+    // -------------------------------------
+    // @Note: Ortho
+    {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1375,8 +1415,7 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
                 group_at += entity->size;
                 switch (entity->type)
                 {
-                    case eRender_Bitmap: 
-                    {
+                    case eRender_Bitmap: {
                         Render_Bitmap *piece = (Render_Bitmap *)entity;
 
                         glBindBuffer(GL_ARRAY_BUFFER, gl->vbo);
@@ -1434,15 +1473,17 @@ opengl_end_frame(Opengl *gl, Render_Commands *frame)
     }
 }
 
-
 internal void
 opengl_init(Opengl *gl)
 {
-#if __DEVELOPER
-    if (glDebugMessageCallbackARB) {
+#if BUILD_DEBUG
+    if (glDebugMessageCallbackARB) 
+    {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallbackARB(opengl_debug_callback, 0);
-    } else {
+    }
+    else 
+    {
         Assert("!glDebugMessageCallbackARB not found.");
     }
 #endif
@@ -1457,9 +1498,8 @@ opengl_init(Opengl *gl)
     gl->white_bitmap.handle  = 0;
     gl->white_bitmap.size    = 64;
     gl->white_bitmap.memory  = &gl->white;
-    for (u32 *at = (u32 *)gl->white; at <= &gl->white[3][3]; ++at) {
-        *at = 0xffffffff;
-    }
+    for (u32 *at = (u32 *)gl->white; at <= &gl->white[3][3]; ++at) 
+    { *at = 0xffffffff; }
     opengl_alloc_texture(gl, &gl->white_bitmap, GL_CLAMP_TO_EDGE);
 
     { //@Shadowmap

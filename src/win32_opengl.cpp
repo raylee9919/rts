@@ -115,7 +115,7 @@ global int win32_opengl_attribs[] =
     WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
     WGL_CONTEXT_MINOR_VERSION_ARB, 2,
     WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if __DEVELOPER
+#if BUILD_DEBUG
         |WGL_CONTEXT_DEBUG_BIT_ARB
 #endif
         ,
@@ -274,21 +274,21 @@ platform_opengl_set_vsync(Opengl *gl, b32 vsync_enabled)
 
 RENDERER_BEGIN_FRAME(win32_begin_frame)
 {
-    Render_Commands *result = opengl_begin_frame((Opengl *)renderer, os_window_dim, render_dim);
+    Render_Commands *result = opengl_frame_begin((Opengl *)renderer, os_window_dim, render_dim);
     return result;
 }
 
 RENDERER_END_FRAME(win32_end_frame)
 {
-    opengl_end_frame((Opengl *)renderer, frame);
+    opengl_frame_end((Opengl *)renderer, frame);
     HDC hdc = wglGetCurrentDC();
-    if (hdc) {
-        if (!SwapBuffers(hdc)) {
-            Assert(0);
-        }
-    } else {
-        Assert(0);
+    if (hdc) 
+    {
+        if (! SwapBuffers(hdc)) 
+        { Assert(0); }
     }
+    else 
+    { Assert(0); }
 }
 
 internal void
@@ -378,7 +378,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
 
     b32 reload = false;
 
-    // @Todo: broke
+    // @Fix: broke
     // if (arena->used) 
     // { reload = true; }
 
@@ -406,27 +406,35 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
     gl->push_buffer = (u8 *)push_size(arena, push_buffer_size);
     gl->push_buffer_size = push_buffer_size;
 
-    if (reload) {
+    if (reload) 
+    {
         win32_get_gl_functions(gl->info);
-    } else {
+    } 
+    else 
+    {
         b32 modern_context = true;
         HGLRC glrc = 0;
-        if (wglCreateContextAttribsARB) {
+        if (wglCreateContextAttribsARB) 
+        {
             glrc = wglCreateContextAttribsARB(window_dc, 0, win32_opengl_attribs);
         }
-        if (!glrc) {
+        if (! glrc) 
+        {
             modern_context = false;
             glrc = wglCreateContext(window_dc);
         }
         Assert(glrc);
 
-        if (wglMakeCurrent(window_dc, glrc)) {
+        if (wglMakeCurrent(window_dc, glrc)) 
+        {
             Opengl_Info info = opengl_get_info(gl, modern_context);
             win32_get_gl_functions(info);
             gl->info = info;
 
             platform_opengl_set_vsync(gl, true);
-        } else {
+        }
+        else 
+        {
             Assert(0);
         }
     }
