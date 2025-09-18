@@ -176,7 +176,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 }
 
 internal HWND
-win32_create_window(HINSTANCE hinst) 
+win32_window_create(HINSTANCE hinst) 
 {
     WNDCLASSEXW wcex = {};
     {
@@ -416,9 +416,15 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
     }
 
+
     // ----------------------------------------
     // @Note: create window.
-    HWND hwnd = win32_create_window(hinst);
+
+    // this must be place before creating window.
+    if (FAILED(SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)))
+    { os.abort(); }
+
+    HWND hwnd = win32_window_create(hinst);
     if (! hwnd) { Assert(! "Win32: Couldn't create window."); }
     win32_window_update_dark_mode(hwnd);
 
@@ -499,7 +505,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     while (g_running) 
     {
         {
-            // @Temporary: just learning win32 calls to gather memory status.
+            // @Temporary: just learning win32 calls of gathering memory status.
             MEMORYSTATUSEX ms;
             ms.dwLength = sizeof(ms);
             GlobalMemoryStatusEx(&ms);

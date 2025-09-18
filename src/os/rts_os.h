@@ -232,7 +232,6 @@ typedef OS_DECOMMIT(Os_Decommit);
 #define OS_RELEASE(name) void name(void *ptr, u64 size)
 typedef OS_RELEASE(Os_Release);
 
-
 // -----------------------------------------
 // @Note: Abort
 #define OS_ABORT(name) void name(void)
