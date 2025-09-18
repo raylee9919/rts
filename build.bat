@@ -33,10 +33,10 @@ pushd build
 if exist *.pdb del *.pdb
 
 :: Font
-rem call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
+call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
 
 :: Assimp
-rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
 call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
@@ -44,13 +44,13 @@ rts_meta.exe
 
 :: Renderers
 set renderer_export=/EXPORT:win32_load_renderer /EXPORT:win32_begin_frame /EXPORT:win32_end_frame
-call %compiler% %flags_compile% ..\src\win32_opengl.cpp /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
+call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
 
 :: Build Icon
 call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Game
-call %compiler% %flags_compile% ..\src\rts_game.cpp  /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
+call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
 call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 
 popd

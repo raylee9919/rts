@@ -11,8 +11,6 @@ global const char *g_shader_header =
 #include "shader/header.glsl"
 
 global char g_shared[2048];
-
-
     
 #define GET_UNIFORM_LOCATION(Program, Name) gl->Program.Name = glGetUniformLocation(gl->Program.id, #Name);
 #define GL_FOR(ITER) for (u32 gl_iter = 0; gl_iter < ITER; ++gl_iter)

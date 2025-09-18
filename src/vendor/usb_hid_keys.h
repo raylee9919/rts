@@ -14,7 +14,7 @@
 
 /**
  * Modifier masks - used for the first byte in the HID report.
- * NOTE: The second byte in the report is reserved, 0x00
+ * Note: The second byte in the report is reserved, 0x00
  */
 #define KEY_MOD_LCTRL  0x01
 #define KEY_MOD_LSHIFT 0x02

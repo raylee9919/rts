@@ -6,62 +6,28 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#define MAX_TOKEN_LENGTH 256
+// @Todo: This loader is mangled with metaprogramming module, which isn't neat.
+//        Adds crazy blackbox to the code. This must be resolved.
 
-enum Token_Type {
-    TOKEN_END_OF_INPUT = -1,
-    TOKEN_ERROR = 0,
-
-    TOKEN_IDENT   = 256,
-    TOKEN_INTEGER = 257,
-    TOKEN_FLOAT   = 258,
-    TOKEN_RAW     = 259,
-
-    // ASCII
-    TOKEN_MINUS = '-',
-    TOKEN_PERIOD = '.',
-    TOKEN_COLON = ':',
-    TOKEN_SEMICOLON = ';',
-};
-
-struct Token {
-    Token_Type type = TOKEN_ERROR;
-
-    union {
-        u64 integer_value;
-        f64 float_value;
-        umm raw_value;
-    };
-
-    char scratch_buffer[MAX_TOKEN_LENGTH];
-    u32 scratch_buffer_length;
-};
-
-struct Lexer {
-    s32 current_line_number = 1;
-    s32 current_character_index = 1;
-    s32 total_lines_processed = 0;
-
-    Utf8 input;
-    s32 input_cursor = 0;
-
-    Token tokens[100000]; // @Temporary
-    u32 token_count = 0;
-};
-
-inline bool starts_identifier(int c) {
+internal b32
+starts_identifier(int c) 
+{
     if (is_alpha(c)) return true;
     if (c == '_') return true;
     return false;
 }
 
-inline bool continues_identifier(int c) {
+internal b32
+continues_identifier(int c) 
+{
     if (is_alnum(c)) return true;
     if (c == '_') return true;
     return false;
 }
 
-inline bool starts_number(int c) {
+internal b32
+starts_number(int c) 
+{
     if (is_digit(c) || (c == '-')) return true;
     return false;
 }
@@ -215,7 +181,8 @@ void push_number(Lexer *lexer) {
     push_token(lexer, token);
 }
 
-void lexical_analysis(Lexer *lexer) {
+void lexical_analysis(Lexer *lexer) 
+{
     while (lexer->input_cursor <= lexer->input.len) 
     {
         int c = peek_next_character(lexer);
@@ -246,4 +213,101 @@ void lexical_analysis(Lexer *lexer) {
             } break;
         }
     }
+}
+
+
+void init(Lexer *lexer, Utf8 input, Parser *parser, Game_State *game_state) 
+{
+    lexer->input = input;
+    parser->lexer = lexer;
+    parser->game_state = game_state;
+}
+
+Token *peek_token(Parser *parser, int ahead = 0) 
+{
+    Assert(parser->token_cursor + ahead < parser->lexer->token_count);
+    return parser->lexer->tokens + parser->token_cursor + ahead;
+}
+
+void eat_token(Parser *parser) 
+{
+    ++parser->token_cursor;
+}
+
+s32 parse_integer(Parser *parser) 
+{
+    Token *token = peek_token(parser);
+    Assert(token && token->type == TOKEN_INTEGER);
+    eat_token(parser);
+    return token->integer_value;
+}
+
+f32 parse_float(Parser *parser) 
+{
+    f32 result;
+
+    Token *token = peek_token(parser);
+    Assert(token && token->type == TOKEN_FLOAT);
+
+    if (peek_token(parser, 1)->type == TOKEN_COLON) {
+        eat_token(parser); // FLOAT
+        eat_token(parser); // :
+        token = peek_token(parser);
+        Assert(token->type == TOKEN_RAW);
+        *(u32 *)&result = (u32)token->raw_value;
+    } else {
+        result = token->float_value;
+    }
+
+    eat_token(parser);
+    return result;
+}
+
+#include "generated/entity_deserialization.h"
+
+void parse(Parser *parser) 
+{
+    Lexer *lexer = parser->lexer;
+    while (1) {
+        Token *token = peek_token(parser);
+        switch (token->type) {
+            case TOKEN_IDENT:
+            {
+#include "generated/entity_parse.inl" // @Note: Metaprogramming: Ugly, but kinda works.
+                INVALID_CODE_PATH;
+            } break;
+
+            case TOKEN_END_OF_INPUT:
+            return;
+
+            INVALID_DEFAULT_CASE;
+        }
+    }
+}
+
+void load_map(Utf8 file_path, Game_State *game_state) 
+{
+    Temporary_Arena scratch = scratch_begin();
+
+#if __DEVELOPER
+    u64 pc_begin = os.perf_counter();
+#endif
+
+    Utf8 input = read_entire_file(scratch.arena, file_path);
+
+    Lexer *lexer = new Lexer(); // @Temporary
+    Parser parser = {};
+    init(lexer, input, &parser, game_state);
+    lexical_analysis(lexer);
+    parse(&parser);
+
+    delete lexer;
+
+#if __DEVELOPER
+    u64 pc_end = os.perf_counter();
+    f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os.perf_counter_freq_inv;
+    printf("Loaded map '%s' in %.2fms.\n", file_path.str, elapsed_ms);
+#endif
+
+    scratch_end(scratch);
 }

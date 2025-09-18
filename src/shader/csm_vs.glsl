@@ -1,5 +1,12 @@
-R"(
+/* ========================================================================
+   $File: $
+   $Date: $
+   $Revision: $
+   $Creator: Seong Woo Lee $
+   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
+   ======================================================================== */
 
+R"(
 uniform m4x4  world_transform;
 uniform m4x4  VP;
 uniform s32   is_skeletal;
@@ -15,23 +22,34 @@ layout (location = 6) in f32  bone_weights[MAX_BONE_PER_VERTEX];
 void main()
 {
     m4x4 M;
-    if (is_skeletal != 0) {
+    
+    if (is_skeletal != 0) 
+    {
         m4x4 bone_transform;
-        if (bone_ids[0] != -1) {
+        if (bone_ids[0] != -1) 
+        {
             bone_transform = bone_transforms[bone_ids[0]] * bone_weights[0];
-            for (s32 idx = 1; idx < MAX_BONE_PER_VERTEX; ++idx) {
+            for (s32 idx = 1; idx < MAX_BONE_PER_VERTEX; ++idx) 
+            {
                 s32 bone_id = bone_ids[idx];
-                if (bone_id != -1) {
+                if (bone_id != -1) 
+                {
                     bone_transform += bone_transforms[bone_id] * bone_weights[idx];
-                } else {
+                }
+                else 
+                {
                     break;
                 }
             }
-        } else {
+        }
+        else 
+        {
             bone_transform = identity();
         }
         M = world_transform * bone_transform;
-    } else {
+    } 
+    else 
+    {
         M = world_transform;
     }
 

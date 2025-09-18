@@ -1,3 +1,5 @@
+#ifndef RTS_RENDERER_OPENGL_H
+#define RTS_RENDERER_OPENGL_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -7,10 +9,12 @@
    ======================================================================== */
 
 
-
     
+#include <gl/gl.h>
 
 
+// ---------------------------------------------------------------
+// @Note: Scrapped from OpenGL core header file.
 typedef char    GLchar;
 typedef size_t  GLsizeiptr;
 typedef size_t  GLintptr;
@@ -150,7 +154,8 @@ typedef void (APIENTRY  *GLDEBUGPROCARB)(GLenum source,GLenum type,GLuint id,GLe
 #define GL_UNSIGNED_INT                     0x1405
 
 
-#define OPENGL_FUNCTION(Name) Type_##Name *Name
+// ---------------------------------------------------------------
+// @Note: Scrapped from OpenGL core header file.
 typedef BOOL        Type_wglSwapIntervalEXT(int interval);
 typedef GLuint      Type_glCreateShader(GLenum shaderType);
 typedef void        Type_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
@@ -225,6 +230,9 @@ typedef void        Type_glUniform4f (GLint location, GLfloat v0, GLfloat v1, GL
 typedef void        Type_glUniform2f (GLint location, GLfloat v0, GLfloat v1);
 
 
+// ---------------------------------------------------------------
+// @Note: Function Pointers
+#define OPENGL_FUNCTION(Name) Type_##Name *Name
 OPENGL_FUNCTION(glCreateShader);
 OPENGL_FUNCTION(glShaderSource);
 OPENGL_FUNCTION(glCompileShader);
@@ -493,3 +501,25 @@ struct Opengl
 
     u32     entity_id_texture;
 };
+
+
+// ---------------------------------------------------------------
+// @Note: Function Declarations.
+internal Opengl_Info opengl_get_info(Opengl *gl, b32 modern_context);
+internal GLuint opengl_create_compute_program(Opengl *gl, const char *csrc);
+internal GLuint opengl_create_program(Opengl *gl, const char *vsrc,const char *fsrc);
+internal GLuint opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char *fsrc);
+internal GLuint opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *fs);
+internal GLuint opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *gs, const char *fs);
+internal void opengl_alloc_texture(Opengl *gl, Bitmap *bitmap, GLenum wrapping, b32 generate_mipmap);
+internal void opengl_bind_texture(Opengl *gl, Bitmap *bitmap, b32 generate_mipmap);
+internal void opengl_bind_atomic_counter(Opengl *gl, s32 id, s32 binding_point);
+internal void opengl_gen_linear_buffer(Opengl *gl, u32 *buf, u32 *tex, GLenum format, size_t size);
+internal void opengl_set_flags_for_wireframe_mode(u32 *flags);
+internal void gl_pbr_bind_texture_and_set_flags(Opengl *gl, Mesh *mesh, GLuint slot, GLenum wrapping, b32 mipmap, Pbr_Texture_Type type, u32 *flags);
+internal void opengl_compile_shaders(Opengl *gl);
+internal Render_Commands *opengl_frame_begin(Opengl *gl, v2u window_dim, v2u render_dim);
+internal void opengl_frame_end(Opengl *gl, Render_Commands *frame);
+internal void opengl_init(Opengl *gl);
+
+#endif // RTS_RENDERER_OPENGL_H

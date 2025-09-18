@@ -6,6 +6,9 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+// @Todo: This abstraction layer is kinda messed up.
+
+
 // -------------------------------------
 // @Note: [.h]
 #include "base/rts_base_inc.h"
@@ -14,24 +17,26 @@
 #include "rts_asset.h"
 #include "rts_input.h"
 
-#include <gl/gl.h>
-#include <tchar.h>
-
 #include "renderer/rts_renderer.h"
-#include "win32_renderer.h"
+#include "renderer/opengl/rts_renderer_opengl.h"
+#include "rts_win32_renderer.h"
 
 // -------------------------------------
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
+#include "renderer/opengl/rts_renderer_opengl.cpp"
 
 
+// -------------------------------------
+// @Note: Windows Specific Directives
 #pragma comment(lib, "user32")
 #pragma comment(lib, "gdi32")
 #pragma comment(lib, "opengl32")
 
 
-
+// -------------------------------------
+// @Note: Windows Specific OpenGL Defines
 #define WGL_CONTEXT_MAJOR_VERSION_ARB               0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB               0x2092
 #define WGL_CONTEXT_LAYER_PLANE_ARB                 0x2093
@@ -97,7 +102,8 @@
 #define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB            0x20A9
 
 
-
+// -------------------------------------
+// @Note: Windows Specific OpenGL Functions.
 typedef HGLRC WINAPI Wgl_Create_Context_Attribs_Arb(HDC hDC, HGLRC hShareContext, const int *attribList);
 typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Iv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
 typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Fv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
@@ -110,6 +116,8 @@ global Wgl_Choose_Pixel_Format_Arb *wglChoosePixelFormatARB;
 global Wgl_Swap_Interval_Ext *wglSwapIntervalEXT;
 global Wgl_Get_Extensions_String_Ext *wglGetExtensionsStringEXT;
 
+// -------------------------------------
+// @Note: Windows Specific OpenGL Variables.
 global int win32_opengl_attribs[] =
 {
     WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
@@ -126,9 +134,6 @@ global int win32_opengl_attribs[] =
 #endif
     0,
 };
-
-#include "renderer_opengl.h"
-#include "renderer_opengl.cpp"
 
 #define WGL_GET_PROC_ADDRESS(Name) Name = (Type_##Name *)wglGetProcAddress(#Name)
 
@@ -176,10 +181,10 @@ win32_set_pixel_format(Opengl *gl, HDC window_dc)
                                 &suggested_pixel_format_index, &extended_pick);
     }
     
-    if (!extended_pick)
+    if (! extended_pick)
     {
-        // @TODO: Hey Raymond Chen - what's the deal here?
-        // Is cColorBits ACTUALLY supposed to exclude the alpha bits, like MSDN says, or not?
+        // @Todo: Hey Raymond Chen - what's the deal here?
+        //        Is cColorBits ACTUALLY supposed to exclude the alpha bits, like MSDN says, or not?
         PIXELFORMATDESCRIPTOR desired_pixel_format = {};
         desired_pixel_format.nSize      = sizeof(desired_pixel_format);
         desired_pixel_format.nVersion   = 1;
@@ -194,9 +199,9 @@ win32_set_pixel_format(Opengl *gl, HDC window_dc)
     }
     
     PIXELFORMATDESCRIPTOR suggested_pixel_format;
-    // @NOTE: Technically you do not need to call DescribePixelFormat here,
-    // as SetPixelFormat doesn't actually need it to be filled out properly.
-    //DescribePixelFormat(window_dc, suggested_pixel_format_index,
+    // @Note: Technically you do not need to call DescribePixelFormat here,
+    //        as SetPixelFormat doesn't actually need it to be filled out properly.
+    //        DescribePixelFormat(window_dc, suggested_pixel_format_index,
                         //sizeof(suggested_pixel_format), &suggested_pixel_format);
     SetPixelFormat(window_dc, suggested_pixel_format_index, &suggested_pixel_format);
 }
@@ -263,11 +268,13 @@ win32_load_wgl_extensions(Opengl *gl)
 internal void
 platform_opengl_set_vsync(Opengl *gl, b32 vsync_enabled)
 {
-    if(!wglSwapIntervalEXT) {
+    if(! wglSwapIntervalEXT) 
+    {
         wglSwapIntervalEXT = (Wgl_Swap_Interval_Ext *)wglGetProcAddress("wglSwapIntervalEXT");
     }
 
-    if(wglSwapIntervalEXT) {
+    if (wglSwapIntervalEXT) 
+    {
         wglSwapIntervalEXT(vsync_enabled ? 1 : 0);
     }
 }

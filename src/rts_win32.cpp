@@ -16,6 +16,7 @@
 #include "rts_input.h"
 #include "rts_platform.h"
 #include "rts_win32.h"
+#include "renderer/rts_renderer.h"
 
 // -----------------------------------
 // @Note: [.cpp]
@@ -39,8 +40,7 @@ global b32                  g_running = true;
 global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 
-#include "renderer/rts_renderer.h"
-#include "win32_renderer.h"
+#include "rts_win32_renderer.h"
 
 
 // ----------------------------------------------------
@@ -434,7 +434,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         win32.binary_path        = binary_path;
         win32.game_dll_path      = utf8f(win32.arena, "%S/rts_game.dll", binary_path);
-        win32.renderer_dll_path  = utf8f(win32.arena, "%S/win32_opengl.dll", binary_path);
+        win32.renderer_dll_path  = utf8f(win32.arena, "%S/rts_renderer_opengl.dll", binary_path);
         win32.lock_path          = utf8f(win32.arena, "%S/lock.tmp", binary_path);
     }
 

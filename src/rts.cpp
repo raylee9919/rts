@@ -21,17 +21,17 @@
 #include "rts_platform.h"
 #include "rts_asset.h"
 #include "rts_input.h"
-#include "queue.h"              // -------> @Todo: cleanup
-#include "priority_queue.h"     // -----------------^
+#include "rts_ds.h" // @Todo: cleanup
 #include "rts_ui.h"
 #include "rts_delaunay.h"
 #include "rts_nav.h"
-#include "rts_game.h"
+#include "rts.h"
 #include "rts_geogen.h"
 #include "renderer/rts_renderer.h"
 #include "renderer/rts_renderer.cpp" // @Todo: mangeld with generated entity header currently.
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
+#include "rts_map_loader.h"
 #include "rts_sim.h"
 #include "rts_console.h"
 #include "rts_debug.h"
@@ -49,6 +49,7 @@
 #include "rts_delaunay.cpp"
 #include "rts_nav.cpp"
 #include "rts_sim.cpp"
+#include "rts_map_loader.cpp"
 #include "rts_console.cpp"
 #include "rts_debug.cpp"
 
@@ -155,8 +156,6 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
     }
     ui.end();
 }
-
-#include "map_loader.cpp"
 
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
