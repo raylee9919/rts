@@ -6,6 +6,10 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+// -----------------------------------
+// @Todo: 1. Should we support scalable dpi?
+//   
+
 
 // -----------------------------------
 // @Note: [.h]
@@ -17,6 +21,7 @@
 #include "rts_platform.h"
 #include "rts_win32.h"
 #include "renderer/rts_renderer.h"
+#include "rts_win32_renderer.h"
 
 // -----------------------------------
 // @Note: [.cpp]
@@ -40,10 +45,8 @@ global b32                  g_running = true;
 global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 
-#include "rts_win32_renderer.h"
 
-
-// ----------------------------------------------------
+// -----------------------------------
 // @Note: Input.
 // @Todo: bad :(
 internal void
@@ -121,7 +124,7 @@ win32_process_mouse_click(s32 vk, Mouse_Input *mouse)
     mouse->is_down[E] = is_down;
 }
 
-// ----------------------------------------------------
+// -----------------------------------
 // @Note: Window
 internal LRESULT 
 win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
@@ -279,7 +282,7 @@ win32_client_size(HWND hwnd)
     return result;
 }
 
-// ----------------------------------------------------
+// -----------------------------------
 // @Note: Code Reloading
 internal u64
 win32_get_last_modified(Utf8 file_path)
@@ -370,7 +373,7 @@ win32_code_modified(Win32_Code *loaded)
 }
 
 
-// ----------------------------------------------------
+// -----------------------------------
 // @Note: Entry
 #if BUILD_DEBUG
 int wmain(int argc, wchar_t *argv[]) 
@@ -420,9 +423,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     // ----------------------------------------
     // @Note: create window.
 
-    // this must be place before creating window.
-    if (FAILED(SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)))
-    { os.abort(); }
+    // it must be place before creating window.
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     HWND hwnd = win32_window_create(hinst);
     if (! hwnd) { Assert(! "Win32: Couldn't create window."); }

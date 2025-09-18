@@ -1,3 +1,5 @@
+#ifndef RTS_WIN32_H
+#define RTS_WIN32_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -57,8 +59,6 @@ internal void win32_toggle_fullscreen(HWND window);
 internal v2u win32_client_size_from_hwnd(HWND hwnd);
 
 
-
-
 // ----------------------------------------------------
 // @Note: OpenGL
 #define WGL_GET_PROC_ADDRESS(Name) Name = (Type_##Name *)wglGetProcAddress(#Name)
@@ -74,3 +74,5 @@ typedef BOOL Type_wglChoosePixelFormatARB(HDC hdc,
                                           int *piFormats,
                                           UINT *nNumFormats);
 global Type_wglChoosePixelFormatARB *wglChoosePixelFormatARB;
+
+#endif
