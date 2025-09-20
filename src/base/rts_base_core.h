@@ -102,6 +102,8 @@ typedef uint8_t     u8;
 typedef uint16_t    u16; 
 typedef uint32_t    u32; 
 typedef uint64_t    u64; 
+typedef s8          b8;
+typedef s16         b16;
 typedef s32         b32;
 typedef float       f32; 
 typedef double      f64; 
@@ -120,17 +122,19 @@ typedef intptr_t    smm;
 
 // -------------------------------------
 // @Note: Clamp
+
+#define array_count(array) ( sizeof(array) / sizeof(array[0]) )
+#define offsetof(Type, Member) (size_t)&(((Type *)0)->Member)
+#define int_from_ptr(p) (u64)(((u8*)p) - 0)
+#define ptr_from_int(i) (void*)(((u8*)0) + i)
+#define offset_of(type, member) int_from_ptr(&((type *)0)->member)
+#define base_from_member(type, member_name, ptr) (type *)((u8 *)(ptr) - offset_of(type, member_name))
+#define align_pow2(x,b)      (((x) + (b) - 1)&(~((b) - 1)))
+#define align_down_pow2(x,b) ((x)&(~((b) - 1)))
 #define clamp(a, lo, hi)    (min(max(a, lo), hi))
 #define clamp_lo(a, lo)     (max(a, lo))
 #define clamp_hi(a, hi)     (min(a, hi))
 #define clamp01(a)          clamp(a, 0, 1)
-
-#define array_count(array) ( sizeof(array) / sizeof(array[0]) )
-#define offsetof(Type, Member) (size_t)&(((Type *)0)->Member)
-#define int_from_ptr(p) (U64)(((U8*)p) - 0)
-#define ptr_from_int(i) (void*)(((U8*)0) + i)
-#define align_pow2(x,b)      (((x) + (b) - 1)&(~((b) - 1)))
-#define align_down_pow2(x,b) ((x)&(~((b) - 1)))
 
 #define quick_sort(base, type, count, cmp) qsort((base), (count), sizeof(type), (int(*)(const void *, const void *))(cmp))
 
@@ -143,6 +147,119 @@ typedef intptr_t    smm;
 #define zero_memory(ptr, size)      memory_set((ptr), 0, (size))
 #define zero_struct(ptr)            memory_set((ptr), 0, sizeof(*(ptr)))
 #define zero_array(ptr, count)      memory_set((ptr), 0, sizeof(*(ptr))*(count))
+
+// ----------------------------------
+// @Note: Data Structure Macros
+#define check_null(p) ((p)==0)
+#define set_null(p) ((p)=0)
+#define check_nil(nil, p) ((p)==0 || (p)==(nil))
+
+
+#define sll_push_back_nz(f, l, n, next, zchk, zset) \
+    ( ( zchk(f) ) ? \
+      ( (f)=(l)=(n), zset((n)->next) ) : \
+      ( (l)->next = (n), (l) = (n), zset((n)->next) ) )
+#define sll_push_back(f, l, n) sll_push_back_nz((f), (l), (n), next, check_null, set_null)
+
+#define sll_pop_front_nz(f, l, next, zset) \
+    ( ( (f)==(l) ) ? \
+      ( zset(f), zset(l) ) : \
+      ( (f)=(f)->next ) )
+#define sll_pop_front(f, l) sll_pop_front_nz(f,l,next,set_null)
+
+#define list_for_n(f, it, next) for (decltype(f) (it) = (f); (it) != 0; (it) = (it)->next)
+#define list_for(f, it)  list_for_n(f, it, next)
+
+// ---------------------------------------
+// @Note: Doubly Linked List
+//            You don't use a sentinel, and you pass 'item_first' pointer as a parameter to a function.
+//        In the function, you remove the first item. What happens next? When you pop out of the function, 
+//        you lost track of the 'actual' first item in the list. Maybe you can resolve this by double pointer macro though.
+//            I'm using sentinel for now. Sentinel is always there, which is good. You won't lost the state of the list.
+//        The phase(?) when you push or remove is always the same, and it makes implementation easeier, but I dont' consider 
+//        this a critical gain. It just makes your life easier for a short time. The problem I face with sentinel is that, 
+//        you need to allocate and initialize to use it. Before you start using it, you have to check if the sentinel is null (allocation), 
+//        and you have to check if sentinel's next, prev pointer is pointing itself (initialization). Allocating goes through arena, which 
+//        will init to zero. Thus, if next and prev pointers are zero, it means it isn't initted. Then the API will initialze it. What about
+//        push_noz? Ah...
+//            I may want composible data structure, even though I don't know what it is at this point. To achieve such thing, 
+//        initialization might be a constraint. I don't know. Must do some study and experiments.
+//
+#define dll_init_npz(s, next, prev, ifz) \
+    ( ifz(s) ? \
+      (0) : \
+      ((s)->next = (s), (s)->prev = (s)) )
+#define dll_init(s) dll_init_npz(s, next, prev, check_null)
+
+#define dll_push_back_npz(s, n, next, prev, ifz) \
+    ( ifz(s) ? \
+      (0) : \
+      ( (ifz((s)->next) || ifz((s)->prev)) ? \
+        ( dll_init_npz(s, next, prev, ifz), ((n)->prev=(s)->prev, (n)->next=(s), (s)->prev->next=(n), (s)->prev=(n)) ) : \
+        ( (n)->prev=(s)->prev, (n)->next=(s), (s)->prev->next=(n), (s)->prev=(n) ) ) )
+#define dll_push_back_np(s, n, next, prev) dll_push_back_npz(s, n, next, prev, check_null)
+#define dll_push_back(s, n) dll_push_back_npz(s, n, next, prev, check_null)
+
+#define dll_remove_npz(s, n, next, prev, zchk, zset) \
+    ( ((n) == (s)) ? \
+      (0) : \
+      ( zchk(n) ? \
+        (0) : \
+        ( ((zchk((n)->prev) ? (0) : (n)->prev->next = (n)->next)), \
+          ((zchk((n)->next) ? (0) : (n)->next->prev = (n)->prev)) ) ) )
+#define dll_remove(s, n) dll_remove_npz(s, n, next, prev, check_null, set_null)
+
+
+#define dll_sort_npz(s, type, cmp, next, prev, zchk) \
+    ( zchk(s) ? (0) : _dll_sort(s, sizeof(type), offset_of(type, next), offset_of(type,prev), cmp) )
+#define dll_sort(s, type, cmp) dll_sort_npz(s, type, cmp, next, prev, check_null)
+
+internal void *_dll_np(void *node, u64 np);
+internal void _dll_sort(void *sentinel, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
+
+
+
+// ----------------------------------
+// @Todo: Dynamic Array. Is it a good idea...?
+#define DYNAMIC_ARRAY_DATA(TYPE)\
+    struct {\
+        Arena *arena;\
+        TYPE  *base;\
+        u64   count_cur;\
+        u64   count_max;\
+    }
+
+#define Dynamic_Array(TYPE)\
+    union {\
+        DYNAMIC_ARRAY_DATA(TYPE);\
+        TYPE *payload;\
+    }
+
+#define DAR_RESERVE_INIT 64
+
+#define dar_init(A, ARENA)\
+    (A)->arena = ARENA;\
+    (A)->base = (decltype((A)->payload))push_size(ARENA, sizeof(decltype(*(A)->payload)) * DAR_RESERVE_INIT);\
+    (A)->count_cur = 0;\
+    (A)->count_max = DAR_RESERVE_INIT
+
+// @Todo: Fragmentation.
+#define dar_push(A, ITEM)\
+    if (((A)->count_cur >= (A)->count_max)) {\
+        void *new_base = push_size((A)->arena, sizeof(decltype(*(A)->payload)) * ((A)->count_max << 1));\
+        memory_copy( new_base, (A)->base, sizeof(decltype(*(A)->payload)) * (A)->count_max );\
+        (A)->count_max <<= 1;\
+    }\
+    *(decltype((A)->payload))( ((decltype((A)->payload))((A)->base)) + ((A)->count_cur++) ) = ITEM;
+
+// Sets the length of an array to at least N.
+#define dar_reserve(A, N)\
+    if ((A)->count_max < N) {\
+        void *new_base = push_size( (A)->arena, sizeof(decltype(*(A)->payload)) * N );\
+        memory_copy( new_base, (A)->base, sizeof(decltype(*(A)->payload)) * (A)->count_cur );\
+        (A)->count_max = N; \
+    }
+
 
 
 // -----------------------------------------

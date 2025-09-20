@@ -32,11 +32,14 @@ pushd build
 
 if exist *.pdb del *.pdb
 
-:: Font
-call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
+:: Font (Legacy)
+rem call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
+
+:: Font (New)
+call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /wd4457 /link %flags_linker%
 
 :: Assimp
-call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
 call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
