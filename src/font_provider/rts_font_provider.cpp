@@ -13,7 +13,7 @@
 #include "rts_math.h"
 
 #include "rect_pack/rts_rect_pack.h"
-#include "font_provider/rts_ds.h"
+#include "font_provider/rts_fp_ds.h"
 #include "font_provider/rts_font_provider.h"
 #include "font_provider/rts_dwrite.h"
 
@@ -24,7 +24,7 @@
 #include "rts_math.cpp"
 
 #include "rect_pack/rts_rect_pack.cpp"
-#include "font_provider/rts_ds.cpp"
+#include "font_provider/rts_fp_ds.cpp"
 #include "font_provider/rts_dwrite.cpp"
 
 int main(void)
@@ -42,13 +42,13 @@ int main(void)
 
     // -------------------------------
     // @Note: configs.
-    f32 pt_per_em = 16.0f; // aka, font size.
+    f32 pt_per_em = 20.0f; // aka, font size.
     f32 px_per_inch = 96.0f;
-    WCHAR *base_font_family_name = L"Consolas";
+    WCHAR *base_font_family_name = L"Roboto Mono";
     Dwrite_Get_Base_Font_Family_Index_Result family = dwrite_get_base_font_family_index(base_font_family_name);
     Assert(family.exists);
     b32 is_cleartype = TRUE;
-    WCHAR *text = L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    WCHAR *text = L"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     u64 text_length = wcslen(text);
 
 
@@ -69,10 +69,7 @@ int main(void)
         rpk_init(atlas->rpk_ctx, atlas->arena, atlas->width, atlas->height);
     }
 
-    Dwrite_Unit *unit = NULL;
-    // if (unit)
-    // { dwrite_release_unit(unit); }
-    unit = dwrite_map_text_to_glyphs(dwrite.font_fallback1, dwrite.font_collection, dwrite.text_analyzer1, dwrite.locale, base_font_family_name, pt_per_em, px_per_inch, text, text_length);
+    Dwrite_Unit *unit = dwrite_map_text_to_glyphs(dwrite.font_fallback1, dwrite.font_collection, dwrite.text_analyzer1, dwrite.locale, base_font_family_name, pt_per_em, px_per_inch, text, text_length);
 
     Glyph_Cel_Array glyph_cels = {};
     dar_init(&glyph_cels, permanent_arena);

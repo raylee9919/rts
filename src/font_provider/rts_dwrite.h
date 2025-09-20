@@ -8,6 +8,10 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+#pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "dwrite.lib")
+
+
 //----------------------------------------------
 // @Note: 
 // "dwrite_2.h" minimum: Windows 8.1

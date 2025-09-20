@@ -26,12 +26,13 @@ if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
 if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
 
 
-:: ---------------------------- Project ---------------------------- ::
+:: ---------------------------- Projects ---------------------------- ::
 if not exist build mkdir build
 pushd build
 
 if exist *.pdb del *.pdb
 
+:: ---------------------------- Tools ---------------------------- ::
 :: Font (Legacy)
 rem call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
 
@@ -39,12 +40,13 @@ rem call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %fla
 call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /wd4457 /link %flags_linker%
 
 :: Assimp
-rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
 call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
 rts_meta.exe
 
+:: ---------------------------- Game ---------------------------- ::
 :: Renderers
 set renderer_export=/EXPORT:win32_load_renderer /EXPORT:win32_begin_frame /EXPORT:win32_end_frame
 call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
