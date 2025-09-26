@@ -9,52 +9,6 @@
 #define pi32                3.141592f
 #define epsilon_f32         1.19209e-07f
 
-union v2 {
-    struct { f32 x, y; };
-    f32 e[2];
-};
-
-union v2u {
-    struct {u32 x, y;};
-    struct {u32 w, h;};
-    u32 e[2];
-};
-
-union v3 {
-    struct {
-        union {
-            struct { f32 x, y; };
-            v2 xy;
-        };
-        f32 z;
-    };
-    f32 e[3];
-};
-
-union v4 {
-    struct {
-        union {
-            struct { f32 r, g, b; };
-            v3 rgb;
-        };
-        f32 a;
-    };
-    struct {
-        union {
-            struct {
-                union {
-                    v2 xy;
-                    struct { f32 x, y; };
-                };
-                f32 z;
-            };
-            v3 xyz;
-        };
-        f32 w;
-    };
-    f32 e[4];
-};
-
 struct m4x4 
 {
     f32 e[4][4];
@@ -68,6 +22,12 @@ struct Quaternion
 struct Rect2 
 {
     v2 min, max;
+};
+
+struct AABB2
+{
+    v2 min;
+    v2 max;
 };
 
 internal f32 absolute(f32 val);
@@ -169,3 +129,7 @@ internal m4x4 lookat(v3 eye, v3 center, v3 up_);
 internal m4x4 view_transform(v3 position, Quaternion orientation);
 internal m4x4 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 internal f32 degrees_to_radian(f32 x);
+
+// # Note: AABB2
+//
+internal b32 point_in_aabb2(v2 a, AABB2 p);

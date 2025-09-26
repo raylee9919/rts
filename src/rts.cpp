@@ -7,20 +7,19 @@
    ======================================================================== */
 
 
-// @Todo: We are testing our metaprogramming currently. Those defines are kind of 
-//        API for serializing data types of entity known to serialization module.
+// # Todo: We are testing our metaprogramming currently. Those defines are kind of 
+//         API for serializing data types of entity known to serialization module.
 #define BEGIN_ENTITY
 #define END_ENTITY
 
-// ---------------------------------
-// @Note: [.h]
+// # Note: [.h]
+//
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_random.h"
 #include "rts_platform.h"
 #include "rts_asset.h"
-#include "rts_input.h"
 #include "rts_ds.h" // @Todo: cleanup
 #include "rts_ui.h"
 #include "rts_delaunay.h"
@@ -28,68 +27,40 @@
 #include "rts.h"
 #include "rts_geogen.h"
 #include "renderer/rts_renderer.h"
-#include "renderer/rts_renderer.cpp" // @Todo: mangeld with generated entity header currently.
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "rts_map_loader.h"
 #include "rts_sim.h"
-#include "rts_console.h"
-#include "rts_debug.h"
+
+// # Note: globals.
+//
+global Renderer *renderer;
 
 
-// ---------------------------------
-// @Note: [.cpp]
+// # Note: [.cpp]
+//
 #include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
 #include "rts_random.cpp"
 #include "rts_asset.cpp"
+#include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
-#include "rts_input.cpp"
 #include "rts_ui.cpp"
 #include "rts_delaunay.cpp"
 #include "rts_nav.cpp"
 #include "rts_sim.cpp"
 #include "rts_map_loader.cpp"
-#include "rts_console.cpp"
-#include "rts_debug.cpp"
 
 
 internal void
-game_update_mode(Game_State *game_state, Input *input) 
-{
-    switch (game_state->mode) 
-    {
-        case Game_Mode_Game: {
-            if (toggled_down(input, KEY_ESC)) 
-            {
-                game_state->mode = Game_Mode_Menu;
-            }
-        } break;
-
-        case Game_Mode_Menu: {
-            if (toggled_down(input, KEY_ESC)) 
-            {
-                game_state->mode = Game_Mode_Game;
-            }
-        } break;
-
-        case Game_Mode_Editor: { 
-
-        } break;
-
-        INVALID_DEFAULT_CASE;
-    }
-}
-
-internal void
-update_entities(World *world, Game_State *game_state, Input *input)
+update_entities(World *world, Game_State *game_state)
 {
     for (u32 idx = 0; idx < world->entity_count; ++idx) 
     {
         Entity *entity = world->entities[idx];
         if (entity->id != 0) 
         {
-            entity->update(entity, game_state, input);
+            entity->update(entity, game_state);
         }
     }
 }
@@ -109,31 +80,16 @@ draw_entities(Game_State *game_state, Render_Commands *commands, Render_Group *r
 }
 
 internal void
-update_and_draw_entity_panel(Game_State *game_state)
-{
-    for (u32 idx = 0; idx < game_state->world->entity_count; ++idx) 
-    {
-        Entity *entity = game_state->world->entities[idx];
-        if (entity->id != 0) 
-        {
-            if (entity->panel) 
-            {
-                entity->panel(entity, game_state);
-            }
-        }
-    }
-}
-
-internal void
-update_cameras(World *world, Game_State *game_state, Input *input)
+update_cameras(World *world, Game_State *game_state)
 {
     for (u32 idx = 0; idx < world->camera_count; ++idx) 
     {
         Camera *camera = world->cameras[idx];
-        camera->update((Entity *)camera, game_state, input);
+        camera->update((Entity *)camera, game_state);
     }
 }
 
+#if 0
 internal void
 ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
 {
@@ -156,20 +112,44 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
     }
     ui.end();
 }
+#endif
 
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
+    // # Note: acquire os.
+    //
+    if (os == NULL)
+    {
+        os = platform->os;
+    }
+
+    // # Note: acquire renderer.
+    //
+    if (renderer == NULL)
+    {
+        renderer = platform->renderer;
+        if (! renderer->initted)
+        {
+            render_init();
+        }
+    }
+
+    // # Note: acquire game state.
+    //
     Game_State *game_state = (Game_State *)platform->game_state;
-    if (! game_state)
-    { platform->game_state = game_state = push_struct(platform->arena, Game_State); }
+    if (! game_state) 
+    {
+        platform->game_state = game_state = push_struct(platform->arena, Game_State);
+    }
 
-    os = platform->os;
-
-    f32 draw_width  = input->draw_dim.w;
-    f32 draw_height = input->draw_dim.h;
-
-    input->dt = clamp(input->dt, 0.001f, 0.1f); // @Todo: Warn on out-out-range refresh.
+    {
+        game_state->draw_width  = platform->draw_width;
+        game_state->draw_height = platform->draw_height;
+        // @Todo: Warn on out-out-range refresh.
+        game_state->dt_real = clamp(platform->dt, 0.001f, 0.1f);
+        game_state->dt_game = game_state->dt_real;
+    }
 
     if (! game_state->initted) 
     {
@@ -178,30 +158,25 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         thread_init();
 
         game_state->asset_arena = arena_alloc();
-        game_state->game_assets = push_struct(game_state->asset_arena, Game_Assets);
-
-        game_state->debug_arena = arena_alloc();
-        game_state->debug_state = push_struct(game_state->debug_arena, Debug_State);
-
-        game_state->ui_arena = arena_alloc();
+        game_state->assets = push_struct(game_state->asset_arena, Game_Assets);
 
         game_state->frame_arena = arena_alloc();
 
         // -------------------------------------------
-        // @Note: init world.
+        // -Note: init world.
         Arena *world_arena = arena_alloc();
         World *world = game_state->world = push_struct(world_arena, World);
         world->arena = world_arena;
         world->next_entity_id = 1;
 
-        game_state->mode = Game_Mode_Editor;
+        game_state->mode = GAME_MODE_GAME;
         game_state->random_series = rand_seed(1219);
 
-        { // @Temporary
+        { // -Temporary
             Temporary_Arena scratch = scratch_begin();
             scope_exit(scratch_end(scratch));
 
-            Game_Assets *assets = game_state->game_assets;
+            Game_Assets *assets = game_state->assets;
             Arena *asset_arena = game_state->asset_arena;
 
             assets->sphere_model = push_struct(asset_arena, Model);
@@ -272,12 +247,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             {
                 asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/Times New Roman.sfnt", platform->data_path), &assets->times);
                 asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/noto_serif.sfnt", platform->data_path), &assets->debug_font);
-                asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/noto_serif.sfnt", platform->data_path), &assets->console_font);
                 asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/gill_sans.sfnt", platform->data_path), &assets->menu_font);
                 asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/Karmina Regular.sfnt", platform->data_path), &assets->karmina);
             }
 
-            asset_load_image(&game_state->game_assets->debug_bitmap, utf8f(scratch.arena, "%S/textures/doggo.sbmp", platform->data_path), asset_arena);
+            asset_load_image(&game_state->assets->debug_bitmap, utf8f(scratch.arena, "%S/textures/doggo.sbmp", platform->data_path), asset_arena);
 
             char *skybox_filenames[6] = {"right", "left", "top", "bottom", "front", "back"};
             for (u32 i = 0; i < 6; ++i) 
@@ -287,7 +261,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                                  asset_arena);
             }
 
-            // @Temporary: init cameras.
+            // -Temporary: init cameras.
             {
                 game_state->game_camera = push_entity(world, Camera, V3(0,0,0));
                 {
@@ -308,7 +282,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                     game_state->orthographic_camera->init(Camera_Type_Orthographic, 0, -100, 100, world);
                 }
 
-                game_state->controlling_camera = game_state->debug_camera;
+                //game_state->controlling_camera = game_state->debug_camera;
+                game_state->controlling_camera = game_state->game_camera;
             }
 
 
@@ -318,7 +293,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             render_commands->csm_varient_method = true;
 
-            // @Temporary: We are setting navmesh input data by hand.
+            // -Temporary: We are setting navmesh input data by hand.
             {
                 Arena *arena = arena_alloc();
                 game_state->navmesh = push_struct(arena, Navmesh);
@@ -358,7 +333,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 }
             }
 
-            // @Todo: not neat.
+            // -Todo: not neat.
             begin_constrain(navmesh);
             {
                 push_vertex(navmesh, v3{ 1.0f, 0, 3.0f});
@@ -378,46 +353,44 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             navmesh->cdt = delaunay_triangulate(navmesh->vertices, navmesh->vertex_count, navmesh);
         }
     }
-    // @Note: this temporary frame arena must be cleared every frame.
+
+    // # Note: ui alloc/init
+    //
+    if (ui == NULL)
+    {
+        // allocate
+        Arena *arena = arena_alloc();
+        ui = push_struct(arena, Ui_State);
+        ui->arena = arena;
+
+        // init
+        ui_init(ui);
+    }
+
+    // # Temporary:
+    if (ui_button(utf8lit("ThisIsButton")).clicked)
+    {
+        printf("Button Clicked!\n");
+    }
+
+    // # Note: this temporary frame arena must be cleared every frame.
     arena_clear(game_state->frame_arena);
 
+    // # Note: clear renderer
+    render_begin();
 
+    // # Temporary:
     game_state->active_entity_id = render_commands->active_entity_id;
     game_state->view_proj = game_state->controlling_camera->VP;
 
-
+    // # Note: Alias
     World *world = game_state->world;
-    Game_Assets *assets = game_state->game_assets;
-    Debug_State *debug_state = (Debug_State *)game_state->debug_state;
-    Console *console = &debug_state->console;
-
-    if (! debug_state->initted) 
-    {
-        debug_state->initted = true;
-
-        Debug_State *ds = debug_state;
-        console_init(&ds->console, &assets->console_font);
-
-        ds->speed = 1.0f;
-        ds->current_speed_idx = 3;
-        ds->speed_slider[0] = 0.33f;
-        ds->speed_slider[1] = 0.50f;
-        ds->speed_slider[2] = 0.75f;
-        ds->speed_slider[3] = 1.00f;
-        ds->speed_slider[4] = 1.50f;
-
-        ds->speed_text[0] = "x0.33";
-        ds->speed_text[1] = "x0.5";
-        ds->speed_text[2] = "x0.75";
-        ds->speed_text[3] = "x1";
-        ds->speed_text[4] = "x1.5";
-    }
+    Game_Assets *assets = game_state->assets;
 
     Render_Group *render_group       = begin_render_group(render_commands, MB(16));
     Render_Group *orthographic_group = begin_render_group(render_commands, MB(16));
 
-
-    // @Temporary:
+    // # Temporary:
     Navmesh *navmesh = game_state->navmesh;
     Cdt_Result *cdt = &navmesh->cdt;
 
@@ -432,44 +405,29 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             v4 tmp = game_state->controlling_camera->VP * V4(get_centroid(navmesh, i), 1);
             v3 projected_position = (tmp.xyz / tmp.w);
-            projected_position.xy = hadamard(binormal_to_normal(projected_position.xy), v2{draw_width, draw_height});
-
-            //push_shadowed_string(orthographic_group, projected_position, buf, &game_state->game_assets->times);
+            projected_position.xy = hadamard(binormal_to_normal(projected_position.xy), v2{(f32)platform->draw_width, (f32)platform->draw_height});
         }
     }
 
-    if (! ui.initted) 
-    { ui.init(input, game_state->ui_arena, orthographic_group, &assets->times, &assets->menu_font); }
-
-    // @Todo: cleanup
-    input->dt *= debug_state->speed;
-    game_state->real_time += input->actual_dt;
-    update_input_state(input, event_queue, input->actual_dt);
-
-    game_update_mode(game_state, input);
     switch (game_state->mode) 
     {
-        case Game_Mode_Game: {
-            ui_dev(render_commands, game_state, input);
-            update_entities(world, game_state, input);
-
+        case GAME_MODE_GAME: 
+        {
+            // ui_dev(render_commands, game_state, input);
+            update_entities(world, game_state);
             draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
-
-            console_update(&debug_state->console, game_state, input);
-            console_draw(&debug_state->console, orthographic_group, game_state->real_time, draw_width, draw_height);
-
-            debug_update_game_speed(debug_state, input);
-            debug_draw_game_speed_text(debug_state, input, orthographic_group, &assets->menu_font);
         } break;
 
-        case Game_Mode_Editor: {
-            if (!game_state->editor_initted) 
+        case GAME_MODE_EDITOR: 
+        {
+            if (! game_state->editor_initted) 
             {
                 game_state->editor_initted = true;
-                update_entities(world, game_state, input);
+                update_entities(world, game_state);
                 game_state->controlling_camera = game_state->debug_camera;
             }
 
+#if 0
             ui_dev(render_commands, game_state, input);
             ui.begin("Editor Panel", V2(0.6f, 0.7f));
             v4 color = V4(0.2f,0.8f,0.2f,0.4f);
@@ -503,37 +461,24 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 ui.fadeout_text(V4(1.0f), "Save");
             }
             ui.end();
+#endif
 
-            update_and_draw_entity_panel(game_state);
             // no update entities in editor mode.
-            update_cameras(world, game_state, input);
+            update_cameras(world, game_state);
             draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
-
-            console_update(&debug_state->console, game_state, input);
-            console_draw(&debug_state->console, orthographic_group, game_state->real_time, draw_width, draw_height);
         } break;
 
-        case Game_Mode_Menu: {
-
-        } break;
-
-        INVALID_DEFAULT_CASE;
+        default: { assert(! "invalid default case"); } break;
     }
 
-    debug_draw_performance(orthographic_group, input, &assets->times);
-
-    { // @Note: Render Commands
-        render_commands->time = game_state->game_time;
-
-        render_commands->input = *input;
-
+    { // -Note: Render Commands
         render_commands->main_eye_position = game_state->controlling_camera->position;
         render_commands->main_view_proj = game_state->controlling_camera->VP;
         render_commands->ortho_view_proj = game_state->orthographic_camera->VP;
 
         render_commands->wireframe_color = V4(0.9f, 0.9f, 0.9f, 1.0f);
 
-        { // @Note: Skybox
+        { // -Note: Skybox
             render_commands->skybox_on = true;
             render_commands->skybox_mesh = &assets->skybox_mesh;
             render_commands->skybox_eye_view_proj = game_state->controlling_camera->VP;
@@ -542,34 +487,43 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
         }
 
-        { // @Note: CSM
+        { // -Note: CSM
             render_commands->csm_to_light = normalize(V3(1,1,1));
             f32 csm_frustum_edge_length = 50.0f;
             m4x4 inv = inverse(game_state->game_camera->VP);
-            // @Todo: Renderer independent calculation!
+            // -Todo: Renderer independent calculation!
             v4 ndcs[4] = {
                 v4{-1,-1,-1, 1},
                 v4{ 1,-1,-1, 1},
                 v4{-1, 1,-1, 1},
                 v4{ 1, 1,-1, 1},
             };
+
             v3 eye = game_state->game_camera->position;
             v4 positions[8];
-            for (u32 i = 0; i < 4; ++i) {
+            
+            for (u32 i = 0; i < 4; ++i) 
+            {
                 positions[i] = inv * ndcs[i];
                 positions[i].xyz *= (1.0f / positions[i].w);
             }
-            for (u32 i = 0; i < 4; ++i) {
+
+            for (u32 i = 0; i < 4; ++i) 
+            {
                 v3 d = normalize(positions[i].xyz - eye);
                 positions[4+i] = positions[i];
                 positions[4+i].xyz += (csm_frustum_edge_length*d);
             }
-            for (u32 i = 0; i < 8; ++i) {
+
+            for (u32 i = 0; i < 8; ++i) 
+            {
                 render_commands->csm_frustum_positions[i] = positions[i].xyz;
             }
             render_commands->csm_view = game_state->game_camera->V;
         }
     }
 
-    ui.end_frame();
+    draw_quad({100, 100}, {250, 150});
+
+    render_end();
 }

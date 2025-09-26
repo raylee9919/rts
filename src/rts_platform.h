@@ -8,19 +8,24 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+struct Renderer;
+
 struct Platform
 {
-    Arena *arena;
+    Arena      *arena;
 
-    OS os;
+    OS         *os;
+    void       *game_state;
+    Utf8        data_path;
+    f32         dt;
 
-    void *game_state;
-    Utf8 data_path;
+    Renderer    *renderer;
+
+    u32         draw_width;
+    u32         draw_height;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(struct Platform *platform,\
-                                               struct Input *input,\
-                                               struct Event_Queue *event_queue,\
                                                struct Render_Commands *render_commands)
 typedef GAME_UPDATE_AND_RENDER(Game_Update_And_Render);
 

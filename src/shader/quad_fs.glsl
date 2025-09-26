@@ -6,21 +6,19 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#if OS_WINDOWS
-#  include "os/win32/rts_os_win32.cpp"
-#else
-#  error Undefined OS
-#endif
+R"(
 
+uniform sampler2D texture_sample;
 
-internal
-OS_INIT(os_init)
+in vec2 fUV;
+out vec4 C;
+
+void main()
 {
-#if OS_WINDOWS
-    os_win32_init();
-#else
-#  error Undefined OS
-#endif
+    vec4 const_color = vec4(0,1,1,1);
+    vec4 texture_color = texture(texture_sample, fUV);
+
+    C = vec4(fUV, 0, 1);
 }
 
-
+)";

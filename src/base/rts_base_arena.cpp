@@ -11,12 +11,12 @@
 internal Arena *
 arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
 {
-    u64 page_size = os.query_page_size();
+    u64 page_size = os->query_page_size();
     u64 rsv_size = align_pow2(rsv_size_in, page_size);
     u64 cmt_size = align_pow2(cmt_size_in, page_size);
 
-    void *base = os.memory_reserve(rsv_size);
-    os.memory_commit(base, cmt_size);
+    void *base = os->memory_reserve(rsv_size);
+    os->memory_commit(base, cmt_size);
 
     Assert(base != 0);
 
@@ -40,7 +40,7 @@ arena_release(Arena *arena)
     for (Arena *n = arena->current, *prev = 0; n != 0; n = prev)
     {
         prev = n->prev;
-        os.memory_release(n, n->rsv);
+        os->memory_release(n, n->rsv);
     }
 }
 
@@ -78,7 +78,7 @@ arena_push(Arena *arena, u64 size, u64 align)
         u64 cmt_pst_clamped = clamp_hi(cmt_pst_aligned, current->rsv);
         u64 cmt_size = cmt_pst_clamped - current->cmt;
         u8 *cmt_ptr = (u8 *)current + current->cmt;
-        os.memory_commit(cmt_ptr, cmt_size);
+        os->memory_commit(cmt_ptr, cmt_size);
         current->cmt = cmt_pst_clamped;
     }
 
@@ -109,7 +109,7 @@ arena_pop_to(Arena *arena, u64 pos)
     for (Arena *prev = 0; current->base_pos >= big_pos; current = prev)
     {
         prev = current->prev;
-        os.memory_release(current, current->rsv);
+        os->memory_release(current, current->rsv);
     }
 
     arena->current = current;

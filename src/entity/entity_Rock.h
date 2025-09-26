@@ -18,20 +18,18 @@ struct Rock : public Entity
     void init(Game_State *game_state) {
         Entity::init();
 
-        Game_Assets *assets = game_state->game_assets;
+        Game_Assets *assets = game_state->assets;
         model = assets->rock_model;
 
         update     = update_Rock;
         draw       = draw_Rock;
         serialize  = serialize_Rock;
-        panel      = panel_Rock;
     }
 };
 
 internal ENTITY_FUNCTION_UPDATE(update_Rock)
 {
     Rock *e = (Rock *)entity;
-    f32 dt = input->dt;
 };
 
 internal ENTITY_FUNCTION_DRAW(draw_Rock)
@@ -46,19 +44,3 @@ internal ENTITY_FUNCTION_DRAW(draw_Rock)
         }
     }
 }
-
-internal ENTITY_FUNCTION_PANEL(panel_Rock)
-{
-    Rock *e = (Rock *)entity;
-
-    v4 color = V4(0.3f,0.0f,0.0f,0.4f);
-    if (game_state->active_entity_id == entity->id) {
-        entity->begin_panel(entity, game_state);
-        char text[256];
-        if (e->model) {
-            snprintf(text, sizeof(text), "#Triangle: %u", get_triangle_count(e->model));
-            ui.text(v4{0.5f,0.6f,0.3f,0.4f}, text);
-        }
-        entity->end_panel(entity, game_state);
-    }
-};

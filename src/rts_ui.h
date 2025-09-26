@@ -5,66 +5,97 @@
    $Date: $
    $Revision: $
    $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
+   $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-struct Ui_Element 
+// # Note: core.
+//
+struct Ui_Key
 {
-    u32 id;
-    v2 position;
-    Ui_Element *next;
+    u64 e[1];
 };
 
-struct Ui_Hashmap 
+enum Ui_Size_Type
 {
-    Ui_Element entries[4096];
+    UI_SIZE_NULL = 0,
+    UI_SIZE_PX   = 1,
 };
 
-struct Ui_Fadeout_Text 
+struct Ui_Size
 {
-    f32 t;
-    char *text;
-    v4 color;
+    Ui_Size_Type    type;
+    f32             value;
+    f32             strictness;
 };
 
-struct Ui
+typedef u32 Ui_Box_Flags;
+enum
 {
-    b32 initted;
-    Arena *arena;
-
-    Input *input;
-    Mouse_Input *mouse;
-    struct Render_Group *render_group;
-    Asset_Font *font;
-    Asset_Font *bigfont;
-
-    u32 hot;
-    u32 active;
-
-    v2 top_left;
-
-    u32 crc32_lut[256];
-
-    Ui_Hashmap hashmap;
-
-    Ui_Fadeout_Text fadeout_texts[32];
-    u32 next_fadeout_text;
-
-    void init(Input *input, Arena *arena, Render_Group *render_group, Asset_Font *font, Asset_Font *bigfont);
-    b32 hot_begins(Rect2 rect);
-    void begin(char *label, v2 top_left = v2{}, b32 attachanchor = true);
-    void end();
-    void next(f32 itemheight);
-    void description(char *description);
-    void text(v4 color, char *text);
-    void fadeout_text(v4 color, char *text);
-    b32 button(v4 color, char *text, char *description = 0);
-    b32 checkbox(b32 *data, v4 default_color, char *text, char *description = 0);
-    b32 slider(f32 *data, f32 min, f32 max, v4 default_color, char *text, char *desc = 0);
-    void gizmo(v3 *position, m4x4 view_proj);
-    void end_frame();
+    UI_BOX_FLAG_CLICKABLE       = (1<<0),
+    UI_BOX_FLAG_DRAW_BACKGROUND = (1<<1),
 };
 
-global Ui ui;
+struct Ui_Box
+{
+    // # Note: Box hierarchy
+    //         Rewritten from scratch on every frame.
+    Ui_Box          *parent;
+    Ui_Box          *first;
+    Ui_Box          *last;
+    Ui_Box          *next;
+    Ui_Box          *prev;
+
+    // # Note: Hash table chain (closed addressing/open hashing)
+    //         Used to lookup the persistent part of the structure.
+    Ui_Box          *hash_next;
+
+
+    Ui_Box_Flags    flags;
+
+    Ui_Key          key;
+
+    f32             t_hot;
+    f32             t_active;
+};
+
+struct Ui_Signal
+{
+    Ui_Box  *box;
+    b8      clicked;
+};
+
+struct Ui_Box_Slot
+{
+    Ui_Box *first;
+    Ui_Box *last;
+};
+
+struct Ui_State
+{
+    Arena          *arena;
+
+    Ui_Key          key_hot;
+    Ui_Key          key_active;
+
+    u64             box_table_size;
+    Ui_Box_Slot    *box_table;
+};
+
+
+// # Note: globals.
+//
+global Ui_State *ui;
+read_only Ui_Key ui_key_zero;
+
+
+// # Note: core functions.
+//
+
+
+
+
+
+
+
 
 #endif // RTS_UI_H

@@ -21,7 +21,6 @@ uniform u32 entity_id;
 uniform u32 hot_entity_id;
 uniform u32 active_entity_id;
 
-uniform f32 time;
 uniform u32 flags;
 uniform v4 wireframe_color;
 uniform v4 tint;

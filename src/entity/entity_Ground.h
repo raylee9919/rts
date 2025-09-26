@@ -25,7 +25,7 @@ struct Ground : public Entity
         draw        = draw_Ground;
         serialize   = serialize_Ground;
 
-        model = game_state->game_assets->plane_model;
+        model = game_state->assets->plane_model;
     }
 };
 

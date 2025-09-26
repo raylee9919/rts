@@ -6,37 +6,42 @@
    $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// @Todo: This abstraction layer is kinda messed up.
+// # Todo: This layer is kinda messed up.
 
 
-// -------------------------------------
-// @Note: [.h]
+// #Note: Desired OpenGL Version
+//
+#define RTS_GL_VERSION_MAJOR 4
+#define RTS_GL_VERSION_MINOR 5
+    
+
+// # Note: [.h]
+//
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_asset.h"
-#include "rts_input.h"
 
 #include "renderer/rts_renderer.h"
-#include "renderer/opengl/rts_renderer_opengl.h"
+#include "renderer/opengl/rts_gl.h"
 #include "rts_win32_renderer.h"
 
-// -------------------------------------
-// @Note: [.cpp]
+// # Note: [.cpp]
+//
 #include "base/rts_base_inc.cpp"
 #include "rts_math.cpp"
-#include "renderer/opengl/rts_renderer_opengl.cpp"
+#include "renderer/opengl/rts_gl.cpp"
 
 
-// -------------------------------------
-// @Note: Windows Specific Directives
+// # Note: Windows-specific directives.
+//
 #pragma comment(lib, "user32")
 #pragma comment(lib, "gdi32")
 #pragma comment(lib, "opengl32")
 
 
-// -------------------------------------
-// @Note: Windows Specific OpenGL Defines
+// # Note: WGL Constants
+//
 #define WGL_CONTEXT_MAJOR_VERSION_ARB               0x2091
 #define WGL_CONTEXT_MINOR_VERSION_ARB               0x2092
 #define WGL_CONTEXT_LAYER_PLANE_ARB                 0x2093
@@ -102,8 +107,8 @@
 #define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB            0x20A9
 
 
-// -------------------------------------
-// @Note: Windows Specific OpenGL Functions.
+// # Note: WGL Functions.
+//
 typedef HGLRC WINAPI Wgl_Create_Context_Attribs_Arb(HDC hDC, HGLRC hShareContext, const int *attribList);
 typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Iv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
 typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Fv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
@@ -116,12 +121,12 @@ global Wgl_Choose_Pixel_Format_Arb *wglChoosePixelFormatARB;
 global Wgl_Swap_Interval_Ext *wglSwapIntervalEXT;
 global Wgl_Get_Extensions_String_Ext *wglGetExtensionsStringEXT;
 
-// -------------------------------------
-// @Note: Windows Specific OpenGL Variables.
+// # Note: WGL Globals.
+//
 global int win32_opengl_attribs[] =
 {
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
-    WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+    WGL_CONTEXT_MAJOR_VERSION_ARB, RTS_GL_VERSION_MAJOR,
+    WGL_CONTEXT_MINOR_VERSION_ARB, RTS_GL_VERSION_MINOR,
     WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
 #if BUILD_DEBUG
         |WGL_CONTEXT_DEBUG_BIT_ARB
@@ -134,26 +139,6 @@ global int win32_opengl_attribs[] =
 #endif
     0,
 };
-
-#define WGL_GET_PROC_ADDRESS(Name) Name = (Type_##Name *)wglGetProcAddress(#Name)
-
-#if 0
-internal void *
-win32_renderer_alloc(umm size)
-{
-    void *result = VirtualAlloc(0, size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    return result;
-}
-
-internal void
-win32_renderer_free(void *memory)
-{
-    if (memory) {
-        VirtualFree(memory, 0, MEM_RELEASE);
-    }
-}
-#endif
-
 
 internal void
 win32_set_pixel_format(Opengl *gl, HDC window_dc) 
@@ -173,7 +158,8 @@ win32_set_pixel_format(Opengl *gl, HDC window_dc)
             0,
         };
         
-        if (!gl->supports_srgb_framebuffer) {
+        if (! gl->supports_srgb_framebuffer) 
+        {
             int_attrib_list[11] = 0;
         }
         
@@ -183,26 +169,27 @@ win32_set_pixel_format(Opengl *gl, HDC window_dc)
     
     if (! extended_pick)
     {
-        // @Todo: Hey Raymond Chen - what's the deal here?
-        //        Is cColorBits ACTUALLY supposed to exclude the alpha bits, like MSDN says, or not?
+        // # Todo: Hey Raymond Chen - what's the deal here?
+        //         Is cColorBits ACTUALLY supposed to exclude the alpha bits, like MSDN says, or not?
         PIXELFORMATDESCRIPTOR desired_pixel_format = {};
-        desired_pixel_format.nSize      = sizeof(desired_pixel_format);
-        desired_pixel_format.nVersion   = 1;
-        desired_pixel_format.iPixelType = PFD_TYPE_RGBA;
-        desired_pixel_format.dwFlags    = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
-        desired_pixel_format.cColorBits = 32;
-        desired_pixel_format.cAlphaBits = 8;
-        desired_pixel_format.cDepthBits = 24;
-        desired_pixel_format.iLayerType = PFD_MAIN_PLANE;
+        {
+            desired_pixel_format.nSize      = sizeof(desired_pixel_format);
+            desired_pixel_format.nVersion   = 1;
+            desired_pixel_format.iPixelType = PFD_TYPE_RGBA;
+            desired_pixel_format.dwFlags    = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+            desired_pixel_format.cColorBits = 32;
+            desired_pixel_format.cAlphaBits = 8;
+            desired_pixel_format.cDepthBits = 24;
+            desired_pixel_format.iLayerType = PFD_MAIN_PLANE;
+        }
         
         suggested_pixel_format_index = ChoosePixelFormat(window_dc, &desired_pixel_format);
     }
     
     PIXELFORMATDESCRIPTOR suggested_pixel_format;
-    // @Note: Technically you do not need to call DescribePixelFormat here,
-    //        as SetPixelFormat doesn't actually need it to be filled out properly.
-    //        DescribePixelFormat(window_dc, suggested_pixel_format_index,
-                        //sizeof(suggested_pixel_format), &suggested_pixel_format);
+    // # Note: Technically you do not need to call DescribePixelFormat here,
+    //         as SetPixelFormat doesn't actually need it to be filled out properly.
+    // DescribePixelFormat(window_dc, suggested_pixel_format_index, sizeof(suggested_pixel_format), &suggested_pixel_format);
     SetPixelFormat(window_dc, suggested_pixel_format_index, &suggested_pixel_format);
 }
 
@@ -248,20 +235,20 @@ win32_load_wgl_extensions(Opengl *gl)
                     at = end;
                 }
             } else {
-                Assert(0);
+                assert(0);
             }
 
-            Assert(wglMakeCurrent(0, 0));
+            assert(wglMakeCurrent(0, 0));
         } else {
-            Assert(0);
+            assert(0);
         }
 
-        Assert(wglDeleteContext(glrc));
+        assert(wglDeleteContext(glrc));
         ReleaseDC(window, dc);
         DestroyWindow(window);
         UnregisterClassA(wclass.lpszClassName, wclass.hInstance);
     } else {
-        Assert(0);
+        assert(0);
     }
 }
 
@@ -287,20 +274,25 @@ RENDERER_BEGIN_FRAME(win32_begin_frame)
 
 RENDERER_END_FRAME(win32_end_frame)
 {
-    opengl_frame_end((Opengl *)renderer, frame);
+    opengl_frame_end((Opengl *)platform_renderer, renderer, frame);
     HDC hdc = wglGetCurrentDC();
     if (hdc) 
     {
         if (! SwapBuffers(hdc)) 
-        { Assert(0); }
+        {
+            assert(0); 
+        }
     }
     else 
-    { Assert(0); }
+    {
+        assert(0); 
+    }
 }
 
 internal void
 win32_get_gl_functions(Opengl_Info info)
 {
+#define WGL_GET_PROC_ADDRESS(name) name = (Type_##name *)wglGetProcAddress(#name)
     WGL_GET_PROC_ADDRESS(glCreateShader);
     WGL_GET_PROC_ADDRESS(glShaderSource);
     WGL_GET_PROC_ADDRESS(glCompileShader);
@@ -369,6 +361,10 @@ win32_get_gl_functions(Opengl_Info info)
     WGL_GET_PROC_ADDRESS(glCheckFramebufferStatus);
     WGL_GET_PROC_ADDRESS(glUniform4f);
     WGL_GET_PROC_ADDRESS(glUniform2f);
+    WGL_GET_PROC_ADDRESS(glGetUniformiv);
+    WGL_GET_PROC_ADDRESS(glGetActiveUniform);
+    WGL_GET_PROC_ADDRESS(glGetActiveAttrib);
+    WGL_GET_PROC_ADDRESS(glDrawArraysInstanced);
 
     if (info.opengl_arb_framebuffer_object) 
     {
@@ -379,13 +375,13 @@ win32_get_gl_functions(Opengl_Info info)
 }
 
 internal Opengl *
-win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
+win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS *os_init)
 {
     os = os_init;
 
     b32 reload = false;
 
-    // @Fix: broke
+    // # Fix: broke
     // if (arena->used) 
     // { reload = true; }
 
@@ -430,7 +426,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
             modern_context = false;
             glrc = wglCreateContext(window_dc);
         }
-        Assert(glrc);
+        assert(glrc);
 
         if (wglMakeCurrent(window_dc, glrc)) 
         {
@@ -442,7 +438,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS os_init)
         }
         else 
         {
-            Assert(0);
+            assert(0);
         }
     }
 

@@ -9,8 +9,6 @@
    ======================================================================== */
 
 struct Camera;
-struct Ui;
-struct Debug_State;
 struct Entity;
 
 #define MAX_ENTITY_COUNT 1024
@@ -34,7 +32,6 @@ struct Game_Assets
 
     Asset_Font debug_font;
     Asset_Font menu_font;
-    Asset_Font console_font;
     Asset_Font karmina;
     Asset_Font times;
 
@@ -57,9 +54,8 @@ struct Game_Assets
 
 enum Game_Mode 
 {
-    Game_Mode_Editor,
-    Game_Mode_Game,
-    Game_Mode_Menu,
+    GAME_MODE_EDITOR,
+    GAME_MODE_GAME,
 };
 
 struct Game_State 
@@ -71,17 +67,15 @@ struct Game_State
     Arena *frame_arena;
 
     Arena *asset_arena;
-    Game_Assets *game_assets;
+    Game_Assets *assets;
 
     World *world;
 
-    Arena *debug_arena;
-    Debug_State *debug_state;
+    u32 draw_width;
+    u32 draw_height;
 
-    Arena *ui_arena;
-
-    f32 real_time;
-    f32 game_time;
+    f32 dt_real;
+    f32 dt_game;
 
     Game_Mode mode;
 

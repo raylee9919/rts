@@ -290,7 +290,7 @@ void load_map(Utf8 file_path, Game_State *game_state)
     Temporary_Arena scratch = scratch_begin();
 
 #if __DEVELOPER
-    u64 pc_begin = os.perf_counter();
+    u64 pc_begin = os->perf_counter();
 #endif
 
     Utf8 input = read_entire_file(scratch.arena, file_path);
@@ -304,8 +304,8 @@ void load_map(Utf8 file_path, Game_State *game_state)
     delete lexer;
 
 #if __DEVELOPER
-    u64 pc_end = os.perf_counter();
-    f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os.perf_counter_freq_inv;
+    u64 pc_end = os->perf_counter();
+    f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os->perf_counter_freq_inv;
     printf("Loaded map '%s' in %.2fms.\n", file_path.str, elapsed_ms);
 #endif
 

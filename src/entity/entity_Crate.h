@@ -15,11 +15,10 @@ struct Crate : public Entity
     void init(Game_State *game_state) {
         Entity::init();
 
-        model = game_state->game_assets->crate_model;
+        model = game_state->assets->crate_model;
         update = update_Crate;
         draw = draw_Crate;
         serialize = serialize_Crate;
-        panel = panel_Crate;
 
         flags |= Flag_Navmesh;
     }
@@ -40,21 +39,5 @@ internal ENTITY_FUNCTION_DRAW(draw_Crate)
             Mesh *mesh = crate->model->meshes + mesh_idx;
             push_mesh(render_group, mesh, transform, 0, crate->id, v2{1,1});
         }
-    }
-}
-
-internal ENTITY_FUNCTION_PANEL(panel_Crate)
-{
-    Crate *e = (Crate *)entity;
-
-    v4 color = V4(0.3f,0.0f,0.0f,0.4f);
-    if (game_state->active_entity_id == entity->id) {
-        entity->begin_panel(entity, game_state);
-        char text[256];
-        if (e->model) {
-            snprintf(text, sizeof(text), "#Triangle: %u", get_triangle_count(e->model));
-            ui.text(v4{0.5f,0.6f,0.3f,0.4f}, text);
-        }
-        entity->end_panel(entity, game_state);
     }
 }

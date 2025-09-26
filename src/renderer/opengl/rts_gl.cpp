@@ -7,17 +7,9 @@
    ======================================================================== */
 
 
-global const char *g_shader_header = 
-#include "shader/header.glsl"
-
-global char g_shared[2048];
-    
-#define GET_UNIFORM_LOCATION(Program, Name) gl->Program.Name = glGetUniformLocation(gl->Program.id, #Name);
-#define GL_FOR(ITER) for (u32 gl_iter = 0; gl_iter < ITER; ++gl_iter)
-
-#define GL_DEBUG_CALLBACK(Name) void Name(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
-typedef GL_DEBUG_CALLBACK(GLDEBUGPROC);
-GL_DEBUG_CALLBACK(opengl_debug_callback)
+internal void
+opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                      GLsizei length, const GLchar *message, const void *userParam)
 {
     char *error = (char *)message;
     switch (severity) 
@@ -26,10 +18,11 @@ GL_DEBUG_CALLBACK(opengl_debug_callback)
 
         } break;
         case GL_DEBUG_SEVERITY_MEDIUM: {
-            // Assert(0);
+            // assert(0);
         } break;
         case GL_DEBUG_SEVERITY_HIGH: {
-            Assert(0);
+            gl_printf((char *)message);
+            assert(! "high severity");
         } break;
     }
 }
@@ -38,11 +31,13 @@ internal Opengl_Info
 opengl_get_info(Opengl *gl, b32 modern_context)
 {
     Opengl_Info result = {};
+    {
+        result.modern_context = modern_context;
+        result.vendor         = (char *)glGetString(GL_VENDOR);
+        result.renderer       = (char *)glGetString(GL_RENDERER);
+        result.version        = (char *)glGetString(GL_VERSION);
+    }
     
-    result.modern_context = modern_context;
-    result.vendor         = (char *)glGetString(GL_VENDOR);
-    result.renderer       = (char *)glGetString(GL_RENDERER);
-    result.version        = (char *)glGetString(GL_VERSION);
     if (result.modern_context) 
     {
         result.shading_language_version = (char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
@@ -60,19 +55,21 @@ opengl_get_info(Opengl *gl, b32 modern_context)
         {
             char *ext_name = (char *)glGetStringi(GL_EXTENSIONS, i);
             
-            if(0) {}
+            if (0) {}
             else if(string_equal(ext_name, "GL_EXT_texture_sRGB")) { result.opengl_ext_texture_sgb=true; }
             else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
-            // @Todo: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
+            // # Todo: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
         }
     }
     
     char *major_at = result.version;
     char *minor_at = 0;
-    for (char *at = result.version; *at; ++at) {
-        if(at[0] == '.') {
+    for (char *at = result.version; *at; ++at) 
+    {
+        if (at[0] == '.') 
+        {
             minor_at = at + 1;
             break;
         }
@@ -80,18 +77,21 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     
     s32 major = 1;
     s32 minor = 0;
-    if (minor_at) {
+    if (minor_at) 
+    {
         major = s32_from_z(major_at);
         minor = s32_from_z(minor_at);
     }
     
-    if ((major > 2) || ((major == 2) && (minor >= 1))) {
-        // @Note: We _believe_ we have sRGB textures in 2.1 and above automatically.
+    if ((major > 2) || ((major == 2) && (minor >= 1))) 
+    {
+        // # Note: We _believe_ we have sRGB textures in 2.1 and above automatically.
         result.opengl_ext_texture_sgb = true;
     }
     
-    if (major >= 3) {
-        // @Note: We _believe_ we have framebuffer objects in 3.0 and above automatically.
+    if (major >= 3) 
+    {
+        // # Note: We _believe_ we have framebuffer objects in 3.0 and above automatically.
         result.opengl_arb_framebuffer_object=true;
     }
     
@@ -117,7 +117,7 @@ opengl_create_compute_program(Opengl *gl, const char *csrc)
         glValidateProgram(program);
         GLint linked = false;
         glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (!linked) 
+        if (! linked) 
         {
             GLsizei stub;
 
@@ -127,63 +127,76 @@ opengl_create_compute_program(Opengl *gl, const char *csrc)
             GLchar plog[1024];
             glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
 
-            Assert(!"compile/link error.");
+            assert(!"compile/link error.");
         }
 
         glDeleteShader(cshader);
-    } else {
-        // Todo: handling.
+    } 
+    else 
+    {
+        // # Todo: handling.
     }
     
     return program;
 }
 
 internal GLuint
-opengl_create_program(Opengl *gl, const char *vsrc,const char *fsrc)
+opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
 {
     GLuint program = 0;
 
-    if (glCreateShader) 
+    assert(glCreateShader);
+
+    // # Note: Compile vertex shader.
+    //
+    GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+    const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
+    glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
+    glCompileShader(vshader);
+
+    // # Note: Compile fragment shader.
+    //
+    GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
+    const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
+    glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
+    glCompileShader(fshader);
+
+    // # Note: Create program.
+    //
+    program = glCreateProgram();
+    glAttachShader(program, vshader);
+    glAttachShader(program, fshader);
+    glLinkProgram(program);
+
+    // # Note: Validate program.
+    //
+    glValidateProgram(program);
+    GLint linked = false;
+    glGetProgramiv(program, GL_LINK_STATUS, &linked);
+    if (! linked) 
     {
-        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-        const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
-        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
-        glCompileShader(vshader);
+        GLsizei stub;
 
-        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-        const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
-        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
-        glCompileShader(fshader);
+        GLchar vlog[1024];
+        glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
+        gl_printf(vlog);
 
-        program = glCreateProgram();
-        glAttachShader(program, vshader);
-        glAttachShader(program, fshader);
-        glLinkProgram(program);
+        GLchar flog[1024];
+        glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
+        gl_printf(vlog);
 
-        glValidateProgram(program);
-        GLint linked = false;
-        glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (!linked) {
-            GLsizei stub;
+        GLchar plog[1024];
+        glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
+        gl_printf(vlog);
 
-            GLchar vlog[1024];
-            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
-
-            GLchar flog[1024];
-            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
-
-            GLchar plog[1024];
-            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-
-            Assert(!"compile/link error.");
-        }
-
-        glDeleteShader(vshader);
-        glDeleteShader(fshader);
-    } else {
-        // @Todo: Error-Handling.
+        assert(! "compile/link error.");
     }
-    
+
+    // # Note: Cleanup.
+    //
+    glDeleteShader(vshader);
+    glDeleteShader(fshader);
+
     return program;
 }
 
@@ -234,7 +247,7 @@ opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char
             GLchar plog[1024];
             glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
 
-            Assert(!"compile/link error.");
+            assert(!"compile/link error.");
         }
 
         glDeleteShader(vshader);
@@ -303,7 +316,7 @@ opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, 
             GLchar plog[1024];
             glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
 
-            Assert(!"compile/link error.");
+            assert(!"compile/link error.");
         }
 
         glDeleteShader(vshader);
@@ -382,7 +395,7 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
             GLchar plog[1024];
             glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
 
-            Assert(!"compile/link error.");
+            assert(!"compile/link error.");
         }
 
         glDeleteShader(vshader);
@@ -464,13 +477,17 @@ opengl_alloc_texture(Opengl *gl, Bitmap *bitmap, GLenum wrapping, b32 generate_m
 internal void
 opengl_bind_texture(Opengl *gl, Bitmap *bitmap, b32 generate_mipmap = false)
 {
-    if (!bitmap) {
+    if (bitmap == NULL) 
+    {
         bitmap = &gl->white_bitmap;
     }
 
-    if (bitmap->handle) {
+    if (bitmap->handle) 
+    {
         glBindTexture(GL_TEXTURE_2D, bitmap->handle);
-    } else {
+    } 
+    else 
+    {
         opengl_alloc_texture(gl, bitmap, GL_CLAMP_TO_EDGE, generate_mipmap);
         glBindTexture(GL_TEXTURE_2D, bitmap->handle);
     }
@@ -581,60 +598,61 @@ opengl_compile_shaders(Opengl *gl)
              Pbr_No_Lighting
             );
 
-    const char *sprite_vshader = 
-        #include "shader/sprite_vs.glsl"
-    const char *sprite_fshader = 
-        #include "shader/sprite_fs.glsl"
+    char *sprite_vshader = 
+    #include "shader/sprite_vs.glsl"
+    char *sprite_fshader = 
+    #include "shader/sprite_fs.glsl"
 
-    const char *pbr_vs = 
-        #include "shader/pbr_vs.glsl"
-    const char *pbr_fs = 
-        #include "shader/pbr_fs.glsl"
+    char *pbr_vs = 
+    #include "shader/pbr_vs.glsl"
+    char *pbr_fs = 
+    #include "shader/pbr_fs.glsl"
 
-    const char *skybox_vs = 
-        #include "shader/skybox_vs.glsl"
-    const char *skybox_fs = 
-        #include "shader/skybox_fs.glsl"
+    char *skybox_vs = 
+    #include "shader/skybox_vs.glsl"
+    char *skybox_fs = 
+    #include "shader/skybox_fs.glsl"
 
-    const char *ground_vs = 
-        #include "shader/ground_vs.glsl"
-    const char *ground_tcs = 
-        #include "shader/ground_tcs.glsl"
-    const char *ground_tes = 
-        #include "shader/ground_tes.glsl"
+    char *ground_vs = 
+    #include "shader/ground_vs.glsl"
+    char *ground_tcs = 
+    #include "shader/ground_tcs.glsl"
+    char *ground_tes = 
+    #include "shader/ground_tes.glsl"
 
-    const char *csm_vs = 
-        #include "shader/csm_vs.glsl"
-    const char *csm_gs = 
-        #include "shader/csm_gs.glsl"
-    const char *csm_fs = 
-        #include "shader/csm_fs.glsl"
+    char *csm_vs = 
+    #include "shader/csm_vs.glsl"
+    char *csm_gs = 
+    #include "shader/csm_gs.glsl"
+    char *csm_fs = 
+    #include "shader/csm_fs.glsl"
 
-    const char *simple_vs = 
-        #include "shader/simple_vs.glsl"
-    const char *simple_fs = 
-        #include "shader/simple_fs.glsl"
+    char *simple_vs = 
+    #include "shader/simple_vs.glsl"
+    char *simple_fs = 
+    #include "shader/simple_fs.glsl"
 
-    const char *blt_vs = 
-        #include "shader/blt_vs.glsl"
-    const char *blt_fs = 
-        #include "shader/blt_fs.glsl"
+    char *blt_vs = 
+    #include "shader/blt_vs.glsl"
+    char *blt_fs = 
+    #include "shader/blt_fs.glsl"
 
-    const char *circle_vs = 
-        #include "shader/circle_vs.glsl"
-    const char *circle_fs = 
-        #include "shader/circle_fs.glsl"
+    char *circle_vs = 
+    #include "shader/circle_vs.glsl"
+    char *circle_fs = 
+    #include "shader/circle_fs.glsl"
+
 
 
 
     glDeleteShader(gl->sprite_program.id);
-    gl->sprite_program.id = opengl_create_program(gl, sprite_vshader, sprite_fshader);
+    gl->sprite_program.id = opengl_program_create_vf(gl, sprite_vshader, sprite_fshader);
     GET_UNIFORM_LOCATION(sprite_program, mvp);
     GET_UNIFORM_LOCATION(sprite_program, color);
     GET_UNIFORM_LOCATION(sprite_program, texture);
 
     glDeleteShader(gl->pbr_program.id);
-    gl->pbr_program.id = opengl_create_program(gl, pbr_vs, pbr_fs);
+    gl->pbr_program.id = opengl_program_create_vf(gl, pbr_vs, pbr_fs);
     GET_UNIFORM_LOCATION(pbr_program, world_transform);
     GET_UNIFORM_LOCATION(pbr_program, VP);
     GET_UNIFORM_LOCATION(pbr_program, is_skeletal);
@@ -651,7 +669,6 @@ opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(pbr_program, to_light);
     GET_UNIFORM_LOCATION(pbr_program, csm_view);
     GET_UNIFORM_LOCATION(pbr_program, csm_z_spans);
-    GET_UNIFORM_LOCATION(pbr_program, time);
 
     glDeleteShader(gl->ground_program.id);
     gl->ground_program.id = opengl_create_tessellation_program(gl, ground_vs, ground_tcs, ground_tes, pbr_fs);
@@ -668,10 +685,9 @@ opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(ground_program, entity_id);
     GET_UNIFORM_LOCATION(ground_program, hot_entity_id);
     GET_UNIFORM_LOCATION(ground_program, active_entity_id);
-    GET_UNIFORM_LOCATION(ground_program, time);
 
     glDeleteShader(gl->skybox_program.id);
-    gl->skybox_program.id = opengl_create_program(gl, skybox_vs, skybox_fs);
+    gl->skybox_program.id = opengl_program_create_vf(gl, skybox_vs, skybox_fs);
     GET_UNIFORM_LOCATION(skybox_program, view_proj);
 
     glDeleteShader(gl->shadowmap_program.id);
@@ -693,15 +709,15 @@ opengl_compile_shaders(Opengl *gl)
 #endif
 
     glDeleteShader(gl->simple_program.id);
-    gl->simple_program.id = opengl_create_program(gl, simple_vs, simple_fs);
+    gl->simple_program.id = opengl_program_create_vf(gl, simple_vs, simple_fs);
     GET_UNIFORM_LOCATION(simple_program, VP);
     GET_UNIFORM_LOCATION(simple_program, color);
 
     glDeleteShader(gl->blt_program.id);
-    gl->blt_program.id = opengl_create_program(gl, blt_vs, blt_fs);
+    gl->blt_program.id = opengl_program_create_vf(gl, blt_vs, blt_fs);
 
     glDeleteShader(gl->circle_program.id);
-    gl->circle_program.id = opengl_create_program(gl, circle_vs, circle_fs);
+    gl->circle_program.id = opengl_program_create_vf(gl, circle_vs, circle_fs);
     GET_UNIFORM_LOCATION(circle_program, model);
     GET_UNIFORM_LOCATION(circle_program, view_proj);
     GET_UNIFORM_LOCATION(circle_program, radius);
@@ -723,7 +739,7 @@ opengl_frame_begin(Opengl *gl, v2u window_dim, v2u render_dim)
 }
 
 internal void
-opengl_frame_end(Opengl *gl, Render_Commands *frame)
+opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 {
     u32 window_width  = frame->window_dim.w;
     u32 window_height = frame->window_dim.h;
@@ -768,7 +784,7 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
         };
         glDrawBuffers(array_count(attachments), attachments);
 
-        Assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -886,7 +902,7 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                 max.z = max(max.z, lp.z);
             }
 
-            f32 depth = max.z - min.z; // @Todo: Fit z?
+            f32 depth = max.z - min.z; // # Todo: Fit z?
 
             m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.0, depth*2.0);
             light_view_projs[level] = light_proj * light_view;
@@ -914,9 +930,8 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
 
 
 
-    // -------------------------------------
-    // @Note: Shadow map, which is basically a orthographiclly viewed depth map
-    //        from directional light's perspective.
+    // # Note: Shadow map, which is basically a orthographiclly viewed depth map
+    //         from directional light's perspective.
     {
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
@@ -962,9 +977,9 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                         glEnableVertexAttribArray(5);
                         glEnableVertexAttribArray(6);
 
-                        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, position)));
-                        glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, node_ids)));
-                        glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, node_weights)));
+                        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
+                        glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
+                        glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
 
                         glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
                         glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
@@ -987,8 +1002,8 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    // -------------------------------------
-    // @Note: Skybox
+    // # Note: Skybox
+    //
     {
         glDisable(GL_CULL_FACE);
         if (! gl->skybox_texture) 
@@ -1017,7 +1032,7 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
         glUseProgram(skybox_program->id);
 
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, position)));
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
 
         glUniformMatrix4fv(skybox_program->view_proj, 1, GL_TRUE, &frame->skybox_eye_view_proj.e[0][0]);
 
@@ -1085,7 +1100,6 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                             glUniformMatrix4fv(pbr_program->shadowmap_view_projs, CSM_COUNT, true, &light_view_projs[0].e[0][0]);
                             glUniform3fv(pbr_program->to_light, 1, (GLfloat *)&frame->csm_to_light);
                             glUniform1fv(pbr_program->csm_z_spans, CSM_COUNT, csm_z_spans);
-                            glUniform1f(pbr_program->time, frame->time);
                             glBindTextureUnit(6, gl->shadowmaps);
 
                             u32 flags = 0;
@@ -1103,15 +1117,18 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                             }
                             glUniform1ui(pbr_program->flags, flags);
 
-                            GL_FOR(7) { glEnableVertexAttribArray(gl_iter); }
+                            for (u32 i = 0; i < 7; ++i) 
+                            {
+                                glEnableVertexAttribArray(i);
+                            }
 
-                            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, position)));
-                            glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, normal)));
-                            glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, uv)));
-                            glVertexAttribPointer(3, 4, GL_FLOAT, true,  sizeof(Vertex), (GLvoid *)(offsetof(Vertex, color)));
-                            glVertexAttribPointer(4, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, tangent)));
-                            glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, node_ids)));
-                            glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, node_weights)));
+                            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
+                            glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, normal)));
+                            glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, uv)));
+                            glVertexAttribPointer(3, 4, GL_FLOAT, true,  sizeof(Vertex), (GLvoid *)(offset_of(Vertex, color)));
+                            glVertexAttribPointer(4, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, tangent)));
+                            glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
+                            glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
 
                             glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
                             glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
@@ -1134,7 +1151,10 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                                 glEnable(GL_DEPTH_TEST);
                             }
 
-                            GL_FOR(7) { glDisableVertexAttribArray(gl_iter); }
+                            for (u32 i = 0; i < 7; ++i) 
+                            {
+                                glDisableVertexAttribArray(i);
+                            }
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                         } break;
 
@@ -1171,7 +1191,7 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
 
                             glEnableVertexAttribArray(0);
 
-                            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offsetof(Vertex, position)));
+                            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
                             glBufferData(GL_ARRAY_BUFFER, piece->vertexcount * sizeof(Vertex), piece->vertices, GL_DYNAMIC_DRAW);
 
                             glUniformMatrix4fv(simple_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
@@ -1281,6 +1301,7 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
 
         // -------------------------------------
         // @Note: Mouse Picking
+#if 0
         {
             // @Temporary:
             if (! frame->input.interacted_ui) 
@@ -1310,6 +1331,7 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                 glBindTexture(GL_TEXTURE_2D, 0);
             }
         }
+#endif
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, window_width, window_height);
@@ -1326,6 +1348,10 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(2);
 
+
+        // # Note: 3----1
+        //         |    |
+        //         2----0
         const Textured_Vertex vertices[] = {
             {v3{ 1,-1, 0}, v2{1,0}},
             {v3{ 1, 1, 0}, v2{1,1}},
@@ -1333,8 +1359,8 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
             {v3{-1, 1, 0}, v2{0,1}}
         };
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offsetof(Textured_Vertex, pos));
-        glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offsetof(Textured_Vertex, uv));
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, pos));
+        glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, uv));
 
         glBindTextureUnit(0, gl->color_texture);
 
@@ -1387,8 +1413,8 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
     }
 
 
-    // -------------------------------------
-    // @Note: Ortho
+    // # Note: Ortho
+    //
     {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1424,8 +1450,8 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
                         glEnableVertexAttribArray(0);
                         glEnableVertexAttribArray(2);
 
-                        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offsetof(Textured_Vertex, pos));
-                        glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offsetof(Textured_Vertex, uv));
+                        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, pos));
+                        glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, uv));
 
                         opengl_bind_texture(gl, piece->bitmap);
 
@@ -1463,6 +1489,51 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
         }
     }
 
+    // # Todo: Revamping renderer currently.
+    //
+#if 1
+    {
+        for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; type += 1)
+        {
+            Render_Buffer *buffer = renderer->buffer + type;
+            u64 vertex_count = buffer->vertex_count;
+            u64 instance_count = buffer->instance_count;
+
+            switch (type)
+            {
+                case RENDER_VERTEX_TYPE_QUAD: 
+                {
+                    opengl_program_scope(gl->quad_program, GL_PROGRAM_CULL_OFF)
+                    {
+                        glBindBuffer(GL_ARRAY_BUFFER, gl->vbo);
+                        {
+                            glBufferData(GL_ARRAY_BUFFER, sizeof(buffer->vertices[0])*vertex_count, buffer->vertices, GL_STATIC_DRAW);
+
+                            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, position));
+                            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, uv));
+
+                            // # Divisor Begin
+                            //glVertexAttribDivisor(0, 0);
+
+                            opengl_bind_texture(gl, NULL);
+
+                            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, instance_count);
+
+                            // # Divisor End
+                            //glVertexAttribDivisor(0, 0);
+                        }
+                        glBindBuffer(GL_ARRAY_BUFFER, 0);
+                    }
+                } break;
+
+                default: 
+                {
+                    assert(! "not implemented yet?");
+                } break;
+            }
+        }
+    }
+#endif
 
 
     {
@@ -1471,9 +1542,97 @@ opengl_frame_end(Opengl *gl, Render_Commands *frame)
     }
 }
 
+// # Note: Program
+//
+internal Gl_Program
+opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src)
+{
+    Gl_Program program = {};
+    {
+        program.id = opengl_program_create_vf(gl, vs_src, fs_src);
+    }
+
+    // # acquire number of uniforms.
+    GLint count;
+    glGetProgramiv(program.id, GL_ACTIVE_UNIFORMS, &count);
+    assert((u32)count <= gl_max_uniform_count);
+
+    // # Gathering uniforms.
+    for (GLint i = 0; i < count; i += 1)
+    {
+        const GLsizei sz = 64;
+        GLchar name[sz];
+        zero_memory(name, sz*sizeof(GLchar));
+        GLsizei len;
+        GLint size;
+        GLenum type;
+        glGetActiveUniform(program.id, i, sz, &len, &size, &type, name);
+
+        program.uniforms[i].name = utf8c((u8 *)name);
+        program.uniforms[i].id   = glGetUniformLocation(program.id, name);
+    }
+    program.uniform_count = count;
+
+
+    // # Gathering attributes.
+    glGetProgramiv(program.id, GL_ACTIVE_ATTRIBUTES, &count);
+    assert((u32)count <= gl_max_attrib_count);
+
+    for (GLint i = 0; i < count; i++)
+    {
+        GLint size;
+        GLenum type;
+
+        const GLsizei sz = 64;
+        GLchar name[sz];
+        zero_memory(name, sz*sizeof(GLchar));
+        GLsizei length;
+        glGetActiveAttrib(program.id, (GLuint)i, sz, &length, &size, &type, name);
+
+        program.attribs[i].location = glGetAttribLocation(program.id, name);
+        program.attribs[i].type     = type;
+    }
+    program.attrib_count = count;
+
+    return program;
+}
+
+internal void
+opengl_program_begin(Gl_Program program, Gl_Program_Flags flags)
+{
+    glUseProgram(program.id);
+
+    for (u32 i = 0; i < program.attrib_count; i += 1)
+    {
+        Gl_Attrib attrib = program.attribs[i];
+        glEnableVertexAttribArray(attrib.location);
+    }
+
+    if (flags & GL_PROGRAM_CULL_OFF)
+    {
+        glDisable(GL_CULL_FACE);
+    }
+}
+
+internal void
+opengl_program_end(Gl_Program program, Gl_Program_Flags flags)
+{
+    for (u32 i = 0; i < program.attrib_count; i += 1)
+    {
+        Gl_Attrib attrib = program.attribs[i];
+        glDisableVertexAttribArray(attrib.location);
+    }
+
+    glUseProgram(0);
+}
+
+// # Note: Init
+//
 internal void
 opengl_init(Opengl *gl)
 {
+    // # Note: Set debug callback.
+    //
 #if BUILD_DEBUG
     if (glDebugMessageCallbackARB) 
     {
@@ -1482,25 +1641,39 @@ opengl_init(Opengl *gl)
     }
     else 
     {
-        Assert("!glDebugMessageCallbackARB not found.");
+        assert(! "glDebugMessageCallbackARB not found.");
     }
 #endif
 
+    // # Note: Textured Quad Shader
+    //
+    char *quad_vs = 
+    #include "shader/quad_vs.glsl"
+    char *quad_fs = 
+    #include "shader/quad_fs.glsl"
+    gl->quad_program = opengl_program_vf(gl, quad_vs, quad_fs);
+
+
+
+
+    // # Todo: Clean this
     opengl_compile_shaders(gl);
 
-    gl->white_bitmap.bits_per_channel = 8;
-    gl->white_bitmap.channel_count = 4;
-    gl->white_bitmap.width   = 4;
-    gl->white_bitmap.height  = 4;
-    gl->white_bitmap.pitch   = 16;
-    gl->white_bitmap.handle  = 0;
-    gl->white_bitmap.size    = 64;
-    gl->white_bitmap.memory  = &gl->white;
-    for (u32 *at = (u32 *)gl->white; at <= &gl->white[3][3]; ++at) 
-    { *at = 0xffffffff; }
-    opengl_alloc_texture(gl, &gl->white_bitmap, GL_CLAMP_TO_EDGE);
+    { // # Note: White Texture.
+        gl->white_bitmap.bits_per_channel = 8;
+        gl->white_bitmap.channel_count    = 4;
+        gl->white_bitmap.width            = 4;
+        gl->white_bitmap.height           = 4;
+        gl->white_bitmap.pitch            = 16;
+        gl->white_bitmap.handle           = 0;
+        gl->white_bitmap.size             = 64;
+        gl->white_bitmap.memory           = &gl->white;
+        for (u32 *at = (u32 *)gl->white; at <= &gl->white[3][3]; ++at) 
+        { *at = 0xffffffff; }
+        opengl_alloc_texture(gl, &gl->white_bitmap, GL_CLAMP_TO_EDGE);
+    }
 
-    { //@Shadowmap
+    { // # Shadowmap
         glGenFramebuffers(1, &gl->shadowmap_fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
 
@@ -1518,7 +1691,7 @@ opengl_init(Opengl *gl)
         glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, (GLfloat *)&border_color);
 
         glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, gl->shadowmaps, 0);
-        Assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -1526,7 +1699,7 @@ opengl_init(Opengl *gl)
     {
         s32 maxattachment;
         glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &maxattachment);
-        Assert(maxattachment >= 4);
+        assert(maxattachment >= 4);
     }
 
     {
@@ -1536,7 +1709,6 @@ opengl_init(Opengl *gl)
         glBindVertexArray(gl->vao);
 
         glGenBuffers(1, &gl->vbo);
-
         glGenBuffers(1, &gl->instance_vbo);
 
         glGenBuffers(1, &gl->vio);

@@ -48,7 +48,7 @@ struct Camera : public Entity
         F            = _F;
         following    = _following;
 
-        Assert(world->camera_count < array_count(world->cameras));
+        assert(world->camera_count < array_count(world->cameras));
         world->cameras[world->camera_count++] = this;
 
         update      = update_Camera;
@@ -64,66 +64,69 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
     camera->width  = 1920;
     camera->height = 1080;
 
-    Game_Key *keys = input->keys;
-    Mouse_Input mouse = input->mouse;
-
     if (game_state->controlling_camera == camera) 
     {
         if (camera->following) 
         {
             camera->position = camera->following->position + v3{0.0f, 3.0f, 3.0f};
         }
-        else if (! input->interacted_ui) 
+
+        f32 dt              = game_state->dt_game;
+        f32 accel_strength  = 50.0f;
+        f32 friction        = 7.0f;
+        f32 max_speed       = 20.0f;
+        m4x4 rotation       = quaternion_to_m4x4(camera->orientation);
+        v3 desired_dir      = {};
+
         {
-            f32 dt = input->dt;
-            f32 accel_strength = 50.0f;
-            f32 friction = 7.0f;
-            f32 max_speed = 20.0f;
-            
-            m4x4 rotation = quaternion_to_m4x4(camera->orientation);
+            desired_dir += os->key_is_down[OS_KEY_W] ? (rotation * V4( 0,  0, -1, 0)).xyz : v3{};
+            desired_dir += os->key_is_down[OS_KEY_A] ? (rotation * V4(-1,  0,  0, 0)).xyz : v3{};
+            desired_dir += os->key_is_down[OS_KEY_S] ? (rotation * V4( 0,  0,  1, 0)).xyz : v3{};
+            desired_dir += os->key_is_down[OS_KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
+            desired_dir += os->key_is_down[OS_KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
+            desired_dir += os->key_is_down[OS_KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
+        }
 
-            v3 desired_dir = {};
-            if (keys[KEY_W].is_down) { desired_dir = (rotation * V4( 0,  0, -1, 0)).xyz; }
-            if (keys[KEY_S].is_down) { desired_dir = (rotation * V4( 0,  0,  1, 0)).xyz; }
-            if (keys[KEY_D].is_down) { desired_dir = (rotation * V4( 1,  0,  0, 0)).xyz; }
-            if (keys[KEY_A].is_down) { desired_dir = (rotation * V4(-1,  0,  0, 0)).xyz; }
-            if (keys[KEY_Q].is_down) { desired_dir = (rotation * V4( 0, -1,  0, 0)).xyz; }
-            if (keys[KEY_E].is_down) { desired_dir = (rotation * V4( 0,  1,  0, 0)).xyz; }
+        if (length_square(desired_dir) > 0.0f)
+        {
+            desired_dir = normalize(desired_dir); 
+        }
 
-            if (length_square(desired_dir) > 0.0f)
-            { desired_dir = normalize(desired_dir); }
+        v3 target_accel = desired_dir * accel_strength;
+        camera->velocity += (dt*target_accel);
 
-            v3 target_accel = desired_dir * accel_strength;
-            camera->velocity += (dt*target_accel);
+        if (length_square(desired_dir) == 0.0f)
+        {
+            camera->velocity -= camera->velocity * friction * dt; 
+        }
 
-            if (length_square(desired_dir) == 0.0f)
-            { camera->velocity -= camera->velocity * friction * dt; }
+        f32 speed = length(camera->velocity);
+        if (speed > max_speed) 
+        {
+            camera->velocity = (camera->velocity / speed) * max_speed; 
+        }
 
-            f32 speed = length(camera->velocity);
-            if (speed > max_speed) 
-            { camera->velocity = (camera->velocity / speed) * max_speed; }
+        camera->position += (dt*camera->velocity); 
 
-            camera->position += (dt*camera->velocity); 
-
-            if (mouse.is_down[Mouse_Left]) 
+        // @Hack:
+        local_persist v2 mouse_position_last = {};
+        if (os->key_is_down[OS_KEY_MOUSE_LEFT])
+        {
+            if (os->key_toggled[OS_KEY_MOUSE_LEFT])
             {
-                if (mouse.toggle[Mouse_Left]) 
-                {
-                    input->prev_mouse_p = mouse.click_p[Mouse_Left];
-                } 
-                else 
-                {
-                    v2 d = 0.5f * input->dt * (mouse.position - input->prev_mouse_p);
-                    camera->orientation = build_quaternion(v3{0,1,0}, -d.x) * camera->orientation;
-                    camera->orientation = build_quaternion((quaternion_to_m4x4(camera->orientation)*v4{1,0,0,0}).xyz, d.y) * camera->orientation;
-                }
+                mouse_position_last = os->mouse_position_last;
             }
+            v2 d = 0.5f * dt * (os->mouse_position_last - mouse_position_last);
+            camera->orientation = build_quaternion(v3{0,1,0}, -d.x) * camera->orientation;
+            camera->orientation = build_quaternion((quaternion_to_m4x4(camera->orientation)*v4{1,0,0,0}).xyz, -d.y) * camera->orientation;
+            mouse_position_last = os->mouse_position_last;
         }
     }
 
-    if (camera->type == Camera_Type_Perspective) {
+    if (camera->type == Camera_Type_Perspective) 
+    {
         camera->width = 2.0f;
-        f32 h_over_w = (f32)input->draw_dim.h / (f32)input->draw_dim.w;
+        f32 h_over_w = (f32)game_state->draw_height / (f32)game_state->draw_width;
         camera->height = camera->width * h_over_w;
 
         m4x4 V = view_transform(camera->position, camera->orientation);
@@ -143,9 +146,11 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
         camera->V = V;
         camera->P = P;
         camera->VP = P*V;
-    } else if (camera->type == Camera_Type_Orthographic) {
-        camera->width  = (f32)input->draw_dim.w;
-        camera->height = (f32)input->draw_dim.h;
+    } 
+    else if (camera->type == Camera_Type_Orthographic) 
+    {
+        camera->width  = (f32)game_state->draw_width;
+        camera->height = (f32)game_state->draw_height;
 
         m4x4 camera_rotation = quaternion_to_m4x4(camera->orientation);
         m4x4 V = camera_transform(get_column(camera_rotation, 0),
@@ -167,7 +172,9 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
         }};
 
         camera->VP = P*V;
-    } else {
+    } 
+    else 
+    {
         INVALID_CODE_PATH;
     }
 };

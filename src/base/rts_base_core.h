@@ -111,20 +111,80 @@ typedef size_t      mmm;
 typedef uintptr_t   umm;
 typedef intptr_t    smm;
 
+// -------------------------------------------
+// @Note: Vectors
+union v2 
+{
+    struct { f32 x, y; };
+    f32 e[2];
+};
+
+union v2s 
+{
+    struct { s32 x, y; };
+    s32 e[2];
+};
+
+union v2u 
+{
+    struct {u32 x, y;};
+    struct {u32 w, h;};
+    u32 e[2];
+};
+
+union v3 
+{
+    struct {
+        union {
+            struct { f32 x, y; };
+            v2 xy;
+        };
+        f32 z;
+    };
+    f32 e[3];
+};
+
+union v4 
+{
+    struct {
+        union {
+            struct { f32 r, g, b; };
+            v3 rgb;
+        };
+        f32 a;
+    };
+    struct {
+        union {
+            struct {
+                union {
+                    v2 xy;
+                    struct { f32 x, y; };
+                };
+                f32 z;
+            };
+            v3 xyz;
+        };
+        f32 w;
+    };
+    f32 e[4];
+};
+
+
 
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
+#define assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define max(a, b) ( ((a) > (b)) ? (a) : (b) )
 #define min(a, b) ( ((a) < (b)) ? (a) : (b) )
+#define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
 
 // -------------------------------------
 // @Note: Clamp
 
 #define array_count(array) ( sizeof(array) / sizeof(array[0]) )
-#define offsetof(Type, Member) (size_t)&(((Type *)0)->Member)
 #define int_from_ptr(p) (u64)(((u8*)p) - 0)
 #define ptr_from_int(i) (void*)(((u8*)0) + i)
 #define offset_of(type, member) int_from_ptr(&((type *)0)->member)
@@ -159,6 +219,7 @@ typedef intptr_t    smm;
     ( ( zchk(f) ) ? \
       ( (f)=(l)=(n), zset((n)->next) ) : \
       ( (l)->next = (n), (l) = (n), zset((n)->next) ) )
+#define sll_push_back_n(f, l, n, next) sll_push_back_nz((f), (l), (n), next, check_null, set_null)
 #define sll_push_back(f, l, n) sll_push_back_nz((f), (l), (n), next, check_null, set_null)
 
 #define sll_pop_front_nz(f, l, next, zset) \

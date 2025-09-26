@@ -6,162 +6,239 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// -----------------------------------
-// @Todo: 1. Should we support scalable dpi?
-//   
+// # Todo: 1. Should we support scalable dpi?
+//         2. Verfiy the OS version and load the appropriate libraries.
+//
 
 
-// -----------------------------------
-// @Note: [.h]
+// # Note: [.h]
+//
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_math.h"
 #include "rts_asset.h"
-#include "rts_input.h"
 #include "rts_platform.h"
 #include "rts_win32.h"
 #include "renderer/rts_renderer.h"
 #include "rts_win32_renderer.h"
 
-// -----------------------------------
-// @Note: [.cpp]
+// # Note: Globals
+//
+global Renderer *g_renderer;
+
+// # Note: [.cpp]
+//
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
 #include "rts_math.cpp"
 
 
-// -----------------------------------
-// @Note: Windows Additional Libs
+// # Note: Windows Additional Libs
+//
+#include <windowsx.h>
 #include <dwmapi.h>
 #include <psapi.h>
 
 #pragma comment(lib, "dwmapi")
 
+// # Study:
+// Executables (but not DLLs) exporting this symbol with this value will be
+// automatically directed to the high-performance GPU on Nvidia Optimus systems
+// with up-to-date drivers
+//
+// __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
-// -----------------------------------
-// @Note: Globals
+// Executables (but not DLLs) exporting this symbol with this value will be
+// automatically directed to the high-performance GPU on AMD PowerXpress systems
+// with up-to-date drivers
+//
+// __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+
+// # Note: Globals
+//
 global Win32_State          win32;
 global b32                  g_running = true;
 global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 
-
-// -----------------------------------
-// @Note: Input.
-// @Todo: bad :(
-internal void
-win32_map_keycode_to_hid_key_code(u8 *map) 
-{
-    map[VK_BACK]      = KEY_BACKSPACE;
-    map[VK_TAB]       = KEY_TAB;
-    map[VK_RETURN]    = KEY_ENTER;
-    map[VK_SHIFT]     = KEY_LEFTSHIFT;
-    map[VK_LSHIFT]    = KEY_LEFTSHIFT;
-    map[VK_CONTROL]   = KEY_LEFTCTRL;
-    map[VK_LCONTROL]  = KEY_LEFTCTRL;
-    map[VK_LMENU]     = KEY_LEFTALT;
-    map[VK_ESCAPE]    = KEY_ESC;
-    map[VK_SPACE]     = KEY_SPACE;
-    map[VK_OEM_3]     = KEY_HASHTILDE;
-    map[VK_LEFT]      = KEY_LEFT;
-    map[VK_RIGHT]     = KEY_RIGHT;
-    map[VK_UP]        = KEY_UP;
-    map[VK_DOWN]      = KEY_DOWN;
-    map[VK_OEM_PLUS]  = KEY_EQUAL;
-    map[VK_OEM_MINUS] = KEY_MINUS;
-    for (char c = 'A'; c <= 'Z'; ++c)
-    { map[c] = KEY_A + (c - 'A'); }
-    for (char c = 0x30; c <= 0x39; ++c) // 0~9
-    { map[c] = KEY_0 + (c - 0x30); }
-    for (char c = VK_F1; c <= VK_F12; ++c)
-    { map[c] = KEY_F1 + (c - VK_F1); }
-}
-
-internal void
-win32_process_keyboard(Game_Key *game_key, b32 is_down) 
-{
-    if (is_down) { game_key->is_down = true; }
-    else         { game_key->is_down = false; }
-}
-
-internal void
-win32_process_mouse_click(s32 vk, Mouse_Input *mouse) 
-{
-    b32 is_down = GetKeyState(vk) & (1 << 15);
-    u32 E = 0;
-
-    switch(vk) 
-    {
-        case VK_LBUTTON: { E = Mouse_Left;   } break;
-        case VK_MBUTTON: { E = Mouse_Middle; } break;
-        case VK_RBUTTON: { E = Mouse_Right;  } break;
-        INVALID_DEFAULT_CASE;
-    }
-
-    if (is_down) 
-    {
-        if (! mouse->is_down[E]) 
-        {
-            mouse->toggle[E] = true;
-            mouse->click_p[E] = mouse->position;
-        } 
-        else 
-        {
-            mouse->toggle[E] = false;
-        }
-    } 
-    else 
-    {
-        if (mouse->is_down[E]) 
-        {
-            mouse->toggle[E] = true;
-        } 
-        else 
-        {
-            mouse->toggle[E] = false;
-        }
-    }
-    mouse->is_down[E] = is_down;
-}
-
-// -----------------------------------
-// @Note: Window
+// # Note: Window
+//
 internal LRESULT 
 win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
 {
     LRESULT result = 0;
 
+    Os_Event_Type type  = OS_EVENT_NULL;
+    Os_Key key          = OS_KEY_NULL;
+    v2 axis             = v2{0,0};
+    b32 is_release      = 0;
+
     switch(msg) 
     {
-        case WM_CLOSE: 
-        {
+        case WM_CLOSE: {
             g_running = false;
         } break;
 
-        case WM_DESTROY: 
-        {
+        case WM_DESTROY: {
             // @Todo: Handle this as an error - recreate window?
             g_running = false;
         } break;
 
-        case WM_SYSKEYDOWN:
-        case WM_SYSKEYUP:
-        case WM_KEYDOWN:
+        // --------------------------------------------
+        // @Note: Keyboard
+
+        // @Note: Keyboard Events
+        //
+        case WM_SYSKEYDOWN: 
+        case WM_SYSKEYUP: 
+        {
+            DefWindowProcW(hwnd, msg, wparam, lparam);
+        }
+        case WM_KEYDOWN: 
         case WM_KEYUP:
         {
-            Assert(!"Keyboard input came in through a non-dispatch message!");
+            b32 was_down = !!(lparam & (1 << 30));
+            b32 is_down =   !(lparam & (1 << 31));
+
+            type = is_down ? OS_EVENT_PRESS : OS_EVENT_RELEASE;
+
+            if (wparam < array_count(os->key_table))
+            {
+                key = os->key_table[wparam];
+            }
+
+            Os_Event *event = os_event_alloc();
+            {
+                event->type = type;
+                event->key  = key;
+            }
+            dll_push_back(os->event_sentinel, event);
         } break;
 
-        case WM_PAINT: 
+        // @Note: Text Input
+        //
+        case WM_CHAR: 
+        case WM_SYSCHAR:
         {
+            u32 c = wparam;
+            if (c == '\r') { c = '\n'; }
+
+            if ((c >= 32 && c != 127/*DEL*/) || c == '\t' || c == '\n')
+            {
+                Os_Event *event = os_event_alloc();
+                {
+                    event->type      = OS_EVENT_TEXT;
+                    event->character = c;
+                }
+                dll_push_back(os->event_sentinel, event);
+            }
+        } break;
+
+
+        // --------------------------------------------
+        // @Note: Mouse
+
+        // @Note: Mouse Move
+        //
+        case WM_MOUSEMOVE: 
+        {
+            int x = GET_X_LPARAM(lparam);
+            int y = GET_Y_LPARAM(lparam);
+
+            os->mouse_position_last = v2{(f32)x, (f32)y};
+
+            type = OS_EVENT_MOUSE_MOVE;
+
+            Os_Event *event = os_event_alloc();
+            {
+                event->type       = type;
+                event->position.x = (f32)x;
+                event->position.y = (f32)y;
+            }
+            dll_push_back(os->event_sentinel, event);
+        } break;
+
+
+        // @Note: Mouse Scroll
+        //
+        case WM_MOUSEHWHEEL: 
+        {
+            axis = v2{1,0};
+            goto winproc_mouse_scroll;
+        } break;
+        case WM_MOUSEWHEEL: 
+        {
+            axis = v2{0,1};
+winproc_mouse_scroll:;
+            type = OS_EVENT_MOUSE_SCROLL;
+            f32 delta = (f32)GET_WHEEL_DELTA_WPARAM(wparam);
+
+            POINT p;
+            {
+                p.x = GET_X_LPARAM(lparam);
+                p.y = GET_Y_LPARAM(lparam);
+                ScreenToClient(hwnd, &p);
+            }
+
+            Os_Event *event = os_event_alloc();
+            {
+                event->type       = type;
+                event->delta      = delta*axis;
+                event->position.x = (f32)p.x;
+                event->position.y = (f32)p.y;
+            }
+            dll_push_back(os->event_sentinel, event);
+        } break;
+
+
+
+        // @Note: Mouse Click
+        //
+        case WM_LBUTTONUP: { ReleaseCapture(); is_release = 1; };
+        case WM_LBUTTONDOWN: {
+            key = OS_KEY_MOUSE_LEFT;
+            goto winproc_mouse;
+       }
+
+        case WM_RBUTTONUP: { ReleaseCapture(); is_release = 1; };
+        case WM_RBUTTONDOWN: {
+            key = OS_KEY_MOUSE_RIGHT;
+            goto winproc_mouse;
+        }
+
+        case WM_MBUTTONUP: { ReleaseCapture(); is_release = 1; };
+        case WM_MBUTTONDOWN: {
+            key = OS_KEY_MOUSE_MIDDLE;
+winproc_mouse:;
+              if (! is_release)
+              {
+                  SetCapture(hwnd);
+              }
+
+              int x = GET_X_LPARAM(lparam);
+              int y = GET_Y_LPARAM(lparam);
+
+              Os_Event *event = os_event_alloc();
+              {
+                  event->type       = is_release ? OS_EVENT_RELEASE : OS_EVENT_PRESS;
+                  event->key        = key;
+                  event->position.x = (f32)x;
+                  event->position.y = (f32)y;
+              }
+              dll_push_back(os->event_sentinel, event);
+        } break;
+
+
+
+
+        case WM_PAINT: {
             PAINTSTRUCT paint;
             HDC hdc = BeginPaint(hwnd, &paint);
             ReleaseDC(hwnd, hdc);
             EndPaint(hwnd, &paint);
         } break;
 
-        case WM_SETCURSOR: 
-        {
+        case WM_SETCURSOR: {
             if (g_show_cursor) {
                 result = DefWindowProcW(hwnd, msg, wparam, lparam);
             } else {
@@ -169,8 +246,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             }
         } break;
 
-        default: 
-        {
+        default: {
             result = DefWindowProcW(hwnd, msg, wparam, lparam);
         } break;
     }
@@ -197,7 +273,7 @@ win32_window_create(HINSTANCE hinst)
     }
 
     if (! RegisterClassExW(&wcex))
-    { Assert(! "Win32 couldn't register window class."); }
+    { assert(! "Win32 couldn't register window class."); }
 
     HWND hwnd = CreateWindowExW(0, wcex.lpszClassName, L"RTS",
                                 WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -287,7 +363,7 @@ win32_client_size(HWND hwnd)
 internal u64
 win32_get_last_modified(Utf8 file_path)
 {
-    Os_File_Attributes attr = os.attributes_from_file_path(file_path);
+    Os_File_Attributes attr = os->attributes_from_file_path(file_path);
     u64 result = attr.last_modified;
     return result;
 }
@@ -316,14 +392,14 @@ win32_code_load(Win32_Code *loaded)
     Utf8 temp_dll_path  = loaded->temp_dll_path;
     Utf8 lock_path      = loaded->lock_path;
 
-    Os_File_Attributes attr = os.attributes_from_file_path(dll_path);
+    Os_File_Attributes attr = os->attributes_from_file_path(dll_path);
 
     if (attr.size > 0)
     {
         // load the temporary dll so we could write to the real dll and check the modified time of it.
         loaded->temp_dll_path_prefix = (loaded->temp_dll_path_prefix + 1) % 2;
         temp_dll_path = utf8f(scratch.arena, "%S/%S_%d.dll", win32.binary_path, loaded->temp_dll_name, loaded->temp_dll_path_prefix);
-        os.file_copy(temp_dll_path, dll_path);
+        os->file_copy(temp_dll_path, dll_path);
 
         Utf16 temp_dll_path16 = to_utf16(scratch.arena, temp_dll_path);
         loaded->dll = LoadLibraryW((WCHAR *)temp_dll_path16.str);
@@ -372,9 +448,8 @@ win32_code_modified(Win32_Code *loaded)
     return result;
 }
 
-
-// -----------------------------------
-// @Note: Entry
+// # Note: Entry
+//
 #if BUILD_DEBUG
 int wmain(int argc, wchar_t *argv[]) 
 {
@@ -384,13 +459,14 @@ int WINAPI
 wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 {
 #endif
-    // ----------------------------------------
-    // @Note: init core.
+
+    // # Note: init core.
+    //
     os_init();
     thread_init();
 
-    // ----------------------------------------
-    // @Note: init platform.
+    // # Note: init platform.
+    //
     Platform platform = {};
     Utf8 binary_path = {};
     {
@@ -402,13 +478,13 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         {
             Temporary_Arena scratch = scratch_begin();
 
-            binary_path = os.string_from_system_path_kind(scratch.arena, OS_SYSTEM_PATH_KIND_BINARY);
+            binary_path = os->string_from_system_path_kind(scratch.arena, OS_SYSTEM_PATH_KIND_BINARY);
             Utf8 local_data_path = utf8f(scratch.arena, "%S/data", binary_path);
             Utf8 binary_parent_path = utf8_path_chop_last_slash(binary_path);
             Utf8 parent_data_path = utf8f(scratch.arena, "%S/data", binary_parent_path);
 
-            Os_File_Attributes local_data_attr  = os.attributes_from_file_path(local_data_path);
-            Os_File_Attributes parent_data_attr = os.attributes_from_file_path(parent_data_path);
+            Os_File_Attributes local_data_attr  = os->attributes_from_file_path(local_data_path);
+            Os_File_Attributes parent_data_attr = os->attributes_from_file_path(parent_data_path);
 
             if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
             { platform.data_path = utf8_copy(platform.arena, local_data_path); }
@@ -420,21 +496,22 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
-    // ----------------------------------------
-    // @Note: create window.
-
-    // it must be place before creating window.
+    // # Note: init gfx.
+    //
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
     HWND hwnd = win32_window_create(hinst);
-    if (! hwnd) { Assert(! "Win32: Couldn't create window."); }
+    if (! hwnd) 
+    {
+        assert(! "Win32: Couldn't create window."); 
+    }
     win32_window_update_dark_mode(hwnd);
 
 
 
 
-    // ----------------------------------------
-    // @Note: init win32 state.
+    // # Note: init win32 state.
+    // 
     {
         win32.arena = arena_alloc();
 
@@ -447,9 +524,21 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
+    // # Note: toggle fullscreen if needed.
+    // 
 #if !BUILD_DEBUG
     win32_toggle_fullscreen(hwnd);
 #endif
+
+    // # Note: alloc/init renderer.
+    // 
+    {
+        Arena *arena = arena_alloc();
+        g_renderer = push_struct(arena, Renderer);
+        g_renderer->arena = arena;
+        platform.renderer = g_renderer;
+    }
+
 
     HDC renderer_hdc = GetDC(hwnd);
     b32 renderer_was_reloaded = false;
@@ -467,24 +556,15 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
     win32_code_load(&renderer_code);
     if (! renderer_code.is_valid) 
-    { Assert(! "Couldn't load the renderer code."); }
+    { assert(! "Couldn't load the renderer code."); }
 
     Arena *renderer_arena = arena_alloc();
     Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
 
 
-
     u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
     f32 desired_dt = (1.0f / (f32)monitor_refresh_rate);
-
-    Input input = {};
-    u8 win32_keycode_map[256];
-    win32_map_keycode_to_hid_key_code(win32_keycode_map);
-
-    Event_Queue event_queue = {};
-
-
 
     Win32_Game_Function_Table game = {};
     Win32_Code game_code = {};
@@ -503,7 +583,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
     // ----------------------------------------
     // @Note: Main Loop
-    u64 old_counter = os.perf_counter();
+    u64 old_counter = os->perf_counter();
     while (g_running) 
     {
         {
@@ -526,7 +606,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         };
         v2u window_dim = win32_client_size(hwnd);
 
-        input.mouse.wheel_delta = 0;
+        os_event_list_clear();
+        os->event_poll();
 
         for (MSG msg; PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE);)
         {
@@ -536,59 +617,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
                     g_running = false;
                 } break;
 
-                case WM_SYSKEYDOWN:
-                case WM_SYSKEYUP:
-                case WM_KEYDOWN:
-                case WM_KEYUP: {
-                    if (! win32_window_focused(hwnd))
-                    { break;}
-
-                    u8 vk_code   = (u8)msg.wParam;
-                    b32 was_down = ((msg.lParam & (1 << 30))   != 0);
-                    b32 is_down  = ((msg.lParam & (1UL << 31)) == 0);
-                    b32 alt      = (msg.lParam & (1 << 29));
-                    u8 slot      = win32_keycode_map[vk_code];
-
-                    if (was_down != is_down) 
-                    {
-                        if (event_queue.next_idx < array_count(event_queue.events)) 
-                        {
-                            Event new_event = {};
-                            new_event.key = slot;
-                            if (is_down) 
-                            {
-                                new_event.flag |= Event_Flag::PRESSED;
-                            }
-                            else 
-                            {
-                                new_event.flag |= Event_Flag::RELEASED;
-                            }
-                            event_queue.events[event_queue.next_idx++] = new_event;
-                        }
-
-                        if (alt && is_down) 
-                        {
-                            if (vk_code == VK_F4) 
-                            {
-                                g_running = false;
-                            }
-                            if (vk_code == VK_RETURN && msg.hwnd) 
-                            {
-                                win32_toggle_fullscreen(msg.hwnd);
-                            }
-                        }
-
-                    }
-                } break;
-
-                case WM_MOUSEWHEEL: {
-                    if (! win32_window_focused(hwnd))
-                    { break;}
-
-                    s16 z_delta = (GET_WHEEL_DELTA_WPARAM(msg.wParam) / WHEEL_DELTA);
-                    input.mouse.wheel_delta = z_delta;
-                } break;
-
                 default: {
                     TranslateMessage(&msg);
                     DispatchMessage(&msg);
@@ -596,34 +624,16 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             }
         }
 
-        if (win32_window_focused(hwnd))
-        {
-            Mouse_Input *mouse = &input.mouse;
-
-            POINT mouse_pos;
-            GetCursorPos(&mouse_pos);
-            ScreenToClient(hwnd, &mouse_pos);
-            f32 mouse_x = (f32)mouse_pos.x;
-            f32 mouse_y = ((f32)window_dim.h - 1.0f) - (f32)mouse_pos.y;
-            input.prev_mouse_p = input.mouse.position;
-            input.mouse.position.x = map01(mouse_x, 0.0f, (f32)(window_dim.w - 1)) * (render_dim.w - 1);
-            input.mouse.position.y = map01(mouse_y, 0.0f, (f32)(window_dim.h - 1)) * (render_dim.h - 1);
-
-            win32_process_mouse_click(VK_LBUTTON, mouse);
-            win32_process_mouse_click(VK_MBUTTON, mouse);
-            win32_process_mouse_click(VK_RBUTTON, mouse);
-        }
-
 
         // ----------------------------------------
         // @Note: get dt.
-        u64 new_counter = os.perf_counter();
-        f32 dt = (new_counter - old_counter) * os.perf_counter_freq_inv;
+        u64 new_counter = os->perf_counter();
+        f32 dt = (new_counter - old_counter) * os->perf_counter_freq_inv;
         old_counter = new_counter;
         if (dt < desired_dt) 
         {
             s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
-            if (os.sleep_is_granular)
+            if (os->sleep_is_granular)
             {
                 // @Todo: what?
             }
@@ -632,22 +642,22 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
 
         {
-            input.dt        = dt;
-            input.actual_dt = dt;
-            input.draw_dim  = render_dim;
-            input.interacted_ui  = false;
+            platform.dt = dt;
+            platform.draw_width  = render_dim.x;
+            platform.draw_height = render_dim.y;
         }
 
-        Render_Commands *render_commands = 0;
+        Render_Commands *render_commands = NULL;
+
         if (renderer_code.is_valid) 
-        { render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim); }
+        {
+            render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim); 
+        }
 
         if (game.update_and_render) 
-        { game.update_and_render(&platform, &input, &event_queue, render_commands); }
-
-        if (input.quit_requested) 
-        { g_running = false; }
-
+        {
+            game.update_and_render(&platform, render_commands); 
+        }
 
         if (win32_code_modified(&game_code)) 
         {
@@ -660,13 +670,12 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         {
             if (renderer_was_reloaded) 
             {
-                ++render_commands->version;
                 renderer_was_reloaded = false;
             }
-            renderer_functions.end_frame(renderer, render_commands);
+            renderer_functions.end_frame(renderer, g_renderer, render_commands);
         }
 
-        // @Fix: We are currently allocating redundant CPU/GPU memory.
+        // # Fix: We are currently allocating redundant CPU/GPU memory.
         //if (win32_code_modified(&renderer_code)) 
         //{
         //    //renderer_functions.cleanup(renderer);

@@ -6,21 +6,21 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#if OS_WINDOWS
-#  include "os/win32/rts_os_win32.cpp"
-#else
-#  error Undefined OS
-#endif
+R"(
 
+layout (location = 0) in vec2   vP;
+layout (location = 2) in vec2   vUV;
 
-internal
-OS_INIT(os_init)
+smooth out vec2 fUV;
+
+void main()
 {
-#if OS_WINDOWS
-    os_win32_init();
-#else
-#  error Undefined OS
-#endif
+    fUV = vec2(vUV.x, 1.0f - vUV.y);
+
+    // # Hack:
+    float x = ( vP.x / 960.0f) - 1.0f;
+    float y = (-vP.y / 540.0f) + 1.0f;
+    gl_Position = vec4(x, y, 0.0f, 1.0f);
 }
 
-
+)";

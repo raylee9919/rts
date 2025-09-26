@@ -46,7 +46,7 @@ struct Xbot : public Entity
         accel = {};
         transition_t  = 0.0f;
 
-        Game_Assets *assets = game_state->game_assets;
+        Game_Assets *assets = game_state->assets;
         model = assets->xbot_model;
         idle_animation    = assets->xbot_idle;
         running_animation = assets->xbot_run;
@@ -58,7 +58,6 @@ struct Xbot : public Entity
         update     = update_Xbot;
         draw       = draw_Xbot;
         serialize  = serialize_Xbot;
-        panel      = panel_Xbot;
     }
 
     void die() 
@@ -93,7 +92,7 @@ struct Xbot : public Entity
 internal ENTITY_FUNCTION_UPDATE(update_Xbot)
 {
     Xbot *e = (Xbot *)entity;
-    f32 dt = input->dt;
+    f32 dt = game_state->dt_game;
 
     // Dead?
     if (e->flags & Flag_Dead) 
@@ -104,6 +103,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
         }
     }
 
+#if 0
     if ((input->mouse.is_down[Mouse_Right] && input->mouse.toggle[Mouse_Right])) 
     {
         e->command = Command_Move;
@@ -371,6 +371,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
             enqueue(&e->queue, p);
         }
     }
+#endif
 
     if (e->command == Command_Move) 
     {
@@ -545,20 +546,3 @@ internal ENTITY_FUNCTION_DRAW(draw_Xbot)
         }
     }
 }
-
-internal ENTITY_FUNCTION_PANEL(panel_Xbot)
-{
-    Xbot *e = (Xbot *)entity;
-
-    v4 color = V4(0.3f,0.0f,0.0f,0.4f);
-    if (game_state->active_entity_id == entity->id) {
-        entity->begin_panel(entity, game_state);
-        char text[256];
-        if (e->model) {
-            snprintf(text, sizeof(text), "#Triangle: %u", get_triangle_count(e->model));
-            ui.text(v4{0.5f,0.6f,0.3f,0.4f}, text);
-        }
-        ui.slider(&e->radius, 0.0f, 1.0f, color, "Radius", 0);
-        entity->end_panel(entity, game_state);
-    }
-};

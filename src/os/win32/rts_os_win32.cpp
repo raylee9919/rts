@@ -24,7 +24,6 @@ to_os_handle(HANDLE handle)
     return result;
 }
 
-
 // --------------------------------------
 // @Note: System Info
 internal
@@ -52,7 +51,7 @@ OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
     switch(path)
     {
         case OS_SYSTEM_PATH_KIND_INITIAL: {
-            result = os.initial_path;
+            result = os->initial_path;
         } break;
 
         case OS_SYSTEM_PATH_KIND_CURRENT: {
@@ -63,11 +62,11 @@ OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
         } break;
 
         case OS_SYSTEM_PATH_KIND_BINARY: {
-            result = os.binary_path;
+            result = os->binary_path;
         } break;
 
         case OS_SYSTEM_PATH_KIND_APPDATA: {
-            result = os.appdata_path;
+            result = os->appdata_path;
         } break;
 
         default: {
@@ -392,6 +391,25 @@ OS_ABORT(win32_abort)
 }
 
 // --------------------------------------
+// @Note: Event Poll
+internal
+OS_EVENT_POLL(win32_event_poll)
+{
+    BYTE vk_state[256];
+    GetKeyboardState(vk_state);
+
+    zero_memory(os->key_toggled, sizeof(os->key_toggled[0]*array_count(os->key_toggled)));
+
+    for (u32 vk = 0; vk < array_count(vk_state); ++vk)
+    {
+        Os_Key key = os->key_table[vk];
+        b32 key_is_down_old = os->key_is_down[key];
+        os->key_is_down[key] = (vk_state[vk] & 0x80) ? 1 : 0;
+        os->key_toggled[key] = (os->key_is_down[key] != key_is_down_old);
+    }
+}
+
+// --------------------------------------
 // @Note: Performance Counter
 internal
 OS_PERF_COUNTER(win32_perf_counter)
@@ -437,53 +455,67 @@ OS_DATE_TIME_CURRENT(win32_date_time_current)
 internal
 OS_INIT(os_win32_init)
 {
+    // @Hack:
+    static_assert(sizeof(OS) <= 4096);
+    os = (OS *)VirtualAlloc(0, 4096, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
     // ---------------------------------------------
     // @Note: init functions.
-    os.file_is_valid  = win32_file_is_valid;
-    os.file_open      = win32_file_open;
-    os.file_close     = win32_file_close;
-    os.file_size      = win32_file_size;
-    os.file_read      = win32_file_read;
-    os.file_delete    = win32_file_delete;
-    os.file_move      = win32_file_move;
-    os.file_copy      = win32_file_copy;
-    os.make_directory = win32_make_directory;
+    os->file_is_valid                   = win32_file_is_valid;
+    os->file_open                       = win32_file_open;
+    os->file_close                      = win32_file_close;
+    os->file_size                       = win32_file_size;
+    os->file_read                       = win32_file_read;
+    os->file_delete                     = win32_file_delete;
+    os->file_move                       = win32_file_move;
+    os->file_copy                       = win32_file_copy;
+    os->make_directory                  = win32_make_directory;
 
-    os.query_page_size              = win32_query_page_size;
-    os.caret_blink_time             = win32_caret_blink_time;
-    os.string_from_system_path_kind = win32_string_from_system_path_kind;
-    os.attributes_from_file_path    = win32_attributes_from_file_path;
+    os->query_page_size                 = win32_query_page_size;
+    os->caret_blink_time                = win32_caret_blink_time;
+    os->string_from_system_path_kind    = win32_string_from_system_path_kind;
+    os->attributes_from_file_path       = win32_attributes_from_file_path;
 
-    os.file_iterator_begin = win32_file_iterator_begin;
-    os.file_iterator_next  = win32_file_iterator_next;
-    os.file_iterator_end   = win32_file_iterator_end;
+    os->file_iterator_begin             = win32_file_iterator_begin;
+    os->file_iterator_next              = win32_file_iterator_next;
+    os->file_iterator_end               = win32_file_iterator_end;
 
-    os.memory_reserve  = win32_memory_reserve;
-    os.memory_commit   = win32_memory_commit;
-    os.memory_decommit = win32_memory_decommit;
-    os.memory_release  = win32_memory_release;
+    os->memory_reserve                  = win32_memory_reserve;
+    os->memory_commit                   = win32_memory_commit;
+    os->memory_decommit                 = win32_memory_decommit;
+    os->memory_release                  = win32_memory_release;
 
-    os.abort = win32_abort;
+    os->abort                           = win32_abort;
 
-    os.perf_counter = win32_perf_counter;
-    os.perf_counter_freq = win32_perf_counter_frequency();
-    os.perf_counter_freq_inv64 = (1.0 / (f64)os.perf_counter_freq);
-    os.perf_counter_freq_inv   = (1.0 / (f32)os.perf_counter_freq);
+    os->event_poll                      = win32_event_poll;
 
-    os.date_time_current = win32_date_time_current;
+    os->perf_counter                    = win32_perf_counter;
+    os->perf_counter_freq               = win32_perf_counter_frequency();
+    os->perf_counter_freq_inv64         = (1.0 / (f64)os->perf_counter_freq);
+    os->perf_counter_freq_inv           = (1.0 / (f32)os->perf_counter_freq);
 
-    os.sleep_is_granular = (timeBeginPeriod(1) == TIMERR_NOERROR);
+    os->date_time_current               = win32_date_time_current;
 
+    os->sleep_is_granular               = (timeBeginPeriod(1) == TIMERR_NOERROR);
+
+    // @Note: Main Arena
+    os->arena   = arena_alloc();
+
+    // @Note: Event
+    os->event_arena = arena_alloc();
+    os->event_sentinel = push_struct(os->event_arena, Os_Event);
+    {
+        os->event_sentinel->next = os->event_sentinel;
+        os->event_sentinel->prev = os->event_sentinel;
+    }
 
     // ---------------------------------------------
     // @Note: gather paths.
-    os.arena = arena_alloc();
-
     {
         Utf8 binary_path = {};
         Utf8 appdata_path = {};
         {
-            Temporary_Arena tmp = temporary_arena_begin(os.arena);
+            Temporary_Arena tmp = temporary_arena_begin(os->arena);
 
             {
                 u64 size = KB(32);
@@ -505,10 +537,55 @@ OS_INIT(os_win32_init)
             temporary_arena_end(tmp);
         }
         {
-            os.binary_path  = utf8_copy(os.arena, binary_path);
-            os.initial_path = os.binary_path;
-            os.appdata_path = utf8_copy(os.arena, appdata_path);
+            os->binary_path  = utf8_copy(os->arena, binary_path);
+            os->initial_path = os->binary_path;
+            os->appdata_path = utf8_copy(os->arena, appdata_path);
         }
     }
 
+    // ---------------------------------------------
+    // @Note: init key table.
+    for (u32 i = 'A', j = OS_KEY_A; i <= 'Z'; i += 1, j += 1)
+    {
+        os->key_table[i] = (Os_Key)j;
+    }
+    for (u32 i = '0', j = OS_KEY_0; i <= '9'; i += 1, j += 1)
+    {
+        os->key_table[i] = (Os_Key)j;
+    }
+    for (u32 i = VK_F1, j = OS_KEY_F1; i <= VK_F24; i += 1, j += 1)
+    {
+        os->key_table[i] = (Os_Key)j;
+    }
+    os->key_table[VK_LBUTTON]       = OS_KEY_MOUSE_LEFT;
+    os->key_table[VK_RBUTTON]       = OS_KEY_MOUSE_RIGHT;
+    os->key_table[VK_MBUTTON]       = OS_KEY_MOUSE_MIDDLE;
+    os->key_table[VK_ESCAPE]        = OS_KEY_ESC;
+    os->key_table[VK_OEM_3]         = OS_KEY_GRAVE_ACCENT;
+    os->key_table[VK_OEM_MINUS]     = OS_KEY_MINUS;
+    os->key_table[VK_OEM_PLUS]      = OS_KEY_EQUAL;
+    os->key_table[VK_BACK]          = OS_KEY_BACKSPACE;
+    os->key_table[VK_TAB]           = OS_KEY_TAB;
+    os->key_table[VK_SPACE]         = OS_KEY_SPACE;
+    os->key_table[VK_RETURN]        = OS_KEY_ENTER;
+    os->key_table[VK_CONTROL]       = OS_KEY_CTRL;
+    os->key_table[VK_SHIFT]         = OS_KEY_SHIFT;
+    os->key_table[VK_MENU]          = OS_KEY_ALT;
+    os->key_table[VK_UP]            = OS_KEY_UP;
+    os->key_table[VK_LEFT]          = OS_KEY_LEFT;
+    os->key_table[VK_DOWN]          = OS_KEY_DOWN;
+    os->key_table[VK_RIGHT]         = OS_KEY_RIGHT;
+    os->key_table[VK_DELETE]        = OS_KEY_DELETE;
+    os->key_table[VK_PRIOR]         = OS_KEY_PAGE_UP;
+    os->key_table[VK_NEXT]          = OS_KEY_PAGE_DOWN;
+    os->key_table[VK_HOME]          = OS_KEY_HOME;
+    os->key_table[VK_END]           = OS_KEY_END;
+    os->key_table[VK_OEM_2]         = OS_KEY_FORWARD_SLASH;
+    os->key_table[VK_OEM_PERIOD]    = OS_KEY_PERIOD;
+    os->key_table[VK_OEM_COMMA]     = OS_KEY_COMMA;
+    os->key_table[VK_OEM_7]         = OS_KEY_QUOTE;
+    os->key_table[VK_OEM_4]         = OS_KEY_LEFT_BRACKET;
+    os->key_table[VK_OEM_6]         = OS_KEY_RIGHT_BRACKET;
+    os->key_table[VK_INSERT]        = OS_KEY_INSERT;
+    os->key_table[VK_OEM_1]         = OS_KEY_SEMICOLON;
 }

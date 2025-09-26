@@ -11,7 +11,7 @@
 internal Render_Entity_Header *
 __push_render_entity(Render_Group *renderGroup, u32 size, Render_Type type)
 {
-    Assert(size + renderGroup->used <= renderGroup->capacity);
+    assert(size + renderGroup->used <= renderGroup->capacity);
 
     Render_Entity_Header *header = (Render_Entity_Header *)(renderGroup->base + renderGroup->used);
     header->type = type;
@@ -74,32 +74,6 @@ push_bitmap(Render_Group *group,
     piece->color  = color;
 }
 
-internal void
-push_rect(Render_Group *group, Rect2 rect, f32 z, v4 color)
-{
-    push_bitmap(group, V3(rect.min, z), V3(rect.max, z), 0, color);
-}
-
-internal void
-push_bordered_rect(Render_Group *group, Rect2 rect, f32 z, v4 color, f32 borderlength, v4 bordercolor = RGBA_BLACK)
-{
-    Rect2 cenrect = add_radius_to(rect, V2(-borderlength));
-    v2 min = cenrect.min;
-    v2 max = cenrect.max;
-
-    push_rect(group, cenrect, z, color);
-
-    Rect2 r[4];
-    f32 b = borderlength;
-    r[0] = Rect2{v2{min.x - b, min.y - b}, v2{max.x, min.y}};
-    r[1] = Rect2{v2{max.x, min.y - b}, v2{max.x + b, max.y}};
-    r[2] = Rect2{v2{min.x, max.y}, v2{max.x + b, max.y + b}};
-    r[3] = Rect2{v2{min.x - b, min.y}, v2{min.x, max.y + b}};
-    for (int i = 0; i < 4; ++i) {
-        push_rect(group, r[i], z, bordercolor);
-    }
-}
-
 typedef u8 String_Op;
 enum
 {
@@ -125,7 +99,7 @@ string_op(u8 flag, Render_Group *render_group,
         {
             case ' ': {
                 Asset_Glyph *glyph = font->glyphs[*ch];
-                Assert(glyph);
+                assert(glyph);
                 f32 B = (f32)glyph->B;
                 f32 C = (f32)glyph->C;
 
@@ -148,7 +122,7 @@ string_op(u8 flag, Render_Group *render_group,
 
             default: {
                 Asset_Glyph *glyph = font->glyphs[*ch];
-                Assert(glyph);
+                assert(glyph);
                 Bitmap *bitmap = &glyph->bitmap;
                 f32 bw = (f32)bitmap->width;
                 f32 bh = (f32)bitmap->height;
@@ -181,35 +155,17 @@ string_op(u8 flag, Render_Group *render_group,
     }
 
     if (result.min.x == F32_MAX) 
-    { result = {}; }
+    {
+        result = {}; 
+    }
 
     return result;
-}
-
-internal void
-push_shadowed_string(Render_Group *group, v3 leftbottom, char *str, Asset_Font *font, v4 color = v4{1,1,1,1}) 
-{
-    const v4 shadowcolor = v4{0.2f, 0.2f, 0.2f, 0.9f};
-    string_op(String_Op_Draw, group, leftbottom+v3{2,-2,0}, str, font, shadowcolor);
-    string_op(String_Op_Draw, group, leftbottom, str, font, color);
-}
-
-internal Rect2
-string_rect(char *str, v3 left_bottom, Asset_Font *font) 
-{
-    return string_op(String_Op_Get_Rect, 0, left_bottom, str, font);
-}
-
-internal v2
-string_dim(char *str, Asset_Font *font) 
-{
-    return get_dim(string_op(String_Op_Get_Rect, 0, {}, str, font));
 }
 
 internal Render_Group *
 begin_render_group(Render_Commands *frame, u64 size) 
 {
-    Assert(frame->push_buffer_used + sizeof(Render_Group) + size <= frame->push_buffer_size);
+    assert(frame->push_buffer_used + sizeof(Render_Group) + size <= frame->push_buffer_size);
 
     Render_Group *group = (Render_Group *)(frame->push_buffer_base + frame->push_buffer_used);
     frame->push_buffer_used += sizeof(Render_Group);
@@ -219,4 +175,130 @@ begin_render_group(Render_Commands *frame, u64 size)
     frame->push_buffer_used += size;
 
     return group;
+}
+
+
+// # Todo: Revamping renderer currently..
+//
+internal Render_Vertex *
+render_vertex_push(Render_Vertex_Type type)
+{
+    Render_Vertex *result = NULL;
+
+    Render_Buffer *buffer = renderer->buffer + type;
+
+    if (buffer->vertex_count < render_max_vertex_count)
+    {
+        result = buffer->vertices + buffer->vertex_count;
+        buffer->vertex_count += 1;
+    }
+    else
+    {
+        assert("! exceeded maximum # of render entity.");
+    }
+
+    return result;
+}
+
+// # Note: Init Function
+//
+internal void
+render_init(void)
+{
+    renderer->initted = true;
+
+    for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i)
+    {
+        Render_Buffer *buffer = renderer->buffer + i;
+        buffer->vertices = push_array(renderer->arena, Render_Vertex, render_max_vertex_count);
+    }
+}
+
+// # Note: Sort Cmp Functions
+//
+internal int
+render_cmp_texture_id(const void *a, const void *b)
+{
+    Render_Vertex *p = (Render_Vertex *)a;
+    Render_Vertex *q = (Render_Vertex *)b;
+    
+    // # Todo:
+    return false;
+}
+
+// # Note: Render Begin/End Pair
+//
+internal void
+render_begin(void)
+{
+    // # Clear buffer per frame.
+    for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i)
+    {
+        Render_Buffer *buffer = renderer->buffer + i;
+        buffer->vertex_count   = 0;
+        buffer->instance_count = 0;
+    }
+}
+
+internal void
+render_end(void)
+{
+    for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; ++type)
+    {
+        Render_Buffer *buffer = renderer->buffer + type;
+        u64 count = buffer->vertex_count;
+
+        switch (type)
+        {
+            case RENDER_VERTEX_TYPE_QUAD: 
+            {
+                //quick_sort(buffer->vertices, Render_Vertex, count, render_cmp_texture_id);
+            } break;
+
+            default: 
+            {
+                assert(! "not implemented yet?");
+            } break;
+        }
+    }
+}
+
+
+// # Note: Drawing Functions.
+//
+internal void
+draw_quad(v2 min, v2 max)
+{
+    // # Note: Order and UV
+    //
+    //         [0,0]  [1,0]
+    //            0----1
+    //            |    |
+    //            2----3
+    //         [0,1]  [1,1]
+    //
+    Render_Vertex_Type type = RENDER_VERTEX_TYPE_QUAD;
+    Render_Buffer *buffer = renderer->buffer + type;
+
+    v2 positions[4] = {
+        min, {max.x, min.y}, {min.x, max.y}, max 
+    };
+
+    v2 uvs[4] = {
+        {0,0}, {1,0}, {0,1}, {1,1}
+    };
+    
+    for (u32 i = 0; i < 4; ++i)
+    {
+        // # alloc
+        Render_Vertex *v = render_vertex_push(type);
+        {
+            // # init
+            v->type     = type;
+            v->position = positions[i];
+            v->uv       = uvs[i];
+        }
+    }
+
+    buffer->instance_count += 1;
 }
