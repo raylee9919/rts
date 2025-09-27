@@ -19,7 +19,7 @@
 #include "rts_random.h"
 #include "rts_platform.h"
 #include "rts_asset.h"
-#include "rts_ds.h" // @Todo: cleanup
+#include "rts_ds.h"
 #include "ui/rts_ui_inc.h"
 #include "rts_delaunay.h"
 #include "rts_nav.h"
@@ -260,7 +260,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                                  asset_arena);
             }
 
-            // -Temporary: init cameras.
+            // # Temporary: init cameras.
             {
                 game_state->game_camera = push_entity(world, Camera, V3(0,0,0));
                 {
@@ -292,7 +292,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             render_commands->csm_varient_method = true;
 
-            // -Temporary: We are setting navmesh input data by hand.
+            // # Temporary: We are setting navmesh input data by hand.
             {
                 Arena *arena = arena_alloc();
                 game_state->navmesh = push_struct(arena, Navmesh);
@@ -332,7 +332,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 }
             }
 
-            // -Todo: not neat.
+            // # Todo: not neat.
             begin_constrain(navmesh);
             {
                 push_vertex(navmesh, v3{ 1.0f, 0, 3.0f});
@@ -459,7 +459,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         default: { assert(! "invalid default case"); } break;
     }
 
-    { // -Note: Render Commands
+    { // # Note: Render Commands
         render_commands->main_eye_position = game_state->controlling_camera->position;
         render_commands->main_view_proj = game_state->controlling_camera->VP;
         render_commands->ortho_view_proj = game_state->orthographic_camera->VP;
@@ -511,8 +511,33 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
         render_commands->csm_view = game_state->game_camera->V;
     }
-    
-    
+
+#if 1
+    local_persist b32 initted = 0;
+    local_persist Render_Id id1 = {};
+    local_persist Render_Id id2= {};
+    local_persist Render_Id id3 = {};
+    if (! initted)
+    {
+        initted = 1;
+
+        local_persist u32 tex1[] = 
+        {
+            0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff,
+            0xff00ffff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xff00ffff,
+            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
+            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
+            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
+            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
+            0xff00ffff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xff00ffff,
+            0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff,
+        };
+
+        id1 = render_texture_create_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, tex1, 8, 8);
+    }
+#endif
+
+        render_quad_t(id1, V2(100,100), V2(200, 200));
 
     render_end();
 }

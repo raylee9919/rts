@@ -264,7 +264,11 @@ struct Opengl
 
 
 
+    // -----------------------------
     // # Note: Revamping
+    
+            
+
     Gl_Program quad_program;
 };
 

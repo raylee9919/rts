@@ -170,6 +170,11 @@ draw_line(Render_Group *group, v3 a, v3 b, v4 color);
 // ----------------------------------------------------------
 // # Todo: Revamping renderer currently..
 //
+struct Render_Id
+{
+    u64 e[1];
+};
+
 enum Render_Vertex_Type
 {
     RENDER_VERTEX_TYPE_QUAD = 0,
@@ -181,15 +186,16 @@ struct Render_Vertex
 {
     Render_Vertex_Type type;
 
-    union 
-    {
-        // # Quad
-        struct 
-        {
-            v2 position;
-            v2 uv;
-        };
-    };
+    v2 position;
+    v2 uv;
+    Render_Id texture_id;
+};
+
+typedef u16 Render_Texture_Type;
+enum
+{
+    RENDER_TEXTURE_TYPE_INVALID  = 0,
+    RENDER_TEXTURE_TYPE_R8G8B8A8 = 1,
 };
 
 struct Render_Buffer
@@ -199,20 +205,77 @@ struct Render_Buffer
     u64             instance_count;
 };
 
+struct Render_Texture
+{
+    Render_Texture      *first;
+    Render_Texture      *last;
+    Render_Texture      *next;
+    Render_Texture      *prev;
+
+    Render_Id           id;
+    Render_Texture_Type type;
+    void               *data;
+    u32                 width;
+    u32                 height;
+};
+
+typedef u32 Render_Command_Flags;
+enum 
+{
+    RENDER_COMMAND_FLAG_TEXTURE_CREATE              = (1<<0),
+    RENDER_COMMAND_FLAG_TEXTURE_DESTROY             = (1<<1),
+    RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT          = (1<<2),
+    RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR       = (1<<3),
+    RENDER_COMMAND_FLAG_TEXTURE_WRAP                = (1<<4),
+    RENDER_COMMAND_FLAG_TEXTURE_MIPMAP              = (1<<5),
+};
+
+struct Render_Command
+{
+    Render_Command_Flags flags;
+
+    Render_Texture texture;
+};
+
 struct Renderer
 {
     Arena *arena;
     b32 initted;
 
-    // # buffer per entity type
+    // # Note: Vertex/Instance Buffer
     Render_Buffer buffer[RENDER_VERTEX_TYPE_COUNT];
+    
+    // # Note: Texture
+    Arena           *texture_arena;
+    Render_Texture  *texture_free_first;
+    Render_Texture  *texture_free_last;
+    Render_Texture  *texture_table;
+    u64              texture_table_size;
+    u64              texture_next_id;
+
+    // # Note: Command Buffer
+    Arena          *command_arena;
+    Render_Command *commands;
+    u64             command_count;
 };
 
-// # Note: constants
+// # Note: Constants
 //
-#define render_max_vertex_count 16384
+#define render_max_vertex_count     16384
+#define render_max_command_count    4096
+
+
+// # Note: Texture.
+//
+#define render_texture_create_dot(t,d,w,h) render_texture_create_flags(t,d,w,h,RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT)
+#define render_texture_create_linear(t,d,w,h) render_texture_create_flags(t,d,w,h,RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR)
+internal Render_Id render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags);
+internal void render_texture_destroy(Render_Id id);
+
 
 
 // # Note: Drawing Functions.
 //
-internal void draw_quad(v2 min, v2 max);
+#define render_quad(mn, mx) render_quadt(render_id_null(), mn, mx, v2{0,0}, v2{1,1})
+#define render_quad_t(id, mn, mx) render_quad_tuv(id, mn, mx, v2{0,0}, v2{1,1})
+internal void render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max);

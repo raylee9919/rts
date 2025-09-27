@@ -212,6 +212,18 @@ render_init(void)
         Render_Buffer *buffer = renderer->buffer + i;
         buffer->vertices = push_array(renderer->arena, Render_Vertex, render_max_vertex_count);
     }
+
+    // Note: Texture
+    //
+    renderer->texture_arena      = arena_alloc();
+    renderer->texture_table_size = 2048;
+    renderer->texture_table      = push_array(renderer->texture_arena, Render_Texture, renderer->texture_table_size);
+    renderer->texture_next_id    = 1;
+
+    // Note: Command buffer
+    //
+    renderer->command_arena = arena_alloc();
+    renderer->commands = push_array(renderer->command_arena, Render_Command, render_max_command_count);
 }
 
 // # Note: Sort Cmp Functions
@@ -231,13 +243,17 @@ render_cmp_texture_id(const void *a, const void *b)
 internal void
 render_begin(void)
 {
-    // # Clear buffer per frame.
+    // # Note: Clear buffer per frame.
     for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i)
     {
         Render_Buffer *buffer = renderer->buffer + i;
         buffer->vertex_count   = 0;
         buffer->instance_count = 0;
     }
+
+    // # Note: Clear command buffer.
+    //
+    renderer->command_count = 0;
 }
 
 internal void
@@ -263,11 +279,173 @@ render_end(void)
     }
 }
 
+internal void
+render_command_push(Render_Command cmd)
+{
+    assert(renderer->command_count < render_max_command_count);
+    renderer->commands[renderer->command_count++] = cmd;
+}
+
+internal Render_Texture *
+render_texture_alloc(void)
+{
+    Render_Texture *texture = renderer->texture_free_first;
+
+    if (texture != NULL)
+    {
+        sll_pop_front(renderer->texture_free_first, renderer->texture_free_last);
+        zero_memory(texture, sizeof(Render_Texture));
+    }
+    else
+    {
+        texture = push_struct(renderer->texture_arena, Render_Texture);
+    }
+
+    return texture;
+}
+
+internal void
+render_texture_release(Render_Texture *texture)
+{
+    sll_push_back(renderer->texture_free_first, renderer->texture_free_last, texture);
+}
+
+internal u64
+render_key_from_id(Render_Id id)
+{
+    return id.e[0];
+}
+
+internal Render_Id
+render_id_null(void)
+{
+    Render_Id id = {};
+    return id;
+}
+
+internal b32
+render_id_match(Render_Id a, Render_Id b)
+{
+    return (a.e[0] == b.e[0]);
+}
+
+internal Render_Texture *
+render_texture_from_id(Render_Id id)
+{
+    Render_Texture *result = NULL;
+
+    u64 slot = (render_key_from_id(id) % renderer->texture_table_size);
+
+    for (Render_Texture *texture = renderer->texture_table[slot].first;
+         texture != NULL;
+         texture = texture->next)
+    {
+        if (render_id_match(texture->id, id))
+        {
+            result = texture;
+            break;
+        }
+    }
+
+    return result;
+}
+
+internal Render_Id
+render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags)
+{
+    // Todo: Remove
+    Render_Id id;
+    id.e[0] = renderer->texture_next_id++;
+
+    // Get slot in table from id.
+    u64 slot = render_key_from_id(id) % renderer->texture_table_size;
+
+    // Alloc from free list.
+    Render_Texture *texture = render_texture_alloc();
+    {
+        texture->id = id;
+        texture->type = type;
+        texture->data = data;
+        texture->width = width;
+        texture->height = height;
+    }
+
+    // Put into table.
+    sll_push_back(renderer->texture_table[slot].first, renderer->texture_table[slot].last, texture);
+
+
+    // Push command.
+    Render_Command cmd = {};
+    {
+        cmd.flags = (RENDER_COMMAND_FLAG_TEXTURE_CREATE | flags);
+        cmd.texture = *texture;
+    }
+
+    render_command_push(cmd);
+
+    return id;
+}
+
+internal void
+render_texture_destroy(Render_Id id)
+{
+    Render_Texture *texture = NULL;
+
+    // Find texture from the table and remove the hash link.
+    u64 slot = (render_key_from_id(id) % renderer->texture_table_size);
+    Render_Texture *chain = renderer->texture_table + slot;
+    for (Render_Texture *t = chain->first, *prev = NULL;
+         t != NULL;
+         prev = t, t = t->next)
+    {
+
+        if (render_id_match(t->id, id))
+        {
+            texture = t;
+
+            if (t == chain->first)
+            {
+                chain->first = t->next;
+            }
+
+            if (t == chain->last)
+            {
+                chain->last = prev;
+            }
+
+            if (prev)
+            {
+                prev->next = t->next;
+            }
+
+            break;
+        }
+    }
+
+    if (texture)
+    {
+        // Add to free list.
+        render_texture_release(texture);
+
+        // Push command.
+        Render_Command cmd = {};
+        {
+            cmd.flags = RENDER_COMMAND_FLAG_TEXTURE_DESTROY;
+            cmd.texture.id = id;
+        }
+        render_command_push(cmd);
+    }
+    else
+    {
+        assert(! "Texture not found in the table.");
+    }
+}
+
 
 // # Note: Drawing Functions.
 //
 internal void
-draw_quad(v2 min, v2 max)
+render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max)
 {
     // # Note: Order and UV
     //
@@ -277,6 +455,7 @@ draw_quad(v2 min, v2 max)
     //            2----3
     //         [0,1]  [1,1]
     //
+
     Render_Vertex_Type type = RENDER_VERTEX_TYPE_QUAD;
     Render_Buffer *buffer = renderer->buffer + type;
 
@@ -285,7 +464,7 @@ draw_quad(v2 min, v2 max)
     };
 
     v2 uvs[4] = {
-        {0,0}, {1,0}, {0,1}, {1,1}
+        uv_min, {uv_max.x,uv_min.y}, {uv_min.x,uv_max.y}, uv_max
     };
     
     for (u32 i = 0; i < 4; ++i)
@@ -294,9 +473,10 @@ draw_quad(v2 min, v2 max)
         Render_Vertex *v = render_vertex_push(type);
         {
             // # init
-            v->type     = type;
-            v->position = positions[i];
-            v->uv       = uvs[i];
+            v->type        = type;
+            v->position    = positions[i];
+            v->uv          = uvs[i];
+            v->texture_id  = texture_id;
         }
     }
 
