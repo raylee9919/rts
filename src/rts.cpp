@@ -512,32 +512,14 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_commands->csm_view = game_state->game_camera->V;
     }
 
-#if 1
     local_persist b32 initted = 0;
-    local_persist Render_Id id1 = {};
-    local_persist Render_Id id2= {};
-    local_persist Render_Id id3 = {};
+    local_persist Render_Id id = {};
     if (! initted)
     {
         initted = 1;
-
-        local_persist u32 tex1[] = 
-        {
-            0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff,
-            0xff00ffff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xff00ffff,
-            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
-            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
-            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
-            0xff00ffff, 0xffff00ff, 0xff00ffff, 0xffffffff, 0xffffffff, 0xff00ffff, 0xffff00ff, 0xff00ffff,
-            0xff00ffff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xffff00ff, 0xff00ffff,
-            0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff, 0xff00ffff,
-        };
-
-        id1 = render_texture_create_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, tex1, 8, 8);
+        id = render_texture_create_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, assets->debug_bitmap.memory, assets->debug_bitmap.width, assets->debug_bitmap.height);
     }
-#endif
-
-        render_quad_t(id1, V2(100,100), V2(200, 200));
+    render_quad_t(id, V2(100,100), V2(200, 200));
 
     render_end();
 }
