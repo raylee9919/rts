@@ -601,7 +601,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             CloseHandle(proc);
         }
 
-        // @Note: draw resolution.
+        // # Note: draw resolution.
         v2u render_dim = {
             1920, 1080,
             //2560, 1440,
@@ -611,6 +611,9 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         os_event_list_clear();
         os->event_poll();
 
+
+        // # Note: Process Message
+        //
         for (MSG msg; PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE);)
         {
             switch(msg.message) 
@@ -627,8 +630,23 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
 
 
-        // ----------------------------------------
-        // @Note: get dt.
+        // # Note: Fullscreen
+        //
+        for (Os_Event *ev = os->event_sentinel->next, *next = NULL;
+             ev != os->event_sentinel;
+             ev = next)
+        {
+            next = ev->next;
+            if (ev->type == OS_EVENT_PRESS && (ev->modifiers & OS_MODIFIER_ALT) && ev->key == OS_KEY_ENTER)
+            {
+                win32_toggle_fullscreen(hwnd);
+                os_event_consume(ev);
+            }
+        }
+
+
+        // # Note: get dt.
+        //
         u64 new_counter = os->perf_counter();
         f32 dt = (new_counter - old_counter) * os->perf_counter_freq_inv;
         old_counter = new_counter;
@@ -637,7 +655,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
             if (os->sleep_is_granular)
             {
-                // @Todo: what?
+                // # Todo: what?
             }
             Sleep(ms);
             dt = desired_dt;
@@ -651,23 +669,30 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         Render_Commands *render_commands = NULL;
 
+        // # Note: Render begin.
+        //
         if (renderer_code.is_valid) 
         {
             render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim); 
         }
 
+        // # Note: Game update and render.
+        //
         if (game.update_and_render) 
         {
             game.update_and_render(&platform, render_commands); 
         }
 
+        // # Note: Game code hot reloading.
+        //
         if (win32_code_modified(&game_code)) 
         {
             win32_code_reload(&game_code); 
             game_code.last_modified = win32_get_last_modified(game_code.dll_path);
         }
 
-
+        // # Note: Render end.
+        //
         if (renderer_code.is_valid) 
         {
             if (renderer_was_reloaded) 
