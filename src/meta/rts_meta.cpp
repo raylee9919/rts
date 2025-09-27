@@ -689,7 +689,7 @@ int main(void)
     arena = arena_alloc();
 
     {
-        Utf8 binary_parent_path = utf8_path_chop_last_slash(os.binary_path);
+        Utf8 binary_parent_path = utf8_path_chop_last_slash(os->binary_path);
         src_path    = utf8f(arena, "%S/src", binary_parent_path);
         entity_dir = utf8f(arena, "%S/src/entity", binary_parent_path);
     }

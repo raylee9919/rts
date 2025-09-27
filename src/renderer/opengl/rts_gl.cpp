@@ -1517,7 +1517,10 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
                             opengl_bind_texture(gl, NULL);
 
-                            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, instance_count);
+                            for (u32 i = 0; i < instance_count; i += 1)
+                            {
+                                glDrawArraysInstanced(GL_TRIANGLE_STRIP, 4*i, 4, 1);
+                            }
 
                             // # Divisor End
                             //glVertexAttribDivisor(0, 0);

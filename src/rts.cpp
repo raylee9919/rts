@@ -16,12 +16,11 @@
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
-#include "rts_math.h"
 #include "rts_random.h"
 #include "rts_platform.h"
 #include "rts_asset.h"
 #include "rts_ds.h" // @Todo: cleanup
-#include "rts_ui.h"
+#include "ui/rts_ui_core.h"
 #include "rts_delaunay.h"
 #include "rts_nav.h"
 #include "rts.h"
@@ -40,12 +39,11 @@ global Renderer *renderer;
 // # Note: [.cpp]
 //
 #include "base/rts_base_inc.cpp"
-#include "rts_math.cpp"
 #include "rts_random.cpp"
 #include "rts_asset.cpp"
 #include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
-#include "rts_ui.cpp"
+#include "ui/rts_ui_core.cpp"
 #include "rts_delaunay.cpp"
 #include "rts_nav.cpp"
 #include "rts_sim.cpp"
@@ -523,7 +521,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
 
-    draw_quad({100, 100}, {250, 150});
+    ui_push_box();
+    {
+        ui_text(utf8lit("TexT"));
+    }
+    ui_pop_box();
+    
 
     render_end();
 }

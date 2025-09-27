@@ -210,4 +210,4 @@ struct Renderer
 
 // # Note: constants
 //
-#define render_max_vertex_count 4096
+#define render_max_vertex_count 16384

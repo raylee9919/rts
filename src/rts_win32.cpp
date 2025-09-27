@@ -15,7 +15,6 @@
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
-#include "rts_math.h"
 #include "rts_asset.h"
 #include "rts_platform.h"
 #include "rts_win32.h"
@@ -30,7 +29,6 @@ global Renderer *g_renderer;
 //
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
-#include "rts_math.cpp"
 
 
 // # Note: Windows Additional Libs

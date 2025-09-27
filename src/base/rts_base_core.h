@@ -111,65 +111,6 @@ typedef size_t      mmm;
 typedef uintptr_t   umm;
 typedef intptr_t    smm;
 
-// -------------------------------------------
-// @Note: Vectors
-union v2 
-{
-    struct { f32 x, y; };
-    f32 e[2];
-};
-
-union v2s 
-{
-    struct { s32 x, y; };
-    s32 e[2];
-};
-
-union v2u 
-{
-    struct {u32 x, y;};
-    struct {u32 w, h;};
-    u32 e[2];
-};
-
-union v3 
-{
-    struct {
-        union {
-            struct { f32 x, y; };
-            v2 xy;
-        };
-        f32 z;
-    };
-    f32 e[3];
-};
-
-union v4 
-{
-    struct {
-        union {
-            struct { f32 r, g, b; };
-            v3 rgb;
-        };
-        f32 a;
-    };
-    struct {
-        union {
-            struct {
-                union {
-                    v2 xy;
-                    struct { f32 x, y; };
-                };
-                f32 z;
-            };
-            v3 xyz;
-        };
-        f32 w;
-    };
-    f32 e[4];
-};
-
-
 
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)

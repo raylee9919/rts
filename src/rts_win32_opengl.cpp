@@ -19,7 +19,6 @@
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
-#include "rts_math.h"
 #include "rts_asset.h"
 
 #include "renderer/rts_renderer.h"
@@ -29,7 +28,6 @@
 // # Note: [.cpp]
 //
 #include "base/rts_base_inc.cpp"
-#include "rts_math.cpp"
 #include "renderer/opengl/rts_gl.cpp"
 
 
