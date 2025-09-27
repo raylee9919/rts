@@ -24,8 +24,7 @@ enum Ui_Size_Type
 struct Ui_Size
 {
     Ui_Size_Type    type;
-    f32             value;
-    f32             strictness;
+    v2              value;
 };
 
 typedef u32 Ui_Box_Flags;

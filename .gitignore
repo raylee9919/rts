@@ -2,3 +2,4 @@ build
 tags
 data/map/backup
 *.cap
+*.ctm

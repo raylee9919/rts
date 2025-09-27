@@ -4,7 +4,7 @@ cd /D "%~dp0"
 
 :: CTIME Begin
 if not exist misc mkdir misc
-call ctime -begin misc/rts_build_time.ctm
+call "util/ctime" -begin misc/rts_build_time.ctm
 
 where /q cl || (
     echo [ERROR]: "cl" not found - please run this from the MSVC x64 native tools command prompt.
@@ -47,8 +47,8 @@ rem call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /
 rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
-call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
-rts_meta.exe
+rem call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
+rem rts_meta.exe
 
 :: ---------------------------- Game ---------------------------- ::
 :: Renderers
@@ -65,5 +65,5 @@ call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %fla
 popd
 
 :: CTIME End
-call ctime -end misc/rts_build_time.ctm
-rem call ctime -stats misc/rts_build_time.ctm
+call "util/ctime" -end misc/rts_build_time.ctm
+rem call "util/ctime" -stats misc/rts_build_time.ctm

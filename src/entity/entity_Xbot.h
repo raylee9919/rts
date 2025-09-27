@@ -103,272 +103,285 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
         }
     }
 
-#if 0
-    if ((input->mouse.is_down[Mouse_Right] && input->mouse.toggle[Mouse_Right])) 
+#if 1
+    for (Os_Event *event = os->event_sentinel->next, *next = NULL;
+         event != os->event_sentinel;
+         event = next)
     {
-        e->command = Command_Move;
+        next = event->next;
+        if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_RIGHT)
+        {
+            os_event_consume(event);
+            f32 mx = event->position.x;
+            f32 my = event->position.y;
 
-        f32 x = map01_binormal(input->mouse.position.x, 0, input->draw_dim.x);
-        f32 y = map01_binormal(input->mouse.position.y, 0, input->draw_dim.y);
-        m4x4 inv_view_proj = inverse(game_state->controlling_camera->VP);
-        // @Todo: Graphics API-independent
-        v4 up = inv_view_proj * v4{x, y, 1, 1};
-        up.xyz /= up.w;
-        v3 o = game_state->controlling_camera->position;
-        v3 v = normalize(up.xyz - o);
-        v3 n = v3{0,1,0};
-        f32 d = safe_ratio(-dot(o, n), dot(v, n));
-        v3 p = o + d*v;
+            e->command = Command_Move;
 
-        e->destination = p;
- 
-        // @Todo: This is not handling 'point-on-edge' case.
-        Navmesh *navmesh = game_state->navmesh;
-        Cdt_Result *cdt = &navmesh->cdt;
+            // # Todo: define rigorous coordinate!
+            //
+            f32 x =  map01_binormal(mx, 0, game_state->draw_width);
+            f32 y = -map01_binormal(my, 0, game_state->draw_height); // !
 
-        v2 flatposition = v2{e->position.z, e->position.x};
-        int S = -1;
+            m4x4 inv_view_proj = inverse(game_state->controlling_camera->VP);
+            // @Todo: Graphics API-independent
+            v4 up = inv_view_proj * v4{x, y, 1, 1};
+            up.xyz /= up.w;
+            v3 o = game_state->controlling_camera->position;
+            v3 v = normalize(up.xyz - o);
+            v3 n = v3{0,1,0};
+            f32 d = safe_ratio(-dot(o, n), dot(v, n));
+            v3 p = o + d*v;
 
-        for (int i = 0; i < cdt->numtri; ++i) {
-            v2 a = v2{navmesh->vertices[cdt->tri[i][0]].position.z, navmesh->vertices[cdt->tri[i][0]].position.x};
-            v2 b = v2{navmesh->vertices[cdt->tri[i][1]].position.z, navmesh->vertices[cdt->tri[i][1]].position.x};
-            v2 c = v2{navmesh->vertices[cdt->tri[i][2]].position.z, navmesh->vertices[cdt->tri[i][2]].position.x};
-            if (cdt_point_in_triangle(flatposition, a, b, c)) {
-                S = i;
-                break;
-            }
-        }
-        Assert(S != -1);
+            e->destination = p;
 
-        int T = -1;
-        for (int i = 0; i < cdt->numtri; ++i) {
-            v2 a = v2{navmesh->vertices[cdt->tri[i][0]].position.z, navmesh->vertices[cdt->tri[i][0]].position.x};
-            v2 b = v2{navmesh->vertices[cdt->tri[i][1]].position.z, navmesh->vertices[cdt->tri[i][1]].position.x};
-            v2 c = v2{navmesh->vertices[cdt->tri[i][2]].position.z, navmesh->vertices[cdt->tri[i][2]].position.x};
-            if (cdt_point_in_triangle(v2{p.z, p.x}, a, b, c)) {
-                T = i;
-                break;
-            }
-        }
+            // @Todo: This is not handling 'point-on-edge' case.
+            Navmesh *navmesh = game_state->navmesh;
+            Cdt_Result *cdt = &navmesh->cdt;
 
-        //
-        // @Todo: A* Algorithm -> Stupid Simple Funnel Algorithm -> Add Radius (Minkowski?) -> Steering/Boid-Style Collision
-        //
-        if (T != -1) {
-            // @Note: A* Algorithm
-            v3 dst_cen = {};
-            for (int i = 0; i < 3; ++i) {
-                dst_cen += navmesh->vertices[cdt->tri[T][i]].position;
-            }
-            dst_cen*=0.333333f;
+            v2 flatposition = v2{e->position.z, e->position.x};
+            int S = -1;
 
-            f32 *euclidian_dist = (f32 *)malloc(sizeof(f32)*cdt->numtri);
-            scope_exit(free(euclidian_dist));
-            for (int u = 0; u < cdt->numtri; ++u) {
-                v3 ucen = {};
-                for (int i = 0; i < 3; ++i)
-                    ucen += navmesh->vertices[cdt->tri[u][i]].position;
-                ucen*=0.333333f;
-
-                euclidian_dist[u] = distance(ucen, dst_cen);
-            }
-
-            Pair<f32, int> *dist = (Pair<f32, int> *)malloc(sizeof(Pair<f32, int>)*cdt->numtri);
-            scope_exit(free(dist));
             for (int i = 0; i < cdt->numtri; ++i) {
-                dist[i].x = F32_MAX;
-                dist[i].y = i;
-            }
-            dist[S].x = euclidian_dist[S];
-
-            Priority_Queue<Pair<f32, Pair<int, int>>> pq = {};
-            enqueue(&pq, {dist[S].x, {S, -1}}); // @Todo: Is putting -1 in here correct?
-
-            while (pq.size > 0) 
-            {
-                auto item = dequeue(&pq);
-                int u = item.y.x;
-                int in_edge = item.y.y;
-
-                if (u == T) {
+                v2 a = v2{navmesh->vertices[cdt->tri[i][0]].position.z, navmesh->vertices[cdt->tri[i][0]].position.x};
+                v2 b = v2{navmesh->vertices[cdt->tri[i][1]].position.z, navmesh->vertices[cdt->tri[i][1]].position.x};
+                v2 c = v2{navmesh->vertices[cdt->tri[i][2]].position.z, navmesh->vertices[cdt->tri[i][2]].position.x};
+                if (cdt_point_in_triangle(flatposition, a, b, c)) {
+                    S = i;
                     break;
                 }
+            }
+            Assert(S != -1);
 
-                for (int i = 0; i < 3; ++i) 
+            int T = -1;
+            for (int i = 0; i < cdt->numtri; ++i) {
+                v2 a = v2{navmesh->vertices[cdt->tri[i][0]].position.z, navmesh->vertices[cdt->tri[i][0]].position.x};
+                v2 b = v2{navmesh->vertices[cdt->tri[i][1]].position.z, navmesh->vertices[cdt->tri[i][1]].position.x};
+                v2 c = v2{navmesh->vertices[cdt->tri[i][2]].position.z, navmesh->vertices[cdt->tri[i][2]].position.x};
+                if (cdt_point_in_triangle(v2{p.z, p.x}, a, b, c)) {
+                    T = i;
+                    break;
+                }
+            }
+
+            //
+            // @Todo: A* Algorithm -> Stupid Simple Funnel Algorithm -> Add Radius (Minkowski?) -> Steering/Boid-Style Collision
+            //
+            if (T != -1) {
+                // @Note: A* Algorithm
+                v3 dst_cen = {};
+                for (int i = 0; i < 3; ++i) {
+                    dst_cen += navmesh->vertices[cdt->tri[T][i]].position;
+                }
+                dst_cen*=0.333333f;
+
+                f32 *euclidian_dist = (f32 *)malloc(sizeof(f32)*cdt->numtri);
+                scope_exit(free(euclidian_dist));
+                for (int u = 0; u < cdt->numtri; ++u) {
+                    v3 ucen = {};
+                    for (int i = 0; i < 3; ++i)
+                        ucen += navmesh->vertices[cdt->tri[u][i]].position;
+                    ucen*=0.333333f;
+
+                    euclidian_dist[u] = distance(ucen, dst_cen);
+                }
+
+                Pair<f32, int> *dist = (Pair<f32, int> *)malloc(sizeof(Pair<f32, int>)*cdt->numtri);
+                scope_exit(free(dist));
+                for (int i = 0; i < cdt->numtri; ++i) {
+                    dist[i].x = F32_MAX;
+                    dist[i].y = i;
+                }
+                dist[S].x = euclidian_dist[S];
+
+                Priority_Queue<Pair<f32, Pair<int, int>>> pq = {};
+                enqueue(&pq, {dist[S].x, {S, -1}}); // @Todo: Is putting -1 in here correct?
+
+                while (pq.size > 0) 
                 {
-                    int v = cdt->adj[u][i];
-                    if (v != -1 && cdt->trespassable[v]) 
-                    {
-                        int out_edge = cdt_edge(cdt->adj, u, v);
-                        f32 width;
-                        
-                        if (in_edge == -1) 
-                        {
-                            width = F32_MAX;
-                        }
-                        else 
-                        {
-                            width = calculate_width(navmesh, u, in_edge, out_edge);
-                        }
+                    auto item = dequeue(&pq);
+                    int u = item.y.x;
+                    int in_edge = item.y.y;
 
-                        if (width > 2.0f * e->radius) 
+                    if (u == T) {
+                        break;
+                    }
+
+                    for (int i = 0; i < 3; ++i) 
+                    {
+                        int v = cdt->adj[u][i];
+                        if (v != -1 && cdt->trespassable[v]) 
                         {
-                            // @Todo: Cache centroid_distance().
-                            f32 newdist = dist[u].x + centroid_distance(navmesh, u, v) + euclidian_dist[v];
-                            if (dist[v].x > newdist) 
+                            int out_edge = cdt_edge(cdt->adj, u, v);
+                            f32 width;
+
+                            if (in_edge == -1) 
                             {
-                                dist[v].x = newdist;
-                                dist[v].y = u;
-                                enqueue(&pq, {newdist, {v, cdt_edge(cdt->adj, v, u)}});
+                                width = F32_MAX;
+                            }
+                            else 
+                            {
+                                width = calculate_width(navmesh, u, in_edge, out_edge);
+                            }
+
+                            if (width > 2.0f * e->radius) 
+                            {
+                                // @Todo: Cache centroid_distance().
+                                f32 newdist = dist[u].x + centroid_distance(navmesh, u, v) + euclidian_dist[v];
+                                if (dist[v].x > newdist) 
+                                {
+                                    dist[v].x = newdist;
+                                    dist[v].y = u;
+                                    enqueue(&pq, {newdist, {v, cdt_edge(cdt->adj, v, u)}});
+                                }
                             }
                         }
                     }
                 }
-            }
 
 
-            // @Note: Portal list before inflating radii.
-            Pair<int, int> tmp_portals[256] = {};
-            umm tmp_portal_count = 0;
+                // @Note: Portal list before inflating radii.
+                Pair<int, int> tmp_portals[256] = {};
+                umm tmp_portal_count = 0;
 
-            for (int v = T; dist[v].y != v; v = dist[v].y) 
-            {
-                int u = dist[v].y;
-                int euv = cdt_edge(cdt->adj, u, v);
+                for (int v = T; dist[v].y != v; v = dist[v].y) 
+                {
+                    int u = dist[v].y;
+                    int euv = cdt_edge(cdt->adj, u, v);
 
-                Assert(tmp_portal_count < array_count(tmp_portals));
-                tmp_portals[tmp_portal_count++] = {u, euv};
-            }
-
-            // @Note: Fill actual portal list by inflating vertices by radii.
-            e->portal_count = 0;
-
-            // @Note: Add src as a portal at the beginning.
-            Assert(e->portal_count < array_count(e->portals));
-            e->portals[e->portal_count++] = Nav_Portal{{-1, e->position}, {-1, e->position}};
-
-            for (int portal_index = tmp_portal_count - 1; portal_index >= 0; --portal_index) 
-            {
-                Pair<int, int> portal = tmp_portals[portal_index];
-                int u = portal.x;
-                int euv = portal.y;
-
-                int v = cdt->adj[u][euv];
-                int evu = cdt_edge(cdt->adj, v, u);
-
-                int ai = cdt->tri[u][(euv+2)%3];
-                int bi = cdt->tri[v][(evu+2)%3];
-                int ci = cdt->tri[u][(euv+1)%3];
-                int di = cdt->tri[u][euv];
-
-                v3 a = navmesh->vertices[ai].position;
-                v3 b = navmesh->vertices[bi].position;
-                v3 c = navmesh->vertices[ci].position;
-                v3 d = navmesh->vertices[di].position;
-
-                v3 p = normalize(a - c);
-                v3 q = normalize(b - c);
-                v3 r = normalize(a - d);
-                v3 s = normalize(b - d);
-                v3 k = normalize(c - d);
-
-                v3 h1 = normalize(p + q);
-                v3 h2 = normalize(r + s);
-
-                // @Todo: Correctness.
-                if (dot(h1, k) > 0) {
-                    h1 = -h1;
+                    Assert(tmp_portal_count < array_count(tmp_portals));
+                    tmp_portals[tmp_portal_count++] = {u, euv};
                 }
 
-                if (dot(h2, k) < 0) {
-                    h2 = -h2;
-                }
+                // @Note: Fill actual portal list by inflating vertices by radii.
+                e->portal_count = 0;
 
-                int right_point_index = cdt->tri[u][euv];
-                int left_point_index  = cdt->tri[u][(euv+1)%3];
-
-                v3 left_point  = c + h1 * e->radius;
-                v3 right_point = d + h2 * e->radius;
-
+                // @Note: Add src as a portal at the beginning.
                 Assert(e->portal_count < array_count(e->portals));
-                e->portals[e->portal_count++] = Nav_Portal{{left_point_index, left_point}, {right_point_index, right_point}};
-            }
+                e->portals[e->portal_count++] = Nav_Portal{{-1, e->position}, {-1, e->position}};
 
-            // @Note: Add dst as a portal at the end.
-            Assert(e->portal_count < array_count(e->portals));
-            e->portals[e->portal_count++] = Nav_Portal{{-1, p}, {-1, p}};
+                for (int portal_index = tmp_portal_count - 1; portal_index >= 0; --portal_index) 
+                {
+                    Pair<int, int> portal = tmp_portals[portal_index];
+                    int u = portal.x;
+                    int euv = portal.y;
+
+                    int v = cdt->adj[u][euv];
+                    int evu = cdt_edge(cdt->adj, v, u);
+
+                    int ai = cdt->tri[u][(euv+2)%3];
+                    int bi = cdt->tri[v][(evu+2)%3];
+                    int ci = cdt->tri[u][(euv+1)%3];
+                    int di = cdt->tri[u][euv];
+
+                    v3 a = navmesh->vertices[ai].position;
+                    v3 b = navmesh->vertices[bi].position;
+                    v3 c = navmesh->vertices[ci].position;
+                    v3 d = navmesh->vertices[di].position;
+
+                    v3 p = normalize(a - c);
+                    v3 q = normalize(b - c);
+                    v3 r = normalize(a - d);
+                    v3 s = normalize(b - d);
+                    v3 k = normalize(c - d);
+
+                    v3 h1 = normalize(p + q);
+                    v3 h2 = normalize(r + s);
+
+                    // @Todo: Correctness.
+                    if (dot(h1, k) > 0) {
+                        h1 = -h1;
+                    }
+
+                    if (dot(h2, k) < 0) {
+                        h2 = -h2;
+                    }
+
+                    int right_point_index = cdt->tri[u][euv];
+                    int left_point_index  = cdt->tri[u][(euv+1)%3];
+
+                    v3 left_point  = c + h1 * e->radius;
+                    v3 right_point = d + h2 * e->radius;
+
+                    Assert(e->portal_count < array_count(e->portals));
+                    e->portals[e->portal_count++] = Nav_Portal{{left_point_index, left_point}, {right_point_index, right_point}};
+                }
+
+                // @Note: Add dst as a portal at the end.
+                Assert(e->portal_count < array_count(e->portals));
+                e->portals[e->portal_count++] = Nav_Portal{{-1, p}, {-1, p}};
 
 
 #if __DEVELOPER
-            e->debug_portal_edge_count = 0;
+                e->debug_portal_edge_count = 0;
 #endif
 
-            // @Note: Stupid Simple Funnel Algorithm (ssf)
-            clear(&e->queue);
+                // @Note: Stupid Simple Funnel Algorithm (ssf)
+                clear(&e->queue);
 
-            int funnel_apex_index  = e->portal_count - 1;
-            int left_funnel_index  = e->portal_count - 1;
-            int right_funnel_index = e->portal_count - 1;
+                int funnel_apex_index  = e->portal_count - 1;
+                int left_funnel_index  = e->portal_count - 1;
+                int right_funnel_index = e->portal_count - 1;
 
-            v3 funnel_apex  = e->position;
-            v3 left_funnel  = e->position;
-            v3 right_funnel = e->position;
+                v3 funnel_apex  = e->position;
+                v3 left_funnel  = e->position;
+                v3 right_funnel = e->position;
 
-            for (u32 portal_index = 0; portal_index < e->portal_count; ++portal_index) 
-            {
-                Nav_Portal portal = e->portals[portal_index];
+                for (u32 portal_index = 0; portal_index < e->portal_count; ++portal_index) 
+                {
+                    Nav_Portal portal = e->portals[portal_index];
 
-                v3 left_point  = portal.left.position;
-                v3 right_point = portal.right.position;
+                    v3 left_point  = portal.left.position;
+                    v3 right_point = portal.right.position;
 
 #if __DEVELOPER
-                e->debug_portal_edges[e->debug_portal_edge_count][0] = navmesh->vertices[portal.right.idx].position;
-                e->debug_portal_edges[e->debug_portal_edge_count][1] = navmesh->vertices[portal.left.idx].position;
-                ++e->debug_portal_edge_count;
+                    e->debug_portal_edges[e->debug_portal_edge_count][0] = navmesh->vertices[portal.right.idx].position;
+                    e->debug_portal_edges[e->debug_portal_edge_count][1] = navmesh->vertices[portal.left.idx].position;
+                    ++e->debug_portal_edge_count;
 #endif
 
-                // Update left funnel.
-                b32 left_changed = false;
-                if (ssf_on_right(left_point, funnel_apex, left_funnel)) 
-                {
-                    if (!ssf_equal(left_funnel, left_point)) 
+                    // Update left funnel.
+                    b32 left_changed = false;
+                    if (ssf_on_right(left_point, funnel_apex, left_funnel)) 
                     {
-                        left_changed = true;
+                        if (!ssf_equal(left_funnel, left_point)) 
+                        {
+                            left_changed = true;
+                        }
+                        left_funnel = left_point;
+                        left_funnel_index = portal_index;
                     }
-                    left_funnel = left_point;
-                    left_funnel_index = portal_index;
+
+                    if (ssf_on_left(right_point, funnel_apex, right_funnel)) 
+                    {
+                        right_funnel = right_point;
+                        right_funnel_index = portal_index;
+                    }
+
+                    if (!ssf_on_right(right_funnel, funnel_apex, left_funnel)) 
+                    {
+                        if (left_changed) 
+                        {
+                            funnel_apex = right_funnel;
+                            funnel_apex_index = right_funnel_index;
+                        }
+                        else 
+                        {
+                            funnel_apex = left_funnel;
+                            funnel_apex_index = left_funnel_index;
+                        }
+                        left_funnel  = funnel_apex;
+                        right_funnel = funnel_apex;
+
+                        portal_index = funnel_apex_index;
+                        left_funnel_index = funnel_apex_index;
+                        right_funnel_index = funnel_apex_index;
+
+                        enqueue(&e->queue, funnel_apex);
+                    }
                 }
 
-                if (ssf_on_left(right_point, funnel_apex, right_funnel)) 
-                {
-                    right_funnel = right_point;
-                    right_funnel_index = portal_index;
-                }
-
-                if (!ssf_on_right(right_funnel, funnel_apex, left_funnel)) 
-                {
-                    if (left_changed) 
-                    {
-                        funnel_apex = right_funnel;
-                        funnel_apex_index = right_funnel_index;
-                    }
-                    else 
-                    {
-                        funnel_apex = left_funnel;
-                        funnel_apex_index = left_funnel_index;
-                    }
-                    left_funnel  = funnel_apex;
-                    right_funnel = funnel_apex;
-
-                    portal_index = funnel_apex_index;
-                    left_funnel_index = funnel_apex_index;
-                    right_funnel_index = funnel_apex_index;
-
-                    enqueue(&e->queue, funnel_apex);
-                }
+                enqueue(&e->queue, p);
             }
-
-            enqueue(&e->queue, p);
         }
     }
 #endif

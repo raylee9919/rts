@@ -123,33 +123,10 @@ ui_build_box(Ui_Box_Flags flags, Ui_Key key)
 
 global Ui_Box *current_box;
 
-internal void 
-ui_push_box()
-{
-    Ui_Box *box = ui_build_box(0, ui_key_from_string(utf8lit("Hello, World")));
-    if (current_box != NULL)
-    {
-        box->parent = current_box;
-    }
-    current_box = box;
-}
-
-internal void 
-ui_pop_box()
-{
-    current_box = current_box->parent;
-}
-
-internal void
-ui_text(Utf8 string)
-{
-    Ui_Box *box = ui_build_box(0, ui_key_from_string(string));
-    box->parent = current_box;
-}
-
 
 // # Note: builder functions.
 //
+#if 0
 internal Ui_Signal
 ui_button(Utf8 string)
 {
@@ -163,5 +140,45 @@ ui_button(Utf8 string)
     }
 
     Ui_Signal result = ui_signal_from_box(box);
+    return result;
+}
+#endif
+
+internal Ui_Signal
+ui_button(Utf8 string)
+{
+    Ui_Signal result = {};
+
+    // # Size
+    v2 origin = {2, 2};
+    Ui_Size size = {};
+    {
+        size.type  = UI_SIZE_PX;
+        size.value = {200, 100};
+    }
+
+    // # Signal
+    for (Os_Event *event = os->event_sentinel->next, *next = NULL;
+         event != os->event_sentinel;
+         event = next)
+    {
+        next = event->next;
+
+        if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_LEFT)
+        {
+            f32 x = event->position.x;
+            f32 y = event->position.y;
+            if (x >= origin.x && x <= origin.x + size.value.x &&
+                y >= origin.y && y <= origin.y + size.value.y)
+            {
+                os_event_consume(event);
+                result.clicked = true;
+            }
+        }
+    }
+
+    // # Draw
+    draw_quad(origin, origin + size.value);
+
     return result;
 }

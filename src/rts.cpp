@@ -520,12 +520,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             render_commands->csm_view = game_state->game_camera->V;
         }
     }
-
-    ui_push_box();
+    
+    if (ui_button(utf8lit("Hello, World")).clicked)
     {
-        ui_text(utf8lit("TexT"));
+        render_commands->wireframe_mode = !render_commands->wireframe_mode;
+        printf("Clicked!");
     }
-    ui_pop_box();
     
 
     render_end();

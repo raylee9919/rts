@@ -211,3 +211,8 @@ struct Renderer
 // # Note: constants
 //
 #define render_max_vertex_count 16384
+
+
+// # Note: Drawing Functions.
+//
+internal void draw_quad(v2 min, v2 max);
