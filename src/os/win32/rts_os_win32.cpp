@@ -6,8 +6,8 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// --------------------------------------
-// @Note: Win32 Handle Cast Functions
+// #Note: Win32 Handle Cast Functions
+//
 internal HANDLE
 to_win32_handle(Os_Handle handle)
 {
@@ -24,8 +24,8 @@ to_os_handle(HANDLE handle)
     return result;
 }
 
-// --------------------------------------
-// @Note: System Info
+// # Note: System Info
+//
 internal
 OS_QUERY_PAGE_SIZE(win32_query_page_size)
 {
@@ -449,6 +449,17 @@ OS_DATE_TIME_CURRENT(win32_date_time_current)
     return result;
 }
 
+internal
+OS_GET_MODIFIERS(win32_get_modifiers)
+{
+    Os_Modifiers modifiers = 0;
+    if (GetKeyState(VK_CONTROL) & 0x8000) { modifiers |= OS_MODIFIER_CTRL;  }
+    if (GetKeyState(VK_SHIFT) & 0x8000)   { modifiers |= OS_MODIFIER_SHIFT; }
+    if (GetKeyState(VK_MENU) & 0x8000)    { modifiers |= OS_MODIFIER_ALT;   }
+    return modifiers;
+}
+
+
 
 // --------------------------------------
 // @Note: Init
@@ -488,6 +499,7 @@ OS_INIT(os_win32_init)
     os->abort                           = win32_abort;
 
     os->event_poll                      = win32_event_poll;
+    os->get_modifiers                   = win32_get_modifiers;
 
     os->perf_counter                    = win32_perf_counter;
     os->perf_counter_freq               = win32_perf_counter_frequency();

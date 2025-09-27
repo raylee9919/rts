@@ -240,7 +240,6 @@ struct Render_Command
 struct Renderer
 {
     Arena *arena;
-    b32 initted;
 
     // # Note: Vertex/Instance Buffer
     Render_Buffer buffer[RENDER_VERTEX_TYPE_COUNT];

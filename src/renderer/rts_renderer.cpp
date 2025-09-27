@@ -205,8 +205,6 @@ render_vertex_push(Render_Vertex_Type type)
 internal void
 render_init(void)
 {
-    renderer->initted = true;
-
     for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i)
     {
         Render_Buffer *buffer = renderer->buffer + i;

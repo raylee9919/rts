@@ -128,10 +128,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     if (renderer == NULL)
     {
         renderer = platform->renderer;
-        if (! renderer->initted)
-        {
-            render_init();
-        }
+        render_init();
     }
 
     // # Note: acquire game state.

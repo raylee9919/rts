@@ -66,6 +66,8 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     LRESULT result = 0;
 
+    Os_Event *event = NULL;
+
     Os_Event_Type type  = OS_EVENT_NULL;
     Os_Key key          = OS_KEY_NULL;
     v2 axis             = v2{0,0};
@@ -105,7 +107,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 key = os->key_table[wparam];
             }
 
-            Os_Event *event = os_event_alloc();
+            event = os_event_alloc();
             {
                 event->type = type;
                 event->key  = key;
@@ -123,7 +125,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
             if ((c >= 32 && c != 127/*DEL*/) || c == '\t' || c == '\n')
             {
-                Os_Event *event = os_event_alloc();
+                event = os_event_alloc();
                 {
                     event->type      = OS_EVENT_TEXT;
                     event->character = c;
@@ -147,7 +149,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
             type = OS_EVENT_MOUSE_MOVE;
 
-            Os_Event *event = os_event_alloc();
+            event = os_event_alloc();
             {
                 event->type       = type;
                 event->position.x = (f32)x;
@@ -178,7 +180,7 @@ winproc_mouse_scroll:;
                 ScreenToClient(hwnd, &p);
             }
 
-            Os_Event *event = os_event_alloc();
+            event = os_event_alloc();
             {
                 event->type       = type;
                 event->delta      = delta*axis;
@@ -216,7 +218,7 @@ winproc_mouse:;
               int x = GET_X_LPARAM(lparam);
               int y = GET_Y_LPARAM(lparam);
 
-              Os_Event *event = os_event_alloc();
+              event = os_event_alloc();
               {
                   event->type       = is_release ? OS_EVENT_RELEASE : OS_EVENT_PRESS;
                   event->key        = key;
@@ -225,9 +227,6 @@ winproc_mouse:;
               }
               dll_push_back(os->event_sentinel, event);
         } break;
-
-
-
 
         case WM_PAINT: {
             PAINTSTRUCT paint;
@@ -247,6 +246,11 @@ winproc_mouse:;
         default: {
             result = DefWindowProcW(hwnd, msg, wparam, lparam);
         } break;
+    }
+
+    if (event != NULL)
+    {
+        event->modifiers = os->get_modifiers();
     }
 
     return result;

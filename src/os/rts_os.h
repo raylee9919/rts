@@ -189,7 +189,14 @@ enum
     OS_KEY_F22 = 133,
     OS_KEY_F23 = 134,
     OS_KEY_F24 = 135,
+};
 
+typedef u16 Os_Modifiers;
+enum
+{
+    OS_MODIFIER_CTRL,
+    OS_MODIFIER_SHIFT,
+    OS_MODIFIER_ALT,
 };
 
 struct Os_Event
@@ -199,6 +206,7 @@ struct Os_Event
 
     Os_Event_Type   type;
     Os_Key          key;
+    Os_Modifiers    modifiers;
     v2              position;
     v2              delta;
     u32             character;
@@ -362,6 +370,10 @@ typedef OS_DATE_TIME_CURRENT(Os_Date_Time_Current);
 #define OS_EVENT_POLL(name) void name(void)
 typedef OS_EVENT_POLL(Os_Event_Poll);
 
+#define OS_GET_MODIFIERS(name) Os_Modifiers name(void)
+typedef OS_GET_MODIFIERS(Os_Get_Modifiers);
+
+
 
 
 
@@ -396,6 +408,7 @@ struct OS
     Os_Abort                        *abort;
 
     Os_Event_Poll                   *event_poll;
+    Os_Get_Modifiers                *get_modifiers;
 
     Os_Perf_Counter                 *perf_counter;
     u64                             perf_counter_freq;

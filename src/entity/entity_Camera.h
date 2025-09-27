@@ -85,6 +85,12 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
             desired_dir += os->key_is_down[OS_KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
             desired_dir += os->key_is_down[OS_KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
             desired_dir += os->key_is_down[OS_KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
+
+            if (os->key_is_down[OS_KEY_SHIFT])
+            {
+                accel_strength *= 2.f;
+                max_speed *= 2.f;
+            }
         }
 
         if (length_square(desired_dir) > 0.0f)
