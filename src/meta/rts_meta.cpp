@@ -80,8 +80,8 @@ meta_generate_entity_include_header()
 internal char *
 entity_from_filepath(const char *filepath) 
 {
-    // @Note: All files are spec'ed to have underscore after 'entity'.
-    //        e.g. entity_Camera.h
+    // # Note: All files are spec'ed to have underscore after 'entity'.
+    //         e.g. entity_Camera.h
 
     char *filename = (char *)get_filename_from_filepath(filepath);
 

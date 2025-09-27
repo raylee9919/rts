@@ -1612,7 +1612,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, uv));
 
                         // # Divisor Begin
-                        //glVertexAttribDivisor(0, 0);
+                        // glVertexAttribDivisor(0, 0);
 
 
                         for (u32 i = 0; i < instance_count; i += 1)
@@ -1626,7 +1626,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         }
 
                         // # Divisor End
-                        //glVertexAttribDivisor(0, 0);
+                        // glVertexAttribDivisor(0, 0);
                     }
                     glBindBuffer(GL_ARRAY_BUFFER, 0);
                 }

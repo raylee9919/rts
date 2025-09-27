@@ -127,8 +127,8 @@ copyz(char *src, char *dst)
 
 
 
-// ----------------------------------
-// @Note: C-String
+// # Note: C-String
+//
 internal u64
 cstr_length(char *cstr)
 {
@@ -148,8 +148,8 @@ utf8_copy(Arena *arena, Utf8 utf)
     return result;
 }
 
-// ----------------------------------
-// @Note: Helper Functions.
+// # Note: Helper Functions.
+//
 internal b32
 is_alpha(u8 c)
 {
@@ -192,8 +192,8 @@ to_forward_slash(u8 c)
 }
 
 
-// ----------------------------------
-// @Note: String Constructors
+// # Note: String Constructors
+//
 internal Utf8
 utf8(u8 *str, u64 len)
 {
@@ -239,8 +239,8 @@ utf32(u32 *str, u64 len)
     return result;
 }
 
-// ----------------------------------
-// @Note: Encoding/Decoding.
+// # Note: Encoding/Decoding.
+//
 internal Unicode_Decode
 utf8_decode(u8 *str, u64 max)
 {
@@ -372,8 +372,8 @@ utf16_encode(u16 *str, u32 codepoint)
     return(inc);
 }
 
-// ---------------------------------------
-// Note: Conversion.
+// # Note: Conversion.
+//
 internal Utf8
 to_utf8(Arena *arena, Utf16 in)
 {
@@ -424,8 +424,8 @@ to_utf16(Arena *arena, Utf8 in)
 
 
 
-// ------------------------------
-// @Note: Manipulation.
+// # Note: Manipulation.
+//
 internal b32
 utf8_match(Utf8 a, Utf8 b, Str_Match_Flags flags)
 {

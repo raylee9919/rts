@@ -28,6 +28,8 @@ struct World
 
 struct Game_Assets 
 {
+    Arena *arena;
+
     Bitmap debug_bitmap;
 
     Asset_Font debug_font;
@@ -66,7 +68,6 @@ struct Game_State
 
     Arena *frame_arena;
 
-    Arena *asset_arena;
     Game_Assets *assets;
 
     World *world;

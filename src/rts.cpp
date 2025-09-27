@@ -142,7 +142,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     {
         game_state->draw_width  = platform->draw_width;
         game_state->draw_height = platform->draw_height;
-        // @Todo: Warn on out-out-range refresh.
+        // # Todo: Warn on out-out-range refresh.
         game_state->dt_real = clamp(platform->dt, 0.001f, 0.1f);
         game_state->dt_game = game_state->dt_real;
     }
@@ -153,13 +153,17 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         thread_init();
 
-        game_state->asset_arena = arena_alloc();
-        game_state->assets = push_struct(game_state->asset_arena, Game_Assets);
+        // # Note: alloc assets
+        //
+        Arena *arena = arena_alloc();
+        game_state->assets = push_struct(arena, Game_Assets);
+        game_state->assets->arena = arena;
+
 
         game_state->frame_arena = arena_alloc();
 
-        // -------------------------------------------
-        // -Note: init world.
+        // # Note: init world.
+        //
         Arena *world_arena = arena_alloc();
         World *world = game_state->world = push_struct(world_arena, World);
         world->arena = world_arena;
@@ -168,12 +172,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->mode = GAME_MODE_GAME;
         game_state->random_series = rand_seed(1219);
 
-        { // -Temporary
+        { // # Temporary
             Temporary_Arena scratch = scratch_begin();
             scope_exit(scratch_end(scratch));
 
             Game_Assets *assets = game_state->assets;
-            Arena *asset_arena = game_state->asset_arena;
+            Arena *asset_arena = game_state->assets->arena;
 
             assets->sphere_model = push_struct(asset_arena, Model);
             asset_load_model(assets->sphere_model, utf8f(scratch.arena, "%S/mesh/sphere.smsh", platform->data_path), asset_arena);
@@ -509,14 +513,20 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_commands->csm_view = game_state->game_camera->V;
     }
 
+    // # Temporary:
+    //
     local_persist b32 initted = 0;
     local_persist Render_Id id = {};
     if (! initted)
     {
         initted = 1;
-        id = render_texture_create_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, assets->debug_bitmap.memory, assets->debug_bitmap.width, assets->debug_bitmap.height);
+        Utf8 tmp = read_entire_file(assets->arena, utf8f(assets->arena, "%S/font_atlas.temp", os->binary_path));
+        void *data = tmp.str;
+        u32 width = 1024;
+        u32 height = 1024;
+        id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, data, width, height);
     }
-    render_quad_t(id, V2(100,100), V2(200, 200));
+    render_quad_t(id, V2(0,0), V2(1024, 1024));
 
     render_end();
 }

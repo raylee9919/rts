@@ -151,4 +151,3 @@ temporary_arena_end(Temporary_Arena temp)
 {
     arena_pop_to(temp.arena, temp.pos);
 }
-

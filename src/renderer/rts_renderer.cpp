@@ -178,8 +178,6 @@ begin_render_group(Render_Commands *frame, u64 size)
 }
 
 
-// # Todo: Revamping renderer currently..
-//
 internal Render_Vertex *
 render_vertex_push(Render_Vertex_Type type)
 {
@@ -351,7 +349,6 @@ render_texture_from_id(Render_Id id)
 internal Render_Id
 render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags)
 {
-    // Todo: Remove
     Render_Id id;
     id.e[0] = renderer->texture_next_id++;
 
@@ -479,4 +476,19 @@ render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max)
     }
 
     buffer->instance_count += 1;
+}
+
+// # Todo:
+//
+internal void
+render_text(Utf8 text)
+{
+    u8 *ptr = text.str;
+    u8 *opl = ptr + text.len;
+    Unicode_Decode consume = {};
+    for (;ptr < opl; ptr += consume.inc)
+    {
+        consume = utf8_decode(ptr, opl - ptr);
+        u32 codepoint = consume.codepoint;
+    }
 }

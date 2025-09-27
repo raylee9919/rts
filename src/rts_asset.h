@@ -9,7 +9,8 @@
    ======================================================================== */
 #pragma pack(push, 1)
 
-// @Todo: Clean those mangled gibberish.
+// # Todo: Clean those mangled gibberish.
+//
 #define MAX_BONE_PER_VERTEX     4
 #define MAX_BONE_PER_MESH       200
 
@@ -142,8 +143,8 @@ struct Asset_Animation
     Asset_Animation_Node *nodes;
 };
 
-// ------------------------------------
-// @Note: 
+// # Note: 
+//
 struct Bitmap 
 {
     s32 bits_per_channel;
@@ -376,7 +377,7 @@ struct Asset_Font
     Asset_Glyph     *glyphs[256];
     Kerning kernings[4096];
 
-    // @Temporary:
+    // # Temporary:
     Arena *arena;
     Utf8 buffer;
 };
@@ -390,8 +391,8 @@ internal u32 get_triangle_count(Model *model);
 internal u32 animation_hash(u32 id, u32 length);
 
 
-// -------------------------------------
-// @Note: Animation.
+// # Note: Animation.
+//
 internal Node_Hash_Result get_sample_index(Animation *anim, u32 id);
 internal void accumulate(Animation_Channel *channel, f32 dt);
 internal TRS interpolate_trs(TRS trs1, f32 t, TRS trs2);
@@ -400,8 +401,8 @@ internal void eval_node(Animation *anim, f32 dt, Node *node);
 internal void eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_node);
 internal void interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f32 dt2);
 
-// -------------------------------------
-// @Note: Font.
+// # Note: Font.
+//
 internal u32 kerning_hash(Kerning_Hashmap *hashmap, u32 first, u32 second);
 internal void push_kerning(Kerning_Hashmap *hashmap, Kerning *kern, u32 entry_idx);
 internal s32 get_kerning(Kerning_Hashmap *hashmap, u32 first, u32 second);

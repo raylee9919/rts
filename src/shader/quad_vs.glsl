@@ -15,7 +15,7 @@ smooth out vec2 fUV;
 
 void main()
 {
-    fUV = vec2(vUV.x, 1.0f - vUV.y);
+    fUV = vec2(vUV.x, vUV.y);
 
     // # Hack:
     float x = ( vP.x / 960.0f) - 1.0f;

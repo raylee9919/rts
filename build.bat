@@ -41,7 +41,7 @@ if exist *.pdb del *.pdb
 rem call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
 
 :: Font (New)
-rem call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /wd4457 /link %flags_linker%
+call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /wd4457 /link %flags_linker%
 
 :: Assimp
 rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
@@ -59,8 +59,8 @@ call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_ope
 rem call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Game
-call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
-call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
+start /wait call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
+start /wait %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 
 popd
 

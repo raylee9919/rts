@@ -6,8 +6,8 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// ---------------------------------
-// @Note: 2nd Tier Glyph Hash Table
+// # Note: 2nd Tier Glyph Hash Table
+//
 internal u64
 dwrite_hash_glyph_index(u16 idx)
 {
@@ -83,7 +83,7 @@ dwrite_insert_glyph_cel_to_table(Dwrite_Glyph_Table *glyph_table, u16 glyph_inde
         }
         else
         {
-            Assert(! "Insufficient hash table entries.");
+            assert(! "Insufficient hash table entries.");
         }
     }
 }
@@ -167,7 +167,7 @@ dwrite_insert_font_to_table(IDWriteFontFace *font_face, Dwrite_Font_Metrics metr
         }
         else
         {
-            Assert(! "Insufficient hash table entries.");
+            assert(! "Insufficient hash table entries.");
         }
     }
 }
@@ -191,7 +191,7 @@ dwrite_map_complexity(Arena *arena,
     HRESULT hr = text_analyzer->GetTextComplexity(text, text_length, font_face,
                                                   /* out */
                                                   &is_simple, &mapped_length, _indices);
-    Assert(SUCCEEDED(hr));
+    assert(SUCCEEDED(hr));
 
     result.glyph_indices = _indices;
     result.is_simple     = is_simple;
@@ -219,7 +219,7 @@ dwrite_font_fallback(IDWriteFontFallback1 *font_fallback,
 
     // @Todo: If no font contains the given codepoints MapCharacters() will return a NULL font_face.
     // We need to replace them with ? glyphs, which this code doesn't do yet (by convention that's glyph index 0 in any font).
-    Assert(result.font_face);
+    assert(result.font_face);
 
     return result;
 }
@@ -227,7 +227,7 @@ dwrite_font_fallback(IDWriteFontFallback1 *font_fallback,
 internal void
 dwrite_abort(WCHAR *message)
 {
-    os.abort();
+    os->abort();
 }
 
 internal void
@@ -297,7 +297,7 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
     IDWriteFontFace5 *font_face = (IDWriteFontFace5 *)run.fontFace;
 
     Dwrite_Font_Table_Entry *font_entry = dwrite_get_entry_from_font_table(font_face);
-    Assert(font_entry);
+    assert(font_entry);
     Dwrite_Font_Metrics font_metrics = font_entry->metrics;
 
     DWRITE_TEXTURE_TYPE texture_type = (is_cleartype) ? DWRITE_TEXTURE_CLEARTYPE_3x1 : DWRITE_TEXTURE_ALIASED_1x1;
@@ -313,7 +313,7 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
         {
             // Get single glyph's metrics.
             DWRITE_GLYPH_METRICS metrics = {};
-            Assert(SUCCEEDED(font_face->GetDesignGlyphMetrics(&glyph_index, 1, &metrics, run.isSideways)));
+            assert(SUCCEEDED(font_face->GetDesignGlyphMetrics(&glyph_index, 1, &metrics, run.isSideways)));
 
             // CreateGlyphRunAnalysis() doesn't support DWRITE_RENDERING_MODE_OUTLINE.
             // We won't bother big glyphs. (many hundreds of pt)
@@ -335,7 +335,7 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
             }
 
             IDWriteGlyphRunAnalysis *analysis = NULL;
-            Assert(SUCCEEDED(dwrite.factory->CreateGlyphRunAnalysis(&single_glyph_run,
+            assert(SUCCEEDED(dwrite.factory->CreateGlyphRunAnalysis(&single_glyph_run,
                                                                     NULL, // transform
                                                                     rendering_mode,
                                                                     measuring_mode,
@@ -345,7 +345,7 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
                                                                     0.0f, // baselineOriginY
                                                                     &analysis)));
 
-            // @Note: GetAlphaTextureBounds() -> RECT exaplanation.
+            // # Note: GetAlphaTextureBounds() -> RECT explanation.
             //
             // bounds.top ------++-----######--+
             //   (-7)           ||  ############
@@ -366,9 +366,9 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
             hr = analysis->GetAlphaTextureBounds(texture_type, &bounds);
             if (FAILED(hr))
             {
-                // @Todo: The font doesn't support DWRITE_TEXTURE_CLEARTYPE_3x1.
-                // Retry with DWRITE_TEXTURE_ALIASED_1x1.
-                Assert(! "x");
+                // # Todo: The font doesn't support DWRITE_TEXTURE_CLEARTYPE_3x1.
+                //         Retry with DWRITE_TEXTURE_ALIASED_1x1.
+                assert(! "x");
             }
 
             Glyph_Cel cel = {};
@@ -384,7 +384,7 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
 
                 u32 rgb_bitmap_size = (is_cleartype) ? (blackbox_width*3)*blackbox_height : blackbox_width*blackbox_height; 
                 u8 *bitmap_data_rgb = (u8 *)push_size(scratch.arena, rgb_bitmap_size);
-                Assert(SUCCEEDED(analysis->CreateAlphaTexture(texture_type, &bounds, bitmap_data_rgb, rgb_bitmap_size)));
+                assert(SUCCEEDED(analysis->CreateAlphaTexture(texture_type, &bounds, bitmap_data_rgb, rgb_bitmap_size)));
 
                 u32 x1 = 0;
                 u32 y1 = 0;
@@ -408,13 +408,13 @@ dwrite_pack_glyphs_in_run_to_atlas(b32 is_cleartype,
                             u8 *dst = atlas->data + (y1+r+margin)*atlas->pitch + (x1+c+margin)*4;
                             u8 *src = bitmap_data_rgb + r*blackbox_width*3 + c*3;
                             *(u32 *)dst = *(u32 *)src;
-                            // @Note: Alpha doesn't matter since Cleatype doesn't handle alpha.
+                            // # Note: Alpha doesn't matter since Cleatype doesn't handle alpha.
                         }
                     }
                 }
                 else
                 {
-                    Assert(! "Couldn't fit in the atlas");
+                    assert(! "Couldn't fit in the atlas");
                 }
 
                 cel.is_empty     = false;
@@ -499,7 +499,7 @@ dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback,
                                                               text + offset, text_length - offset);
         u32 run_length = ff.length;
         IDWriteFontFace5 *run_font_face = ff.font_face;
-        Assert(run_font_face);
+        assert(run_font_face);
 
         DWRITE_FONT_METRICS dfm = {};
         run_font_face->GetMetrics(&dfm);
@@ -512,9 +512,8 @@ dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback,
         f32 advance_height_px = (f32)(dfm.ascent + dfm.descent + dfm.lineGap) * px_per_du;
         max_advance_height_px = max(max_advance_height_px, advance_height_px);
 
-        // --------------------------------------------------------------------
-        // @Important: Must not free a font face for this to work.
-        // @Note:      Update font table.
+        // # Important: Must not free a font face for this to work.
+        // # Note:      Update font table.
         Dwrite_Font_Metrics metrics = {};
         {
             metrics.du_per_em = du_per_em;
@@ -522,9 +521,9 @@ dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback,
         }
         dwrite_insert_font_to_table(run_font_face, metrics);
 
-        u16 *indices                 = 0;
-        FLOAT *advances              = 0;
-        DWRITE_GLYPH_OFFSET *offsets = 0;
+        u16 *indices                 = NULL;
+        FLOAT *advances              = NULL;
+        DWRITE_GLYPH_OFFSET *offsets = NULL;
 
         // Segment the run once again with identical complexity.
         WCHAR *remain_text = text + offset;
@@ -576,7 +575,7 @@ dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback,
 
                 // Split the text into runs of the same script ("language"), bidi, etc.
                 hr = text_analyzer->AnalyzeScript(&analysis_source, 0/*textPosition*/, text_length, &analysis_sink);
-                Assert(SUCCEEDED(hr));
+                assert(SUCCEEDED(hr));
 
                 for (Dwrite_Text_Analysis_Sink_Result *analysis_sink_result = analysis_sink.result_first;
                      analysis_sink_result != 0;
@@ -636,7 +635,7 @@ dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback,
                         }
                         else if (FAILED(hr))
                         {
-                            Assert(! "x");
+                            assert(! "x");
                         }
                         else
                         {
@@ -673,7 +672,7 @@ dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback,
                                                            advances + current_glyph_count, // @Todo: Unit consistency.
                                                            offsets + current_glyph_count);
 
-                    Assert(SUCCEEDED(hr));
+                    assert(SUCCEEDED(hr));
 
                     current_glyph_count = actual_glyph_count_next;
                 }
