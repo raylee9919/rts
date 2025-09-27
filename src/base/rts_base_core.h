@@ -111,7 +111,6 @@ typedef size_t      mmm;
 typedef uintptr_t   umm;
 typedef intptr_t    smm;
 
-
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)

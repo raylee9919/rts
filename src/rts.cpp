@@ -20,7 +20,7 @@
 #include "rts_platform.h"
 #include "rts_asset.h"
 #include "rts_ds.h" // @Todo: cleanup
-#include "ui/rts_ui_core.h"
+#include "ui/rts_ui_inc.h"
 #include "rts_delaunay.h"
 #include "rts_nav.h"
 #include "rts.h"
@@ -33,6 +33,7 @@
 
 // # Note: globals.
 //
+global Ui_State *ui_state;
 global Renderer *renderer;
 
 
@@ -43,7 +44,7 @@ global Renderer *renderer;
 #include "rts_asset.cpp"
 #include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
-#include "ui/rts_ui_core.cpp"
+#include "ui/rts_ui_inc.cpp"
 #include "rts_delaunay.cpp"
 #include "rts_nav.cpp"
 #include "rts_sim.cpp"
@@ -354,21 +355,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     // # Note: ui alloc/init
     //
-    if (ui == NULL)
+    if (ui_state == NULL)
     {
-        // allocate
-        Arena *arena = arena_alloc();
-        ui = push_struct(arena, Ui_State);
-        ui->arena = arena;
-
-        // init
-        ui_init(ui);
-    }
-
-    // # Temporary:
-    if (ui_button(utf8lit("ThisIsButton")).clicked)
-    {
-        printf("Button Clicked!\n");
+        ui_state = ui_alloc();
+        ui_init(ui_state);
     }
 
     // # Note: this temporary frame arena must be cleared every frame.
@@ -476,56 +466,52 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         render_commands->wireframe_color = V4(0.9f, 0.9f, 0.9f, 1.0f);
 
-        { // -Note: Skybox
-            render_commands->skybox_on = true;
-            render_commands->skybox_mesh = &assets->skybox_mesh;
-            render_commands->skybox_eye_view_proj = game_state->controlling_camera->VP;
-            for (u32 i = 0; i < 6; ++i) {
-                render_commands->skybox_textures[i] = assets->skybox_textures + i;
-            }
+        // # Note: Skybox
+        //
+        render_commands->skybox_on = true;
+        render_commands->skybox_mesh = &assets->skybox_mesh;
+        render_commands->skybox_eye_view_proj = game_state->controlling_camera->VP;
+        for (u32 i = 0; i < 6; ++i) {
+            render_commands->skybox_textures[i] = assets->skybox_textures + i;
         }
 
-        { // -Note: CSM
-            render_commands->csm_to_light = normalize(V3(1,1,1));
-            f32 csm_frustum_edge_length = 50.0f;
-            m4x4 inv = inverse(game_state->game_camera->VP);
-            // -Todo: Renderer independent calculation!
-            v4 ndcs[4] = {
-                v4{-1,-1,-1, 1},
-                v4{ 1,-1,-1, 1},
-                v4{-1, 1,-1, 1},
-                v4{ 1, 1,-1, 1},
-            };
 
-            v3 eye = game_state->game_camera->position;
-            v4 positions[8];
-            
-            for (u32 i = 0; i < 4; ++i) 
-            {
-                positions[i] = inv * ndcs[i];
-                positions[i].xyz *= (1.0f / positions[i].w);
-            }
+        // # Note: CSM
+        //
+        render_commands->csm_to_light = normalize(V3(1,1,1));
+        f32 csm_frustum_edge_length = 50.0f;
+        m4x4 inv = inverse(game_state->game_camera->VP);
+        // # Todo: Renderer independent calculation!
+        v4 ndcs[4] = {
+            v4{-1,-1,-1, 1},
+            v4{ 1,-1,-1, 1},
+            v4{-1, 1,-1, 1},
+            v4{ 1, 1,-1, 1},
+        };
 
-            for (u32 i = 0; i < 4; ++i) 
-            {
-                v3 d = normalize(positions[i].xyz - eye);
-                positions[4+i] = positions[i];
-                positions[4+i].xyz += (csm_frustum_edge_length*d);
-            }
+        v3 eye = game_state->game_camera->position;
+        v4 positions[8];
 
-            for (u32 i = 0; i < 8; ++i) 
-            {
-                render_commands->csm_frustum_positions[i] = positions[i].xyz;
-            }
-            render_commands->csm_view = game_state->game_camera->V;
+        for (u32 i = 0; i < 4; ++i) 
+        {
+            positions[i] = inv * ndcs[i];
+            positions[i].xyz *= (1.0f / positions[i].w);
         }
+
+        for (u32 i = 0; i < 4; ++i) 
+        {
+            v3 d = normalize(positions[i].xyz - eye);
+            positions[4+i] = positions[i];
+            positions[4+i].xyz += (csm_frustum_edge_length*d);
+        }
+
+        for (u32 i = 0; i < 8; ++i) 
+        {
+            render_commands->csm_frustum_positions[i] = positions[i].xyz;
+        }
+        render_commands->csm_view = game_state->game_camera->V;
     }
     
-    if (ui_button(utf8lit("Hello, World")).clicked)
-    {
-        render_commands->wireframe_mode = !render_commands->wireframe_mode;
-        printf("Clicked!");
-    }
     
 
     render_end();
