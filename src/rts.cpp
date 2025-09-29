@@ -113,6 +113,96 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
 }
 #endif
 
+
+
+
+struct Stream
+{
+    u8 *ptr;
+};
+
+#define stream_eat_type(stream, type) (*((type *)stream_eat(stream, sizeof(type))))
+internal void *
+stream_eat(Stream *stream, u64 size)
+{
+    void *result = stream->ptr;
+    stream->ptr += size;
+    return result;
+}
+
+#define stream_peek_type(stream, type) (*((type *)stream_peek(stream)))
+internal void *
+stream_peek(Stream *stream)
+{
+    void *result = stream->ptr;
+    return result;
+}
+
+// # Temporary:
+//
+#include <unordered_map>
+
+struct Glyph_Metrics
+{
+    u32 glyph_index;
+    f32 uv_min_x;
+    f32 uv_min_y;
+    f32 uv_max_x;
+    f32 uv_max_y;
+    f32 width;
+    f32 height;
+    f32 left_side_bearing;
+    f32 top_side_bearing;
+    f32 advance_x;
+};
+
+std::unordered_map<u32, std::vector<u16>> cmap;
+std::unordered_map<u16, Glyph_Metrics> metrics_table;
+
+internal void
+render_debug_string(Render_Id atlas, Utf8 string)
+{
+    v2 pen = {100, 100};
+
+    u8 *ptr = string.str;
+    u8 *opl = ptr + string.len;
+    u64 size = 0;
+    Unicode_Decode consume = {};
+    for (;ptr < opl; ptr += consume.inc)
+    {
+        consume = utf8_decode(ptr, opl - ptr);
+        u32 codepoint = consume.codepoint;
+
+        if (cmap.find(codepoint) == cmap.end())
+        {
+            codepoint = 0;
+        }
+
+        std::vector<u16> glyphs = cmap[codepoint];
+        for (u16 glyph : glyphs)
+        {
+            Glyph_Metrics metrics = metrics_table[glyph];
+
+            v2 offset = v2{metrics.left_side_bearing, metrics.top_side_bearing};
+            v2 dim = v2{metrics.width, metrics.height};
+            v2 box_origin = pen + offset;
+            v2 uv_min = v2{metrics.uv_min_x, metrics.uv_min_y};
+            v2 uv_max = v2{metrics.uv_max_x, metrics.uv_max_y};
+            render_quad_tuv(atlas, box_origin, box_origin + dim, uv_min, uv_max);
+
+            pen.x += floorf(metrics.advance_x);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
@@ -520,13 +610,74 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     if (! initted)
     {
         initted = 1;
-        Utf8 tmp = read_entire_file(assets->arena, utf8f(assets->arena, "%S/font_atlas.temp", os->binary_path));
-        void *data = tmp.str;
-        u32 width = 1024;
-        u32 height = 1024;
-        id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, data, width, height);
+        Utf8 contents = read_entire_file(assets->arena, utf8f(assets->arena, "%S/font_asset.txt", platform->data_path));
+
+        Stream stream = {};
+        stream.ptr = contents.str;
+
+        // # Note: Part1
+        //
+        while (stream_peek_type(&stream, u8) != 0)
+        {
+            // # Temporary
+            std::vector<u16> indices;
+
+
+            u32 codepoint = stream_eat_type(&stream, u32);
+            u32 glyph_count = stream_eat_type(&stream, u32);
+            for (u32 i = 0; i < glyph_count; ++i)
+            {
+                u16 glyph_index = stream_eat_type(&stream, u16);
+
+                // # Temporary
+                indices.push_back(glyph_index);
+            }
+
+            cmap[codepoint] = indices;
+        }
+        assert(stream_eat_type(&stream, u8) == 0);
+
+
+        // # Note: Part2
+        //
+        while (stream_peek_type(&stream, u8) != 0)
+        {
+            u16 glyph_index = stream_eat_type(&stream, u32);
+
+            Glyph_Metrics metrics = {};
+            {
+                metrics.uv_min_x            = stream_eat_type(&stream, f32);
+                metrics.uv_min_y            = stream_eat_type(&stream, f32);
+                metrics.uv_max_x            = stream_eat_type(&stream, f32);
+                metrics.uv_max_y            = stream_eat_type(&stream, f32);
+                metrics.width               = stream_eat_type(&stream, f32);
+                metrics.height              = stream_eat_type(&stream, f32);
+                metrics.left_side_bearing   = stream_eat_type(&stream, f32);
+                metrics.top_side_bearing    = stream_eat_type(&stream, f32);
+                metrics.advance_x           = stream_eat_type(&stream, f32);
+            }
+
+            metrics_table[glyph_index] = metrics;
+        }
+        assert(stream_eat_type(&stream, u8) == 0);
+
+
+        // # Note: Part3
+        //
+        u32 atlas_width = stream_eat_type(&stream, u32);
+        u32 atlas_height = stream_eat_type(&stream, u32);
+        u64 atlas_size = atlas_width * atlas_height * 4;
+        void *atlas_data = stream_eat(&stream, atlas_size);
+        assert(stream_eat_type(&stream, u8) == 0);
+
+
+
+        // # Note: Uplaod atlas to renderer.
+        //
+        id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, atlas_data, atlas_width, atlas_height);
     }
-    render_quad_t(id, V2(0,0), V2(1024, 1024));
+
+    render_debug_string(id, utf8lit("Hello, World!"));
 
     render_end();
 }

@@ -14,7 +14,7 @@
 #include "rect_pack/rts_rect_pack.h"
 #include "font_provider/rts_fp_ds.h"
 #include "font_provider/rts_font_provider.h"
-#include "font_provider/rts_dwrite.h"
+#include "font_provider/dwrite_core.h"
 
 // # Note: [.cpp]
 //
@@ -23,7 +23,52 @@
 
 #include "rect_pack/rts_rect_pack.cpp"
 #include "font_provider/rts_fp_ds.cpp"
-#include "font_provider/rts_dwrite.cpp"
+#include "font_provider/dwrite_core.cpp"
+
+u8 eos = 0;
+
+// # Note: RTS Font Asset Format
+//         It is not production-ready format yet.
+//         It is not a format spec for the whole file.
+//         It is more like a format of font data section in an asset file.
+//
+//         1. Codepoint to Glyph Indices Mapping.
+//            One codepoint can have multiple glyph indices. In the first part of the asset, 
+//            aforementioned mappings will be specified in the following form (ignore lines starting with //):
+//              
+//                  codepoint  : u32
+//                  glyphCount : u32
+//                  glyphIndex : u16
+//
+//            End this part with character ';' which is a single byte.
+//
+//             
+//             0 as a glyph index is an invalid index.
+//
+//          2. Metrics for Glyph Indices
+//             
+//                  glyphIndex       : u32
+//                  uvMinX           : f32
+//                  uvMinY           : f32
+//                  uvMaxX           : f32
+//                  uvMaxY           : f32
+//                  width            : f32
+//                  height           : f32
+//                  leftSideBearing  : f32
+//                  rightSideBearing : f32
+//                  advanceX         : f32
+//
+//             End this part with character ';' which is a single byte.
+//
+//          3. Atlas
+//             Top down, left to right.
+//
+//                  width        : f32
+//                  height       : f32
+//                  texel[0,3]   : RGBA32
+//
+//             End this part with character ';' which is a single byte.
+//
 
 int main(void)
 {
@@ -63,25 +108,12 @@ int main(void)
         scratch_end(scratch);
     }
 
-    dwrite_init();
 
-    // # Note: configs.
+    // # Todo/Temporary: Change to pure OS calls.
     //
-    f32 pt_per_em   = 40.0f; // aka, font size.
-    f32 px_per_inch = 96.0f;
-    WCHAR *base_font_family_name = L"Roboto Mono";
-    Dwrite_Get_Base_Font_Family_Index_Result family = dwrite_get_base_font_family_index(base_font_family_name);
-    assert(family.exists);
-    b32 is_cleartype = TRUE;
-
-    // # Note: Gather utf16 I need.
-    //
-    WCHAR *text = push_array(permanent_arena, WCHAR, 4096);
-    for (u32 codepoint = 32, i = 0; codepoint <= 126; ++codepoint, ++i)
-    {
-        text[i] = codepoint;
-    }
-    u64 text_length = wcslen(text);
+    Utf8 out_path = utf8f(permanent_arena, "%S/font_asset.txt", data_path);
+    FILE *file = fopen((const char *)out_path.str, "wb");
+    assert(file);
 
 
     // # Note: alloc/init atlas and rect packing context.
@@ -101,12 +133,98 @@ int main(void)
         rpk_init(atlas->rpk_ctx, atlas->arena, atlas->width, atlas->height);
     }
 
-    Dwrite_Unit *unit = dwrite_map_text_to_glyphs(dwrite.font_fallback1, dwrite.font_collection, dwrite.text_analyzer1, dwrite.locale, base_font_family_name, pt_per_em, px_per_inch, text, text_length);
 
-    Glyph_Cel_Array glyph_cels = {};
-    dar_init(&glyph_cels, permanent_arena);
+    // # Note: Alloc/init DirectWrite
+    //
+    dwrite_state = dwrite_alloc();
+    dwrite_init();
 
-    for (Dwrite_Run *run_wrapper = unit->run_first;
+
+    // # Note: Configs.
+    //
+    f32 pt_per_em    = 40.0f; // aka, font size.
+
+
+    // # Note: Check if the desired base font family exists.
+    //         Don't really need this if one performs a fallback and doesn't care which font will be used.
+    //
+#if 0
+    WCHAR *base_font_family_name = L"Roboto Mono";
+    s64 family_index = dwrite_font_family_index_from_name(base_font_family_name);
+    assert(family_index != -1);
+#endif
+
+
+    // # Note: Gather UTF16 I need.
+    //
+#if 1
+    WCHAR *text = push_array(permanent_arena, WCHAR, 4096);
+    for (u32 codepoint = 32, i = 0; codepoint <= 126; ++codepoint, ++i)
+    {
+        text[i] = codepoint;
+    }
+#else
+    WCHAR *text = L"안녕하세요, I am Seong Woo Lee.";
+#endif
+    u64 text_length = wcslen(text);
+
+
+    // # Note: Lood ttf from disk and create reference.
+    //
+    Dwrite_Font_File *font_file = dwrite_font_file_alloc_from_path(utf8f(permanent_arena, "%S/input/font/times.ttf", data_path));
+    u32 index = 0; // # Todo: Later on, the user might want to pick desired face index in ttc.
+
+    // # Note: Get face COM from file COM.
+    //
+    IDWriteFontFace5 *face5 = dwrite_face5_from_font_file_and_index(font_file, index);
+
+    // # Note: Obtain codepoints from the UTF16 text.
+    //
+    u32 codepoints[4096];
+    u32 codepoint_count = 0;
+
+    u16 *ptr = (u16 *)text;
+    u16 *opl = ptr + text_length;
+    Unicode_Decode consume;
+    for (;ptr < opl; ptr += consume.inc)
+    {
+        consume = utf16_decode(ptr, opl - ptr);
+        u32 codepoint = consume.codepoint;
+        assert(codepoint_count < array_count(codepoints));
+        codepoints[codepoint_count++] = codepoint;
+    }
+
+    
+    // # Note: For the specific font face, get the mapped glyph indices per codepoints 
+    //         we retrieved from the text.
+    //
+    for (u32 i = 0; i < codepoint_count; i += 1)
+    {
+        u32 codepoint = codepoints[i];
+        // # Todo: It is not proof to redundant mapping yet. Thus, one must specify codepoints with caution.
+        //
+        Dwrite_Glyph_Indices indices = dwrite_glyph_indices_from_codepoint(permanent_arena, face5, codepoint);
+        if (indices.index_count > 0)
+        {
+            // # Note: Part1
+            //
+            fwrite(&codepoint, sizeof(u32), 1, file);
+            fwrite(&indices.index_count, sizeof(u32), 1, file);
+            for (u32 j = 0; j < indices.index_count; ++j)
+            {
+                fwrite(&indices.indices[j], sizeof(u16), 1, file);
+            }
+        }
+    }
+    fwrite(&eos, sizeof(u8), 1, file);
+
+
+    //Dwrite_Runs *runs = dwrite_map_text_to_glyphs(dwrite_state->font_fallback1, dwrite_state->font_collection, dwrite_state->locale, base_font_family_name, pt_per_em, text, text_length);
+    Dwrite_Run_Series *run_series = dwrite_runs_from_text(face5, pt_per_em, text, text_length);
+
+    Glyph_Cel_List *cel_list = push_struct(permanent_arena, Glyph_Cel_List);
+
+    for (Dwrite_Run *run_wrapper = run_series->run_first;
          run_wrapper != NULL;
          run_wrapper = run_wrapper->next)
     {
@@ -117,49 +235,41 @@ int main(void)
         assert(font_entry);
         Dwrite_Font_Metrics font_metrics = font_entry->metrics;
 
-        // # Note: Create rendering mode of a font face.
+        // # Note: Pack glyphs in a run into atlas.
         //
-        DWRITE_RENDERING_MODE1 rendering_mode = DWRITE_RENDERING_MODE1_NATURAL;
-        DWRITE_MEASURING_MODE measuring_mode  = DWRITE_MEASURING_MODE_NATURAL;
-        DWRITE_GRID_FIT_MODE grid_fit_mode    = DWRITE_GRID_FIT_MODE_DEFAULT;
+        dwrite_atlas_pack(permanent_arena, run_wrapper, &font_entry->glyph_table, atlas, cel_list);
 
-        assert(SUCCEEDED(font_face->GetRecommendedRenderingMode(run.fontEmSize,
-                                                                px_per_inch, px_per_inch,
-                                                                NULL, // transform
-                                                                run.isSideways,
-                                                                DWRITE_OUTLINE_THRESHOLD_ANTIALIASED,
-                                                                measuring_mode,
-                                                                dwrite.rendering_params,
-                                                                &rendering_mode,
-                                                                &grid_fit_mode)));
+        u32 idx = 0;
+        Glyph_Cel *cel = cel_list->first;
 
-
-        // # Note: Pack glyph into atlas.
-        //
-        dwrite_pack_glyphs_in_run_to_atlas(is_cleartype, run_wrapper,
-                                           rendering_mode, measuring_mode, grid_fit_mode,
-                                           &font_entry->glyph_table, atlas, &glyph_cels);
+        for (; idx < run.glyphCount; idx += 1, cel = cel->next)
+        {
+            // # Note: Part2
+            //
+            fwrite(&cel->glyph_index,       sizeof(u32), 1, file);
+            fwrite(&cel->uv_min.x,          sizeof(f32), 1, file);
+            fwrite(&cel->uv_min.y,          sizeof(f32), 1, file);
+            fwrite(&cel->uv_max.x,          sizeof(f32), 1, file);
+            fwrite(&cel->uv_max.y,          sizeof(f32), 1, file);
+            fwrite(&cel->width_px,          sizeof(f32), 1, file);
+            fwrite(&cel->height_px,         sizeof(f32), 1, file);
+            fwrite(&cel->offset_px.x,       sizeof(f32), 1, file);
+            fwrite(&cel->offset_px.y,       sizeof(f32), 1, file);
+            fwrite(&run.glyphAdvances[idx], sizeof(f32), 1, file);
+        }
     }
+    fwrite(&eos, sizeof(u8), 1, file);
 
     // # Todo/Temporary: Change to pure OS calls.
     //
-    FILE *file = fopen("font_atlas.temp", "wb");
-    if (file)
-    {
-        fwrite(atlas->data, atlas->pitch * atlas->height, 1, file);
-        fclose(file);
-    }
 
-    u16 *ptr = (u16 *)text;
-    u16 *opl = ptr + text_length;
-    Unicode_Decode consume;
-    for (;ptr < opl; ptr += consume.inc)
-    {
-        consume = utf16_decode(ptr, opl - ptr);
-        u32 codepoint = consume.codepoint;
-    }
-
-
+    // # Note: Part3
+    //
+    fwrite(&atlas->width, sizeof(u32), 1, file);
+    fwrite(&atlas->height, sizeof(u32), 1, file);
+    fwrite(atlas->data, atlas->pitch * atlas->height, 1, file);
+    fwrite(&eos, sizeof(u8), 1, file);
+    fclose(file);
 
     return 0;
 }

@@ -12,10 +12,8 @@
 #pragma comment(lib, "dwrite.lib")
 
 
-//----------------------------------------------
-// @Note: 
-// "dwrite_2.h" minimum: Windows 8.1
-// "dwrite_3.h" minimum: Windows 10 Build 16299
+// # Note: "dwrite_2.h" minimum: Windows 8.1
+//         "dwrite_3.h" minimum: Windows 10 Build 16299
 
 #include <dwrite_3.h>
 
@@ -89,14 +87,14 @@ struct Dwrite_Run
     DWRITE_GLYPH_RUN e;
 };
 
-struct Dwrite_Unit
+struct Dwrite_Run_Series
 {
-    Dwrite_Unit *next;
+    Dwrite_Run_Series *next;
 
     Arena       *arena;
     Dwrite_Run  *run_first;
     Dwrite_Run  *run_last;
-    u32         run_count;
+    u32          run_count;
 };
 
 struct Dwrite_Text_Analysis_Sink_Result 
@@ -175,6 +173,10 @@ struct Dwrite_Map_Complexity_Result
 
 struct Glyph_Cel
 {
+    Glyph_Cel *next;
+    Glyph_Cel *prev;
+
+    u16 glyph_index;
     b32 is_empty;
     v2  uv_min;
     v2  uv_max;
@@ -182,7 +184,12 @@ struct Glyph_Cel
     f32 height_px;
     v2  offset_px; // offset of a pen from baseline origin of a glyph in px.
 };
-typedef Dynamic_Array(Glyph_Cel) Glyph_Cel_Array;
+
+struct Glyph_Cel_List
+{
+    Glyph_Cel *first;
+    Glyph_Cel *last;
+};
 
 struct Dwrite_Font_Metrics
 {
@@ -225,35 +232,56 @@ struct Dwrite_Font_Table
     Dwrite_Font_Table_Entry *entries;
 };
 
+struct Dwrite_Font_File
+{
+    IDWriteFontFile         *com;
+    BOOL                    is_supported;
+    DWRITE_FONT_FILE_TYPE   file_type;
+    DWRITE_FONT_FACE_TYPE   face_type;
+    UINT32                  face_count;
+    IDWriteFontFace         *faces[512];
+};
+
+struct Dwrite_Glyph_Indices
+{
+    u16 *indices;
+    u32 index_count;
+};
+
 struct Dwrite_State
 {
     Arena *arena;
 
-    IDWriteFactory3         *factory;
-    IDWriteFontCollection   *font_collection;
-    IDWriteFontFallback     *font_fallback;
-    IDWriteFontFallback1    *font_fallback1;
-    IDWriteTextAnalyzer     *text_analyzer;
-    IDWriteTextAnalyzer1    *text_analyzer1;
+    f32 px_per_inch;
+    b32 is_cleartype;
 
-    wchar_t locale[LOCALE_NAME_MAX_LENGTH]; // @Todo: safe?
+    IDWriteFactory5                 *factory;
+    IDWriteFontCollection           *font_collection;
+    IDWriteFontFallback             *font_fallback;
+    IDWriteFontFallback1            *font_fallback1;
+    IDWriteTextAnalyzer             *text_analyzer;
+    IDWriteTextAnalyzer1            *text_analyzer1;
+
+    IDWriteInMemoryFontFileLoader   *in_memory_font_file_loader;
+    Dwrite_Font_File                font_files[1024];
+    u64                             font_file_count;
+
+    wchar_t locale[LOCALE_NAME_MAX_LENGTH]; // # Todo: safe?
     IDWriteRenderingParams *rendering_params;
 
     Dwrite_Font_Table font_table;
 
     Arena       *unit_arena;
-    Dwrite_Unit *first_free_unit;
-    Dwrite_Unit *last_free_unit;
+    Dwrite_Run_Series *first_free_runs;
+    Dwrite_Run_Series *last_free_runs;
 };
 
-struct Dwrite_Get_Base_Font_Family_Index_Result
-{
-    u32 index;
-    b32 exists;
-};
+// # Note: Function Declarations.
+//
+internal Dwrite_State *dwrite_alloc(void);
+internal void dwrite_init(void);
 
-// -------------------------------------
-// @Note: Code
+
 internal u64 dwrite_hash_glyph_index(u16 idx);
 internal Dwrite_Glyph_Table_Entry *dwrite_get_glyph_entry_from_table(Dwrite_Glyph_Table glyph_table, u16 glyph_index);
 internal void dwrite_insert_glyph_cel_to_table(Dwrite_Glyph_Table *glyph_table, u16 glyph_index, Glyph_Cel cel);
@@ -263,12 +291,19 @@ internal void dwrite_insert_font_to_table(IDWriteFontFace *font_face, Dwrite_Fon
 internal Dwrite_Map_Complexity_Result dwrite_map_complexity(IDWriteTextAnalyzer1 *text_analyzer, IDWriteFontFace *font_face, WCHAR *text, u32 text_length);
 internal Dwrite_Font_Fallback_Result dwrite_font_fallback(IDWriteFontFallback *font_fallback, IDWriteFontCollection *font_collection, WCHAR *base_family, WCHAR *locale, WCHAR *text, UINT32 text_length);
 internal void dwrite_abort(wchar_t *message);
-internal void dwrite_init(void);
-internal Dwrite_Get_Base_Font_Family_Index_Result dwrite_get_base_font_family_index(wchar_t *base_font_family_name);
-internal Dwrite_Unit *dwrite_alloc_unit(void);
-internal void dwrite_release_unit(Dwrite_Unit *unit);
-internal Dwrite_Unit *dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback, IDWriteFontCollection *font_collection, IDWriteTextAnalyzer1 *text_analyzer, WCHAR *locale, WCHAR *base_family, FLOAT pt_per_em, FLOAT px_per_inch, WCHAR *text, u32 text_length);
+internal s64 dwrite_get_base_font_family_index(wchar_t *base_font_family_name);
+internal Dwrite_Run_Series *dwrite_alloc_unit(void);
+internal void dwrite_release_unit(Dwrite_Run_Series *unit);
+internal Dwrite_Run_Series *dwrite_map_text_to_glyphs(IDWriteFontFallback1 *font_fallback, IDWriteFontCollection *font_collection, WCHAR *locale, WCHAR *base_family, FLOAT pt_per_em, WCHAR *text, u32 text_length);
 
-global Dwrite_State dwrite;
+
+#define dwrite_face5_from_font_file_and_index(file,index) ((IDWriteFontFace5*)dwrite_face_from_file_and_index(file,index,5))
+#define dwrite_face4_from_font_file_and_index(file,index) ((IDWriteFontFace4*)dwrite_face_from_file_and_index(file,index,4))
+#define dwrite_face3_from_font_file_and_index(file,index) ((IDWriteFontFace3*)dwrite_face_from_file_and_index(file,index,3))
+#define dwrite_face2_from_font_file_and_index(file,index) ((IDWriteFontFace2*)dwrite_face_from_file_and_index(file,index,2))
+#define dwrite_face1_from_font_file_and_index(file,index) ((IDWriteFontFace1*)dwrite_face_from_file_and_index(file,index,1))
+internal IDWriteFontFace *dwrite_face_from_file_and_index(Dwrite_Font_File *file, u32 face_index, u32 face_version);
+
+global Dwrite_State *dwrite_state;
 
 #endif // RTS_DWRITE_H

@@ -115,6 +115,7 @@ typedef intptr_t    smm;
 #define CONCAT2(A, B) CONCAT(A, B)
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
 #define assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
+#define assume(exp)  assert(exp)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define max(a, b) ( ((a) > (b)) ? (a) : (b) )
