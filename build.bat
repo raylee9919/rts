@@ -59,8 +59,8 @@ call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_ope
 rem call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Game
-start /wait call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
-start /wait %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
+call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
+call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 
 popd
 
