@@ -528,3 +528,111 @@ get_kerning(Kerning_Hashmap *hashmap, u32 first, u32 second)
     return result;
 }
 
+
+
+
+
+
+
+
+// # Note: New asset codes below here!
+//
+struct Stream
+{
+    u8 *ptr;
+    u64 size;
+};
+
+#define stream_eat_type(stream, type) (*((type *)stream_eat(stream, sizeof(type))))
+internal void *
+stream_eat(Stream *stream, u64 size)
+{
+    void *result = stream->ptr;
+    stream->ptr += size;
+    return result;
+}
+
+#define stream_peek_type(stream, type) (*((type *)stream_peek(stream)))
+internal void *
+stream_peek(Stream *stream)
+{
+    void *result = stream->ptr;
+    return result;
+}
+
+internal void
+asset_font_parse(void *input, u64 size, Face *out)
+{
+    if (out)
+    {
+        Temporary_Arena scratch = scratch_begin();
+
+        Stream stream = {};
+        {
+            stream.ptr  = (u8 *)input;
+            stream.size = size;
+        }
+
+
+        // # Note: Part1
+        //
+        out->linespace = stream_eat_type(&stream, f32);
+
+
+        // # Note: Part2
+        //
+        while (stream_peek_type(&stream, u8) != 0)
+        {
+            u32 codepoint = stream_eat_type(&stream, u32);
+            u32 glyph_count = stream_eat_type(&stream, u32);
+            u16 *indices = push_array(scratch.arena, u16, glyph_count);
+            for (u32 i = 0; i < glyph_count; ++i)
+            {
+                indices[i] = stream_eat_type(&stream, u16);
+            }
+
+            face_cmap_put(out, codepoint, indices, glyph_count);
+        }
+        assert(stream_eat_type(&stream, u8) == 0);
+
+
+        // # Note: Part3
+        //
+        while (stream_peek_type(&stream, u8) != 0)
+        {
+            u16 glyph_index = stream_eat_type(&stream, u32);
+
+            Glyph_Metrics metrics = {};
+            {
+                metrics.glyph_index         = glyph_index;
+                metrics.uv_min_x            = stream_eat_type(&stream, f32);
+                metrics.uv_min_y            = stream_eat_type(&stream, f32);
+                metrics.uv_max_x            = stream_eat_type(&stream, f32);
+                metrics.uv_max_y            = stream_eat_type(&stream, f32);
+                metrics.width               = stream_eat_type(&stream, f32);
+                metrics.height              = stream_eat_type(&stream, f32);
+                metrics.left_side_bearing   = stream_eat_type(&stream, f32);
+                metrics.top_side_bearing    = stream_eat_type(&stream, f32);
+                metrics.advance_x           = stream_eat_type(&stream, f32);
+            }
+
+            glyph_metrics_put(out, metrics);
+        }
+        assert(stream_eat_type(&stream, u8) == 0);
+
+
+        // # Note: Part4
+        //
+        out->width = stream_eat_type(&stream, u32);
+        out->height = stream_eat_type(&stream, u32);
+        u64 atlas_size = out->width*out->height*4;
+        out->data = stream_eat(&stream, atlas_size);
+        assert(stream_eat_type(&stream, u8) == 0);
+
+        scratch_end(scratch);
+    }
+    else
+    {
+        assert(! "Output face is null.");
+    }
+}

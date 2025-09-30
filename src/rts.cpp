@@ -12,12 +12,14 @@
 #define BEGIN_ENTITY
 #define END_ENTITY
 
+
 // # Note: [.h]
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_random.h"
 #include "rts_platform.h"
+#include "rts_font.h"
 #include "rts_asset.h"
 #include "rts_ds.h"
 #include "ui/rts_ui_inc.h"
@@ -31,16 +33,20 @@
 #include "rts_map_loader.h"
 #include "rts_sim.h"
 
-// # Note: globals.
+// # Note: Globals.
 //
 global Ui_State *ui_state;
 global Renderer *renderer;
+
+// # Temporary:
+Face *g_face;
 
 
 // # Note: [.cpp]
 //
 #include "base/rts_base_inc.cpp"
 #include "rts_random.cpp"
+#include "rts_font.cpp"
 #include "rts_asset.cpp"
 #include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
@@ -116,98 +122,9 @@ ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
 
 
 
-struct Stream
-{
-    u8 *ptr;
-};
 
-#define stream_eat_type(stream, type) (*((type *)stream_eat(stream, sizeof(type))))
-internal void *
-stream_eat(Stream *stream, u64 size)
-{
-    void *result = stream->ptr;
-    stream->ptr += size;
-    return result;
-}
 
-#define stream_peek_type(stream, type) (*((type *)stream_peek(stream)))
-internal void *
-stream_peek(Stream *stream)
-{
-    void *result = stream->ptr;
-    return result;
-}
 
-// # Temporary:
-//
-#include <unordered_map>
-
-struct Glyph_Metrics
-{
-    u32 glyph_index;
-    f32 uv_min_x;
-    f32 uv_min_y;
-    f32 uv_max_x;
-    f32 uv_max_y;
-    f32 width;
-    f32 height;
-    f32 left_side_bearing;
-    f32 top_side_bearing;
-    f32 advance_x;
-};
-
-std::unordered_map<u32, std::vector<u16>> cmap;
-std::unordered_map<u16, Glyph_Metrics> metrics_table;
-
-internal AABB2
-render_string(Render_Id atlas, v2 origin, Utf8 string)
-{
-    AABB2 aabb = {v2{ F32_MAX,  F32_MAX}, v2{-F32_MAX, -F32_MAX}};
-
-    v2 pen = origin;
-
-    u8 *ptr = string.str;
-    u8 *opl = ptr + string.len;
-    u64 size = 0;
-    Unicode_Decode consume = {};
-    for (;ptr < opl; ptr += consume.inc)
-    {
-        consume = utf8_decode(ptr, opl - ptr);
-        u32 codepoint = consume.codepoint;
-
-        if (cmap.find(codepoint) == cmap.end())
-        {
-            //codepoint = 0;
-            codepoint = 63; // '?'
-        }
-
-        std::vector<u16> glyphs = cmap[codepoint];
-        for (u16 glyph : glyphs)
-        {
-            Glyph_Metrics metrics = metrics_table[glyph];
-
-            v2 offset = v2{metrics.left_side_bearing, metrics.top_side_bearing};
-            v2 dim = v2{metrics.width, metrics.height};
-            v2 min = pen + offset;
-            v2 max = min + dim;
-            min.y = floorf(min.y);
-            max.y = floorf(max.y);
-            v2 uv_min = v2{metrics.uv_min_x, metrics.uv_min_y};
-            v2 uv_max = v2{metrics.uv_max_x, metrics.uv_max_y};
-            render_quad_tuv(atlas, min, max, uv_min, uv_max);
-
-            // # Note: Update string aabb.
-            aabb.min.x = min(aabb.min.x, min.x);
-            aabb.min.y = min(aabb.min.y, min.y);
-            aabb.max.x = max(aabb.max.x, max.x);
-            aabb.max.y = max(aabb.max.y, max.y);
-
-            pen.x += floorf(metrics.advance_x);
-        }
-    }
-
-    return aabb;
-}
 
 
 
@@ -220,14 +137,14 @@ render_string(Render_Id atlas, v2 origin, Utf8 string)
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
-    // # Note: acquire os.
+    // # Note: Acquire os.
     //
     if (os == NULL)
     {
         os = platform->os;
     }
 
-    // # Note: acquire renderer.
+    // # Note: Acquire renderer.
     //
     if (renderer == NULL)
     {
@@ -235,7 +152,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_init();
     }
 
-    // # Note: acquire game state.
+    // # Note: Acquire game state.
     //
     Game_State *game_state = (Game_State *)platform->game_state;
     if (! game_state) 
@@ -429,10 +346,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 {
                     m4x4 transform = translate(scale(identity(), e->scaling), e->position);
                     begin_constrain(navmesh);
-                    push_vertex(navmesh, (transform*v4{-1.0f, 0,-1.0f, 1}).xyz);
-                    push_vertex(navmesh, (transform*v4{-1.0f, 0, 1.0f, 1}).xyz);
-                    push_vertex(navmesh, (transform*v4{ 1.0f, 0, 1.0f, 1}).xyz);
-                    push_vertex(navmesh, (transform*v4{ 1.0f, 0,-1.0f, 1}).xyz);
+                    push_vertex(navmesh, (transform*v4{-1.f, 0.f, -1.f, 1.f}).xyz);
+                    push_vertex(navmesh, (transform*v4{-1.f, 0.f,  1.f, 1.f}).xyz);
+                    push_vertex(navmesh, (transform*v4{ 1.f, 0.f,  1.f, 1.f}).xyz);
+                    push_vertex(navmesh, (transform*v4{ 1.f, 0.f, -1.f, 1.f}).xyz);
                     end_constrain(navmesh);
                 }
             }
@@ -440,12 +357,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             // # Todo: not neat.
             begin_constrain(navmesh);
             {
-                push_vertex(navmesh, v3{ 1.0f, 0, 3.0f});
-                push_vertex(navmesh, v3{ 3.0f, 0, 2.0f});
-                push_vertex(navmesh, v3{ 2.0f, 0,-2.0f});
-                push_vertex(navmesh, v3{-1.0f, 0,-4.0f});
-                push_vertex(navmesh, v3{-3.0f, 0,-3.0f});
-                push_vertex(navmesh, v3{-4.0f, 0, 1.0f});
+                push_vertex(navmesh, v3{ 1.f, 0.f,  3.f});
+                push_vertex(navmesh, v3{ 3.f, 0.f,  2.f});
+                push_vertex(navmesh, v3{ 2.f, 0.f, -2.f});
+                push_vertex(navmesh, v3{-1.f, 0.f, -4.f});
+                push_vertex(navmesh, v3{-3.f, 0.f, -3.f});
+                push_vertex(navmesh, v3{-4.f, 0.f,  1.f});
             }
             end_constrain(navmesh);
 
@@ -469,7 +386,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     // # Note: this temporary frame arena must be cleared every frame.
     arena_clear(game_state->frame_arena);
 
-    // # Note: clear renderer
+    // # Note: BEGIN/end renderer
+    //
     render_begin();
 
     // # Temporary:
@@ -576,7 +494,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_commands->skybox_on = true;
         render_commands->skybox_mesh = &assets->skybox_mesh;
         render_commands->skybox_eye_view_proj = game_state->controlling_camera->VP;
-        for (u32 i = 0; i < 6; ++i) {
+        for (u32 i = 0; i < 6; ++i) 
+        {
             render_commands->skybox_textures[i] = assets->skybox_textures + i;
         }
 
@@ -621,77 +540,39 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //
     local_persist b32 initted = 0;
     local_persist Render_Id id = {};
+
     if (! initted)
     {
         initted = 1;
+
         Utf8 contents = read_entire_file(assets->arena, utf8f(assets->arena, "%S/font_asset.txt", platform->data_path));
 
-        Stream stream = {};
-        stream.ptr = contents.str;
-
-        // # Note: Part1
-        //
-        while (stream_peek_type(&stream, u8) != 0)
-        {
-            // # Temporary
-            std::vector<u16> indices;
-
-
-            u32 codepoint = stream_eat_type(&stream, u32);
-            u32 glyph_count = stream_eat_type(&stream, u32);
-            for (u32 i = 0; i < glyph_count; ++i)
-            {
-                u16 glyph_index = stream_eat_type(&stream, u16);
-
-                // # Temporary
-                indices.push_back(glyph_index);
-            }
-
-            cmap[codepoint] = indices;
-        }
-        assert(stream_eat_type(&stream, u8) == 0);
-
-
-        // # Note: Part2
-        //
-        while (stream_peek_type(&stream, u8) != 0)
-        {
-            u16 glyph_index = stream_eat_type(&stream, u32);
-
-            Glyph_Metrics metrics = {};
-            {
-                metrics.uv_min_x            = stream_eat_type(&stream, f32);
-                metrics.uv_min_y            = stream_eat_type(&stream, f32);
-                metrics.uv_max_x            = stream_eat_type(&stream, f32);
-                metrics.uv_max_y            = stream_eat_type(&stream, f32);
-                metrics.width               = stream_eat_type(&stream, f32);
-                metrics.height              = stream_eat_type(&stream, f32);
-                metrics.left_side_bearing   = stream_eat_type(&stream, f32);
-                metrics.top_side_bearing    = stream_eat_type(&stream, f32);
-                metrics.advance_x           = stream_eat_type(&stream, f32);
-            }
-
-            metrics_table[glyph_index] = metrics;
-        }
-        assert(stream_eat_type(&stream, u8) == 0);
-
-
-        // # Note: Part3
-        //
-        u32 atlas_width = stream_eat_type(&stream, u32);
-        u32 atlas_height = stream_eat_type(&stream, u32);
-        u64 atlas_size = atlas_width * atlas_height * 4;
-        void *atlas_data = stream_eat(&stream, atlas_size);
-        assert(stream_eat_type(&stream, u8) == 0);
-
-
-
-        // # Note: Uplaod atlas to renderer.
-        //
-        id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, atlas_data, atlas_width, atlas_height);
+        g_face = face_alloc();
+        asset_font_parse(contents.str, contents.len, g_face);
+        id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, g_face->data, g_face->width, g_face->height);
     }
 
-    render_string(id, v2{100,100}, utf8lit("Hello->World!"));
 
+    {
+        // # Temporary: Simple perf monitor.
+        //
+        v2 top_left = v2{100, 100};
+        f32 mspf = platform->dt * 1000.f;
+        f32 fps = 1.f / platform->dt;
+        Utf8 perf_string = utf8f(game_state->frame_arena, "[PERF]\nmspf: %.2f\nfps: %.0f", mspf, fps);
+        AABB2 box = render_string(g_face, id, top_left, perf_string, RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
+        v2 margin = V2(10.f);
+        box.min -= margin;
+        box.max += margin;
+        v4 c_top    = v4{0.2f,0.2f,0.2f,1.f};
+        v4 c_bottom = v4{0.1f,0.1f,0.1f,1.f};
+        render_quad_c4(box.min, box.max, c_top, c_top, c_bottom, c_bottom);
+        render_string(g_face, id, top_left, perf_string, 0);
+    }
+
+
+
+    // # Note: begin/END renderer
+    //
     render_end();
 }

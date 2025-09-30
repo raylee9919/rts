@@ -440,7 +440,32 @@ render_texture_destroy(Render_Id id)
 // # Note: Drawing Functions.
 //
 internal void
+render_quad_c(v2 min, v2 max, v4 color)
+{
+    render_quad_tuvc(render_id_null(), min, max, v2{0,0}, v2{0,0}, color);
+}
+
+internal void
+render_quad_c4(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11)
+{
+    render_quad_tuvc4(render_id_null(), min, max, v2{0,0}, v2{0,0}, c00, c10, c01, c11);
+}
+
+internal void
 render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max)
+{
+    render_quad_tuvc(texture_id, min, max, uv_min, uv_max, v4{1,1,1,1});
+}
+
+internal void
+render_quad_tuvc(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c)
+{
+    render_quad_tuvc4(texture_id, min, max, uv_min, uv_max, c, c, c, c);
+}
+
+internal void
+render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
+                  v4 c00, v4 c10, v4 c01, v4 c11)
 {
     // # Note: Order and UV
     //
@@ -461,6 +486,10 @@ render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max)
     v2 uvs[4] = {
         uv_min, {uv_max.x,uv_min.y}, {uv_min.x,uv_max.y}, uv_max
     };
+
+    v4 colors[4] = {
+        c00, c10, c01, c11
+    };
     
     for (u32 i = 0; i < 4; ++i)
     {
@@ -472,23 +501,91 @@ render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max)
             v->position    = positions[i];
             v->uv          = uvs[i];
             v->texture_id  = texture_id;
+            v->color       = colors[i];
         }
     }
 
     buffer->instance_count += 1;
 }
 
-// # Todo:
-//
-internal void
-render_text(Utf8 text)
+internal AABB2
+render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags)
 {
-    u8 *ptr = text.str;
-    u8 *opl = ptr + text.len;
+    AABB2 aabb = {v2{ F32_MAX,  F32_MAX}, v2{-F32_MAX, -F32_MAX}};
+
+    v2 pen = origin;
+
+    u8 *ptr = string.str;
+    u8 *opl = ptr + string.len;
+    u64 size = 0;
     Unicode_Decode consume = {};
     for (;ptr < opl; ptr += consume.inc)
     {
         consume = utf8_decode(ptr, opl - ptr);
         u32 codepoint = consume.codepoint;
+
+        u64 glyph_count = face_cmap_glyph_count_from_codepoint(face, codepoint);
+        u16 *indices = face_cmap_glyph_indices_from_codepoint(face, codepoint);
+
+        if (indices == NULL)
+        {
+            switch(codepoint)
+            {
+                case '\n': {
+                    pen.x = origin.x;
+                    pen.y += face->linespace;
+                }break;
+
+                default: {
+                }break;
+            }
+        }
+
+        for (u32 i = 0; i < glyph_count; ++i)
+        {
+            u16 glyph = indices[i];
+
+            Glyph_Metrics *metrics_ptr = glyph_metrics_get(face, glyph);
+            assert(metrics_ptr);
+            Glyph_Metrics metrics = *metrics_ptr;
+
+            // # Note: Compute blakbox offset and size
+            v2 offset = v2{metrics.left_side_bearing, metrics.top_side_bearing};
+            v2 dim = v2{metrics.width, metrics.height};
+            v2 min = pen + offset;
+            v2 max = min + dim;
+            min.y = floorf(min.y);
+            max.y = floorf(max.y);
+
+            // # Note: Draw
+            if (! (flags & RENDER_STRING_FLAG_NO_DRAW))
+            {
+                v2 uv_min = v2{metrics.uv_min_x, metrics.uv_min_y};
+                v2 uv_max = v2{metrics.uv_max_x, metrics.uv_max_y};
+
+                if (flags & RENDER_STRING_FLAG_DROP_SHADOW)
+                {
+                    v2 offset = V2(2.f);
+                    // # Temporary:
+                    render_quad_tuvc(atlas, min+offset, max+offset, uv_min, uv_max, v4{0.f,0.f,0.f,1.f});
+                }
+
+                render_quad_tuv(atlas, min, max, uv_min, uv_max);
+            }
+
+            // # Note: Update string aabb.
+            if (flags & RENDER_STRING_FLAG_COMPUTE_SIZE)
+            {
+                aabb.min.x = min(aabb.min.x, min.x);
+                aabb.min.y = min(aabb.min.y, min.y);
+                aabb.max.x = max(aabb.max.x, max.x);
+                aabb.max.y = max(aabb.max.y, max.y);
+            }
+
+            // # Note: Advance pen resting on baseline.
+            pen.x += floorf(metrics.advance_x);
+        }
     }
+
+    return aabb;
 }

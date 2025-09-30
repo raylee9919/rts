@@ -8,17 +8,19 @@
 
 R"(
 
+
 uniform sampler2D texture_sample;
 
 in vec2 fUV;
+in v4 fC;
+
 out vec4 C;
 
 void main()
 {
-    vec4 const_color = vec4(1,1,1,1);
     vec4 texture_color = texture(texture_sample, fUV);
 
-    C = const_color*texture_color;
+    C = texture_color * fC;
 }
 
 )";

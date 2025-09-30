@@ -15,6 +15,7 @@
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
+#include "rts_font.h"
 #include "rts_asset.h"
 #include "rts_platform.h"
 #include "rts_win32.h"

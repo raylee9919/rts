@@ -14,10 +14,10 @@
 
 // # Note: Coordinate
 //
-//         -NDC
-//         ^
-//         |
-//     -------|------->
+//         Normalized Device Coordinate
+//                 ^
+//                 |
+//          -------|------->
 
 
 // # Note: Globals and Constants.
@@ -165,10 +165,6 @@ struct Circle_Program
 
 // # Note: Program (analogous to pipeline)
 //
-struct Gl_Vertex
-{
-};
-
 struct Gl_Uniform
 {
     GLuint id;

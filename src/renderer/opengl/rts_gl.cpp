@@ -1613,10 +1613,13 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
                         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, position));
                         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, uv));
+                        glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, color));
 
                         // # Divisor Begin
                         // glVertexAttribDivisor(0, 0);
 
+                        // # Note: We are drawing quads independent to the ratio.
+                        //         We don't want glyphs to be ugly when we resize the window.
                         glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_w"), window_width);
                         glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_h"), window_height);
 
@@ -1624,8 +1627,16 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         {
                             // # Todo: We are being lazy and binding the texture according to the vertex's texture id.
                             //         This seems like a lunacy and at some point, it should to be fixed.
-                            GLuint gl_id = opengl_id_from_render_id(buffer->vertices[4*i].texture_id);
-                            glBindTexture(GL_TEXTURE_2D, gl_id);
+                            Render_Id texture_id = buffer->vertices[4*i].texture_id;
+                            if (texture_id.e[0] == 0)
+                            {
+                                glBindTexture(GL_TEXTURE_2D, gl->white_bitmap.handle);
+                            }
+                            else
+                            {
+                                GLuint gl_id = opengl_id_from_render_id(texture_id);
+                                glBindTexture(GL_TEXTURE_2D, gl_id);
+                            }
 
                             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 4*i, 4, 1);
                         }

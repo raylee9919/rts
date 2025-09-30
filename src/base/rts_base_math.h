@@ -194,8 +194,4 @@ internal m4x4 view_transform(v3 position, Quaternion orientation);
 internal m4x4 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 internal f32 degrees_to_radian(f32 x);
 
-// # Note: AABB2
-//
-internal b32 point_in_aabb2(v2 a, AABB2 p);
-
 #endif // RTS_BASE_MATH_H

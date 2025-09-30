@@ -111,6 +111,16 @@ typedef size_t      mmm;
 typedef uintptr_t   umm;
 typedef intptr_t    smm;
 
+struct Node_u16
+{
+    u16 *next;
+    u16 *prev;
+    u16 *first;
+    u16 *last;
+
+    u16 value;
+};
+
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)

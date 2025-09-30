@@ -32,7 +32,11 @@ u8 eos = 0;
 //         It is not a format spec for the whole file.
 //         It is more like a format of font data section in an asset file.
 //
-//         1. Codepoint to Glyph Indices Mapping.
+//         1. Face metrics.
+//                  
+//                  linespace : f32
+//
+//         2. Codepoint to Glyph Indices Mapping.
 //            One codepoint can have multiple glyph indices. In the first part of the asset, 
 //            aforementioned mappings will be specified in the following form (ignore lines starting with //):
 //              
@@ -45,7 +49,7 @@ u8 eos = 0;
 //             
 //             0 as a glyph index is an invalid index.
 //
-//          2. Metrics for Glyph Indices
+//          3. Metrics for Glyph Indices
 //             
 //                  glyphIndex       : u32
 //                  uvMinX           : f32
@@ -60,7 +64,7 @@ u8 eos = 0;
 //
 //             End this part with character ';' which is a single byte.
 //
-//          3. Atlas
+//          4. Atlas
 //             Top down, left to right.
 //
 //                  width        : f32
@@ -194,7 +198,20 @@ int main(void)
         codepoints[codepoint_count++] = codepoint;
     }
 
-    
+    // # Note: Part1
+    //
+    DWRITE_FONT_METRICS face_metrics = {};
+    face5->GetMetrics(&face_metrics);
+
+    f32 du_per_em = face_metrics.designUnitsPerEm;
+    f32 em_per_du = 1.0f / (f32)du_per_em;
+    f32 px_per_pt = dwrite_state->px_per_inch / 72.0f;
+    f32 px_per_em = pt_per_em * px_per_pt;
+    f32 px_per_du = px_per_em * em_per_du;
+    f32 linespace =  (f32)(face_metrics.ascent + face_metrics.descent + face_metrics.lineGap) * px_per_du;
+    fwrite(&linespace, sizeof(f32), 1, file);
+
+
     // # Note: For the specific font face, get the mapped glyph indices per codepoints 
     //         we retrieved from the text.
     //
@@ -206,7 +223,7 @@ int main(void)
         Dwrite_Glyph_Indices indices = dwrite_glyph_indices_from_codepoint(permanent_arena, face5, codepoint);
         if (indices.index_count > 0)
         {
-            // # Note: Part1
+            // # Note: Part2
             //
             fwrite(&codepoint, sizeof(u32), 1, file);
             fwrite(&indices.index_count, sizeof(u32), 1, file);
@@ -244,7 +261,7 @@ int main(void)
 
         for (; idx < run.glyphCount; idx += 1, cel = cel->next)
         {
-            // # Note: Part2
+            // # Note: Part3
             //
             fwrite(&cel->glyph_index,       sizeof(u32), 1, file);
             fwrite(&cel->uv_min.x,          sizeof(f32), 1, file);
@@ -263,7 +280,7 @@ int main(void)
     // # Todo/Temporary: Change to pure OS calls.
     //
 
-    // # Note: Part3
+    // # Note: Part4
     //
     fwrite(&atlas->width, sizeof(u32), 1, file);
     fwrite(&atlas->height, sizeof(u32), 1, file);

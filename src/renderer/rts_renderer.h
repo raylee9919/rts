@@ -189,6 +189,7 @@ struct Render_Vertex
     v2 position;
     v2 uv;
     Render_Id texture_id;
+    v4 color;
 };
 
 typedef u16 Render_Texture_Type;
@@ -258,6 +259,15 @@ struct Renderer
     u64             command_count;
 };
 
+typedef u8 Render_String_Flags;
+enum 
+{
+    RENDER_STRING_FLAG_NO_DRAW      = (1<<0),
+    RENDER_STRING_FLAG_COMPUTE_SIZE = (1<<1),
+    RENDER_STRING_FLAG_DROP_SHADOW  = (1<<2),
+};
+
+
 // # Note: Constants
 //
 #define render_max_vertex_count     16384
@@ -275,6 +285,12 @@ internal void render_texture_destroy(Render_Id id);
 
 // # Note: Drawing Functions.
 //
-#define render_quad(mn, mx) render_quad_t(render_id_null(), mn, mx)
-#define render_quad_t(id, mn, mx) render_quad_tuv(id, mn, mx, v2{0,0}, v2{1,1})
+#define render_quad(mn,mx)                          render_quad_t(render_id_null(), mn, mx)
+#define render_quad_t(t,mn,mx)                      render_quad_tuv(t, mn, mx, v2{0,0}, v2{1,1})
+internal void render_quad_c(v2 min, v2 max, v4 color);
 internal void render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max);
+internal void render_quad_tuvc(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c);
+internal void render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11);
+
+
+internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags);

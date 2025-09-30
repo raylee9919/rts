@@ -10,8 +10,10 @@ R"(
 
 layout (location = 0) in vec2   vP;
 layout (location = 2) in vec2   vUV;
+layout (location = 3) in vec4   vC;
 
 smooth out vec2 fUV;
+smooth out vec4 fC;
 
 uniform float viewport_w;
 uniform float viewport_h;
@@ -19,6 +21,7 @@ uniform float viewport_h;
 void main()
 {
     fUV = vec2(vUV.x, vUV.y);
+    fC  = vC;
 
     // # Hack:
     float x = ( vP.x / viewport_w * 2.f) - 1.0f;

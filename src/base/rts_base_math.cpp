@@ -1067,14 +1067,3 @@ degrees_to_radian(f32 x)
 {
     return x*pi32*0.005556f;
 }
-
-// # Note: AABB2
-//
-internal b32
-point_in_aabb2(v2 a, AABB2 p)
-{
-    return  (a.x >= p.min.x &&
-             a.x <  p.max.x &&
-             a.y >= p.min.y &&
-             a.y <  p.max.y);
-}
