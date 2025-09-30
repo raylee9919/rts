@@ -159,10 +159,12 @@ struct Glyph_Metrics
 std::unordered_map<u32, std::vector<u16>> cmap;
 std::unordered_map<u16, Glyph_Metrics> metrics_table;
 
-internal void
-render_debug_string(Render_Id atlas, Utf8 string)
+internal AABB2
+render_string(Render_Id atlas, v2 origin, Utf8 string)
 {
-    v2 pen = {100, 100};
+    AABB2 aabb = {v2{ F32_MAX,  F32_MAX}, v2{-F32_MAX, -F32_MAX}};
+
+    v2 pen = origin;
 
     u8 *ptr = string.str;
     u8 *opl = ptr + string.len;
@@ -175,7 +177,8 @@ render_debug_string(Render_Id atlas, Utf8 string)
 
         if (cmap.find(codepoint) == cmap.end())
         {
-            codepoint = 0;
+            //codepoint = 0;
+            codepoint = 63; // '?'
         }
 
         std::vector<u16> glyphs = cmap[codepoint];
@@ -185,14 +188,25 @@ render_debug_string(Render_Id atlas, Utf8 string)
 
             v2 offset = v2{metrics.left_side_bearing, metrics.top_side_bearing};
             v2 dim = v2{metrics.width, metrics.height};
-            v2 box_origin = pen + offset;
+            v2 min = pen + offset;
+            v2 max = min + dim;
+            min.y = floorf(min.y);
+            max.y = floorf(max.y);
             v2 uv_min = v2{metrics.uv_min_x, metrics.uv_min_y};
             v2 uv_max = v2{metrics.uv_max_x, metrics.uv_max_y};
-            render_quad_tuv(atlas, box_origin, box_origin + dim, uv_min, uv_max);
+            render_quad_tuv(atlas, min, max, uv_min, uv_max);
+
+            // # Note: Update string aabb.
+            aabb.min.x = min(aabb.min.x, min.x);
+            aabb.min.y = min(aabb.min.y, min.y);
+            aabb.max.x = max(aabb.max.x, max.x);
+            aabb.max.y = max(aabb.max.y, max.y);
 
             pen.x += floorf(metrics.advance_x);
         }
     }
+
+    return aabb;
 }
 
 
@@ -677,7 +691,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, atlas_data, atlas_width, atlas_height);
     }
 
-    render_debug_string(id, utf8lit("Hello, World!"));
+    render_string(id, v2{100,100}, utf8lit("Hello->World!"));
 
     render_end();
 }

@@ -18,7 +18,7 @@ void main()
     vec4 const_color = vec4(1,1,1,1);
     vec4 texture_color = texture(texture_sample, fUV);
 
-    C = texture_color;
+    C = const_color*texture_color;
 }
 
 )";

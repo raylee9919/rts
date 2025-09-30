@@ -142,7 +142,7 @@ int main(void)
 
     // # Note: Configs.
     //
-    f32 pt_per_em    = 40.0f; // aka, font size.
+    f32 pt_per_em = 16.0f; // aka, font size.
 
 
     // # Note: Check if the desired base font family exists.
@@ -171,7 +171,7 @@ int main(void)
 
     // # Note: Lood ttf from disk and create reference.
     //
-    Dwrite_Font_File *font_file = dwrite_font_file_alloc_from_path(utf8f(permanent_arena, "%S/input/font/times.ttf", data_path));
+    Dwrite_Font_File *font_file = dwrite_font_file_alloc_from_path(utf8f(permanent_arena, "%S/input/font/RobotoMono-Regular.ttf", data_path));
     u32 index = 0; // # Todo: Later on, the user might want to pick desired face index in ttc.
 
     // # Note: Get face COM from file COM.

@@ -275,6 +275,6 @@ internal void render_texture_destroy(Render_Id id);
 
 // # Note: Drawing Functions.
 //
-#define render_quad(mn, mx) render_quadt(render_id_null(), mn, mx, v2{0,0}, v2{1,1})
+#define render_quad(mn, mx) render_quad_t(render_id_null(), mn, mx)
 #define render_quad_t(id, mn, mx) render_quad_tuv(id, mn, mx, v2{0,0}, v2{1,1})
 internal void render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max);

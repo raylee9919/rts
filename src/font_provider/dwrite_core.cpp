@@ -568,8 +568,17 @@ dwrite_atlas_pack(Arena *arena, Dwrite_Run *run_wrapper, Dwrite_Glyph_Table *gly
                         {
                             u8 *dst = atlas->data + (y1+r+margin)*atlas->pitch + (x1+c+margin)*4;
                             u8 *src = bitmap_data_rgb + r*blackbox_width*3 + c*3;
-                            *(u32 *)dst = *(u32 *)src;
+                            dst[0] = src[0];
+                            dst[1] = src[1];
+                            dst[2] = src[2];
                             // # Note: Alpha doesn't matter since Cleatype doesn't handle alpha.
+                            //         But I guess setting alpha to 1 is better...?
+                            //
+                            u8 *texel = dst;
+                            if (texel[0] != 0 || texel[1] != 0 || texel[2] != 0)
+                            {
+                                texel[3] = 0xff;
+                            }
                         }
                     }
                 }

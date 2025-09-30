@@ -8,6 +8,7 @@
 
 
 // # Todo: Remove
+//
 global GLuint id_table[4096];
 
 
@@ -1604,6 +1605,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             {
                 opengl_program_scope(gl->quad_program, GL_PROGRAM_CULL_OFF)
                 {
+                    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
                     glBindBuffer(GL_ARRAY_BUFFER, gl->vbo);
                     {
                         glBufferData(GL_ARRAY_BUFFER, sizeof(buffer->vertices[0])*vertex_count, buffer->vertices, GL_STATIC_DRAW);
@@ -1614,6 +1617,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         // # Divisor Begin
                         // glVertexAttribDivisor(0, 0);
 
+                        glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_w"), window_width);
+                        glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_h"), window_height);
 
                         for (u32 i = 0; i < instance_count; i += 1)
                         {
