@@ -31,7 +31,8 @@ R"(
 #define EPS32   1e-30
 #define SQRT_3  1.73205080757
 
-m4x4 identity() {
+m4x4 identity() 
+{
     return m4x4(1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,

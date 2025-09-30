@@ -194,63 +194,6 @@ asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena)
     scratch_end(scratch);
 }
 
-// -------------------------------
-// @Note: Font
-internal void
-asset_load_font(Arena *arena, Utf8 file_path, Asset_Font *font)
-{
-    if (! font->arena)
-    { font->arena = arena_alloc(); }
-
-    arena_clear(font->arena);
-
-    font->buffer = read_entire_file(font->arena, file_path);
-
-    u8 *at  = font->buffer.str;
-    u8 *end = at + font->buffer.len;
-
-    // Parse font header.
-    Asset_Font_Header *header = (Asset_Font_Header *)at;
-    at += sizeof(Asset_Font_Header);
-    u32 kern_count  = header->kerning_pair_count;
-    font->v_advance = header->vertical_advance;
-    font->ascent    = header->ascent;
-    font->descent   = header->descent;
-    font->max_width = header->max_width;
-
-    // Parse kerning pairs.
-    Assert(kern_count < array_count(font->kernings));
-    for (u32 count = 0; count < kern_count; ++count) 
-    {
-        Asset_Kerning *asset_kern = (Asset_Kerning *)at;
-
-        Kerning *kern = font->kernings + count;
-        kern->first = asset_kern->first;
-        kern->second = asset_kern->second;
-        kern->value = asset_kern->value;
-
-        u32 entry_idx = kerning_hash(&font->kern_hashmap, kern->first, kern->second);
-        push_kerning(&font->kern_hashmap, kern, entry_idx);
-        at += sizeof(Asset_Kerning);
-    }
-
-    // Parse glyphs.
-    if (font->buffer.len) 
-    {
-        while (at < end) 
-        {
-            Asset_Glyph *glyph = (Asset_Glyph *)at;
-            Bitmap *bitmap = &glyph->bitmap;
-            font->glyphs[glyph->codepoint] = glyph;
-            at += sizeof(Asset_Glyph);
-            glyph->bitmap.memory = at;
-            at += glyph->bitmap.size;
-        }
-    }
-
-    Assert(at == end);
-}
-
 internal void
 asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
@@ -537,29 +480,33 @@ get_kerning(Kerning_Hashmap *hashmap, u32 first, u32 second)
 
 // # Note: New asset codes below here!
 //
-struct Stream
-{
-    u8 *ptr;
-    u64 size;
-};
 
-#define stream_eat_type(stream, type) (*((type *)stream_eat(stream, sizeof(type))))
-internal void *
-stream_eat(Stream *stream, u64 size)
+// # Note: Cursor
+//
+internal void
+cursor_init(Cursor *cursor, void *data, u64 size)
 {
-    void *result = stream->ptr;
-    stream->ptr += size;
+    cursor->ptr = (u8 *)data;
+    cursor->size = size;
+}
+
+internal void *
+cursor_eat(Cursor *cursor, u64 size)
+{
+    void *result = cursor->ptr;
+    cursor->ptr += size;
     return result;
 }
 
-#define stream_peek_type(stream, type) (*((type *)stream_peek(stream)))
 internal void *
-stream_peek(Stream *stream)
+cursor_peek(Cursor *cursor)
 {
-    void *result = stream->ptr;
+    void *result = cursor->ptr;
     return result;
 }
 
+// # Note: Font
+//
 internal void
 asset_font_parse(void *input, u64 size, Face *out)
 {
@@ -567,67 +514,64 @@ asset_font_parse(void *input, u64 size, Face *out)
     {
         Temporary_Arena scratch = scratch_begin();
 
-        Stream stream = {};
-        {
-            stream.ptr  = (u8 *)input;
-            stream.size = size;
-        }
+        Cursor cursor = {};
+        cursor_init(&cursor, input, size);
 
 
         // # Note: Part1
         //
-        out->linespace = stream_eat_type(&stream, f32);
+        out->linespace = cursor_eat_type(&cursor, f32);
 
 
         // # Note: Part2
         //
-        while (stream_peek_type(&stream, u8) != 0)
+        while (cursor_peek_type(&cursor, u8) != 0)
         {
-            u32 codepoint = stream_eat_type(&stream, u32);
-            u32 glyph_count = stream_eat_type(&stream, u32);
+            u32 codepoint = cursor_eat_type(&cursor, u32);
+            u32 glyph_count = cursor_eat_type(&cursor, u32);
             u16 *indices = push_array(scratch.arena, u16, glyph_count);
             for (u32 i = 0; i < glyph_count; ++i)
             {
-                indices[i] = stream_eat_type(&stream, u16);
+                indices[i] = cursor_eat_type(&cursor, u16);
             }
 
             face_cmap_put(out, codepoint, indices, glyph_count);
         }
-        assert(stream_eat_type(&stream, u8) == 0);
+        assert(cursor_eat_type(&cursor, u8) == 0);
 
 
         // # Note: Part3
         //
-        while (stream_peek_type(&stream, u8) != 0)
+        while (cursor_peek_type(&cursor, u8) != 0)
         {
-            u16 glyph_index = stream_eat_type(&stream, u32);
+            u16 glyph_index = cursor_eat_type(&cursor, u32);
 
             Glyph_Metrics metrics = {};
             {
                 metrics.glyph_index         = glyph_index;
-                metrics.uv_min_x            = stream_eat_type(&stream, f32);
-                metrics.uv_min_y            = stream_eat_type(&stream, f32);
-                metrics.uv_max_x            = stream_eat_type(&stream, f32);
-                metrics.uv_max_y            = stream_eat_type(&stream, f32);
-                metrics.width               = stream_eat_type(&stream, f32);
-                metrics.height              = stream_eat_type(&stream, f32);
-                metrics.left_side_bearing   = stream_eat_type(&stream, f32);
-                metrics.top_side_bearing    = stream_eat_type(&stream, f32);
-                metrics.advance_x           = stream_eat_type(&stream, f32);
+                metrics.uv_min_x            = cursor_eat_type(&cursor, f32);
+                metrics.uv_min_y            = cursor_eat_type(&cursor, f32);
+                metrics.uv_max_x            = cursor_eat_type(&cursor, f32);
+                metrics.uv_max_y            = cursor_eat_type(&cursor, f32);
+                metrics.width               = cursor_eat_type(&cursor, f32);
+                metrics.height              = cursor_eat_type(&cursor, f32);
+                metrics.left_side_bearing   = cursor_eat_type(&cursor, f32);
+                metrics.top_side_bearing    = cursor_eat_type(&cursor, f32);
+                metrics.advance_x           = cursor_eat_type(&cursor, f32);
             }
 
             glyph_metrics_put(out, metrics);
         }
-        assert(stream_eat_type(&stream, u8) == 0);
+        assert(cursor_eat_type(&cursor, u8) == 0);
 
 
         // # Note: Part4
         //
-        out->width = stream_eat_type(&stream, u32);
-        out->height = stream_eat_type(&stream, u32);
+        out->width = cursor_eat_type(&cursor, u32);
+        out->height = cursor_eat_type(&cursor, u32);
         u64 atlas_size = out->width*out->height*4;
-        out->data = stream_eat(&stream, atlas_size);
-        assert(stream_eat_type(&stream, u8) == 0);
+        out->data = cursor_eat(&cursor, atlas_size);
+        assert(cursor_eat_type(&cursor, u8) == 0);
 
         scratch_end(scratch);
     }

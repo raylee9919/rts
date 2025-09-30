@@ -366,24 +366,6 @@ struct Asset_Glyph
     s32 C;
     Bitmap bitmap;
 };
-
-struct Asset_Font 
-{
-    u32             v_advance;
-    f32             ascent;
-    f32             descent;
-    f32             max_width;
-    Kerning_Hashmap kern_hashmap;
-    Asset_Glyph     *glyphs[256];
-    Kerning kernings[4096];
-
-    // # Temporary:
-    Arena *arena;
-    Utf8 buffer;
-};
-
-
-internal void asset_load_font(Arena *arena, Utf8 file_path, Asset_Font *font);
 internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
 internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena);
 internal void asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena);
@@ -401,11 +383,31 @@ internal void eval_node(Animation *anim, f32 dt, Node *node);
 internal void eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_node);
 internal void interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f32 dt2);
 
-// # Note: Font.
+
+
+
+// # Note: New asset system.
 //
-internal u32 kerning_hash(Kerning_Hashmap *hashmap, u32 first, u32 second);
-internal void push_kerning(Kerning_Hashmap *hashmap, Kerning *kern, u32 entry_idx);
-internal s32 get_kerning(Kerning_Hashmap *hashmap, u32 first, u32 second);
+
+// # Note: Cursor
+//
+struct Cursor
+{
+    u8 *ptr;
+    u64 size;
+};
+
+internal void cursor_init(Cursor *cursor, void *data, u64 size);
+
+#define cursor_eat_type(cursor, type) (*((type *)cursor_eat(cursor, sizeof(type))))
+internal void *cursor_eat(Cursor *cursor, u64 size);
+
+#define cursor_peek_type(cursor, type) (*((type *)cursor_peek(cursor)))
+internal void *cursor_peek(Cursor *cursor);
+
+// # Note: Font
+//
+internal void asset_font_parse(void *input, u64 size, Face *out);
 
 
 

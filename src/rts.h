@@ -32,11 +32,6 @@ struct Game_Assets
 
     Bitmap debug_bitmap;
 
-    Asset_Font debug_font;
-    Asset_Font menu_font;
-    Asset_Font karmina;
-    Asset_Font times;
-
     Model *xbot_model;
     Model *crate_model;
 

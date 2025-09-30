@@ -12,15 +12,15 @@ R"(
 uniform sampler2D texture_sample;
 
 in vec2 fUV;
-in v4 fC;
+in vec4 fC;
 
-out vec4 C;
+out vec4 result;
 
 void main()
 {
     vec4 texture_color = texture(texture_sample, fUV);
 
-    C = texture_color * fC;
+    result = texture_color * fC;
 }
 
 )";

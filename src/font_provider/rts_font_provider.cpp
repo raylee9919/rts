@@ -277,9 +277,6 @@ int main(void)
     }
     fwrite(&eos, sizeof(u8), 1, file);
 
-    // # Todo/Temporary: Change to pure OS calls.
-    //
-
     // # Note: Part4
     //
     fwrite(&atlas->width, sizeof(u32), 1, file);

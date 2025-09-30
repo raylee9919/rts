@@ -265,13 +265,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 asset_load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/crate_roughness.sbmp", platform->data_path), asset_arena);
             }
 
-            {
-                asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/Times New Roman.sfnt", platform->data_path), &assets->times);
-                asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/noto_serif.sfnt", platform->data_path), &assets->debug_font);
-                asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/gill_sans.sfnt", platform->data_path), &assets->menu_font);
-                asset_load_font(asset_arena, utf8f(scratch.arena, "%S/font/Karmina Regular.sfnt", platform->data_path), &assets->karmina);
-            }
-
             asset_load_image(&game_state->assets->debug_bitmap, utf8f(scratch.arena, "%S/textures/doggo.sbmp", platform->data_path), asset_arena);
 
             char *skybox_filenames[6] = {"right", "left", "top", "bottom", "front", "back"};
@@ -564,7 +557,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         v2 margin = V2(10.f);
         box.min -= margin;
         box.max += margin;
-        v4 c_top    = v4{0.2f,0.2f,0.2f,1.f};
+        v4 c_top    = v4{0.5f,0.2f,0.2f,1.f};
         v4 c_bottom = v4{0.1f,0.1f,0.1f,1.f};
         render_quad_c4(box.min, box.max, c_top, c_top, c_bottom, c_bottom);
         render_string(g_face, id, top_left, perf_string, 0);
