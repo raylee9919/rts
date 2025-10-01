@@ -33,7 +33,7 @@ global char g_shared[2048];
 
 
 
-struct Opengl_Info 
+struct Gl_Info
 {
     b32 modern_context;
 
@@ -200,7 +200,7 @@ struct Opengl
 {
     Platform_Renderer header;
 
-    Opengl_Info info;
+    Gl_Info info;
 
     GLint max_color_attachments;
     GLint max_samplers_per_shader;
@@ -275,7 +275,7 @@ struct Opengl
 // # Note: Function Declarations.
 //
 internal void opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
-internal Opengl_Info opengl_get_info(Opengl *gl, b32 modern_context);
+internal Gl_Info opengl_get_info(Opengl *gl, b32 modern_context);
 internal GLuint opengl_create_compute_program(Opengl *gl, const char *csrc);
 internal GLuint opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char *fsrc);
 internal GLuint opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *fs);

@@ -8,13 +8,6 @@
    $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-enum Ui_Axis
-{
-    UI_AXIS_X,
-    UI_AXIS_Y,
-    UI_AXIS_COUNT,
-};
-
 enum Ui_Size_Type
 {
     UI_SIZE_TYPE_PX,
@@ -26,9 +19,10 @@ enum Ui_Size_Type
 
 struct Ui_Size
 {
-    Ui_Size_Type    type;
-    f32             value;
+    Ui_Size_Type  type;
+    f32           value;
 };
+
 
 struct Ui_Key
 {
@@ -40,18 +34,19 @@ enum
 {
     // Note: Interact
     //
-    UI_BOX_FLAG_DISABLED                = (1<<0),
-    UI_BOX_FLAG_MOUSE_CLICKABLE         = (1<<1),
-    UI_BOX_FLAG_KEYBOARD_CLICKABLE      = (1<<2),
+    UI_BOX_FLAG_DISABLED           = (1<<0),
+    UI_BOX_FLAG_MOUSE_CLICKABLE    = (1<<1),
+    UI_BOX_FLAG_KEYBOARD_CLICKABLE = (1<<2),
 
     // Note: Draw
     //
-    UI_BOX_FLAG_DRAW_BACKGROUND         = (1<<3),
+    UI_BOX_FLAG_DRAW_BACKGROUND    = (1<<3),
+    UI_BOX_FLAG_DRAW_TEXT          = (1<<4),
 
     // Note: Layout
     //
-    UI_BOX_FLAG_FLOW_X                  = (1<<4),
-    UI_BOX_FLAG_FLOW_Y                  = (1<<5),
+    UI_BOX_FLAG_FLOW_X             = (1<<5),
+    UI_BOX_FLAG_FLOW_Y             = (1<<6),
 };
 
 struct Ui_Box
@@ -67,7 +62,17 @@ struct Ui_Box
     Ui_Box_Flags    flags;
     Ui_Key          key;
 
-    f32             computed_size[UI_AXIS_COUNT];
+    Ui_Size         semantic_size[2];
+    v2              computed_size;
+
+    v2              position;
+
+    Utf8            text;
+    AABB2           text_aabb;
+
+    f32             margin;
+
+    v4              bg[4]; // 00, 10, 01, 11
 };
 
 struct Ui_Signal
@@ -90,7 +95,16 @@ struct Ui_State
     u64             box_table_size;
     Ui_Box_Slot    *box_table;
 
-    Ui_Box         *root;
+    Ui_Box          *first_free_box;
+    Ui_Box          *last_free_box;
+
+
+    Ui_Box          *root;
+    Ui_Box          *current_parent;
+
+    // # Note: Text rendering
+    Face            *face;
+    Render_Id        face_atlas_id;
 };
 
 

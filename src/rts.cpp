@@ -22,12 +22,12 @@
 #include "rts_font.h"
 #include "rts_asset.h"
 #include "rts_ds.h"
-#include "ui/rts_ui_inc.h"
 #include "rts_delaunay.h"
 #include "rts_nav.h"
 #include "rts.h"
 #include "rts_geogen.h"
 #include "renderer/rts_renderer.h"
+#include "ui/rts_ui_inc.h"
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "rts_map_loader.h"
@@ -368,20 +368,27 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
 
+    { // # Note: Begin
+        arena_clear(game_state->frame_arena);
+        render_begin();
+    }
+
+
     // # Note: ui alloc/init
     //
     if (ui_state == NULL)
     {
         ui_state = ui_alloc();
         ui_init(ui_state);
+
+
+        // # Temporary: Load font to UI directly.
+        //
+        Utf8 contents = read_entire_file(game_state->assets->arena, utf8f(game_state->assets->arena, "%S/font_asset.txt", platform->data_path));
+        ui_state->face = face_alloc();
+        asset_font_parse(contents.str, contents.len, ui_state->face);
+        ui_state->face_atlas_id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, ui_state->face->data, ui_state->face->width, ui_state->face->height);
     }
-
-    // # Note: this temporary frame arena must be cleared every frame.
-    arena_clear(game_state->frame_arena);
-
-    // # Note: BEGIN/end renderer
-    //
-    render_begin();
 
     // # Temporary:
     game_state->active_entity_id = render_commands->active_entity_id;
@@ -529,41 +536,60 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_commands->csm_view = game_state->game_camera->V;
     }
 
-    // # Temporary:
+
+
+    // # Temporary: Testing UI
     //
-    local_persist b32 initted = 0;
-    local_persist Render_Id id = {};
-
-    if (! initted)
+    Ui_Box *b = NULL;
+    b = ui_push(utf8lit("0"), UI_BOX_FLAG_FLOW_X);
+    b->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
+    b->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
     {
-        initted = 1;
+        b = ui_push(utf8lit("1"), UI_BOX_FLAG_FLOW_X);
+        b->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
+        b->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
+        {
+            b = ui_push(utf8lit("This is A"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
+            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
+            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
+            ui_pop();
+            b = ui_push(utf8lit("This is B no matter you say."), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
+            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
+            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
+            ui_pop();
+            b = ui_push(utf8lit("This is E!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
+            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
+            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
+            ui_pop();
+        }
+        ui_pop();
 
-        Utf8 contents = read_entire_file(assets->arena, utf8f(assets->arena, "%S/font_asset.txt", platform->data_path));
-
-        g_face = face_alloc();
-        asset_font_parse(contents.str, contents.len, g_face);
-        id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, g_face->data, g_face->width, g_face->height);
+        b = ui_push(utf8lit("2"), UI_BOX_FLAG_FLOW_Y);
+        b->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
+        b->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
+        {
+            b = ui_push(utf8lit("Hello, C!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
+            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
+            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
+            ui_pop();
+            b = ui_push(utf8lit("Hello, D as well!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
+            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
+            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
+            ui_pop();
+            b = ui_push(utf8lit("There goes G!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
+            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
+            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
+            ui_pop();
+        }
+        ui_pop();
     }
+    ui_pop();
 
 
     {
-        // # Temporary: Simple perf monitor.
-        //
-        v2 top_left = v2{100, 100};
-        f32 mspf = platform->dt * 1000.f;
-        f32 fps = 1.f / platform->dt;
-        Utf8 perf_string = utf8f(game_state->frame_arena, "[PERF]\nmspf: %.2f\nfps: %.0f", mspf, fps);
-        AABB2 box = render_string(g_face, id, top_left, perf_string, RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
-        v2 margin = V2(10.f);
-        box.min -= margin;
-        box.max += margin;
-        v4 c_top    = v4{0.5f,0.2f,0.2f,1.f};
-        v4 c_bottom = v4{0.1f,0.1f,0.1f,1.f};
-        render_quad_c4(box.min, box.max, c_top, c_top, c_bottom, c_bottom);
-        render_string(g_face, id, top_left, perf_string, 0);
+        ui_compute_size();
+        ui_compute_position();
     }
-
-
 
     // # Note: begin/END renderer
     //

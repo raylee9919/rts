@@ -34,7 +34,9 @@ u8 eos = 0;
 //
 //         1. Face metrics.
 //                  
-//                  linespace : f32
+//                  ascent    : f32
+//                  descent   : f32
+//                  lineGap   : f32
 //
 //         2. Codepoint to Glyph Indices Mapping.
 //            One codepoint can have multiple glyph indices. In the first part of the asset, 
@@ -146,7 +148,7 @@ int main(void)
 
     // # Note: Configs.
     //
-    f32 pt_per_em = 16.0f; // aka, font size.
+    f32 pt_per_em = 20.0f; // aka, font size.
 
 
     // # Note: Check if the desired base font family exists.
@@ -208,8 +210,13 @@ int main(void)
     f32 px_per_pt = dwrite_state->px_per_inch / 72.0f;
     f32 px_per_em = pt_per_em * px_per_pt;
     f32 px_per_du = px_per_em * em_per_du;
-    f32 linespace =  (f32)(face_metrics.ascent + face_metrics.descent + face_metrics.lineGap) * px_per_du;
-    fwrite(&linespace, sizeof(f32), 1, file);
+    //f32 linespace =  (f32)(face_metrics.ascent + face_metrics.descent + face_metrics.lineGap) * px_per_du;
+    f32 ascent = face_metrics.ascent * px_per_du;
+    f32 descent = face_metrics.ascent * px_per_du;
+    f32 linegap = face_metrics.ascent * px_per_du;
+    fwrite(&ascent,  sizeof(f32), 1, file);
+    fwrite(&descent, sizeof(f32), 1, file);
+    fwrite(&linegap, sizeof(f32), 1, file);
 
 
     // # Note: For the specific font face, get the mapped glyph indices per codepoints 

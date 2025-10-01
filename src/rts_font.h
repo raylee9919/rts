@@ -56,6 +56,9 @@ struct Face
 {
     Arena *arena;
 
+    f32 ascent;
+    f32 descent;
+    f32 linegap;
     f32 linespace;
 
     // # Note: Glyph index to it's metrics mapping.

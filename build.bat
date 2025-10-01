@@ -37,18 +37,15 @@ pushd build
 if exist *.pdb del *.pdb
 
 :: ---------------------------- Tools ---------------------------- ::
-:: Font (Legacy)
-rem call %compiler% %flags_compile% ..\src\font\rts_font_provider.cpp /link %flags_linker% gdi32.lib 
-
-:: Font (New)
+:: Font Provider
 call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /wd4457 /link %flags_linker%
 
 :: Assimp
-rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+REM call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
-rem call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
-rem rts_meta.exe
+REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
+REM rts_meta.exe
 
 :: ---------------------------- Game ---------------------------- ::
 :: Renderers
@@ -56,7 +53,7 @@ set renderer_export=/EXPORT:win32_load_renderer /EXPORT:win32_begin_frame /EXPOR
 call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
 
 :: Build Icon
-rem call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
+call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Game
 call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render

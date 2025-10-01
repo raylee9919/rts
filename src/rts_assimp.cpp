@@ -17,7 +17,7 @@
 // @Note: [.h]
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
-#include "rts_math.h"
+#include "rts_font.h"
 #include "rts_asset.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -29,7 +29,6 @@
 // @Note: [.cpp]
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
-#include "rts_math.cpp"
 
 
 #define ASSIMP_PRINT_NODES              1

@@ -40,18 +40,17 @@ global Renderer *g_renderer;
 
 #pragma comment(lib, "dwmapi")
 
-// # Study:
-// Executables (but not DLLs) exporting this symbol with this value will be
-// automatically directed to the high-performance GPU on Nvidia Optimus systems
-// with up-to-date drivers
+// # Note: Executables (but not DLLs) exporting this symbol with this value will be
+//         automatically directed to the high-performance GPU on Nvidia Optimus systems
+//         with up-to-date drivers
 //
-// __declspec(dllexport) DWORD NvOptimusEnablement = 1;
+__declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
-// Executables (but not DLLs) exporting this symbol with this value will be
-// automatically directed to the high-performance GPU on AMD PowerXpress systems
-// with up-to-date drivers
+// # Note: Executables (but not DLLs) exporting this symbol with this value will be
+//         automatically directed to the high-performance GPU on AMD PowerXpress systems
+//         with up-to-date drivers
 //
-// __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 // # Note: Globals
 //

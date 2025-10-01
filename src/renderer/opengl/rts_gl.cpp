@@ -32,10 +32,10 @@ opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
     }
 }
 
-internal Opengl_Info
+internal Gl_Info
 opengl_get_info(Opengl *gl, b32 modern_context)
 {
-    Opengl_Info result = {};
+    Gl_Info result = {};
     {
         result.modern_context = modern_context;
         result.vendor         = (char *)glGetString(GL_VENDOR);

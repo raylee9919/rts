@@ -289,7 +289,7 @@ RENDERER_END_FRAME(win32_end_frame)
 }
 
 internal void
-win32_get_gl_functions(Opengl_Info info)
+win32_get_gl_functions(Gl_Info info)
 {
 #define WGL_GET_PROC_ADDRESS(name) name = (Type_##name *)wglGetProcAddress(#name)
     WGL_GET_PROC_ADDRESS(glCreateShader);
@@ -386,7 +386,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS *os_init
 
 
     Opengl *gl = push_struct(arena, Opengl);
-    Opengl_Info *glinfo = push_struct(arena, Opengl_Info);
+    Gl_Info *glinfo = push_struct(arena, Gl_Info);
 
     if (reload) 
     {
@@ -429,7 +429,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS *os_init
 
         if (wglMakeCurrent(window_dc, glrc)) 
         {
-            Opengl_Info info = opengl_get_info(gl, modern_context);
+            Gl_Info info = opengl_get_info(gl, modern_context);
             win32_get_gl_functions(info);
             gl->info = info;
 
