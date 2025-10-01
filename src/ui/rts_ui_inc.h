@@ -9,6 +9,6 @@
    ======================================================================== */
 
 #include "ui/rts_ui_core.h"
-#include "ui/rts_ui_builder.h"
+#include "ui/rts_ui_widgets.h"
 
 #endif // RTS_UI_INC

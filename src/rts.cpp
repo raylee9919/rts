@@ -94,46 +94,6 @@ update_cameras(World *world, Game_State *game_state)
     }
 }
 
-#if 0
-internal void
-ui_dev(Render_Commands *render_commands, Game_State *game_state, Input *input)
-{
-    v4 color = V4(0.2f,0.2f,0.4f,0.6f);
-    ui.begin("Dev", V2(-0.98f, 0.7f));
-    ui.checkbox(&render_commands->wireframe_mode, color, "Wireframe", "Draw meshes' wireframe.");
-    ui.checkbox(&render_commands->draw_navmesh, color, "Navmesh", "Draw Navigation Mesh.");
-    ui.checkbox(&render_commands->draw_csm_frustum, color, "CSM Frustum", "Draw frustum volume for cascaded shadow mapping.");
-    ui.checkbox(&render_commands->csm_varient_method, color, "CSM Valient's Method", "Use Valient's algorithm introduced in Shaderx book.");
-    if (ui.button(color, "Switch Camera", "Switch between game camera and debug camera.")) 
-    {
-        if (game_state->controlling_camera == game_state->game_camera) 
-        {
-            game_state->controlling_camera = game_state->debug_camera;
-        } 
-        else 
-        {
-            game_state->controlling_camera = game_state->game_camera;
-        }
-    }
-    ui.end();
-}
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
@@ -387,7 +347,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         Utf8 contents = read_entire_file(game_state->assets->arena, utf8f(game_state->assets->arena, "%S/font_asset.txt", platform->data_path));
         ui_state->face = face_alloc();
         asset_font_parse(contents.str, contents.len, ui_state->face);
-        ui_state->face_atlas_id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, ui_state->face->data, ui_state->face->width, ui_state->face->height);
+        ui_state->texture_id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, ui_state->face->data, ui_state->face->width, ui_state->face->height);
     }
 
     // # Temporary:
@@ -479,7 +439,9 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
         } break;
 
-        default: { assert(! "invalid default case"); } break;
+        default: {
+            assert(! "invalid default case"); 
+        } break;
     }
 
     { // # Note: Render Commands
@@ -539,56 +501,46 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
 
     // # Temporary: Testing UI
+    //              1. Interact with UI built in last frame.
+    //              2. Build new hierarchy while retaining some data(!!!)
     //
-    Ui_Box *b = NULL;
-    b = ui_push(utf8lit("0"), UI_BOX_FLAG_FLOW_X);
-    b->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
-    b->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
+    ui_pane_x(utf8lit("Pane 0"))
     {
-        b = ui_push(utf8lit("1"), UI_BOX_FLAG_FLOW_X);
-        b->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
-        b->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
+        if (ui_button(utf8lit("Wireframe")).pressed_left)
         {
-            b = ui_push(utf8lit("This is A"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
-            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
-            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
-            ui_pop();
-            b = ui_push(utf8lit("This is B no matter you say."), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
-            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
-            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
-            ui_pop();
-            b = ui_push(utf8lit("This is E!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
-            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
-            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
-            ui_pop();
+            render_commands->wireframe_mode = !render_commands->wireframe_mode; 
         }
-        ui_pop();
+        if (ui_button(utf8lit("Navmesh")).pressed_left)
+        {
+            render_commands->draw_navmesh = !render_commands->draw_navmesh; 
+        }
 
-        b = ui_push(utf8lit("2"), UI_BOX_FLAG_FLOW_Y);
-        b->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
-        b->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
+        if (ui_button(utf8lit("Valient's Method")).pressed_left)
         {
-            b = ui_push(utf8lit("Hello, C!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
-            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
-            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
-            ui_pop();
-            b = ui_push(utf8lit("Hello, D as well!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
-            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
-            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
-            ui_pop();
-            b = ui_push(utf8lit("There goes G!"), UI_BOX_FLAG_DRAW_BACKGROUND | UI_BOX_FLAG_DRAW_TEXT);
-            b->semantic_size[0].type = UI_SIZE_TYPE_TEXT;
-            b->semantic_size[1].type = UI_SIZE_TYPE_TEXT;
-            ui_pop();
+            render_commands->csm_varient_method = !render_commands->csm_varient_method; 
         }
-        ui_pop();
+        if (ui_button(utf8lit("Csm Frustum")).pressed_left)
+        {
+            render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
+        }
+
+        if (ui_button(utf8lit("Switch Camera")).pressed_left) 
+        {
+            if (game_state->controlling_camera == game_state->game_camera) 
+            {
+                game_state->controlling_camera = game_state->debug_camera;
+            } 
+            else 
+            {
+                game_state->controlling_camera = game_state->game_camera;
+            }
+        }
     }
-    ui_pop();
 
 
     {
-        ui_compute_size();
-        ui_compute_position();
+        ui_compute_size(ui_state->root);
+        ui_compute_position(ui_state->root, v2{100.f, 50.f});
     }
 
     // # Note: begin/END renderer

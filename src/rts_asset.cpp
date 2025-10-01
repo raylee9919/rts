@@ -520,9 +520,9 @@ asset_font_parse(void *input, u64 size, Face *out)
 
         // # Note: Part1
         //
-        out->ascent  = cursor_eat_type(&cursor, f32);
-        out->descent = cursor_eat_type(&cursor, f32);
-        out->linegap = cursor_eat_type(&cursor, f32);
+        out->ascent  = ceilf(cursor_eat_type(&cursor, f32));
+        out->descent = ceilf(cursor_eat_type(&cursor, f32));
+        out->linegap = ceilf(cursor_eat_type(&cursor, f32));
         out->linespace = out->ascent + out->descent + out->linegap;
 
 

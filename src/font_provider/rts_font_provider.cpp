@@ -148,7 +148,7 @@ int main(void)
 
     // # Note: Configs.
     //
-    f32 pt_per_em = 20.0f; // aka, font size.
+    f32 pt_per_em = 16.0f; // aka, font size.
 
 
     // # Note: Check if the desired base font family exists.
@@ -212,8 +212,8 @@ int main(void)
     f32 px_per_du = px_per_em * em_per_du;
     //f32 linespace =  (f32)(face_metrics.ascent + face_metrics.descent + face_metrics.lineGap) * px_per_du;
     f32 ascent = face_metrics.ascent * px_per_du;
-    f32 descent = face_metrics.ascent * px_per_du;
-    f32 linegap = face_metrics.ascent * px_per_du;
+    f32 descent = face_metrics.descent * px_per_du;
+    f32 linegap = face_metrics.lineGap * px_per_du;
     fwrite(&ascent,  sizeof(f32), 1, file);
     fwrite(&descent, sizeof(f32), 1, file);
     fwrite(&linegap, sizeof(f32), 1, file);

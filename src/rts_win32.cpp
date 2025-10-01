@@ -452,7 +452,7 @@ win32_code_modified(Win32_Code *loaded)
 
 // # Note: Entry
 //
-#if BUILD_DEBUG
+#if 0
 int wmain(int argc, wchar_t *argv[]) 
 {
     HINSTANCE hinst = GetModuleHandleW(0);

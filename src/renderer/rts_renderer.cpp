@@ -462,6 +462,7 @@ render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String
             Glyph_Metrics metrics = *metrics_ptr;
 
             // # Note: Compute blakbox offset and size
+            //
             v2 offset = v2{metrics.left_side_bearing, metrics.top_side_bearing};
             v2 dim = v2{metrics.width, metrics.height};
             v2 min = pen + offset;
@@ -470,6 +471,7 @@ render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String
             max.y = floorf(max.y);
 
             // # Note: Draw
+            //
             if (! (flags & RENDER_STRING_FLAG_NO_DRAW))
             {
                 v2 uv_min = v2{metrics.uv_min_x, metrics.uv_min_y};

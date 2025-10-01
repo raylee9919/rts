@@ -1,5 +1,5 @@
-#ifndef RTS_UI_H
-#define RTS_UI_H
+#ifndef RTS_UI_CORE_H
+#define RTS_UI_CORE_H
 /* ========================================================================
    $File: $
    $Date: $
@@ -47,6 +47,10 @@ enum
     //
     UI_BOX_FLAG_FLOW_X             = (1<<5),
     UI_BOX_FLAG_FLOW_Y             = (1<<6),
+
+    // Note: Text Alignment
+    //
+    UI_BOX_FLAG_TEXT_ALIGN_CENTER  = (1<<7),
 };
 
 struct Ui_Box
@@ -59,8 +63,8 @@ struct Ui_Box
 
     Ui_Box          *hash_next;
 
-    Ui_Box_Flags    flags;
     Ui_Key          key;
+    Ui_Box_Flags    flags;
 
     Ui_Size         semantic_size[2];
     v2              computed_size;
@@ -70,15 +74,36 @@ struct Ui_Box
     Utf8            text;
     AABB2           text_aabb;
 
-    f32             margin;
 
     v4              bg[4]; // 00, 10, 01, 11
+
+    f32             padding;
+    f32             border;
+    f32             margin;
 };
 
 struct Ui_Signal
 {
     Ui_Box  *box;
-    b8       clicked;
+
+    b32 pressed_left;
+    b32 pressed_middle;
+    b32 pressed_right;
+    b32 released_left;
+    b32 released_middle;
+    b32 released_right;
+    b32 clicked_left;
+    b32 clicked_right;
+    b32 clicked_middle;
+    b32 dragging_left;
+    b32 dragging_middl;
+    b32 dragging_right;
+    b32 double_clicked_left;
+    b32 double_clicked_middle;
+    b32 double_clicked_right;
+    b32 pressed_key;
+    b32 hovering;
+    b32 mouse_is_over;
 };
 
 struct Ui_Box_Slot
@@ -102,9 +127,8 @@ struct Ui_State
     Ui_Box          *root;
     Ui_Box          *current_parent;
 
-    // # Note: Text rendering
     Face            *face;
-    Render_Id        face_atlas_id;
+    Render_Id        texture_id;
 };
 
 
@@ -113,8 +137,31 @@ struct Ui_State
 global read_only Ui_Key ui_key_zero = {};
 
 
+// # Note: Function Delcarations.
+//
+
+internal Ui_State *ui_alloc(void);
+internal void ui_init(Ui_State *ui);
+
+internal b32 ui_key_match(Ui_Key a, Ui_Key b);
+internal Ui_Key ui_key_from_string(Utf8 string);
+internal b32 ui_box_is_nil(Ui_Box *box);
+internal Ui_Box *ui_box_from_key(Ui_Key key);
+
+internal Ui_Box *ui_box_alloc(void);
+internal Ui_Box *ui_push(Utf8 string, Ui_Box_Flags flags);
+internal void ui_pop(void);
+
+
+internal v2 ui_compute_size_internal(Ui_Box *box);
+internal void ui_compute_position(Ui_Box *box, v2 position);
+internal void ui_box_draw(Ui_Box *box);
+internal Ui_Signal ui_signal_from_box(Ui_Box *box);
 
 
 
 
-#endif // RTS_UI_H
+
+
+
+#endif // RTS_UI_CORE_H
