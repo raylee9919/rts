@@ -23,12 +23,12 @@ out vec4 out_color;
 
 void main()
 {
-    vec2 d = abs(f_position - f_rect_center) - f_rect_half_dim - v2(f_radius);
-    float s = length(max(d, 0.0f)) + min(max(d.x, d.y), 0.0f) - f_radius;
+    vec2 d = abs(f_position - f_rect_center) - f_rect_half_dim + vec2(f_radius);
+    float s = length(max(d, 0.f)) + min(max(d.x, d.y), 0.f) - f_radius;
 
     vec4 texture_color = texture(u_sampler, f_uv);
-    //out_color = texture_color * f_color;
-    //out_color = vec4(f_radius/20.f,0,0,1);
+    out_color = texture_color * f_color;
+    out_color *= step(0.f, -s);
 }
 
 )";

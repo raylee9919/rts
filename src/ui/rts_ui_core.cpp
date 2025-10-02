@@ -270,18 +270,21 @@ ui_box_draw(Ui_Box *box)
 
         // # Note: Draw border.
         //
+
         if (box->border != 0.f)
         {
             render_quad_c(min, max, V4(0.0f));
             min += V2(box->border);
             max -= V2(box->border);
         }
+        
 
         // # Note: Draw contents background.
         //
         if (box->flags & UI_BOX_FLAG_DRAW_BACKGROUND)
         {
-            render_quad_c4r(min, max, box->bg[0], box->bg[1], box->bg[2], box->bg[3], 8.f);
+            f32 radius = min(box->computed_size.x, box->computed_size.y) * 0.16f;
+            render_quad_c4r(min, max, box->bg[0], box->bg[1], box->bg[2], box->bg[3], radius);
         }
         min += V2(box->padding);
         max -= V2(box->padding);

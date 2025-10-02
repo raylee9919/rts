@@ -8,6 +8,14 @@
    $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
+typedef u8 Ui_Axis;
+enum
+{
+    UI_AXIS_X,
+    UI_AXIS_Y,
+    UI_AXIS_COUNT,
+};
+
 enum Ui_Size_Type
 {
     UI_SIZE_TYPE_PX,

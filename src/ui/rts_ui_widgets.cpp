@@ -25,23 +25,12 @@ ui_text(Utf8 text)
 
 #define ui_pane_x(text) defer_loop(ui_pane_x_push(text), ui_pop())
 #define ui_pane_y(text) defer_loop(ui_pane_y_push(text), ui_pop())
-
+#define ui_pane_x_push(text) ui_pane_push(text, UI_BOX_FLAG_FLOW_X)
+#define ui_pane_y_push(text) ui_pane_push(text, UI_BOX_FLAG_FLOW_Y)
 internal void
-ui_pane_x_push(Utf8 text)
+ui_pane_push(Utf8 text, Ui_Box_Flags axis)
 {
-    Ui_Box_Flags flags = (UI_BOX_FLAG_FLOW_X);
-
-    Ui_Box *box = ui_push(text, flags);
-    {
-        box->semantic_size[0].type = UI_SIZE_TYPE_CHILDREN;
-        box->semantic_size[1].type = UI_SIZE_TYPE_CHILDREN;
-    }
-}
-
-internal void
-ui_pane_y_push(Utf8 text)
-{
-    Ui_Box_Flags flags = (UI_BOX_FLAG_FLOW_Y);
+    Ui_Box_Flags flags = axis; 
 
     Ui_Box *box = ui_push(text, flags);
     {

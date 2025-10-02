@@ -504,7 +504,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //              1. Interact with UI built in last frame.
     //              2. Build new hierarchy while retaining some data(!!!)
     //
-    ui_pane_x(utf8lit("Pane 0"))
+    ui_pane_y(utf8lit("Pane 0"))
     {
         if (ui_button(utf8lit("Wireframe")).pressed_left)
         {

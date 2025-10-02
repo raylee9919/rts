@@ -148,7 +148,7 @@ int main(void)
 
     // # Note: Configs.
     //
-    f32 pt_per_em = 40.0f; // aka, font size.
+    f32 pt_per_em = 16.0f; // aka, font size.
 
 
     // # Note: Check if the desired base font family exists.
