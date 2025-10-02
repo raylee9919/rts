@@ -155,16 +155,20 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
     // # Note: Compile vertex shader.
     //
     GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-    const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
-    glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
-    glCompileShader(vshader);
+    {
+        const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
+        glCompileShader(vshader);
+    }
 
     // # Note: Compile fragment shader.
     //
     GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-    const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
-    glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
-    glCompileShader(fshader);
+    {
+        const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
+        glCompileShader(fshader);
+    }
 
     // # Note: Create program.
     //
@@ -176,23 +180,23 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
     // # Note: Validate program.
     //
     glValidateProgram(program);
-    GLint linked = false;
+    GLint linked = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
     if (! linked) 
     {
         GLsizei stub;
 
         GLchar vlog[1024];
+        zero_memory(vlog, sizeof(*vlog)*array_count(vlog));
         glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
-        gl_printf(vlog);
 
         GLchar flog[1024];
+        zero_memory(flog, sizeof(*flog)*array_count(flog));
         glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
-        gl_printf(vlog);
 
         GLchar plog[1024];
+        zero_memory(plog, sizeof(*plog)*array_count(plog));
         glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-        gl_printf(vlog);
 
         assert(! "compile/link error.");
     }
@@ -1614,6 +1618,9 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, position));
                         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, uv));
                         glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, color));
+                        glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, rect_center));
+                        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, rect_half_dim));
+                        glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, radius));
 
                         // # Divisor Begin
                         // glVertexAttribDivisor(0, 0);

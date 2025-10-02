@@ -364,6 +364,18 @@ render_quad_c4(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11)
 }
 
 internal void
+render_quad_c4r(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r)
+{
+    render_quad_tuvc4r4(render_id_null(), min, max, v2{0,0}, v2{0,0}, c00, c10, c01, c11, r, r, r, r);
+}
+
+internal void
+render_quad_c4r4(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11)
+{
+    render_quad_tuvc4r4(render_id_null(), min, max, v2{0,0}, v2{0,0}, c00, c10, c01, c11, r00, r10, r01, r11);
+}
+
+internal void
 render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max)
 {
     render_quad_tuvc(texture_id, min, max, uv_min, uv_max, v4{1,1,1,1});
@@ -378,6 +390,14 @@ render_quad_tuvc(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 
 internal void
 render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
                   v4 c00, v4 c10, v4 c01, v4 c11)
+{
+    render_quad_tuvc4r4(texture_id, min, max, uv_min, uv_max, c00, c10, c01, c11, 0.f,0.f,0.f,0.f);
+}
+
+internal void
+render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
+                    v4 c00, v4 c10, v4 c01, v4 c11,
+                    f32 r00, f32 r10, f32 r01, f32 r11)
 {
     // # Note: Order and UV
     //
@@ -402,6 +422,10 @@ render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
     v4 colors[4] = {
         c00, c10, c01, c11
     };
+
+    f32 radii[4] = {
+        r00, r10, r01, r11
+    };
     
     for (u32 i = 0; i < 4; ++i)
     {
@@ -409,11 +433,15 @@ render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
         Render_Vertex *v = render_vertex_push(type);
         {
             // # init
-            v->type        = type;
-            v->position    = positions[i];
-            v->uv          = uvs[i];
-            v->texture_id  = texture_id;
-            v->color       = colors[i];
+            v->type             = type;
+            v->position         = positions[i];
+            v->uv               = uvs[i];
+            v->texture_id       = texture_id;
+            v->color            = colors[i];
+
+            v->rect_center      = 0.5f*(max+min);
+            v->rect_half_dim    = 0.5f*(max-min);
+            v->radius           = radii[i];
         }
     }
 

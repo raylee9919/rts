@@ -540,7 +540,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     {
         ui_compute_size(ui_state->root);
-        ui_compute_position(ui_state->root, v2{100.f, 50.f});
+        ui_compute_position(ui_state->root, v2{0.f, 0.f});
     }
 
     // # Note: begin/END renderer

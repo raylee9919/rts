@@ -364,6 +364,7 @@ win32_get_gl_functions(Gl_Info info)
     WGL_GET_PROC_ADDRESS(glGetActiveUniform);
     WGL_GET_PROC_ADDRESS(glGetActiveAttrib);
     WGL_GET_PROC_ADDRESS(glDrawArraysInstanced);
+    WGL_GET_PROC_ADDRESS(glGetShaderiv);
 
     if (info.opengl_arb_framebuffer_object) 
     {

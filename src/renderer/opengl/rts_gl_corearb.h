@@ -1609,6 +1609,7 @@ typedef void        Type_glGetUniformiv (GLuint program, GLint location, GLint *
 typedef void        Type_glGetActiveUniform (GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
 typedef void        Type_glGetActiveAttrib (GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
 typedef void        Type_glDrawArraysInstanced (GLenum mode, GLint first, GLsizei count, GLsizei instancecount);
+typedef void        Type_glGetShaderiv (GLuint shader, GLenum pname, GLint *params);
 
 
 
@@ -1690,6 +1691,7 @@ OPENGL_FUNCTION(glGetUniformiv);
 OPENGL_FUNCTION(glGetActiveUniform);
 OPENGL_FUNCTION(glGetActiveAttrib);
 OPENGL_FUNCTION(glDrawArraysInstanced);
+OPENGL_FUNCTION(glGetShaderiv);
 
 
 
