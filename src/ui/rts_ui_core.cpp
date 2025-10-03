@@ -283,7 +283,7 @@ ui_box_draw(Ui_Box *box)
         //
         if (box->flags & UI_BOX_FLAG_DRAW_BACKGROUND)
         {
-            f32 radius = min(box->computed_size.x, box->computed_size.y) * 0.16f;
+            f32 radius = 8.f;
             render_quad_c4r(min, max, box->bg[0], box->bg[1], box->bg[2], box->bg[3], radius);
         }
         min += V2(box->padding);
