@@ -41,11 +41,11 @@ if exist *.pdb del *.pdb
 call %compiler% %flags_compile% ..\src\font_provider\rts_font_provider.cpp /wd4457 /link %flags_linker%
 
 :: Assimp
-REM call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+call %compiler% %flags_compile% ..\src\rts_assimp.cpp /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
 
 :: Metaprogramming
-REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
-REM rts_meta.exe
+call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
+rts_meta.exe
 
 :: ---------------------------- Game ---------------------------- ::
 :: Renderers

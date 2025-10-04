@@ -267,7 +267,7 @@ enum
 {
     RENDER_STRING_FLAG_NO_DRAW      = (1<<0),
     RENDER_STRING_FLAG_COMPUTE_SIZE = (1<<1),
-    RENDER_STRING_FLAG_DROP_SHADOW  = (1<<2),
+    RENDER_STRING_FLAG_CULL         = (1<<2),
 };
 
 
@@ -292,6 +292,7 @@ internal void render_texture_destroy(Render_Id id);
 #define render_quad_t(t,mn,mx)                      render_quad_tuv(t, mn, mx, v2{0,0}, v2{1,1})
 internal void render_quad_c(v2 min, v2 max, v4 color);
 internal void render_quad_c4(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11);
+internal void render_quad_cr(v2 min, v2 max, v4 c, f32 r);
 internal void render_quad_c4r(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r);
 internal void render_quad_c4r4(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11);
 internal void render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max);
@@ -300,4 +301,5 @@ internal void render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min,
 internal void render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11);
 
 
-internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags);
+
+internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags, AABB2 cull_aabb);

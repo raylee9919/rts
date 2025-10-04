@@ -27,7 +27,7 @@
 #include "rts.h"
 #include "rts_geogen.h"
 #include "renderer/rts_renderer.h"
-#include "ui/rts_ui_inc.h"
+#include "ui/ui_inc.h"
 #include "generated/entity.h"
 #include "generated/entity_serialization.h"
 #include "rts_map_loader.h"
@@ -50,7 +50,7 @@ Face *g_face;
 #include "rts_asset.cpp"
 #include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
-#include "ui/rts_ui_inc.cpp"
+#include "ui/ui_inc.cpp"
 #include "rts_delaunay.cpp"
 #include "rts_nav.cpp"
 #include "rts_sim.cpp"
@@ -504,7 +504,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //              1. Interact with UI built in last frame.
     //              2. Build new hierarchy while retaining some data(!!!)
     //
-    ui_pane_y(utf8lit("Pane 0"))
+    ui_begin(platform->dt);
+
+    ui_label(utf8f(game_state->frame_arena, "mspf:%.2f", platform->dt * 1000.f)); // @Todo: This leaks memory!
+    ui_size_push(AXIS2_X, UI_SIZE_TYPE_PX, 300.f);
+    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 200.f);
+    ui_pane(AXIS2_Y, utf8lit("Developer Panel"))
     {
         if (ui_button(utf8lit("Wireframe")).pressed_left)
         {
@@ -535,15 +540,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 game_state->controlling_camera = game_state->game_camera;
             }
         }
+        ui_style_pop(bg);
     }
 
 
-    {
-        ui_compute_size(ui_state->root);
-        ui_compute_position(ui_state->root, v2{0.f, 0.f});
-    }
-
-    // # Note: begin/END renderer
-    //
+    ui_end();
     render_end();
 }

@@ -194,4 +194,10 @@ internal m4x4 view_transform(v3 position, Quaternion orientation);
 internal m4x4 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 internal f32 degrees_to_radian(f32 x);
 
+internal f32 normalize01(v2 range, f32 val);
+internal b32 intersects(AABB2 box, v2 point);
+internal b32 intersects(AABB2 a, AABB2 b);
+internal AABB2 intersection(AABB2 a, AABB2 b);
+internal AABB2 aabb2_infinite(void);
+
 #endif // RTS_BASE_MATH_H

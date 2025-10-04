@@ -14,7 +14,11 @@
 #include "rect_pack/rts_rect_pack.h"
 #include "font_provider/rts_fp_ds.h"
 #include "font_provider/rts_font_provider.h"
-#include "font_provider/dwrite_core.h"
+
+#include "font_provider/dwrite/rts_dwrite.h"
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "font_provider/vendor/stb_truetype.h"
 
 // # Note: [.cpp]
 //
@@ -23,7 +27,8 @@
 
 #include "rect_pack/rts_rect_pack.cpp"
 #include "font_provider/rts_fp_ds.cpp"
-#include "font_provider/dwrite_core.cpp"
+
+#include "font_provider/dwrite/rts_dwrite.cpp"
 
 u8 eos = 0;
 
@@ -200,6 +205,8 @@ int main(void)
         codepoints[codepoint_count++] = codepoint;
     }
 
+    u16 glyph_count = face5->GetGlyphCount();
+
     // # Note: Part1
     //
     DWRITE_FONT_METRICS face_metrics = {};
@@ -243,7 +250,6 @@ int main(void)
     fwrite(&eos, sizeof(u8), 1, file);
 
 
-    //Dwrite_Runs *runs = dwrite_map_text_to_glyphs(dwrite_state->font_fallback1, dwrite_state->font_collection, dwrite_state->locale, base_font_family_name, pt_per_em, text, text_length);
     Dwrite_Run_Series *run_series = dwrite_runs_from_text(face5, pt_per_em, text, text_length);
 
     Glyph_Cel_List *cel_list = push_struct(permanent_arena, Glyph_Cel_List);

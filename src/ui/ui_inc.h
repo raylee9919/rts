@@ -8,7 +8,7 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-#include "ui/rts_ui_core.h"
-#include "ui/rts_ui_widgets.h"
+#include "ui/ui_core.h"
+#include "ui/ui_widgets.h"
 
 #endif // RTS_UI_INC

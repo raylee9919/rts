@@ -1067,3 +1067,60 @@ degrees_to_radian(f32 x)
 {
     return x*pi32*0.005556f;
 }
+
+internal f32
+normalize01(v2 range, f32 val)
+{
+    f32 result = 0.0f;
+    f32 denom = (range.y - range.x);
+    f32 numer = (val - range.x);
+    if (denom != 0.0f)
+    { result = clamp(numer/denom, 0.0f, 1.0f); }
+    return result;
+}
+
+internal b32
+intersects(AABB2 box, v2 point)
+{
+    b32 result = false;
+    // @Todo: Pixel perfect.
+    if (point.x >= box.min.x && point.x < box.max.x &&
+        point.y >= box.min.y && point.y < box.max.y) 
+    { result = true; }
+    return result;
+}
+
+internal b32
+intersects(AABB2 a, AABB2 b)
+{
+    b32 result = false;
+    v2 half_dim = (a.max - a.min) * 0.5f;
+    b.min -= half_dim;
+    b.max += half_dim;
+    v2 point = (a.min + a.max) * 0.5f;
+    result = intersects(b, point);
+    return result;
+}
+
+internal AABB2
+intersection(AABB2 a, AABB2 b)
+{
+    AABB2 result = {};
+    if (intersects(a, b))
+    {
+        result.min.x = (a.min.x >= b.min.x) ? a.min.x : b.min.x; 
+        result.max.x = (a.max.x >= b.max.x) ? b.max.x : a.max.x;
+        result.min.y = (a.min.y >= b.min.y) ? a.min.y : b.min.y; 
+        result.max.y = (a.max.y >= b.max.y) ? b.max.y : a.max.y;
+    }
+    return result;
+}
+
+internal AABB2
+aabb2_infinite(void)
+{
+    AABB2 result = {};
+    result.min = v2{-F32_MAX, -F32_MAX};
+    result.max = v2{ F32_MAX,  F32_MAX};
+    return result;
+}

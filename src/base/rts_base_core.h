@@ -111,14 +111,21 @@ typedef size_t      mmm;
 typedef uintptr_t   umm;
 typedef intptr_t    smm;
 
-struct Node_u16
+typedef u8 Axis2;
+enum
 {
-    u16 *next;
-    u16 *prev;
-    u16 *first;
-    u16 *last;
+    AXIS2_X,
+    AXIS2_Y,
+    AXIS2_COUNT
+};
 
-    u16 value;
+typedef u8 Axis3;
+enum
+{
+    AXIS3_X,
+    AXIS3_Y,
+    AXIS3_Z,
+    AXIS3_COUNT
 };
 
 #define CONCAT(A, B) A##B
@@ -166,12 +173,21 @@ struct Node_u16
 #define check_nil(nil, p) ((p)==0 || (p)==(nil))
 
 
-#define sll_push_back_nz(f, l, n, next, zchk, zset) \
+// @Note: List
+//
+#define sll_push_back_nz(f, l, n, nxt, zchk, zset) \
     ( ( zchk(f) ) ? \
       ( (f)=(l)=(n), zset((n)->next) ) : \
-      ( (l)->next = (n), (l) = (n), zset((n)->next) ) )
-#define sll_push_back_n(f, l, n, next) sll_push_back_nz((f), (l), (n), next, check_null, set_null)
-#define sll_push_back(f, l, n) sll_push_back_nz((f), (l), (n), next, check_null, set_null)
+      ( (l)->nxt = (n), (l) = (n), zset((n)->nxt) ) )
+#define sll_push_back_n(f, l, n, next)      sll_push_back_nz((f), (l), (n), next, check_null, set_null)
+#define sll_push_back(f, l, n)              sll_push_back_nz((f), (l), (n), next, check_null, set_null)
+
+#define sll_push_front_nz(f, l, n, next, zchk, zset) \
+    ( ( zchk(f) ) ? \
+      ( (f)=(l)=(n), zset((n)->next) ) : \
+      ( (n)->next = (f), (f) = (n), zset((n)->next) ) )
+#define sll_push_front_n(f, l, n, next)     sll_push_front_nz((f), (l), (n), next, check_null, set_null)
+#define sll_push_front(f, l, n)             sll_push_front_n((f), (l), (n), next)
 
 #define sll_pop_front_nz(f, l, next, zset) \
     ( ( (f)==(l) ) ? \
@@ -179,8 +195,14 @@ struct Node_u16
       ( (f)=(f)->next ) )
 #define sll_pop_front(f, l) sll_pop_front_nz(f,l,next,set_null)
 
+#define stack_push_n(f, n, next) ((n)->next=(f), (f)=(n))
+#define stack_push(f, n) stack_push_n(f, n, next)
+#define stack_pop_nz(f, next, zchk) (zchk(f) ? 0 : ((f)=(f)->next))
+#define stack_pop(f) stack_pop_nz(f, next, check_null)
+
 #define list_for_n(f, it, next) for (decltype(f) (it) = (f); (it) != 0; (it) = (it)->next)
 #define list_for(f, it)  list_for_n(f, it, next)
+
 
 // ---------------------------------------
 // @Note: Doubly Linked List

@@ -12,6 +12,8 @@
 
 
 
+internal void ui_label(Utf8 string);
+internal Ui_Signal ui_button(Utf8 text);
 
 
 

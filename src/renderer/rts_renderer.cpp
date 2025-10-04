@@ -370,6 +370,12 @@ render_quad_c4r(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r)
 }
 
 internal void
+render_quad_cr(v2 min, v2 max, v4 c, f32 r)
+{
+    render_quad_c4r(min, max, c,c,c,c, r);
+}
+
+internal void
 render_quad_c4r4(v2 min, v2 max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11)
 {
     render_quad_tuvc4r4(render_id_null(), min, max, v2{0,0}, v2{0,0}, c00, c10, c01, c11, r00, r10, r01, r11);
@@ -449,7 +455,7 @@ render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
 }
 
 internal AABB2
-render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags)
+render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags, AABB2 cull_aabb = aabb2_infinite())
 {
     AABB2 aabb = {v2{ F32_MAX,  F32_MAX}, v2{-F32_MAX, -F32_MAX}};
 
@@ -502,17 +508,35 @@ render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String
             //
             if (! (flags & RENDER_STRING_FLAG_NO_DRAW))
             {
+                AABB2 cel = {};
+                cel.min = min;
+                cel.max = max;
+
                 v2 uv_min = v2{metrics.uv_min_x, metrics.uv_min_y};
                 v2 uv_max = v2{metrics.uv_max_x, metrics.uv_max_y};
 
-                if (flags & RENDER_STRING_FLAG_DROP_SHADOW)
+                if (flags & RENDER_STRING_FLAG_CULL)
                 {
-                    v2 offset = V2(2.f);
-                    // # Temporary:
-                    render_quad_tuvc(atlas, min+offset, max+offset, uv_min, uv_max, v4{0.f,0.f,0.f,1.f});
-                }
+                    if (intersects(cull_aabb, cel))
+                    {
+                        // @Todo: intersection() does some duplicate operations to intersects().
+                        AABB2 overlap = intersection(cull_aabb, cel);
 
-                render_quad_tuv(atlas, min, max, uv_min, uv_max);
+                        v2 box_range_x = v2{min.x, max.x};
+                        v2 box_range_y = v2{min.y, max.y};
+
+                        uv_min.x = lerp(uv_min.x,  normalize01(box_range_x, overlap.min.x), uv_max.x);
+                        uv_max.x = lerp(uv_min.x,  normalize01(box_range_x, overlap.max.x), uv_max.x);
+                        uv_min.y = lerp(uv_min.y,  normalize01(box_range_y, overlap.min.y), uv_max.y);
+                        uv_max.y = lerp(uv_min.y,  normalize01(box_range_y, overlap.max.y), uv_max.y);
+
+                        render_quad_tuv(atlas, overlap.min, overlap.max, uv_min, uv_max);
+                    }
+                }
+                else
+                {
+                    render_quad_tuv(atlas, min, max, uv_min, uv_max);
+                }
             }
 
             // # Note: Update string aabb.

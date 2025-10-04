@@ -35,10 +35,8 @@ global Renderer *g_renderer;
 // # Note: Windows Additional Libs
 //
 #include <windowsx.h>
-#include <dwmapi.h>
 #include <psapi.h>
 
-#pragma comment(lib, "dwmapi")
 
 // # Note: Executables (but not DLLs) exporting this symbol with this value will be
 //         automatically directed to the high-performance GPU on Nvidia Optimus systems
@@ -290,35 +288,6 @@ win32_window_focused(HWND hwnd)
     return hwnd == GetFocus();
 }
 
-internal void
-win32_window_update_dark_mode(HWND hwnd)
-{
-    // @Note: not really necessary... but why not?
-    HMODULE uxtheme = LoadLibraryExW(L"uxtheme.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32);
-    BOOL(WINAPI *func)() = 0;
-    if (uxtheme)
-    {
-        func = (BOOL(WINAPI *)())GetProcAddress(uxtheme, MAKEINTRESOURCEA(132));
-    }
-
-    if (func)
-    {
-        BOOL high_contrast = false;
-        HIGHCONTRAST hc = {sizeof(hc)};
-        if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0))
-        {
-            high_contrast = (HCF_HIGHCONTRASTON & hc.dwFlags) != 0;
-        }
-
-        BOOL use_dark_mode = (func() && !high_contrast);
-
-        if (use_dark_mode)
-        {
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &use_dark_mode, sizeof(BOOL));
-        }
-    }
-}
-
 internal void 
 win32_toggle_fullscreen(HWND window)
 {
@@ -507,7 +476,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     {
         assert(! "Win32: Couldn't create window."); 
     }
-    win32_window_update_dark_mode(hwnd);
 
 
 
