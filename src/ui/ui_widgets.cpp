@@ -31,6 +31,16 @@ ui_button(Utf8 text)
     return signal;
 }
 
+internal void
+ui_div(void)
+{
+    ui_bg_push(V4(0.8f, 0.8f, 0.4f, 1.0f));
+    ui_size_push(AXIS2_X, UI_SIZE_TYPE_PCT, 1.f);
+    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 2.f);
+    ui_box_build_from_key(UI_BOX_FLAG_DRAW_BACKGROUND, ui_key_zero);
+    ui_bg_pop();
+}
+
 internal Ui_Signal
 ui_radio(Utf8 text)
 {
@@ -57,10 +67,30 @@ ui_radio(Utf8 text)
             Ui_Box *label = ui_box_build_from_string(flags, text);
         }
     }
-    ui_size_pop(AXIS2_X);
-    ui_size_pop(AXIS2_Y);
 
     return signal;
+}
+
+internal b32
+ui_drop(Utf8 text)
+{
+    ui_size_push(AXIS2_X, UI_SIZE_TYPE_PCT, 1.f);
+    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_CHILDREN);
+    Ui_Box_Flags flags = (UI_BOX_FLAG_MOUSE_CLICKABLE    | 
+                          UI_BOX_FLAG_KEYBOARD_CLICKABLE |
+                          UI_BOX_FLAG_DRAW_BACKGROUND    |
+                          UI_BOX_FLAG_DRAW_HOT_EFFECT    |
+                          UI_BOX_FLAG_DRAW_ACTIVE_EFFECT |
+                          UI_BOX_FLAG_DRAW_SHOOT_EFFECT  |
+                          UI_BOX_FLAG_DRAW_TEXT);
+    Ui_Box *box = ui_box_build_from_string(flags, text);
+
+    Ui_Signal signal = ui_signal_from_box(box);
+    if (signal.pressed_left)
+    {
+        box->on = !box->on;
+    }
+    return box->on;
 }
 
 

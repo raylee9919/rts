@@ -92,6 +92,9 @@ struct Ui_Box
     f32             hot_t;
     f32             active_t;
     f32             shoot_t;
+
+    // Activation state
+    b32             on;
 };
 
 struct Ui_Signal
