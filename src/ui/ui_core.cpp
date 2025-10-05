@@ -59,8 +59,8 @@ ui_begin(f32 dt, u32 width, u32 height)
     // Init style.
     ui_bg_push(v4{0.1f, 0.1f, 0.1f, 1.0f});
     ui_hot_bg_push(v4{0.18f, 0.18f, 0.18f, 1.0f});
+    ui_text_padding_push(2.f);
     ui_style_push(flow, AXIS2_Y);
-    ui_style_push(text_padding, 2.f);
     ui_style_push(corner_radius00, 0.f);
     ui_style_push(corner_radius01, 0.f);
     ui_style_push(corner_radius10, 0.f);
@@ -154,12 +154,14 @@ internal Ui_Box *
 ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
 {
     Ui_Box *box = ui_box_from_key(key); 
+    b32 first = 0;
 
     if (ui_box_is_nil(box))
     {
         box = ui_box_alloc();
         u64 slot = key.e[0] % ui_state->box_table_size;
         sll_push_back_n(ui_state->box_table[slot].first, ui_state->box_table[slot].last, box, hash_next);
+        first = 1;
     }
 
     if (ui_state->current_parent)
@@ -173,6 +175,7 @@ ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
     box->flags          = flags;
     box->flow           = ui_style_top(flow);
     box->touched_tick   = ui_state->tick;
+    box->first_tick     = first ? ui_state->tick : box->first_tick;
 
     box->bg              = ui_bg_top();
     box->hot_bg          = ui_hot_bg_top();
@@ -197,7 +200,7 @@ ui_equip_text(Ui_Box *box, Utf8 text)
     {
         box->text->string  = text;
         box->text->aabb    = render_string(ui_state->face, ui_state->texture_id, v2{}, text, RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
-        box->text->padding = ui_style_top(text_padding);
+        box->text->padding = ui_text_padding_top();
     }
 
     if (ui_style_top(flow) == AXIS2_X)
@@ -379,7 +382,7 @@ ui_draw(Ui_Box *root, v2 root_position)
     // Draw contents background.
     if (root->flags & UI_BOX_FLAG_DRAW_BACKGROUND)
     {
-        if (root->flags & UI_BOX_FLAG_DRAW_SHOOT_EFFECT && root->shoot_t > 0.f)
+        if (root->flags & UI_BOX_FLAG_DRAW_SHOOT_EFFECT && root->shoot_t > 0.001f)
         {
             v4 c = v4{0.5f,0.5f,1.0f,1.0f};
             c.rgb *= root->shoot_t;
@@ -387,16 +390,15 @@ ui_draw(Ui_Box *root, v2 root_position)
 
             render_quad_c4r4(min + V2(8.f*root->shoot_t), max + V2(8.f*root->shoot_t), c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
-        else if (root->flags & UI_BOX_FLAG_DRAW_HOT_EFFECT)
-        {
-            v4 c = root->hot_bg;
-            c.rgb *= root->hot_t;
-            render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
-        }
-        else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT)
+        else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT && root->active_t > 0.001f)
         {
             v4 c = v4{0.5f,0.5f,1.0f,1.0f};
             c.rgb *= root->active_t;
+            render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
+        }
+        else if (root->flags & UI_BOX_FLAG_DRAW_HOT_EFFECT && root->hot_t > 0.001f)
+        {
+            v4 c = lerp(root->bg, root->hot_t, root->hot_bg);
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
         else
@@ -411,7 +413,7 @@ ui_draw(Ui_Box *root, v2 root_position)
     {
         assert(root->text != NULL);
 
-        v2 pen = min + V2(root->text->padding) + v2{root->text->aabb.min.x, ui_state->face->ascent};
+        v2 pen = min + V2(root->text->padding) + v2{-root->text->aabb.min.x, ui_state->face->ascent};
         AABB2 cull_aabb = {};
         cull_aabb.min = min;
         cull_aabb.max = max;
@@ -610,6 +612,7 @@ ui_seed_top(void)
     return ui_state->seed_first->seed;
 }
 
+
 internal void
 ui_bg_push(v4 color)
 {
@@ -631,6 +634,7 @@ ui_bg_top(void)
     return ui_state->bg_first->bg;
 }
 
+
 internal void
 ui_hot_bg_push(v4 color)
 {
@@ -650,4 +654,26 @@ internal v4
 ui_hot_bg_top(void)
 {
     return ui_state->hot_bg_first->hot_bg;
+}
+
+
+internal void
+ui_text_padding_push(f32 padding)
+{
+    Ui_Style *style = push_struct(ui_build_arena(), Ui_Style);
+    style->text_padding = padding;
+
+    stack_push(ui_state->text_padding_first, style);
+}
+
+internal void
+ui_text_padding_pop(void)
+{
+    stack_pop(ui_state->text_padding_first);
+}
+
+internal f32
+ui_text_padding_top(void)
+{
+    return ui_state->text_padding_first->text_padding;
 }

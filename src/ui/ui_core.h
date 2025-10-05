@@ -70,6 +70,7 @@ struct Ui_Box
     Ui_Box_Flags    flags;
 
     u64             touched_tick;
+    u64             first_tick;
 
     Axis2           flow;
 
@@ -260,5 +261,9 @@ internal v4         ui_bg_top(void);
 internal void       ui_hot_bg_push(v4 color);
 internal void       ui_hot_bg_pop(void);
 internal v4         ui_hot_bg_top(void);
+
+internal void       ui_text_padding_push(f32 padding);
+internal void       ui_text_padding_pop(void);
+internal f32        ui_text_padding_top(void);
 
 #endif // RTS_UI_CORE_H

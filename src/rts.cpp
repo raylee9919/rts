@@ -510,8 +510,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     ui_size_push(AXIS2_X, UI_SIZE_TYPE_PX, 300.f);
     ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 200.f);
+#if 1
     ui_col_named(utf8lit("Dev panel"))
     {
+        ui_radio(utf8lit("Radio"));
+
         if (ui_button(utf8lit("Wireframe")).pressed_left)
         {
             render_commands->wireframe_mode = !render_commands->wireframe_mode; 
@@ -520,7 +523,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         {
             render_commands->draw_navmesh = !render_commands->draw_navmesh; 
         }
-
         if (ui_button(utf8lit("Valient's Method")).pressed_left)
         {
             render_commands->csm_varient_method = !render_commands->csm_varient_method; 
@@ -529,7 +531,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         {
             render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
         }
-
         if (ui_button(utf8lit("Switch Camera")).pressed_left) 
         {
             if (game_state->controlling_camera == game_state->game_camera) 
@@ -542,6 +543,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
         }
     }
+#endif
 
 
     ui_end();

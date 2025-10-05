@@ -31,6 +31,38 @@ ui_button(Utf8 text)
     return signal;
 }
 
+internal Ui_Signal
+ui_radio(Utf8 text)
+{
+    Ui_Signal signal = {};
+
+    ui_size_push(AXIS2_X, UI_SIZE_TYPE_PCT, 1.f);
+    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_CHILDREN);
+    ui_row_named(text)
+    {
+        {
+            Ui_Box_Flags flags = (UI_BOX_FLAG_MOUSE_CLICKABLE    | 
+                                  UI_BOX_FLAG_KEYBOARD_CLICKABLE |
+                                  UI_BOX_FLAG_DRAW_BACKGROUND    |
+                                  UI_BOX_FLAG_DRAW_HOT_EFFECT    |
+                                  UI_BOX_FLAG_DRAW_ACTIVE_EFFECT |
+                                  UI_BOX_FLAG_DRAW_SHOOT_EFFECT  |
+                                  UI_BOX_FLAG_DRAW_TEXT);
+            Ui_Box *radio = ui_box_build_from_string(flags, utf8lit("[O]"));
+            signal = ui_signal_from_box(radio);
+        }
+        {
+            Ui_Box_Flags flags = (UI_BOX_FLAG_DRAW_BACKGROUND |
+                                  UI_BOX_FLAG_DRAW_TEXT);
+            Ui_Box *label = ui_box_build_from_string(flags, text);
+        }
+    }
+    ui_size_pop(AXIS2_X);
+    ui_size_pop(AXIS2_Y);
+
+    return signal;
+}
+
 
 #define ui_pane(axis, string) defer_loop(ui_pane_push(axis, string), ui_pane_pop())
 internal void
@@ -60,8 +92,6 @@ internal void
 ui_col_named_push(Utf8 string)
 {
     ui_style_push(flow, AXIS2_Y);
-    //ui_size_push(AXIS2_X, UI_SIZE_TYPE_CHILDREN, 1.f);
-    //ui_size_push(AXIS2_Y, UI_SIZE_TYPE_CHILDREN);
     ui_parent_push(ui_box_build_from_string(0, string));
 }
 
@@ -75,8 +105,6 @@ internal void
 ui_col_pop(void)
 {
     ui_parent_pop();
-    //ui_size_pop(AXIS2_Y);
-    //ui_size_pop(AXIS2_X);
     ui_style_pop(flow);
 }
 
