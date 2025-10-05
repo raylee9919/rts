@@ -44,6 +44,8 @@ enum
     UI_BOX_FLAG_DRAW_TEXT          = (1<<4),
     UI_BOX_FLAG_DRAW_HOT_EFFECT    = (1<<5),
     UI_BOX_FLAG_DRAW_ACTIVE_EFFECT = (1<<6),
+    UI_BOX_FLAG_DRAW_FOCUS_EFFECT  = (1<<7),
+    UI_BOX_FLAG_DRAW_SHOOT_EFFECT  = (1<<8),
 };
 
 struct Ui_Text
@@ -63,8 +65,11 @@ struct Ui_Box
     Ui_Box         *prev;
     Ui_Box         *hash_next;
 
+    Utf8            debug_string;
     Ui_Key          key;
     Ui_Box_Flags    flags;
+
+    u64             touched_tick;
 
     Axis2           flow;
 
@@ -74,7 +79,7 @@ struct Ui_Box
     f32             position[AXIS2_COUNT];
 
     // Style
-    v4 bg;
+    v4 bg, hot_bg;
     f32 corner_radius00, corner_radius01, corner_radius10, corner_radius11;
 
 
@@ -85,6 +90,7 @@ struct Ui_Box
     // Animation time
     f32             hot_t;
     f32             active_t;
+    f32             shoot_t;
 };
 
 struct Ui_Signal
@@ -101,7 +107,7 @@ struct Ui_Signal
     b32 clicked_right;
     b32 clicked_middle;
     b32 dragging_left;
-    b32 dragging_middl;
+    b32 dragging_middle;
     b32 dragging_right;
     b32 double_clicked_left;
     b32 double_clicked_middle;
@@ -123,6 +129,7 @@ struct Ui_Style
 
     union {
         v4 bg;
+        v4 hot_bg;
         Axis2 flow;
         f32 text_padding;
         f32 corner_radius00;
@@ -130,6 +137,7 @@ struct Ui_Style
         f32 corner_radius10;
         f32 corner_radius11;
         Ui_Size size;
+        Ui_Key seed;
     };
 };
 
@@ -164,6 +172,7 @@ struct Ui_State
     Ui_Box          *current_parent;
 
     Ui_Style        *bg_first;
+    Ui_Style        *hot_bg_first;
     Ui_Style        *flow_first;
     Ui_Style        *text_padding_first;
     Ui_Style        *corner_radius00_first;
@@ -171,6 +180,7 @@ struct Ui_State
     Ui_Style        *corner_radius10_first;
     Ui_Style        *corner_radius11_first;
     Ui_Style        *size_first[AXIS2_COUNT];
+    Ui_Style        *seed_first;
 
     Ui_Key           hot_key;
     Ui_Key           active_key;
@@ -180,6 +190,14 @@ struct Ui_State
 // # Note: Constants
 //
 global read_only Ui_Key ui_key_zero = {};
+global read_only Ui_Box ui_nil_box = {
+    &ui_nil_box,
+    &ui_nil_box,
+    &ui_nil_box,
+    &ui_nil_box,
+    &ui_nil_box,
+    &ui_nil_box,
+};
 
 
 // # Note: Function Delcarations.
@@ -206,6 +224,7 @@ internal void           ui_solve_size_dependent_downward(Ui_Box *root, Axis2 axi
 internal void           ui_solve_size_violation(Ui_Box *root, Axis2 axis);
 
 internal void           ui_draw(Ui_Box *child, v2 root_position);
+internal void           ui_animate(void);
 
 internal Ui_Signal      ui_signal_from_box(Ui_Box *box);
 
@@ -226,13 +245,20 @@ internal Arena         *ui_build_arena(void);
     stack_pop(ui_state->name##_first); }
 #define ui_style_top(name) (ui_state->name##_first->name)
 
-internal void ui_size_push(Axis2 axis, Ui_Size_Type type, f32 value);
-internal void ui_size_pop(Axis2 axis);
-internal Ui_Size ui_size_top(Axis2 axis);
+internal void       ui_size_push(Axis2 axis, Ui_Size_Type type, f32 value);
+internal void       ui_size_pop(Axis2 axis);
+internal Ui_Size    ui_size_top(Axis2 axis);
 
+internal void       ui_seed_push(Ui_Key key);
+internal void       ui_seed_pop(void);
+internal Ui_Key     ui_seed_top(void);
 
+internal void       ui_bg_push(v4 color);
+internal void       ui_bg_pop(void);
+internal v4         ui_bg_top(void);
 
-
-
+internal void       ui_hot_bg_push(v4 color);
+internal void       ui_hot_bg_pop(void);
+internal v4         ui_hot_bg_top(void);
 
 #endif // RTS_UI_CORE_H

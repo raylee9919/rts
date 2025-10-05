@@ -250,11 +250,13 @@ get_sample_index(Animation *anim, u32 id)
 }
 
 internal void
-accumulate(Animation_Channel *channel, f32 dt)
+anim_accumulate(Animation_Channel *channel, f32 dt)
 {
-    if (channel->animation) {
+    if (channel->animation) 
+    {
         channel->dt += dt;
-        if (channel->dt > channel->animation->duration) {
+        if (channel->dt > channel->animation->duration) 
+        {
             channel->dt = 0.0f;
         }
     }
@@ -426,58 +428,6 @@ interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f3
         }
     }
 }
-
-// ---------------------------------------
-// @Note: Font
-internal  u32
-kerning_hash(Kerning_Hashmap *hashmap, u32 first, u32 second) 
-{
-    // @TODO: better hash function.
-    u32 result = (first * 12 + second * 33) % array_count(hashmap->entries);
-    return result;
-}
-
-internal void
-push_kerning(Kerning_Hashmap *hashmap, Kerning *kern, u32 entry_idx) 
-{
-    Assert(entry_idx < array_count(hashmap->entries));
-    Kerning_List *list = hashmap->entries + entry_idx;
-    if (list->first) {
-        list->last->next = kern;
-        kern->prev = list->last;
-        kern->next = 0;
-        list->last = kern;
-        ++list->count;
-    } else {
-        list->first = kern;
-        list->last = kern;
-        kern->prev = 0;
-        kern->next = 0;
-        ++list->count;
-    }
-}
-
-internal s32
-get_kerning(Kerning_Hashmap *hashmap, u32 first, u32 second) 
-{
-    s32 result = 0;
-    u32 entry_idx = kerning_hash(hashmap, first, second);
-    Assert(entry_idx < array_count(hashmap->entries));
-    for (Kerning *at = hashmap->entries[entry_idx].first; at; at = at->next) {
-        if (at->first == first && at->second == second) {
-            result = at->value;
-        }
-    }
-    return result;
-}
-
-
-
-
-
-
-
-
 // # Note: New asset codes below here!
 //
 

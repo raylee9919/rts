@@ -70,6 +70,9 @@ struct Game_State
     u32 draw_width;
     u32 draw_height;
 
+    u32 window_width;
+    u32 window_height;
+
     f32 dt_real;
     f32 dt_game;
 

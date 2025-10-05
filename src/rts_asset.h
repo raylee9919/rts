@@ -318,54 +318,6 @@ struct Eval_Stack
 };
     
 
-// --------------------------------
-// @Note: Font
-struct Kerning 
-{
-    u32         first;
-    u32         second;
-    s32         value;
-    Kerning     *prev;
-    Kerning     *next;
-};
-
-struct Kerning_List 
-{
-    Kerning     *first;
-    Kerning     *last;
-    u32         count;
-};
-
-struct Kerning_Hashmap 
-{
-    Kerning_List entries[1024];
-};
-
-struct Asset_Font_Header 
-{
-    u32 kerning_pair_count;
-    u32 vertical_advance;
-    f32 ascent;
-    f32 descent;
-    f32 max_width;
-};
-
-struct Asset_Kerning 
-{
-    u32 first;
-    u32 second;
-    s32 value;
-};
-
-struct Asset_Glyph 
-{
-    u32 codepoint;
-    s32 ascent;
-    s32 A;
-    s32 B;
-    s32 C;
-    Bitmap bitmap;
-};
 internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
 internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena);
 internal void asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena);
@@ -376,7 +328,7 @@ internal u32 animation_hash(u32 id, u32 length);
 // # Note: Animation.
 //
 internal Node_Hash_Result get_sample_index(Animation *anim, u32 id);
-internal void accumulate(Animation_Channel *channel, f32 dt);
+internal void anim_accumulate(Animation_Channel *channel, f32 dt);
 internal TRS interpolate_trs(TRS trs1, f32 t, TRS trs2);
 internal TRS interpolate_sample(Sample *sample, f32 dt);
 internal void eval_node(Animation *anim, f32 dt, Node *node);

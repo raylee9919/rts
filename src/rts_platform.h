@@ -23,6 +23,11 @@ struct Platform
 
     u32         draw_width;
     u32         draw_height;
+
+    u32         window_width;
+    u32         window_height;
+
+    b32         exit_requested;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(struct Platform *platform,\

@@ -454,7 +454,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                     channel->dt = 0.0f;
                 }
                 eval(e->model, channel->animation, channel->dt, e->animation_transform, true);
-                accumulate(channel, dt);
+                anim_accumulate(channel, dt);
             } 
             else if (v > hi) 
             {
@@ -465,7 +465,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
                     channel->dt = 0.0f;
                 }
                 eval(e->model, channel->animation, channel->dt, e->animation_transform, true);
-                accumulate(channel, dt);
+                anim_accumulate(channel, dt);
             } 
             else 
             {

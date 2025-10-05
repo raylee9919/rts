@@ -36,6 +36,8 @@ global Renderer *g_renderer;
 //
 #include <windowsx.h>
 #include <psapi.h>
+#include <uxtheme.h>
+#include <vssym32.h>
 
 
 // # Note: Executables (but not DLLs) exporting this symbol with this value will be
@@ -73,18 +75,18 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
     switch(msg) 
     {
-        case WM_CLOSE: {
+        case WM_CLOSE: 
+        {
             g_running = false;
-        } break;
+        }break;
 
-        case WM_DESTROY: {
+        case WM_DESTROY: 
+        {
             // @Todo: Handle this as an error - recreate window?
             g_running = false;
-        } break;
+        }break;
 
         // --------------------------------------------
-        // @Note: Keyboard
-
         // @Note: Keyboard Events
         //
         case WM_SYSKEYDOWN: 
@@ -231,7 +233,7 @@ winproc_mouse:;
             HDC hdc = BeginPaint(hwnd, &paint);
             ReleaseDC(hwnd, hdc);
             EndPaint(hwnd, &paint);
-        } break;
+        }break;
 
         case WM_SETCURSOR: {
             if (g_show_cursor) {
@@ -239,7 +241,7 @@ winproc_mouse:;
             } else {
                 SetCursor(0);
             }
-        } break;
+        }break;
 
         default: {
             result = DefWindowProcW(hwnd, msg, wparam, lparam);
@@ -273,12 +275,16 @@ win32_window_create(HINSTANCE hinst)
     }
 
     if (! RegisterClassExW(&wcex))
-    { assert(! "Win32 couldn't register window class."); }
+    {
+        assert(! "Win32 couldn't register window class."); 
+    }
 
-    HWND hwnd = CreateWindowExW(0, wcex.lpszClassName, L"RTS",
-                                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, wcex.lpszClassName, L"RTS",
+                                WS_THICKFRAME | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_VISIBLE,
                                 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                                 0, 0, hinst, 0);
+    DragAcceptFiles(hwnd, 1);
+
     return hwnd;
 }
 
@@ -286,6 +292,17 @@ internal b32
 win32_window_focused(HWND hwnd)
 {
     return hwnd == GetFocus();
+}
+
+internal v2u
+win32_get_client_size(HWND hwnd)
+{
+    v2u result = {};
+    RECT rect = {};
+    GetClientRect(hwnd, &rect);
+    result.x = rect.right - rect.left;
+    result.y = rect.bottom - rect.top;
+    return result;
 }
 
 internal void 
@@ -421,7 +438,7 @@ win32_code_modified(Win32_Code *loaded)
 
 // # Note: Entry
 //
-#if 0
+#if BUILD_DEBUG
 int wmain(int argc, wchar_t *argv[]) 
 {
     HINSTANCE hinst = GetModuleHandleW(0);
@@ -458,18 +475,25 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             Os_File_Attributes parent_data_attr = os->attributes_from_file_path(parent_data_path);
 
             if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
-            { platform.data_path = utf8_copy(platform.arena, local_data_path); }
+            {
+                platform.data_path = utf8_copy(platform.arena, local_data_path); 
+            }
             else if (parent_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
-            { platform.data_path = utf8_copy(platform.arena, parent_data_path); }
+            {
+                platform.data_path = utf8_copy(platform.arena, parent_data_path); 
+            }
 
             scratch_end(scratch);
         }
     }
 
 
-    // # Note: init gfx.
+    // # Note: Init gfx.
     //
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    if (! SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+    {
+        assert(! "Win32: Failed to set dpi awareness context."); 
+    }
 
     HWND hwnd = win32_window_create(hinst);
     if (! hwnd) 
@@ -526,7 +550,9 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
     win32_code_load(&renderer_code);
     if (! renderer_code.is_valid) 
-    { assert(! "Couldn't load the renderer code."); }
+    {
+        assert(! "Couldn't load the renderer code."); 
+    }
 
     Arena *renderer_arena = arena_alloc();
     Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
@@ -633,6 +659,10 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             platform.dt = dt;
             platform.draw_width  = render_dim.x;
             platform.draw_height = render_dim.y;
+
+            v2u client_size = win32_get_client_size(hwnd);
+            platform.window_width  = client_size.x;
+            platform.window_height = client_size.x;
         }
 
         Render_Commands *render_commands = NULL;
@@ -649,6 +679,13 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         if (game.update_and_render) 
         {
             game.update_and_render(&platform, render_commands); 
+        }
+
+        // # Note: Exit if requested.
+        //
+        if (platform.exit_requested)
+        {
+            g_running = false;
         }
 
         // # Note: Game code hot reloading.

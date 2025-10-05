@@ -121,8 +121,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
 
     {
-        game_state->draw_width  = platform->draw_width;
-        game_state->draw_height = platform->draw_height;
+        game_state->draw_width    = platform->draw_width;
+        game_state->draw_height   = platform->draw_height;
+        game_state->window_height = platform->window_width;
+        game_state->window_height = platform->window_height;
         // # Todo: Warn on out-out-range refresh.
         game_state->dt_real = clamp(platform->dt, 0.001f, 0.1f);
         game_state->dt_game = game_state->dt_real;
@@ -504,12 +506,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //              1. Interact with UI built in last frame.
     //              2. Build new hierarchy while retaining some data(!!!)
     //
-    ui_begin(platform->dt);
+    ui_begin(platform->dt, platform->window_width, platform->window_height);
 
-    ui_label(utf8f(game_state->frame_arena, "mspf:%.2f", platform->dt * 1000.f)); // @Todo: This leaks memory!
     ui_size_push(AXIS2_X, UI_SIZE_TYPE_PX, 300.f);
     ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 200.f);
-    ui_pane(AXIS2_Y, utf8lit("Developer Panel"))
+    ui_col_named(utf8lit("Dev panel"))
     {
         if (ui_button(utf8lit("Wireframe")).pressed_left)
         {
@@ -540,7 +541,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 game_state->controlling_camera = game_state->game_camera;
             }
         }
-        ui_style_pop(bg);
     }
 
 
