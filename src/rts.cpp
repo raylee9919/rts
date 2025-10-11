@@ -127,6 +127,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         // @Todo: Warn on out-out-range refresh.
         game_state->dt_real = clamp(platform->dt, 0.001f, 0.1f);
         game_state->dt_game = game_state->dt_real;
+        game_state->time   += game_state->dt_real;
     }
 
     if (! game_state->initted) 
@@ -379,11 +380,57 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
 
+
+    // @Temporary: Testing UI
+    //              1. Interact with UI built in last frame.
+    //              2. Build new hierarchy while retaining some data(!!!)
+    //
+    ui_begin(platform->dt, platform->window_width, platform->window_height);
+    {
+        ui_platform(utf8lit("⚙Developer"))
+        {
+            ui_slider_f32(&ui_state->font_size, utf8lit("размер шрифта (Font Size)"));
+
+            if (ui_button(utf8lit("Wireframe")))
+            {
+                render_commands->wireframe_mode = !render_commands->wireframe_mode; 
+            }
+            if (ui_button(utf8lit("Navmesh")))
+            {
+                render_commands->draw_navmesh = !render_commands->draw_navmesh; 
+            }
+            if (ui_drop(utf8lit("드랍다운(Dropdown)")))
+            {
+                if (ui_button(utf8lit("Valient's Method")))
+                {
+                    render_commands->csm_varient_method = !render_commands->csm_varient_method; 
+                }
+                if (ui_button(utf8lit("Csm Frustum")))
+                {
+                    render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
+                }
+            }
+            if (ui_button(utf8lit("カメラ(Camera)"))) 
+            {
+                if (game_state->controlling_camera == game_state->game_camera) 
+                {
+                    game_state->controlling_camera = game_state->debug_camera;
+                } 
+                else 
+                {
+                    game_state->controlling_camera = game_state->game_camera;
+                }
+            }
+        }
+    }
+    ui_end();
+
+
+
     switch (game_state->mode) 
     {
         case GAME_MODE_GAME: 
         {
-            // ui_dev(render_commands, game_state, input);
             update_entities(world, game_state);
             draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
         } break;
@@ -463,7 +510,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         // @Note: CSM
         //
-        render_commands->csm_to_light = normalize(V3(1,1,1));
+        render_commands->csm_to_light = normalize(V3(1.f));
         f32 csm_frustum_edge_length = 50.0f;
         m4x4 inv = inverse(game_state->game_camera->VP);
         // @Todo: Renderer independent calculation!
@@ -499,49 +546,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
 
 
-    // @Temporary: Testing UI
-    //              1. Interact with UI built in last frame.
-    //              2. Build new hierarchy while retaining some data(!!!)
-    //
-    ui_begin(platform->dt, platform->window_width, platform->window_height);
 
-    ui_size_push(AXIS2_X, UI_SIZE_TYPE_PX, 300.f);
-    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 300.f);
-    ui_col_named(utf8lit("Dev panel"))
-    {
-        if (ui_button(utf8lit("Wireframe")).pressed_left)
-        {
-            render_commands->wireframe_mode = !render_commands->wireframe_mode; 
-        }
-        if (ui_button(utf8lit("Navmesh")).pressed_left)
-        {
-            render_commands->draw_navmesh = !render_commands->draw_navmesh; 
-        }
-        if (ui_drop(utf8lit("Dropdown")))
-        {
-            if (ui_button(utf8lit("Valient's Method")).pressed_left)
-            {
-                render_commands->csm_varient_method = !render_commands->csm_varient_method; 
-            }
-            if (ui_button(utf8lit("Csm Frustum")).pressed_left)
-            {
-                render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
-            }
-        }
-        if (ui_button(utf8lit("Switch Camera")).pressed_left) 
-        {
-            if (game_state->controlling_camera == game_state->game_camera) 
-            {
-                game_state->controlling_camera = game_state->debug_camera;
-            } 
-            else 
-            {
-                game_state->controlling_camera = game_state->game_camera;
-            }
-        }
-    }
-
-
-    ui_end();
     render_end();
 }

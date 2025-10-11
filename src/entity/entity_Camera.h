@@ -116,16 +116,34 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
 
         // @Hack:
         local_persist v2 mouse_position_last = {};
-        if (os->key_is_down[OS_KEY_MOUSE_LEFT])
+        local_persist b32 dragging = false;
+
+        for (Os_Event *event = os->event_sentinel->next, *next; event != os->event_sentinel; event = next)
         {
-            if (os->key_toggled[OS_KEY_MOUSE_LEFT])
+            next = event->next;
+
+            if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_LEFT)
             {
+                os_event_consume(event);
+                mouse_position_last = os->mouse_position_last;
+                dragging = true;
+            }
+
+            if (event->type == OS_EVENT_MOUSE_MOVE && dragging)
+            {
+                os_event_consume(event);
+
+                v2 d = 0.5f * dt * (os->mouse_position_last - mouse_position_last);
+                camera->orientation = build_quaternion(v3{0,1,0}, -d.x) * camera->orientation;
+                camera->orientation = build_quaternion((quaternion_to_m4x4(camera->orientation)*v4{1,0,0,0}).xyz, -d.y) * camera->orientation;
                 mouse_position_last = os->mouse_position_last;
             }
-            v2 d = 0.5f * dt * (os->mouse_position_last - mouse_position_last);
-            camera->orientation = build_quaternion(v3{0,1,0}, -d.x) * camera->orientation;
-            camera->orientation = build_quaternion((quaternion_to_m4x4(camera->orientation)*v4{1,0,0,0}).xyz, -d.y) * camera->orientation;
-            mouse_position_last = os->mouse_position_last;
+
+            if (event->type == OS_EVENT_RELEASE && event->key == OS_KEY_MOUSE_LEFT)
+            {
+                os_event_consume(event);
+                dragging = false;
+            }
         }
     }
 

@@ -75,6 +75,7 @@ struct Game_State
 
     f32 dt_real;
     f32 dt_game;
+    f32 time;
 
     Game_Mode mode;
 

@@ -32,17 +32,27 @@ fp_init(void)
 
     if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(fp_state->factory), (IUnknown **)&fp_state->factory)))
     {
-        assert(! "DWriteCreateFactory() Error."); 
+        assert(! "DWriteCreateFactory() Failed."); 
+    }
+
+    if (FAILED(fp_state->factory->CreateInMemoryFontFileLoader(&fp_state->in_memory_font_file_loader)))
+    {
+        assert(! "IDWriteFactory5::CreateInMemoryFontFileLoader() Failed."); 
+    }
+
+    if (FAILED(fp_state->factory->RegisterFontFileLoader(fp_state->in_memory_font_file_loader)))
+    {
+        assert(! "IDWriteFactory::RegisterFontFileLoader() Failed."); 
     }
 
     if (FAILED(fp_state->factory->GetSystemFontCollection(&fp_state->system_font_collection)))
     {
-        assert(! "GetSystemFontCollection() Error."); 
+        assert(! "GetSystemFontCollection() Failed."); 
     }
 
     if (FAILED(fp_state->factory->GetSystemFontFallback(&fp_state->system_font_fallback)))
     {
-        assert(! "GetSystemFontFallback() Error."); 
+        assert(! "GetSystemFontFallback() Failed."); 
     }
 
     if (FAILED(fp_state->system_font_fallback->QueryInterface(__uuidof(fp_state->system_font_fallback1), (void **)&fp_state->system_font_fallback1)))
@@ -52,7 +62,7 @@ fp_init(void)
 
     if (FAILED(fp_state->factory->CreateTextAnalyzer(&fp_state->text_analyzer)))
     {
-        assert(! "CreateTextAnalyzer() Error."); 
+        assert(! "CreateTextAnalyzer() Failed."); 
     }
 
     if (FAILED(fp_state->text_analyzer->QueryInterface(__uuidof(fp_state->text_analyzer1), (void **)&fp_state->text_analyzer1)))
@@ -62,7 +72,7 @@ fp_init(void)
 
     if (FAILED(fp_state->factory->CreateRenderingParams(&fp_state->rendering_params)))
     {
-        assert(! "IDWriteFactroy::CreateRenderingParams() Error."); 
+        assert(! "IDWriteFactroy::CreateRenderingParams() Failed."); 
     }
 
 
@@ -72,10 +82,18 @@ fp_init(void)
     fp_state->run_arena = arena_alloc();
 }
 
+internal void
+fp_add_font_from_memory(void *data, u64 size)
+{
+    IDWriteFontFile *font_file;
+    if (FAILED(fp_state->in_memory_font_file_loader->CreateInMemoryFontFileReference(fp_state->factory, data, size, NULL, &font_file)))
+    {
+        assert(! "IDWriteInMemoryFontFileLoader::CreateInMemoryFontFileReference() Failed."); 
+    }
+}
+
 internal Dwrite_Font_Fallback_Result
-dwrite_font_fallback(IDWriteFontFallback1 *font_fallback,
-                     IDWriteFontCollection *font_collection,
-                     WCHAR *base_family,
+dwrite_font_fallback(IDWriteFontFallback1 *font_fallback, IDWriteFontCollection *font_collection, WCHAR *base_family,
                      WCHAR *text, u32 text_length)
 {
     Dwrite_Font_Fallback_Result result = {};
@@ -426,7 +444,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
     DWRITE_FONT_METRICS dfm = {};
     face->GetMetrics(&dfm);
     f32 du_per_em = dfm.designUnitsPerEm;
-    f32 px_per_pt = fp_state->dpi / 72.0f;
+    f32 px_per_pt = fp_state->dpi / 72.f;
     f32 px_per_em = font_size * px_per_pt;
     f32 px_per_du = px_per_em * (1.f/du_per_em);
 
@@ -685,7 +703,9 @@ fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_S
             v2 min = pen + v2{glyph->lsb, glyph->tsb};
             v2 max = pen + v2{glyph->rsb, glyph->bsb};
 
+            min.x = floorf(min.x);
             min.y = floorf(min.y);
+            max.x = floorf(max.x);
             max.y = floorf(max.y);
 
             if (! (flags & RENDER_STRING_FLAG_NO_DRAW))
@@ -734,7 +754,7 @@ fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_S
             }
 
             f32 advance = run->advances[i];
-            pen.x += advance;
+            pen.x += ceilf(advance);
         }
     }
 

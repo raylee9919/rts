@@ -28,7 +28,7 @@ void main()
 
     vec4 texture_color = texture(u_sampler, f_uv);
     out_color = texture_color * f_color;
-    out_color *= step(0.f, -s);
+    out_color *= step(0.0, -s);
 }
 
 )";

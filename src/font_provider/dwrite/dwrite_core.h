@@ -219,6 +219,8 @@ struct Fp_State
 
     IDWriteFactory5                 *factory;
 
+    IDWriteInMemoryFontFileLoader   *in_memory_font_file_loader;
+
     IDWriteFontCollection           *system_font_collection;
     IDWriteFontFallback             *system_font_fallback;
     IDWriteFontFallback1            *system_font_fallback1;

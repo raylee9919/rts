@@ -32,13 +32,13 @@ struct Ui_Key
 typedef u32 Ui_Box_Flags;
 enum
 {
-    // Note: Interact
+    // Interact
     //
     UI_BOX_FLAG_DISABLED           = (1<<0),
     UI_BOX_FLAG_MOUSE_CLICKABLE    = (1<<1),
     UI_BOX_FLAG_KEYBOARD_CLICKABLE = (1<<2),
 
-    // Note: Draw
+    // Draw
     //
     UI_BOX_FLAG_DRAW_BACKGROUND    = (1<<3),
     UI_BOX_FLAG_DRAW_TEXT          = (1<<4),
@@ -46,6 +46,10 @@ enum
     UI_BOX_FLAG_DRAW_ACTIVE_EFFECT = (1<<6),
     UI_BOX_FLAG_DRAW_FOCUS_EFFECT  = (1<<7),
     UI_BOX_FLAG_DRAW_SHOOT_EFFECT  = (1<<8),
+
+    // Position
+    //
+    UI_BOX_FLAG_DYNAMIC_POSITION   = (1<<9),
 };
 
 struct Ui_Text
@@ -81,6 +85,7 @@ struct Ui_Box
     f32             computed_size[AXIS2_COUNT];
     f32             relative_position[AXIS2_COUNT];
     f32             position[AXIS2_COUNT];
+    f32             mouse_position_last[AXIS2_COUNT];
 
     // Style
     v4 bg, hot_bg;
@@ -256,6 +261,10 @@ internal Arena         *ui_build_arena(void);
 internal void       ui_size_push(Axis2 axis, Ui_Size_Type type, f32 value);
 internal void       ui_size_pop(Axis2 axis);
 internal Ui_Size    ui_size_top(Axis2 axis);
+
+internal void       ui_flow_push(Axis2 axis);
+internal void       ui_flow_pop(void);
+internal Axis2      ui_flow_top(void);
 
 internal void       ui_seed_push(Ui_Key key);
 internal void       ui_seed_pop(void);

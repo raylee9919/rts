@@ -44,6 +44,13 @@ ui_begin(f32 dt, u32 width, u32 height)
     // Receive delta time.
     ui_state->dt = dt;
 
+    // Prune stale boxes.
+    if ((!ui_key_match(ui_state->active_key, ui_key_zero)) &&
+        ui_box_from_key(ui_state->active_key)->touched_tick != ui_state->tick)
+    {
+        ui_state->active_key = ui_key_zero;
+    }
+
     // Increment tick and clear the arena to be used on current frame.
     ui_state->tick += 1;
     arena_clear(ui_build_arena());
@@ -60,10 +67,10 @@ ui_begin(f32 dt, u32 width, u32 height)
     ui_state->corner_radius11_first = NULL;
 
     // Init style.
+    ui_flow_push(AXIS2_Y);
     ui_bg_push(v4{0.1f, 0.1f, 0.1f, 1.0f});
     ui_hot_bg_push(v4{0.18f, 0.18f, 0.18f, 1.0f});
     ui_text_padding_push(2.f);
-    ui_style_push(flow, AXIS2_Y);
     ui_style_push(corner_radius00, 0.f);
     ui_style_push(corner_radius01, 0.f);
     ui_style_push(corner_radius10, 0.f);
@@ -74,7 +81,6 @@ ui_begin(f32 dt, u32 width, u32 height)
 
     // Reset hot key.
     zero_struct(&ui_state->hot_key);
-    zero_struct(&ui_state->active_key);
 
 
     // Build root.
@@ -92,8 +98,8 @@ ui_end(void)
     for (Axis2 axis = AXIS2_X; axis < AXIS2_COUNT; ++axis)
     {
         ui_solve_size_independent(ui_state->root, axis);
-        ui_solve_size_dependent_upward(ui_state->root, axis);
         ui_solve_size_dependent_downward(ui_state->root, axis);
+        ui_solve_size_dependent_upward(ui_state->root, axis);
         ui_solve_size_violation(ui_state->root, axis);
     }
 
@@ -176,7 +182,7 @@ ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
     box->key            = key;
     box->parent         = ui_state->current_parent;
     box->flags          = flags;
-    box->flow           = ui_style_top(flow);
+    box->flow           = ui_flow_top();
     box->touched_tick   = ui_state->tick;
     box->first_tick     = first ? ui_state->tick : box->first_tick;
 
@@ -210,7 +216,8 @@ ui_equip_text(Ui_Box *box, Utf8 text)
         box->text->padding     = ui_text_padding_top();
     }
 
-    if (ui_style_top(flow) == AXIS2_X)
+#if 0
+    if (ui_flow_top() == AXIS2_X)
     {
         box->semantic_size[AXIS2_X].type = UI_SIZE_TYPE_TEXT;
     }
@@ -220,6 +227,10 @@ ui_equip_text(Ui_Box *box, Utf8 text)
         box->semantic_size[AXIS2_X].value = 1.0f;
     }
     box->semantic_size[AXIS2_Y].type = UI_SIZE_TYPE_TEXT;
+#else
+    box->semantic_size[AXIS2_X].type = UI_SIZE_TYPE_TEXT;
+    box->semantic_size[AXIS2_Y].type = UI_SIZE_TYPE_TEXT;
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -267,19 +278,22 @@ ui_solve_size_dependent_upward(Ui_Box *root, Axis2 axis)
     {
         case UI_SIZE_TYPE_PCT: 
         {
-            Ui_Box *ancestor = NULL;
-            for (Ui_Box *p = root->parent; !ui_box_is_nil(p); p = p->parent)
+            Ui_Box *parent = root->parent;
+            if (! ui_box_is_nil(parent))
             {
-                if (p->semantic_size[axis].type != UI_SIZE_TYPE_CHILDREN)
-                {
-                    ancestor = p;
-                    break;
-                }
+                root->computed_size[axis] = parent->computed_size[axis] * root->semantic_size[axis].value;
             }
+        }break;
 
-            if (! ui_box_is_nil(ancestor))
+        case UI_SIZE_TYPE_TEXT:
+        {
+            if (axis == AXIS2_Y)
             {
-                root->computed_size[axis] = ancestor->computed_size[axis] * root->semantic_size[axis].value;
+                Ui_Box *parent = root->parent;
+                if (! ui_box_is_nil(parent) && parent->flow == AXIS2_Y)
+                {
+                    root->computed_size[AXIS2_X] = parent->computed_size[AXIS2_X];
+                }
             }
         }break;
 
@@ -343,7 +357,7 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
             }
             else if (budget > 0.f)
             {
-                child->computed_size[axis] -= budget;
+                child->computed_size[axis] = budget;
                 budget = 0.f;
             }
             else
@@ -353,7 +367,7 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
         }
     }
 
-    // Solve position.
+    // Solve relative position.
     f32 p = 0.f;
     for (Ui_Box *child = root->first; !ui_box_is_nil(child); child = child->next)
     {
@@ -366,8 +380,6 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
         {
             child->relative_position[axis] = 0.f;
         }
-
-        child->position[axis] = root->position[axis] + child->relative_position[axis];
     }
 
     // Recursive traversal.
@@ -383,8 +395,22 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
 internal void
 ui_draw(Ui_Box *root, v2 root_position)
 {
-    v2 min = root_position + v2{root->relative_position[AXIS2_X], root->relative_position[AXIS2_Y]};
+    v2 min;
+
+    // Solve absolute position.
+    if ((root->flags & UI_BOX_FLAG_DYNAMIC_POSITION) && (ui_state->tick != root->first_tick))
+    {
+        min = v2{root->position[AXIS2_X], root->position[AXIS2_Y]};
+    }
+    else
+    {
+        min = root_position + v2{root->relative_position[AXIS2_X], root->relative_position[AXIS2_Y]};
+        root->position[AXIS2_X] = min.x;
+        root->position[AXIS2_Y] = min.y;
+    }
+
     v2 max = min + v2{root->computed_size[AXIS2_X], root->computed_size[AXIS2_Y]};
+
 
     // Draw contents background.
     if (root->flags & UI_BOX_FLAG_DRAW_BACKGROUND)
@@ -397,9 +423,9 @@ ui_draw(Ui_Box *root, v2 root_position)
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
         else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT && root->active_t > 0.001f)
-        {
-            v4 c = v4{0.5f,0.5f,1.0f,1.0f};
-            c.rgb *= root->active_t;
+        { // @TODO: Blending hot & active animation.
+            v4 c = v4{0.7f,0.3f,0.3f,1.0f};
+            c = lerp(root->bg, root->active_t, c);
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
         else if (root->flags & UI_BOX_FLAG_DRAW_HOT_EFFECT && root->hot_t > 0.001f)
@@ -463,10 +489,11 @@ ui_signal_from_box(Ui_Box *box)
 {
     Ui_Signal result = {};
 
+    result.box = box;
+
     AABB2 aabb = {};
     aabb.min = v2{box->position[AXIS2_X], box->position[AXIS2_Y]};
     aabb.max = aabb.min + v2{box->computed_size[AXIS2_X], box->computed_size[AXIS2_Y]};
-
 
     if (! ui_box_is_nil(box))
     {
@@ -483,10 +510,30 @@ ui_signal_from_box(Ui_Box *box)
                         os_event_consume(event);
                         result.pressed_left = true;
 
+                        ui_state->active_key = box->key;
+
                         if (box->flags & UI_BOX_FLAG_DRAW_SHOOT_EFFECT)
                         {
                             box->shoot_t = 1.0f;
                         }
+                    }
+                }
+
+                if (event->type == OS_EVENT_RELEASE && event->key == OS_KEY_MOUSE_LEFT)
+                {
+                    if (ui_key_match(ui_state->active_key, box->key))
+                    {
+                        os_event_consume(event);
+                        ui_state->active_key = ui_key_zero;
+                    }
+                }
+
+                if (event->type == OS_EVENT_MOUSE_MOVE)
+                {
+                    if (ui_key_match(ui_state->active_key, box->key))
+                    {
+                        os_event_consume(event);
+                        result.dragging_left = true;
                     }
                 }
             }
@@ -579,7 +626,7 @@ internal void
 ui_size_push(Axis2 axis, Ui_Size_Type type, f32 value = 0.f)
 {
     Ui_Style *style = push_struct(ui_build_arena(), Ui_Style);
-    style->size.type = type;
+    style->size.type  = type;
     style->size.value = value;
 
     stack_push(ui_state->size_first[axis], style);
@@ -595,6 +642,27 @@ internal Ui_Size
 ui_size_top(Axis2 axis)
 {
     return ui_state->size_first[axis]->size;
+}
+
+internal void
+ui_flow_push(Axis2 axis)
+{
+    Ui_Style *style = push_struct(ui_build_arena(), Ui_Style);
+    style->flow = axis;
+
+    stack_push(ui_state->flow_first, style);
+}
+
+internal void
+ui_flow_pop(void)
+{
+    stack_pop(ui_state->flow_first);
+}
+
+internal Axis2
+ui_flow_top(void)
+{
+    return ui_state->flow_first->flow;
 }
 
 internal void

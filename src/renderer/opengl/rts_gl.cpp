@@ -615,11 +615,6 @@ opengl_compile_shaders(Opengl *gl)
              Pbr_No_Lighting
             );
 
-    char *sprite_vshader = 
-    #include "shader/sprite_vs.glsl"
-    char *sprite_fshader = 
-    #include "shader/sprite_fs.glsl"
-
     char *pbr_vs = 
     #include "shader/pbr_vs.glsl"
     char *pbr_fs = 
@@ -661,12 +656,6 @@ opengl_compile_shaders(Opengl *gl)
 
 
 
-
-    glDeleteShader(gl->sprite_program.id);
-    gl->sprite_program.id = opengl_program_create_vf(gl, sprite_vshader, sprite_fshader);
-    GET_UNIFORM_LOCATION(sprite_program, mvp);
-    GET_UNIFORM_LOCATION(sprite_program, color);
-    GET_UNIFORM_LOCATION(sprite_program, texture);
 
     glDeleteShader(gl->pbr_program.id);
     gl->pbr_program.id = opengl_program_create_vf(gl, pbr_vs, pbr_fs);
@@ -1373,8 +1362,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
 
         // @Note: 3----1
-        //         |    |
-        //         2----0
+        //        |    |
+        //        2----0
         const Textured_Vertex vertices[] = {
             {v3{ 1,-1, 0}, v2{1,0}},
             {v3{ 1, 1, 0}, v2{1,1}},
@@ -1406,9 +1395,9 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(v3), (GLvoid *)0);
 
         v4 colors[] = {
-            v4{1,0,1,0.1f},
-            v4{0,1,0,0.1f},
-            v4{0,0,1,0.1f},
+            v4{1.f,0.f,1.f,0.1f},
+            v4{0.f,1.f,0.f,0.1f},
+            v4{0.f,0.f,1.f,0.1f},
         };
         if (frame->draw_csm_sphere) 
         {
@@ -1435,82 +1424,6 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glEnable(GL_DEPTH_TEST);
     }
 
-
-    // @Note: Ortho
-    //
-    {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        glClearDepth(1);
-        glClear(GL_DEPTH_BUFFER_BIT);
-
-        Sprite_Program *program = &gl->sprite_program;
-        s32 pid = program->id;
-        glUseProgram(pid);
-
-        for (u8 *buffer_at = frame->push_buffer_base;
-             buffer_at < frame->push_buffer_base + frame->push_buffer_used;)
-        {
-            Render_Group *group = (Render_Group *)buffer_at;
-            buffer_at += sizeof(Render_Group);
-
-            for (u8 *group_at = buffer_at;
-                 group_at < group->base + group->used;)
-            {
-                Render_Entity_Header *entity = (Render_Entity_Header *)group_at;
-                group_at += entity->size;
-                switch (entity->type)
-                {
-                    case eRender_Bitmap: {
-                        Render_Bitmap *piece = (Render_Bitmap *)entity;
-
-                        glBindBuffer(GL_ARRAY_BUFFER, gl->vbo);
-
-                        glUniformMatrix4fv(program->mvp, 1, GL_TRUE, &frame->ortho_view_proj.e[0][0]);
-                        glUniform4fv(program->color, 1, &piece->color.r);
-
-                        glEnableVertexAttribArray(0);
-                        glEnableVertexAttribArray(2);
-
-                        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, pos));
-                        glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, uv));
-
-                        opengl_bind_texture(gl, piece->bitmap);
-
-                        v3 min = piece->min;
-                        v3 max = piece->max;
-
-                        Textured_Vertex v[4];
-                        f32 z = (max.z + min.z) * 0.5f;
-                        v[0].pos = V3(max.x, min.y, z);
-                        v[0].uv  = V2(1, 0);
-
-                        v[1].pos = max;
-                        v[1].uv  = V2(1, 1);
-
-                        v[2].pos = min;
-                        v[2].uv  = V2(0, 0);
-
-                        v[3].pos = V3(min.x, max.y, z);
-                        v[3].uv  = V2(0, 1);
-
-                        for (u32 i = 0; i < 4; ++i) {
-                            v4 tmp = frame->ortho_view_proj * V4(v[i].pos, 1);
-                            v4 temp = frame->ortho_view_proj * V4(v[i].pos, 1);
-                        }
-
-                        glBufferData(GL_ARRAY_BUFFER, array_count(v) * sizeof(*v), v, GL_STATIC_DRAW);
-                        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-                        glDisableVertexAttribArray(0);
-                        glDisableVertexAttribArray(2);
-                    } break;
-                }
-            }
-            buffer_at += group->capacity;
-        }
-    }
 
 
     // ------------------------------------------------------------------------
@@ -1770,8 +1683,6 @@ opengl_program_end(Gl_Program program, Gl_Program_Flags flags)
 internal void
 opengl_init(Opengl *gl)
 {
-    // @Note: Set debug callback.
-    //
 #if BUILD_DEBUG
     if (glDebugMessageCallbackARB) 
     {

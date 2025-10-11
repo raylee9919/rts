@@ -194,9 +194,9 @@ enum
 typedef u16 Os_Modifiers;
 enum
 {
-    OS_MODIFIER_CTRL,
-    OS_MODIFIER_SHIFT,
-    OS_MODIFIER_ALT,
+    OS_MODIFIER_CTRL  = (1<<0),
+    OS_MODIFIER_SHIFT = (1<<1),
+    OS_MODIFIER_ALT   = (1<<2)
 };
 
 struct Os_Event
@@ -223,64 +223,6 @@ struct Os_Event
 #  error Undefined OS
 #endif
 
-
-
-// # Note: Compilers
-//
-internal u32
-atomic_compare_exchange_u32(u32 volatile *value, u32 _new, u32 expected) 
-{
-#if COMPILER_CL
-    u32 result = _InterlockedCompareExchange((long *)value, _new, expected);
-#else
-    u32 result = 0;
-#endif
-    return result;
-}
-
-internal u32
-atomic_exchange_u32(u32 volatile *value, u32 _new) 
-{
-#if COMPILER_CL
-    u32 result = _InterlockedExchange((long *)value, _new);
-#else
-    u32 result = 0;
-#endif
-    return result;
-}
-
-internal u64
-atomic_exchange_u64(u64 volatile *value, u64 _new) 
-{
-#if COMPILER_CL
-    u64 result = _InterlockedExchange64((long long *)value, _new);
-#else
-    u64 result = 0;
-#endif
-    return result;
-}
-
-internal u32
-atomic_add_u32(u32 volatile *value, u32 addend) 
-{
-#if COMPILER_CL
-    u32 result = _InterlockedExchangeAdd((long *)value, addend);
-#else
-    u32 result = 0;
-#endif
-    return result;
-}
-
-internal u64
-atomic_add_u64(u64 volatile *value, u64 addend) 
-{
-#if COMPILER_CL
-    u64 result = _InterlockedExchangeAdd64((long long *)value, addend);
-#else
-    u64 result = 0;
-#endif
-    return result;
-}
 // -----------------------------------------
 // @Note: File
 #define OS_FILE_IS_VALID(name) b32 name(Os_Handle file)
@@ -444,11 +386,6 @@ internal Os_Init os_init;
 
 // # Note: Event
 //
-#define os_event_list_for(event)\
-    for (Os_Event *event = os->event_sentinel->next, *next = event->next;\
-         event != os->event_sentinel;\
-         event = next, next = event->next)
-
 internal Os_Event *
 os_event_alloc(void)
 {
@@ -483,9 +420,12 @@ os_event_consume(Os_Event *event)
 internal void
 os_event_list_clear(void)
 {
-    os_event_list_for(e)
+    for (Os_Event *event = os->event_sentinel->next, *next;
+         event != os->event_sentinel;
+         event = next)
     {
-        os_event_consume(e);
+        next = event->next;
+        os_event_consume(event);
     }
 }
 
