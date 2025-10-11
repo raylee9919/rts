@@ -198,6 +198,15 @@ length(v2 A) {
 }
 
 internal v2
+lerp(v2 a, f32 t, v2 b)
+{
+    v2 result = {};
+    result.x = lerp(a.x, t, b.x);
+    result.y = lerp(a.y, t, b.y);
+    return result;
+}
+
+internal v2
 normalize(v2 a) 
 {
     v2 r = a;

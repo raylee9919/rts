@@ -120,6 +120,7 @@ internal f32 length_square(v2 A);
 internal f32 inv_length_square(v2 A);
 internal f32 length(v2 A);
 internal v2 normalize(v2 a);
+internal v2 lerp(v2 a, f32 t, v2 b);
 internal v3 V3(f32 x, f32 y, f32 z);
 internal v3 V3(v2 xy, f32 z);
 internal v3 V3(f32 a);

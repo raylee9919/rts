@@ -270,10 +270,10 @@ render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32
     // Alloc from free list.
     Render_Texture *texture = render_texture_alloc();
     {
-        texture->id = id;
-        texture->type = type;
-        texture->data = data;
-        texture->width = width;
+        texture->id     = id;
+        texture->type   = type;
+        texture->data   = data;
+        texture->width  = width;
         texture->height = height;
     }
 
@@ -284,7 +284,8 @@ render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32
     // Push command.
     Render_Command cmd = {};
     {
-        cmd.flags = (RENDER_COMMAND_FLAG_TEXTURE_CREATE | flags);
+        cmd.type    = RENDER_COMMAND_TYPE_TEXTURE_CREATE;
+        cmd.flags   = flags;
         cmd.texture = *texture;
     }
 
@@ -337,8 +338,8 @@ render_texture_destroy(Render_Id id)
         // Push command.
         Render_Command cmd = {};
         {
-            cmd.flags = RENDER_COMMAND_FLAG_TEXTURE_DESTROY;
-            cmd.texture.id = id;
+            cmd.type = RENDER_COMMAND_TYPE_TEXTURE_DESTROY;
+            cmd.id   = id;
         }
         render_command_push(cmd);
     }
@@ -346,6 +347,24 @@ render_texture_destroy(Render_Id id)
     {
         assert(! "Texture not found in the table.");
     }
+}
+
+internal void
+render_texture_update(Render_Id id, void *data)
+{
+    Render_Texture *texture = render_texture_from_id(id);
+    assert(texture);
+    
+    texture->data = data;
+
+
+    Render_Command cmd = {};
+    {
+        cmd.type    = RENDER_COMMAND_TYPE_TEXTURE_UPDATE;
+        cmd.texture = *texture;
+    }
+
+    render_command_push(cmd);
 }
 
 
@@ -549,7 +568,7 @@ render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String
             }
 
             // # Note: Advance pen resting on baseline.
-            pen.x += floorf(metrics.advance_x);
+            pen.x += metrics.advance_x;
         }
     }
 

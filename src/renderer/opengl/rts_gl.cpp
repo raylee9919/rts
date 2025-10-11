@@ -7,7 +7,7 @@
    ======================================================================== */
 
 
-// # Todo: Remove
+// @Todo: Remove
 //
 global GLuint id_table[4096];
 
@@ -65,7 +65,7 @@ opengl_get_info(Opengl *gl, b32 modern_context)
             else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
-            // # Todo: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
+            // @Todo: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
         }
     }
     
@@ -90,13 +90,13 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     
     if ((major > 2) || ((major == 2) && (minor >= 1))) 
     {
-        // # Note: We _believe_ we have sRGB textures in 2.1 and above automatically.
+        // @Note: We _believe_ we have sRGB textures in 2.1 and above automatically.
         result.opengl_ext_texture_sgb = true;
     }
     
     if (major >= 3) 
     {
-        // # Note: We _believe_ we have framebuffer objects in 3.0 and above automatically.
+        // @Note: We _believe_ we have framebuffer objects in 3.0 and above automatically.
         result.opengl_arb_framebuffer_object=true;
     }
     
@@ -139,7 +139,7 @@ opengl_create_compute_program(Opengl *gl, const char *csrc)
     } 
     else 
     {
-        // # Todo: handling.
+        // @Todo: handling.
     }
     
     return program;
@@ -152,7 +152,7 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
 
     assert(glCreateShader);
 
-    // # Note: Compile vertex shader.
+    // @Note: Compile vertex shader.
     //
     GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
     {
@@ -161,7 +161,7 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
         glCompileShader(vshader);
     }
 
-    // # Note: Compile fragment shader.
+    // @Note: Compile fragment shader.
     //
     GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
     {
@@ -170,14 +170,14 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
         glCompileShader(fshader);
     }
 
-    // # Note: Create program.
+    // @Note: Create program.
     //
     program = glCreateProgram();
     glAttachShader(program, vshader);
     glAttachShader(program, fshader);
     glLinkProgram(program);
 
-    // # Note: Validate program.
+    // @Note: Validate program.
     //
     glValidateProgram(program);
     GLint linked = GL_FALSE;
@@ -201,7 +201,7 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
         assert(! "compile/link error.");
     }
 
-    // # Note: Cleanup.
+    // @Note: Cleanup.
     //
     glDeleteShader(vshader);
     glDeleteShader(fshader);
@@ -770,7 +770,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     u32 render_height = frame->render_dim.h;
 
 
-    // # Note: Frame Texture
+    // @Note: Frame Texture
     //
     {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
@@ -821,7 +821,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // # Todo: Scissor Test?
+    // @Todo: Scissor Test?
     //
     //glEnable(GL_SCISSOR_TEST);
     //glScissor(0, 0, window_width, window_height);
@@ -841,7 +841,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     glFrontFace(GL_CCW);
 
 
-    // # Note: CSM Frustum
+    // @Note: CSM Frustum
     //
     v3 *csm_frustum_positions = frame->csm_frustum_positions;
     f32 distance_between_near_and_far = distance(0.5f * (csm_frustum_positions[0] + csm_frustum_positions[3]),
@@ -925,7 +925,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 max.z = max(max.z, lp.z);
             }
 
-            f32 depth = max.z - min.z; // # Todo: Fit z?
+            f32 depth = max.z - min.z; // @Todo: Fit z?
 
             m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.0, depth*2.0);
             light_view_projs[level] = light_proj * light_view;
@@ -953,7 +953,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
 
 
-    // # Note: Shadow map, which is basically a orthographiclly viewed depth map
+    // @Note: Shadow map, which is basically a orthographiclly viewed depth map
     //         from directional light's perspective.
     {
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
@@ -1025,7 +1025,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    // # Note: Skybox
+    // @Note: Skybox
     //
     {
         glDisable(GL_CULL_FACE);
@@ -1070,7 +1070,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 
 
-    // # Note: Framebuffer Texture
+    // @Note: Framebuffer Texture
     //
     {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
@@ -1085,7 +1085,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        // # Note: PBR
+        // @Note: PBR
         //
         {
             Pbr_Program *pbr_program = &gl->pbr_program;
@@ -1189,7 +1189,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             }
         }
 
-        // # Note: Triangles
+        // @Note: Triangles
         //
         {
             Simple_Program *simple_program = &gl->simple_program;
@@ -1238,7 +1238,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        // # Note: Unit Circle
+        // @Note: Unit Circle
         //
         {
             Circle_Program *circle_program = &gl->circle_program;
@@ -1270,7 +1270,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         }
 
 
-        // # Note: Lines
+        // @Note: Lines
         //
         {
             Simple_Program *simple_program = &gl->simple_program;
@@ -1322,7 +1322,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glEnable(GL_DEPTH_TEST);
         }
 
-        // # Note: Mouse Picking
+        // @Note: Mouse Picking
         //
 #if 0
         {
@@ -1360,7 +1360,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    // # Note: Blt
+    // @Note: Blt
     //
     {
         glDisable(GL_DEPTH_TEST);
@@ -1372,7 +1372,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glEnableVertexAttribArray(2);
 
 
-        // # Note: 3----1
+        // @Note: 3----1
         //         |    |
         //         2----0
         const Textured_Vertex vertices[] = {
@@ -1394,7 +1394,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glDisableVertexAttribArray(2);
     }
 
-    // # Note: CSM Frustum
+    // @Note: CSM Frustum
     //
     if (frame->draw_csm_frustum) 
     {
@@ -1436,7 +1436,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 
 
-    // # Note: Ortho
+    // @Note: Ortho
     //
     {
         glEnable(GL_BLEND);
@@ -1515,87 +1515,98 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
     // ------------------------------------------------------------------------
 
-    // # Note: Process render commands
+    // @Note: Process render commands
     //
     for (u32 i = 0; i < renderer->command_count; ++i)
     {
         Render_Command cmd = renderer->commands[i];
 
-        // # Note: Texture
-        //
-        if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_CREATE)
+        switch(cmd.type)
         {
-            // Alloc
-            GLuint gl_id;
-            glGenTextures(1, &gl_id);
+            default: { assert(!"invalid default case."); }break;
 
-            // Init
-            glBindTexture(GL_TEXTURE_2D, gl_id);
-
-            Render_Texture texture = cmd.texture;
-
-            Render_Id id             = texture.id;
-            Render_Texture_Type type = texture.type;
-            GLsizei width            = (GLsizei)texture.width;
-            GLsizei height           = (GLsizei)texture.height;
-            const void *data         = (const void *)texture.data;
-
-            id_table[id.e[0]] = gl_id;
-
-            switch (type)
+            case RENDER_COMMAND_TYPE_TEXTURE_CREATE:
             {
-                case RENDER_TEXTURE_TYPE_R8G8B8A8: {
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-                } break;
+                // Alloc
+                GLuint gl_id;
+                glGenTextures(1, &gl_id);
 
-                default: {
-                    assert(! "Unknown Texture Type");
-                } break;
-            }
+                // Init
+                glBindTexture(GL_TEXTURE_2D, gl_id);
 
-            // # Note: Filtering
-            //
-            if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT)
+                Render_Texture texture = cmd.texture;
+
+                Render_Id id             = texture.id;
+                Render_Texture_Type type = texture.type;
+                GLsizei width            = (GLsizei)texture.width;
+                GLsizei height           = (GLsizei)texture.height;
+                const void *data         = (const void *)texture.data;
+
+                id_table[id.e[0]] = gl_id;
+
+                switch (type)
+                {
+                    case RENDER_TEXTURE_TYPE_R8G8B8A8: {
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+                    } break;
+
+                    default: {
+                        assert(! "Unknown Texture Type");
+                    } break;
+                }
+
+                // @Note: Filtering
+                //
+                if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT)
+                {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                }
+
+                if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR)
+                {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                }
+
+                // @Note: Wrapping
+                //
+                if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_WRAP)
+                {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_TRUE);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_TRUE);
+                }
+
+                if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_MIPMAP) 
+                {
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                    glGenerateMipmap(GL_TEXTURE_2D);
+                    glGenerateTextureMipmap(gl_id);
+                } 
+
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }break;
+
+            case RENDER_COMMAND_TYPE_TEXTURE_DESTROY:
             {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            }
+                Render_Id id = cmd.id;
+                GLuint gl_id = opengl_id_from_render_id(id);
 
-            if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR)
+                glDeleteTextures(1, &gl_id);
+            }break;
+
+            case RENDER_COMMAND_TYPE_TEXTURE_UPDATE:
             {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            }
+                GLuint gl_id = opengl_id_from_render_id(cmd.texture.id);
 
-            // # Note: Wrapping
-            //
-            if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_WRAP)
-            {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_TRUE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_TRUE);
-            }
-
-            if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_MIPMAP) 
-            {
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-                glGenerateMipmap(GL_TEXTURE_2D);
-                glGenerateTextureMipmap(gl_id);
-            } 
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-
-        if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_DESTROY)
-        {
-            Render_Id id = cmd.texture.id;
-            GLuint gl_id = opengl_id_from_render_id(id);
-
-            glDeleteTextures(1, &gl_id);
+                glBindTexture(GL_TEXTURE_2D, gl_id);
+                glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, cmd.texture.width, cmd.texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cmd.texture.data);
+            }break;
         }
     }
 
 
-    // # Note: Revamping renderer currently.
+    // @Note: Revamping renderer currently.
     //
     for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; type += 1)
     {
@@ -1622,17 +1633,17 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, rect_half_dim));
                         glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(Render_Vertex), (void *)offset_of(Render_Vertex, radius));
 
-                        // # Divisor Begin
+                        // @Divisor Begin
                         // glVertexAttribDivisor(0, 0);
 
-                        // # Note: We are drawing quads independent to the ratio.
+                        // @Note: We are drawing quads independent to the ratio.
                         //         We don't want glyphs to be ugly when we resize the window.
                         glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_w"), window_width);
                         glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_h"), window_height);
 
                         for (u32 i = 0; i < instance_count; i += 1)
                         {
-                            // # Todo: We are being lazy and binding the texture according to the vertex's texture id.
+                            // @Todo: We are being lazy and binding the texture according to the vertex's texture id.
                             //         This seems like a lunacy and at some point, it should to be fixed.
                             Render_Id texture_id = buffer->vertices[4*i].texture_id;
                             if (texture_id.e[0] == 0)
@@ -1648,7 +1659,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 4*i, 4, 1);
                         }
 
-                        // # Divisor End
+                        // @Divisor End
                         // glVertexAttribDivisor(0, 0);
                     }
                     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -1670,7 +1681,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 }
 
-// # Note: Program
+// @Note: Program
 //
 internal Gl_Program
 opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src)
@@ -1680,12 +1691,12 @@ opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src)
         program.id = opengl_program_create_vf(gl, vs_src, fs_src);
     }
 
-    // # acquire number of uniforms.
+    // @acquire number of uniforms.
     GLint count;
     glGetProgramiv(program.id, GL_ACTIVE_UNIFORMS, &count);
     assert((u32)count <= gl_max_uniform_count);
 
-    // # Gathering uniforms.
+    // @Gathering uniforms.
     for (GLint i = 0; i < count; i += 1)
     {
         const GLsizei sz = 64;
@@ -1702,7 +1713,7 @@ opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src)
     program.uniform_count = count;
 
 
-    // # Gathering attributes.
+    // @Gathering attributes.
     glGetProgramiv(program.id, GL_ACTIVE_ATTRIBUTES, &count);
     assert((u32)count <= gl_max_attrib_count);
 
@@ -1754,12 +1765,12 @@ opengl_program_end(Gl_Program program, Gl_Program_Flags flags)
     glUseProgram(0);
 }
 
-// # Note: Init
+// @Note: Init
 //
 internal void
 opengl_init(Opengl *gl)
 {
-    // # Note: Set debug callback.
+    // @Note: Set debug callback.
     //
 #if BUILD_DEBUG
     if (glDebugMessageCallbackARB) 
@@ -1773,7 +1784,7 @@ opengl_init(Opengl *gl)
     }
 #endif
 
-    // # Note: Textured Quad Shader
+    // @Note: Textured Quad Shader
     //
     char *quad_vs = 
     #include "shader/quad_vs.glsl"
@@ -1784,10 +1795,10 @@ opengl_init(Opengl *gl)
 
 
 
-    // # Todo: Clean this
+    // @Todo: Clean this
     opengl_compile_shaders(gl);
 
-    { // # Note: White Texture.
+    { // @Note: White Texture.
         gl->white_bitmap.bits_per_channel = 8;
         gl->white_bitmap.channel_count    = 4;
         gl->white_bitmap.width            = 4;
@@ -1801,7 +1812,7 @@ opengl_init(Opengl *gl)
         opengl_alloc_texture(gl, &gl->white_bitmap, GL_CLAMP_TO_EDGE);
     }
 
-    { // # Shadowmap
+    { // @Shadowmap
         glGenFramebuffers(1, &gl->shadowmap_fbo);
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
 

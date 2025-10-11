@@ -7,13 +7,13 @@
    ======================================================================== */
 
 
-// # Todo: We are testing our metaprogramming currently. Those defines are kind of 
+// @Todo: We are testing our metaprogramming currently. Those defines are kind of 
 //         API for serializing data types of entity known to serialization module.
 #define BEGIN_ENTITY
 #define END_ENTITY
 
 
-// # Note: [.h]
+// @Note: [.h]
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
@@ -32,17 +32,14 @@
 #include "generated/entity_serialization.h"
 #include "rts_map_loader.h"
 #include "rts_sim.h"
+#include "rect_pack/rpk.h"
+#include "font_provider/fp_inc.h"
 
-// # Note: Globals.
+// @Note: Globals.
 //
-global Ui_State *ui_state;
 global Renderer *renderer;
 
-// # Temporary:
-Face *g_face;
-
-
-// # Note: [.cpp]
+// @Note: [.cpp]
 //
 #include "base/rts_base_inc.cpp"
 #include "rts_random.cpp"
@@ -55,6 +52,8 @@ Face *g_face;
 #include "rts_nav.cpp"
 #include "rts_sim.cpp"
 #include "rts_map_loader.cpp"
+#include "rect_pack/rpk.cpp"
+#include "font_provider/fp_inc.cpp"
 
 
 internal void
@@ -97,14 +96,14 @@ update_cameras(World *world, Game_State *game_state)
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
-    // # Note: Acquire os.
+    // @Note: Acquire os.
     //
     if (os == NULL)
     {
         os = platform->os;
     }
 
-    // # Note: Acquire renderer.
+    // @Note: Acquire renderer.
     //
     if (renderer == NULL)
     {
@@ -112,7 +111,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_init();
     }
 
-    // # Note: Acquire game state.
+    // @Note: Acquire game state.
     //
     Game_State *game_state = (Game_State *)platform->game_state;
     if (! game_state) 
@@ -125,7 +124,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->draw_height   = platform->draw_height;
         game_state->window_height = platform->window_width;
         game_state->window_height = platform->window_height;
-        // # Todo: Warn on out-out-range refresh.
+        // @Todo: Warn on out-out-range refresh.
         game_state->dt_real = clamp(platform->dt, 0.001f, 0.1f);
         game_state->dt_game = game_state->dt_real;
     }
@@ -136,7 +135,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         thread_init();
 
-        // # Note: alloc assets
+        // @Note: alloc assets
         //
         Arena *arena = arena_alloc();
         game_state->assets = push_struct(arena, Game_Assets);
@@ -145,7 +144,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         game_state->frame_arena = arena_alloc();
 
-        // # Note: init world.
+        // @Note: init world.
         //
         Arena *world_arena = arena_alloc();
         World *world = game_state->world = push_struct(world_arena, World);
@@ -155,7 +154,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->mode = GAME_MODE_GAME;
         game_state->random_series = rand_seed(1219);
 
-        { // # Temporary
+        { // @Temporary
             Temporary_Arena scratch = scratch_begin();
             scope_exit(scratch_end(scratch));
 
@@ -237,7 +236,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                                  asset_arena);
             }
 
-            // # Temporary: init cameras.
+            // @Temporary: init cameras.
             {
                 game_state->game_camera = push_entity(world, Camera, V3(0,0,0));
                 {
@@ -269,7 +268,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             render_commands->csm_varient_method = true;
 
-            // # Temporary: We are setting navmesh input data by hand.
+            // @Temporary: We are setting navmesh input data by hand.
             {
                 Arena *arena = arena_alloc();
                 game_state->navmesh = push_struct(arena, Navmesh);
@@ -309,7 +308,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 }
             }
 
-            // # Todo: not neat.
+            // @Todo: not neat.
             begin_constrain(navmesh);
             {
                 push_vertex(navmesh, v3{ 1.f, 0.f,  3.f});
@@ -330,40 +329,38 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
 
-    { // # Note: Begin
+    { // @Note: Begin
         arena_clear(game_state->frame_arena);
         render_begin();
     }
 
+    if (fp_state == NULL)
+    {
+        fp_state = fp_alloc();
+        fp_init();
+    }
 
-    // # Note: ui alloc/init
+
+    // @Note: ui alloc/init
     //
     if (ui_state == NULL)
     {
         ui_state = ui_alloc();
         ui_init(ui_state);
-
-
-        // # Temporary: Load font to UI directly.
-        //
-        Utf8 contents = read_entire_file(game_state->assets->arena, utf8f(game_state->assets->arena, "%S/font_asset.txt", platform->data_path));
-        ui_state->face = face_alloc();
-        asset_font_parse(contents.str, contents.len, ui_state->face);
-        ui_state->texture_id = render_texture_create_filter_dot(RENDER_TEXTURE_TYPE_R8G8B8A8, ui_state->face->data, ui_state->face->width, ui_state->face->height);
     }
 
-    // # Temporary:
+    // @Temporary:
     game_state->active_entity_id = render_commands->active_entity_id;
     game_state->view_proj = game_state->controlling_camera->VP;
 
-    // # Note: Alias
+    // @Note: Alias
     World *world = game_state->world;
     Game_Assets *assets = game_state->assets;
 
     Render_Group *render_group       = begin_render_group(render_commands, MB(16));
     Render_Group *orthographic_group = begin_render_group(render_commands, MB(16));
 
-    // # Temporary:
+    // @Temporary:
     Navmesh *navmesh = game_state->navmesh;
     Cdt_Result *cdt = &navmesh->cdt;
 
@@ -446,14 +443,14 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         } break;
     }
 
-    { // # Note: Render Commands
+    { // @Note: Render Commands
         render_commands->main_eye_position = game_state->controlling_camera->position;
         render_commands->main_view_proj = game_state->controlling_camera->VP;
         render_commands->ortho_view_proj = game_state->orthographic_camera->VP;
 
         render_commands->wireframe_color = V4(0.9f, 0.9f, 0.9f, 1.0f);
 
-        // # Note: Skybox
+        // @Note: Skybox
         //
         render_commands->skybox_on = true;
         render_commands->skybox_mesh = &assets->skybox_mesh;
@@ -464,12 +461,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
 
 
-        // # Note: CSM
+        // @Note: CSM
         //
         render_commands->csm_to_light = normalize(V3(1,1,1));
         f32 csm_frustum_edge_length = 50.0f;
         m4x4 inv = inverse(game_state->game_camera->VP);
-        // # Todo: Renderer independent calculation!
+        // @Todo: Renderer independent calculation!
         v4 ndcs[4] = {
             v4{-1,-1,-1, 1},
             v4{ 1,-1,-1, 1},
@@ -502,20 +499,16 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
 
 
-    // # Temporary: Testing UI
+    // @Temporary: Testing UI
     //              1. Interact with UI built in last frame.
     //              2. Build new hierarchy while retaining some data(!!!)
     //
     ui_begin(platform->dt, platform->window_width, platform->window_height);
 
     ui_size_push(AXIS2_X, UI_SIZE_TYPE_PX, 300.f);
-    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 500.f);
-#if 1
+    ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, 300.f);
     ui_col_named(utf8lit("Dev panel"))
     {
-        ui_radio(utf8lit("Radio"));
-        ui_div();
-
         if (ui_button(utf8lit("Wireframe")).pressed_left)
         {
             render_commands->wireframe_mode = !render_commands->wireframe_mode; 
@@ -547,7 +540,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
         }
     }
-#endif
 
 
     ui_end();

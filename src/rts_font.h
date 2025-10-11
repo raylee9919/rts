@@ -9,8 +9,6 @@
    ======================================================================== */
 
 
-// # Note: Glyph Metrics
-//
 struct Glyph_Metrics
 {
     Glyph_Metrics *next;
@@ -50,8 +48,6 @@ struct Face_Cmap
     u64 index_count;
 };
 
-// # Note: Font Face
-//
 struct Face
 {
     Arena *arena;

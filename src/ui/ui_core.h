@@ -53,6 +53,9 @@ struct Ui_Text
     Utf8    string;
     AABB2   aabb;
     f32     padding;
+
+    f32     max_ascent;
+    f32     max_descent;
 };
 
 struct Ui_Box
@@ -166,12 +169,12 @@ struct Ui_State
     f32             dt;
 
 
+    Utf8            base_family;
+    f32             font_size;
+
+
 
     Ui_Box          *root;
-
-    Face            *face;
-    Render_Id        texture_id;
-
 
     Ui_Box          *current_parent;
 
@@ -193,6 +196,7 @@ struct Ui_State
 
 // # Note: Constants
 //
+global Ui_State *ui_state;
 global read_only Ui_Key ui_key_zero = {};
 global read_only Ui_Box ui_nil_box = {
     &ui_nil_box,

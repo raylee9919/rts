@@ -223,22 +223,33 @@ struct Render_Texture
     u32                 height;
 };
 
+enum Render_Command_Type
+{
+    RENDER_COMMAND_TYPE_NULL,
+    RENDER_COMMAND_TYPE_TEXTURE_CREATE,
+    RENDER_COMMAND_TYPE_TEXTURE_DESTROY,
+    RENDER_COMMAND_TYPE_TEXTURE_UPDATE,
+};
+
 typedef u32 Render_Command_Flags;
 enum 
 {
-    RENDER_COMMAND_FLAG_TEXTURE_CREATE              = (1<<0),
-    RENDER_COMMAND_FLAG_TEXTURE_DESTROY             = (1<<1),
-    RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT          = (1<<2),
-    RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR       = (1<<3),
-    RENDER_COMMAND_FLAG_TEXTURE_WRAP                = (1<<4),
-    RENDER_COMMAND_FLAG_TEXTURE_MIPMAP              = (1<<5),
+    RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT          = (1<<0),
+    RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR       = (1<<1),
+    RENDER_COMMAND_FLAG_TEXTURE_WRAP                = (1<<2),
+    RENDER_COMMAND_FLAG_TEXTURE_MIPMAP              = (1<<3),
 };
 
 struct Render_Command
 {
+    Render_Command_Type  type;
     Render_Command_Flags flags;
 
-    Render_Texture texture;
+    union
+    {
+        Render_Texture texture;
+        Render_Id id;
+    };
 };
 
 struct Renderer

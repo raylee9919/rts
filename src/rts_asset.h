@@ -341,26 +341,6 @@ internal void interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animat
 // # Note: New asset system.
 //
 
-// # Note: Cursor
-//
-struct Cursor
-{
-    u8 *ptr;
-    u64 size;
-};
-
-internal void cursor_init(Cursor *cursor, void *data, u64 size);
-
-#define cursor_eat_type(cursor, type) (*((type *)cursor_eat(cursor, sizeof(type))))
-internal void *cursor_eat(Cursor *cursor, u64 size);
-
-#define cursor_peek_type(cursor, type) (*((type *)cursor_peek(cursor)))
-internal void *cursor_peek(Cursor *cursor);
-
-// # Note: Font
-//
-internal void asset_font_parse(void *input, u64 size, Face *out);
-
 
 
 #pragma pack(pop)

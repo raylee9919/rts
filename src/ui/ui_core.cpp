@@ -29,6 +29,9 @@ ui_init(Ui_State *ui)
 
     ui->box_table_size = 4096;
     ui->box_table      = push_array(ui->permanent_arena, Ui_Box_Slot, ui->box_table_size);
+
+    ui->base_family    = utf8lit("Segoe UI");
+    ui->font_size      = 16.f;
 }
 
 
@@ -198,9 +201,13 @@ ui_equip_text(Ui_Box *box, Utf8 text)
 {
     box->text = push_struct(ui_build_arena(), Ui_Text);
     {
-        box->text->string  = text;
-        box->text->aabb    = render_string(ui_state->face, ui_state->texture_id, v2{}, text, RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
-        box->text->padding = ui_text_padding_top();
+        Fp_Draw_String_Result dsr = fp_draw_string(text, ui_state->base_family, ui_state->font_size, V2(0.f), RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
+
+        box->text->string      = text;
+        box->text->aabb        = dsr.aabb;
+        box->text->max_ascent  = dsr.max_ascent;
+        box->text->max_descent = dsr.max_descent;
+        box->text->padding     = ui_text_padding_top();
     }
 
     if (ui_style_top(flow) == AXIS2_X)
@@ -237,7 +244,7 @@ ui_solve_size_independent(Ui_Box *root, Axis2 axis)
                 }break;
 
                 case AXIS2_Y: {
-                    root->computed_size[axis] = ui_state->face->ascent + ui_state->face->descent + 2.f*root->text->padding;
+                    root->computed_size[axis] = root->text->max_ascent + root->text->max_descent + 2.f*root->text->padding;
                 }break;
 
                 default: { assert(! "Invalid Axis."); }break;
@@ -385,10 +392,9 @@ ui_draw(Ui_Box *root, v2 root_position)
         if (root->flags & UI_BOX_FLAG_DRAW_SHOOT_EFFECT && root->shoot_t > 0.001f)
         {
             v4 c = v4{0.5f,0.5f,1.0f,1.0f};
-            c.rgb *= root->shoot_t;
+            c = lerp(c, root->shoot_t, root->hot_bg);
+            render_quad_c4r4(min, max, root->hot_bg,root->hot_bg,root->hot_bg,root->hot_bg, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
-
-            render_quad_c4r4(min + V2(8.f*root->shoot_t), max + V2(8.f*root->shoot_t), c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
         else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT && root->active_t > 0.001f)
         {
@@ -413,12 +419,12 @@ ui_draw(Ui_Box *root, v2 root_position)
     {
         assert(root->text != NULL);
 
-        v2 pen = min + V2(root->text->padding) + v2{-root->text->aabb.min.x, ui_state->face->ascent};
+        v2 pen = min + V2(root->text->padding) + v2{-root->text->aabb.min.x, root->text->max_ascent};
         AABB2 cull_aabb = {};
         cull_aabb.min = min;
         cull_aabb.max = max;
 
-        render_string(ui_state->face, ui_state->texture_id, pen, root->text->string, RENDER_STRING_FLAG_CULL, cull_aabb);
+        fp_draw_string(root->text->string, ui_state->base_family, ui_state->font_size, pen, RENDER_STRING_FLAG_CULL, cull_aabb);
     }
 
     // Recursive traversal
