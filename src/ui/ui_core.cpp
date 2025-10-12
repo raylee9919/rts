@@ -8,7 +8,7 @@
 
 
 // ----------------------------------------------------------------------------
-// # Note: Alloc/Init
+// @Note: Alloc/Init
 //
 internal Ui_State *
 ui_alloc(void)
@@ -36,7 +36,7 @@ ui_init(Ui_State *ui)
 
 
 // ----------------------------------------------------------------------------
-// # Note: Frame Boundaries
+// @Note: Frame Boundaries
 //
 internal void
 ui_begin(f32 dt, u32 width, u32 height)
@@ -70,6 +70,7 @@ ui_begin(f32 dt, u32 width, u32 height)
     ui_flow_push(AXIS2_Y);
     ui_bg_push(v4{0.1f, 0.1f, 0.1f, 1.0f});
     ui_hot_bg_push(v4{0.18f, 0.18f, 0.18f, 1.0f});
+    ui_active_bg_push(v4{0.18f, 0.18f, 0.18f, 1.0f});
     ui_text_padding_push(2.f);
     ui_style_push(corner_radius00, 0.f);
     ui_style_push(corner_radius01, 0.f);
@@ -108,7 +109,7 @@ ui_end(void)
 }
 
 // ----------------------------------------------------------------------------
-// # Note: Stack
+// @Note: Stack
 //
 internal void
 ui_parent_push(Ui_Box *box)
@@ -123,7 +124,7 @@ ui_parent_pop(void)
 }
 
 // ----------------------------------------------------------------------------
-// # Note: Box Build
+// @Note: Box Build
 //
 internal Ui_Box *
 ui_box_alloc(void)
@@ -188,6 +189,7 @@ ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
 
     box->bg              = ui_bg_top();
     box->hot_bg          = ui_hot_bg_top();
+    box->active_bg       = ui_active_bg_top();
     box->corner_radius00 = ui_style_top(corner_radius00);
     box->corner_radius01 = ui_style_top(corner_radius01);
     box->corner_radius10 = ui_style_top(corner_radius10);
@@ -331,7 +333,10 @@ ui_solve_size_dependent_downward(Ui_Box *root, Axis2 axis)
             {
                 for (Ui_Box *child = root->first; !ui_box_is_nil(child); child = child->next)
                 {
-                    value = max(value, child->computed_size[axis]);
+                    if (child->semantic_size[axis].type != UI_SIZE_TYPE_PCT)
+                    {
+                        value = max(value, child->computed_size[axis]);
+                    }
                 }
             }
 
@@ -371,14 +376,17 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
     f32 p = 0.f;
     for (Ui_Box *child = root->first; !ui_box_is_nil(child); child = child->next)
     {
-        if (root->flow == axis)
+        if (! (child->flags & UI_BOX_FLAG_DYNAMIC_POSITION))
         {
-            child->relative_position[axis] = p;
-            p += child->computed_size[axis];
-        }
-        else
-        {
-            child->relative_position[axis] = 0.f;
+            if (root->flow == axis)
+            {
+                child->relative_position[axis] = p;
+                p += child->computed_size[axis];
+            }
+            else
+            {
+                child->relative_position[axis] = 0.f;
+            }
         }
     }
 
@@ -390,7 +398,7 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
 }
 
 // ----------------------------------------------------------------------------
-// # Note: Draw
+// @Note: Draw
 //
 internal void
 ui_draw(Ui_Box *root, v2 root_position)
@@ -422,15 +430,11 @@ ui_draw(Ui_Box *root, v2 root_position)
             render_quad_c4r4(min, max, root->hot_bg,root->hot_bg,root->hot_bg,root->hot_bg, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
-        else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT && root->active_t > 0.001f)
-        { // @TODO: Blending hot & active animation.
-            v4 c = v4{0.7f,0.3f,0.3f,1.0f};
-            c = lerp(root->bg, root->active_t, c);
-            render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
-        }
-        else if (root->flags & UI_BOX_FLAG_DRAW_HOT_EFFECT && root->hot_t > 0.001f)
+        else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT || root->flags & UI_BOX_FLAG_DRAW_HOT_EFFECT)
         {
-            v4 c = lerp(root->bg, root->hot_t, root->hot_bg);
+            v4 c1 = lerp(root->bg, root->hot_t, root->hot_bg);
+            v4 c2 = lerp(root->bg, root->active_t, root->active_bg);
+            v4 c  = (c1+c2)*0.5f;
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
         else
@@ -482,7 +486,7 @@ ui_animate(void)
 
 
 // ----------------------------------------------------------------------------
-// # Note: Signal
+// @Note: Signal
 //
 internal Ui_Signal
 ui_signal_from_box(Ui_Box *box)
@@ -553,7 +557,7 @@ ui_signal_from_box(Ui_Box *box)
 
 
 // ----------------------------------------------------------------------------
-// # Note: Helper Functions.
+// @Note: Helper Functions.
 //
 internal b32
 ui_key_match(Ui_Key a, Ui_Key b)
@@ -572,7 +576,7 @@ ui_key_from_string(Utf8 string)
         memory_copy(&key, &seed, sizeof(Ui_Key));
         for (u64 i = 0; i < string.len; ++i)
         {
-            // # Todo: I'm just starting by being lazy and throwing djb2.
+            // @Todo: I'm just starting by being lazy and throwing djb2.
             //         https://theartincode.stanis.me/008-djb2/
             key.e[0] = ( (key.e[0] << 5) + key.e[0] ) + string.str[i];
         }
@@ -728,6 +732,27 @@ internal v4
 ui_hot_bg_top(void)
 {
     return ui_state->hot_bg_first->hot_bg;
+}
+
+internal void
+ui_active_bg_push(v4 color)
+{
+    Ui_Style *style = push_struct(ui_build_arena(), Ui_Style);
+    style->active_bg = color;
+
+    stack_push(ui_state->active_bg_first, style);
+}
+
+internal void
+ui_active_bg_pop(void)
+{
+    stack_pop(ui_state->active_bg_first);
+}
+
+internal v4
+ui_active_bg_top(void)
+{
+    return ui_state->active_bg_first->active_bg;
 }
 
 

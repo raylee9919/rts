@@ -483,6 +483,12 @@ V4(v3 rgb, f32 a)
 }
 
 internal v4
+operator +(v4 a, v4 b) 
+{
+    return v4{a.x+b.x, a.y+b.y, a.z+b.z, a.w+b.w};
+}
+
+internal v4
 operator * (v4 a, f32 b) 
 {
     return v4{a.x*b, a.y*b, a.z*b, a.w*b};

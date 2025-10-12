@@ -385,11 +385,13 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //              1. Interact with UI built in last frame.
     //              2. Build new hierarchy while retaining some data(!!!)
     //
+    local_persist f32 light_x = 1.f;
+    local_persist f32 light_y = 1.f;
+    local_persist f32 light_z = 1.f;
     ui_begin(platform->dt, platform->window_width, platform->window_height);
     {
         ui_platform(utf8lit("⚙Developer"))
         {
-            ui_slider_f32(&ui_state->font_size, utf8lit("размер шрифта (Font Size)"));
 
             if (ui_button(utf8lit("Wireframe")))
             {
@@ -401,6 +403,9 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
             if (ui_drop(utf8lit("드랍다운(Dropdown)")))
             {
+                ui_slider_f32(&light_x, 0.0001f, 1.f, utf8lit("Light X"));
+                ui_slider_f32(&light_y, 0.0001f, 1.f, utf8lit("Light Y"));
+                ui_slider_f32(&light_z, 0.0001f, 1.f, utf8lit("Light Z"));
                 if (ui_button(utf8lit("Valient's Method")))
                 {
                     render_commands->csm_varient_method = !render_commands->csm_varient_method; 
@@ -510,7 +515,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         // @Note: CSM
         //
-        render_commands->csm_to_light = normalize(V3(1.f));
+        render_commands->csm_to_light = normalize(v3{light_x, light_y, light_z});
         f32 csm_frustum_edge_length = 50.0f;
         m4x4 inv = inverse(game_state->game_camera->VP);
         // @Todo: Renderer independent calculation!
@@ -527,7 +532,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         for (u32 i = 0; i < 4; ++i) 
         {
             positions[i] = inv * ndcs[i];
-            positions[i].xyz *= (1.0f / positions[i].w);
+            positions[i].xyz *= (1.f / positions[i].w);
         }
 
         for (u32 i = 0; i < 4; ++i) 

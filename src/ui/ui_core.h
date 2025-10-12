@@ -88,7 +88,7 @@ struct Ui_Box
     f32             mouse_position_last[AXIS2_COUNT];
 
     // Style
-    v4 bg, hot_bg;
+    v4 bg, hot_bg, active_bg;
     f32 corner_radius00, corner_radius01, corner_radius10, corner_radius11;
 
 
@@ -142,6 +142,7 @@ struct Ui_Style
     union {
         v4 bg;
         v4 hot_bg;
+        v4 active_bg;
         Axis2 flow;
         f32 text_padding;
         f32 corner_radius00;
@@ -185,6 +186,7 @@ struct Ui_State
 
     Ui_Style        *bg_first;
     Ui_Style        *hot_bg_first;
+    Ui_Style        *active_bg_first;
     Ui_Style        *flow_first;
     Ui_Style        *text_padding_first;
     Ui_Style        *corner_radius00_first;
@@ -277,6 +279,10 @@ internal v4         ui_bg_top(void);
 internal void       ui_hot_bg_push(v4 color);
 internal void       ui_hot_bg_pop(void);
 internal v4         ui_hot_bg_top(void);
+
+internal void       ui_active_bg_push(v4 color);
+internal void       ui_active_bg_pop(void);
+internal v4         ui_active_bg_top(void);
 
 internal void       ui_text_padding_push(f32 padding);
 internal void       ui_text_padding_pop(void);

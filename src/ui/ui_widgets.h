@@ -19,4 +19,7 @@ internal b32       ui_button(Utf8 text);
 internal void ui_platform_push(Utf8 text);
 internal void ui_platform_pop(void);
 
+#define ui_row() defer_loop(ui_row_push(), ui_parent_pop())
+internal void ui_row_push(void);
+
 #endif // RTS_UI_BUILDER_H
