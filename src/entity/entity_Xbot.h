@@ -104,11 +104,10 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
     }
 
 #if 1
-    for (Os_Event *event = os->event_sentinel->next, *next = NULL;
-         event != os->event_sentinel;
-         event = next)
+    for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
     {
         next = event->next;
+
         if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_RIGHT)
         {
             os_event_consume(event);

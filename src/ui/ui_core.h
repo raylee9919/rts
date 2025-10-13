@@ -71,10 +71,13 @@ struct Ui_Box
     Ui_Box         *next;
     Ui_Box         *prev;
     Ui_Box         *hash_next;
+    Ui_Box         *hash_prev;
 
-    Utf8            debug_string;
     Ui_Key          key;
     Ui_Box_Flags    flags;
+
+    Utf8            debug_string;
+    Utf8            debug_hash_string;
 
     u64             touched_tick;
     u64             first_tick;
@@ -110,29 +113,7 @@ struct Ui_Signal
     Ui_Box  *box;
 
     b32 pressed_left;
-    b32 pressed_middle;
-    b32 pressed_right;
-    b32 released_left;
-    b32 released_middle;
-    b32 released_right;
-    b32 clicked_left;
-    b32 clicked_right;
-    b32 clicked_middle;
     b32 dragging_left;
-    b32 dragging_middle;
-    b32 dragging_right;
-    b32 double_clicked_left;
-    b32 double_clicked_middle;
-    b32 double_clicked_right;
-    b32 pressed_key;
-    b32 hovering;
-    b32 mouse_is_over;
-};
-
-struct Ui_Box_Slot
-{
-    Ui_Box *first;
-    Ui_Box *last;
 };
 
 struct Ui_Style
@@ -160,11 +141,11 @@ struct Ui_State
 
 
     Arena          *build_arena[2];
-    u64             tick;
+    u64             tick_current;
 
 
     u64             box_table_size;
-    Ui_Box_Slot    *box_table;
+    Ui_Box         *box_table;
 
 
     Ui_Box          *first_free_box;
@@ -244,7 +225,10 @@ internal void           ui_animate(void);
 internal Ui_Signal      ui_signal_from_box(Ui_Box *box);
 
 internal b32            ui_key_match(Ui_Key a, Ui_Key b);
-internal Ui_Key         ui_key_from_string(Utf8 string);
+internal Utf8           ui_text_part_from_key_string(Utf8 string);
+internal Utf8           ui_hash_part_from_key_string(Utf8 string);
+internal Ui_Key         ui_key_from_stringf(Ui_Key seed, char *fmt, ...);
+internal Ui_Key         ui_key_from_string(Ui_Key seed, Utf8 string);
 internal b32            ui_box_is_nil(Ui_Box *box);
 internal Ui_Box        *ui_box_from_key(Ui_Key key);
 internal Arena         *ui_build_arena(void);
@@ -259,6 +243,8 @@ internal Arena         *ui_build_arena(void);
 #define ui_style_pop(name) {\
     stack_pop(ui_state->name##_first); }
 #define ui_style_top(name) (ui_state->name##_first->name)
+
+#define ui_box_set_nil(b) ((b)=&ui_nil_box)
 
 internal void       ui_size_push(Axis2 axis, Ui_Size_Type type, f32 value);
 internal void       ui_size_pop(Axis2 axis);

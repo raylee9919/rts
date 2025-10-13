@@ -191,6 +191,8 @@ dwrite_map_complexity(Arena *arena, IDWriteFontFace *face,
 internal Fp_Run *
 dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
 {
+    ZoneScoped;
+
     Temporary_Arena scratch = scratch_begin();
     HRESULT hr = S_OK;
 
@@ -434,6 +436,8 @@ dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
 internal void
 fp_pack_run(Fp_Run *run, b32 is_cleartype)
 {
+    ZoneScoped;
+
     HRESULT hr = S_OK;
     Temporary_Arena scratch = scratch_begin();
 
@@ -473,8 +477,11 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
     Fp_Font *font_entry = dwrite_get_font_entry(face);
     assert(font_entry);
 
-    if (font_entry->font_size != font_size)
+    // @Todo: Think about floating point mathematics.
+    if (absolute(font_entry->font_size - font_size) > 0.1f)
     {
+        ZoneScopedN("RebuildAtlas");
+
         Fp_Font *fe = font_entry;
 
         fe->font_size = font_size;
@@ -664,6 +671,8 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
 internal Fp_Draw_String_Result
 fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb)
 {
+    ZoneScoped;
+
     Fp_Run *runs = dwrite_runs_from_string(string, base_family, font_size);
 
     for (Fp_Run *run = runs; run != NULL; run = run->next)
@@ -754,7 +763,7 @@ fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_S
             }
 
             f32 advance = run->advances[i];
-            pen.x += ceilf(advance);
+            pen.x += advance;
         }
     }
 

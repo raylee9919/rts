@@ -46,17 +46,13 @@ _dll_np(void *node, u64 np)
 }
 
 internal void
-_dll_sort(void *sentinel, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*))
+_dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*))
 {
     Temporary_Arena scratch = scratch_begin();
 
-    for (void *end = _dll_np(sentinel, prev);
-         end != _dll_np(sentinel, next);
-         end = _dll_np(end, prev))
+    for (void *end = last; end != first; end = _dll_np(end, prev))
     {
-        for (void *it = _dll_np(sentinel, next);
-             it != end;
-             it = _dll_np(it, next))
+        for (void *it = first; it != end; it = _dll_np(it, next))
         {
             void *in = _dll_np(it, next);
             if (cmp(it, in))

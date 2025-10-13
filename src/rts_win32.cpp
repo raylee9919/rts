@@ -112,7 +112,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 event->type = type;
                 event->key  = key;
             }
-            dll_push_back(os->event_sentinel, event);
+            dll_push_back(os->event_first, os->event_last, event);
         } break;
 
         // @Note: Text Input
@@ -130,7 +130,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                     event->type      = OS_EVENT_TEXT;
                     event->character = c;
                 }
-                dll_push_back(os->event_sentinel, event);
+                dll_push_back(os->event_first, os->event_last, event);
             }
         } break;
 
@@ -155,7 +155,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 event->position.x = (f32)x;
                 event->position.y = (f32)y;
             }
-            dll_push_back(os->event_sentinel, event);
+            dll_push_back(os->event_first, os->event_last, event);
         } break;
 
 
@@ -187,7 +187,7 @@ winproc_mouse_scroll:;
                 event->position.x = (f32)p.x;
                 event->position.y = (f32)p.y;
             }
-            dll_push_back(os->event_sentinel, event);
+            dll_push_back(os->event_first, os->event_last, event);
         } break;
 
 
@@ -225,7 +225,7 @@ winproc_mouse:;
                   event->position.x = (f32)x;
                   event->position.y = (f32)y;
               }
-              dll_push_back(os->event_sentinel, event);
+            dll_push_back(os->event_first, os->event_last, event);
         } break;
 
         case WM_PAINT: {
@@ -626,15 +626,13 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         // # Note: Fullscreen
         //
-        for (Os_Event *ev = os->event_sentinel->next, *next = NULL;
-             ev != os->event_sentinel;
-             ev = next)
+        for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
         {
-            next = ev->next;
-            if (ev->type == OS_EVENT_PRESS && (ev->modifiers & OS_MODIFIER_ALT) && ev->key == OS_KEY_ENTER)
+            next = event->next;
+            if (event->type == OS_EVENT_PRESS && (event->modifiers & OS_MODIFIER_ALT) && event->key == OS_KEY_ENTER)
             {
                 win32_toggle_fullscreen(hwnd);
-                os_event_consume(ev);
+                os_event_consume(event);
             }
         }
 
@@ -662,7 +660,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
             v2u client_size = win32_get_client_size(hwnd);
             platform.window_width  = client_size.x;
-            platform.window_height = client_size.x;
+            platform.window_height = client_size.y;
         }
 
         Render_Commands *render_commands = NULL;

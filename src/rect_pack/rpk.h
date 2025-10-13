@@ -22,7 +22,8 @@ struct Rpk_Context
     u32 w, h;
     Rpk_Segment *first_free_segment;
     Rpk_Segment *last_free_segment;
-    Rpk_Segment *seg_sentinel;
+    Rpk_Segment *segment_first;
+    Rpk_Segment *segment_last;
 };
 
 struct Rpk_Result

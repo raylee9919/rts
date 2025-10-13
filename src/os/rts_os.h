@@ -368,7 +368,8 @@ struct OS
     Arena                           *event_arena;
     Os_Event                        *event_free_first;
     Os_Event                        *event_free_last;
-    Os_Event                        *event_sentinel;
+    Os_Event                        *event_first;
+    Os_Event                        *event_last;
 
     Os_Key                          key_table[256];
     b32                             key_is_down[256];
@@ -413,16 +414,14 @@ os_event_release(Os_Event *event)
 internal void
 os_event_consume(Os_Event *event)
 {
-    dll_remove(os->event_sentinel, event);
+    dll_remove(os->event_first, os->event_last, event);
     os_event_release(event);
 }
 
 internal void
 os_event_list_clear(void)
 {
-    for (Os_Event *event = os->event_sentinel->next, *next;
-         event != os->event_sentinel;
-         event = next)
+    for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
     {
         next = event->next;
         os_event_consume(event);

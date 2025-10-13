@@ -515,11 +515,6 @@ OS_INIT(os_win32_init)
 
     // @Note: Event
     os->event_arena = arena_alloc();
-    os->event_sentinel = push_struct(os->event_arena, Os_Event);
-    {
-        os->event_sentinel->next = os->event_sentinel;
-        os->event_sentinel->prev = os->event_sentinel;
-    }
 
     // ---------------------------------------------
     // @Note: gather paths.

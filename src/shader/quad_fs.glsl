@@ -9,7 +9,7 @@
 R"(
 
 
-uniform sampler2D u_sampler;
+layout(binding=0) uniform sampler2D u_sampler;
 
 smooth in vec2  f_position;
 smooth in vec2  f_uv;
@@ -28,7 +28,7 @@ void main()
 
     vec4 texture_color = texture(u_sampler, f_uv);
     out_color = texture_color * f_color;
-    out_color *= step(0.0, -s);
+    out_color *= smoothstep(-1.0, 1.0, -s);
 }
 
 )";

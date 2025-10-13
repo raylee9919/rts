@@ -14,7 +14,6 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <Xinput.h>
-#include <xaudio2.h>
 
 #pragma comment(lib, "user32")
 #pragma comment(lib, "gdi32")

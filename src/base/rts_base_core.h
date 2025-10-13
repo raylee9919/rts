@@ -219,37 +219,32 @@ enum
 //            I may want composible data structure, even though I don't know what it is at this point. To achieve such thing, 
 //        initialization might be a constraint. I don't know. Must do some study and experiments.
 //
-#define dll_init_npz(s, next, prev, ifz) \
-    ( ifz(s) ? \
-      (0) : \
-      ((s)->next = (s), (s)->prev = (s)) )
-#define dll_init(s) dll_init_npz(s, next, prev, check_null)
-
-#define dll_push_back_npz(s, n, next, prev, ifz) \
-    ( ifz(s) ? \
-      (0) : \
-      ( (ifz((s)->next) || ifz((s)->prev)) ? \
-        ( dll_init_npz(s, next, prev, ifz), ((n)->prev=(s)->prev, (n)->next=(s), (s)->prev->next=(n), (s)->prev=(n)) ) : \
-        ( (n)->prev=(s)->prev, (n)->next=(s), (s)->prev->next=(n), (s)->prev=(n) ) ) )
-#define dll_push_back_np(s, n, next, prev) dll_push_back_npz(s, n, next, prev, check_null)
-#define dll_push_back(s, n) dll_push_back_npz(s, n, next, prev, check_null)
-
-#define dll_remove_npz(s, n, next, prev, zchk, zset) \
-    ( ((n) == (s)) ? \
-      (0) : \
-      ( zchk(n) ? \
-        (0) : \
-        ( ((zchk((n)->prev) ? (0) : (n)->prev->next = (n)->next)), \
-          ((zchk((n)->next) ? (0) : (n)->next->prev = (n)->prev)) ) ) )
-#define dll_remove(s, n) dll_remove_npz(s, n, next, prev, check_null, set_null)
 
 
-#define dll_sort_npz(s, type, cmp, next, prev, zchk) \
-    ( zchk(s) ? (0) : _dll_sort(s, sizeof(type), offset_of(type, next), offset_of(type,prev), cmp) )
-#define dll_sort(s, type, cmp) dll_sort_npz(s, type, cmp, next, prev, check_null)
+#define dll_insert_npz(f,l,p,n,next,prev,zchk,zset) \
+    (zchk(f) ? (((f) = (l) = (n)), zset((n)->next), zset((n)->prev)) :\
+     zchk(p) ? (zset((n)->prev), (n)->next = (f), (zchk(f) ? (0) : ((f)->prev = (n))), (f) = (n)) :\
+     ((zchk((p)->next) ? (0) : (((p)->next->prev) = (n))), (n)->next = (p)->next, (n)->prev = (p), (p)->next = (n),\
+      ((p) == (l) ? (l) = (n) : (0))))
+#define dll_push_back_npz(f,l,n,next,prev,zchk,zset) dll_insert_npz(f,l,l,n,next,prev,zchk,zset)
+#define dll_remove_npz(f,l,n,next,prev,zchk,zset) (((f)==(n))?\
+                                                   ((f)=(f)->next, (zchk(f) ? (zset(l)) : zset((f)->prev))):\
+                                                   ((l)==(n))?\
+                                                   ((l)=(l)->prev, (zchk(l) ? (zset(f)) : zset((l)->next))):\
+                                                   ((zchk((n)->next) ? (0) : ((n)->next->prev=(n)->prev)),\
+                                                    (zchk((n)->prev) ? (0) : ((n)->prev->next=(n)->next))))
+#define dll_push_back(f,l,n)      dll_push_back_npz(f,l,n,next,prev,check_null,set_null)
+#define dll_push_front(f,l,n)     dll_push_back_npz(l,f,n,prev,next,check_null,set_null)
+#define dll_insert(f,l,p,n)       dll_insert_npz(f,l,p,n,next,prev,check_null,set_null)
+#define dll_remove(f,l,n)         dll_remove_npz(f,l,n,next,prev,check_null,set_null)
+
+
+#define dll_sort_npz(f, l, type, cmp, next, prev, zchk) \
+    ( (zchk(f)||zchk(l)) ? (0) : _dll_sort(f, l, sizeof(type), offset_of(type, next), offset_of(type,prev), cmp) )
+#define dll_sort(f, l, type, cmp) dll_sort_npz(f, l, type, cmp, next, prev, check_null)
 
 internal void *_dll_np(void *node, u64 np);
-internal void _dll_sort(void *sentinel, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
+internal void _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
 
 
 

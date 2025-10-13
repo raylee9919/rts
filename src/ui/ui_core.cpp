@@ -28,12 +28,11 @@ ui_init(Ui_State *ui)
     }
 
     ui->box_table_size = 4096;
-    ui->box_table      = push_array(ui->permanent_arena, Ui_Box_Slot, ui->box_table_size);
+    ui->box_table      = push_array(ui->permanent_arena, Ui_Box, ui->box_table_size);
 
     ui->base_family    = utf8lit("Segoe UI");
-    ui->font_size      = 16.f;
+    ui->font_size      = 14.0f;
 }
-
 
 // ----------------------------------------------------------------------------
 // @Note: Frame Boundaries
@@ -45,14 +44,35 @@ ui_begin(f32 dt, u32 width, u32 height)
     ui_state->dt = dt;
 
     // Prune stale boxes.
+    for (u32 slot = 0; slot < ui_state->box_table_size; ++slot)
+    {
+        Ui_Box *list = ui_state->box_table + slot;
+        for (Ui_Box *box = list->first, *next; !ui_box_is_nil(box); box = next)
+        {
+            next = box->hash_next;
+
+            if (ui_key_match(box->key, ui_key_zero) || box->touched_tick != ui_state->tick_current)
+            {
+                dll_remove_npz(list->first, list->last, box, hash_next, hash_prev, ui_box_is_nil, ui_box_set_nil);
+                sll_push_back(ui_state->first_free_box, ui_state->last_free_box, box);
+            }
+        }
+    }
+
     if ((!ui_key_match(ui_state->active_key, ui_key_zero)) &&
-        ui_box_from_key(ui_state->active_key)->touched_tick != ui_state->tick)
+        ui_box_from_key(ui_state->active_key)->touched_tick != ui_state->tick_current)
     {
         ui_state->active_key = ui_key_zero;
     }
 
+    if ((!ui_key_match(ui_state->hot_key, ui_key_zero)) &&
+        ui_box_from_key(ui_state->hot_key)->touched_tick != ui_state->tick_current)
+    {
+        ui_state->hot_key = ui_key_zero;
+    }
+
     // Increment tick and clear the arena to be used on current frame.
-    ui_state->tick += 1;
+    ui_state->tick_current += 1;
     arena_clear(ui_build_arena());
 
 
@@ -72,20 +92,21 @@ ui_begin(f32 dt, u32 width, u32 height)
     ui_hot_bg_push(v4{0.18f, 0.18f, 0.18f, 1.0f});
     ui_active_bg_push(v4{0.18f, 0.18f, 0.18f, 1.0f});
     ui_text_padding_push(2.f);
-    ui_style_push(corner_radius00, 0.f);
-    ui_style_push(corner_radius01, 0.f);
-    ui_style_push(corner_radius10, 0.f);
-    ui_style_push(corner_radius11, 0.f);
     ui_size_push(AXIS2_X, UI_SIZE_TYPE_PX, (f32)width);
     ui_size_push(AXIS2_Y, UI_SIZE_TYPE_PX, (f32)height);
     ui_seed_push(ui_key_zero);
 
+    // @Todo: Not a fan of this macro.
+    ui_style_push(corner_radius00, 0.f);
+    ui_style_push(corner_radius01, 0.f);
+    ui_style_push(corner_radius10, 0.f);
+    ui_style_push(corner_radius11, 0.f);
+
     // Reset hot key.
     zero_struct(&ui_state->hot_key);
 
-
     // Build root.
-    ui_state->root = ui_box_build_from_string(0, utf8lit("UI Root"));
+    ui_state->root = ui_box_build_from_string(0, utf8lit("User Interface Root"));
 
     // Push root.
     ui_parent_push(ui_state->root);
@@ -94,6 +115,8 @@ ui_begin(f32 dt, u32 width, u32 height)
 internal void 
 ui_end(void)
 {
+    ZoneScoped;
+
     assert(ui_state->current_parent == ui_state->root);
 
     for (Axis2 axis = AXIS2_X; axis < AXIS2_COUNT; ++axis)
@@ -106,6 +129,8 @@ ui_end(void)
 
     ui_animate();
     ui_draw(ui_state->root, v2{});
+
+    ui_parent_pop();
 }
 
 // ----------------------------------------------------------------------------
@@ -115,12 +140,14 @@ internal void
 ui_parent_push(Ui_Box *box)
 {
     ui_state->current_parent = box;
+    ui_seed_push(box->key);
 }
 
 internal void
 ui_parent_pop(void)
 {
     ui_state->current_parent = ui_state->current_parent->parent;
+    ui_seed_pop();
 }
 
 // ----------------------------------------------------------------------------
@@ -145,16 +172,31 @@ ui_box_alloc(void)
 }
 
 internal Ui_Box *
+ui_box_build_from_stringf(Ui_Box_Flags flags, char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    Utf8 string = utf8fv(ui_build_arena(), fmt, args);
+    Ui_Box *box = ui_box_build_from_string(flags, string);
+    va_end(args);
+    return box;
+}
+
+internal Ui_Box *
 ui_box_build_from_string(Ui_Box_Flags flags, Utf8 string)
 {
-    Ui_Key key  = ui_key_from_string(string);
-    Ui_Box *box = ui_box_build_from_key(flags, key);
+    Ui_Key seed         = ui_seed_top();
+    Utf8 string_to_hash = ui_hash_part_from_key_string(string);
+    Ui_Key key          = ui_key_from_string(seed, string_to_hash);
+    Ui_Box *box         = ui_box_build_from_key(flags, key);
 
-    box->debug_string = string;
+    box->debug_string      = string;
+    box->debug_hash_string = string_to_hash;
 
     if (flags & UI_BOX_FLAG_DRAW_TEXT)
     {
-        ui_equip_text(box, string);
+        Utf8 text = ui_text_part_from_key_string(string);
+        ui_equip_text(box, text);
     }
 
     return box;
@@ -164,28 +206,36 @@ internal Ui_Box *
 ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
 {
     Ui_Box *box = ui_box_from_key(key); 
-    b32 first = 0;
 
+    // Already touched.
+    if (box->touched_tick == ui_state->tick_current)
+    {
+        box = &ui_nil_box;
+        key = ui_key_zero;
+    }
+
+    b32 first = 0;
     if (ui_box_is_nil(box))
     {
         box = ui_box_alloc();
         u64 slot = key.e[0] % ui_state->box_table_size;
-        sll_push_back_n(ui_state->box_table[slot].first, ui_state->box_table[slot].last, box, hash_next);
-        first = 1;
+        Ui_Box *list = ui_state->box_table + slot;
+        dll_push_back_npz(list->first, list->last, box, hash_next, hash_prev, ui_box_is_nil, ui_box_set_nil);
+        first = true;
     }
 
-    if (ui_state->current_parent)
-    {
-        sll_push_back(ui_state->current_parent->first, ui_state->current_parent->last, box);
-    }
 
     // Initialize state.
     box->key            = key;
     box->parent         = ui_state->current_parent;
+    box->first          = NULL;
+    box->last           = NULL;
+    box->next           = NULL;
+    box->prev           = NULL;
     box->flags          = flags;
     box->flow           = ui_flow_top();
-    box->touched_tick   = ui_state->tick;
-    box->first_tick     = first ? ui_state->tick : box->first_tick;
+    box->touched_tick   = ui_state->tick_current;
+    box->first_tick     = first ? ui_state->tick_current : box->first_tick;
 
     box->bg              = ui_bg_top();
     box->hot_bg          = ui_hot_bg_top();
@@ -198,8 +248,10 @@ ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
     box->semantic_size[AXIS2_X] = ui_size_top(AXIS2_X);
     box->semantic_size[AXIS2_Y] = ui_size_top(AXIS2_Y);
 
-    // Push seed
-    ui_seed_push(key);
+    if (ui_state->current_parent)
+    {
+        sll_push_back(ui_state->current_parent->first, ui_state->current_parent->last, box);
+    }
 
     return box;
 }
@@ -218,21 +270,9 @@ ui_equip_text(Ui_Box *box, Utf8 text)
         box->text->padding     = ui_text_padding_top();
     }
 
-#if 0
-    if (ui_flow_top() == AXIS2_X)
-    {
-        box->semantic_size[AXIS2_X].type = UI_SIZE_TYPE_TEXT;
-    }
-    else
-    {
-        box->semantic_size[AXIS2_X].type  = UI_SIZE_TYPE_PCT;
-        box->semantic_size[AXIS2_X].value = 1.0f;
-    }
-    box->semantic_size[AXIS2_Y].type = UI_SIZE_TYPE_TEXT;
-#else
+
     box->semantic_size[AXIS2_X].type = UI_SIZE_TYPE_TEXT;
     box->semantic_size[AXIS2_Y].type = UI_SIZE_TYPE_TEXT;
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -241,6 +281,8 @@ ui_equip_text(Ui_Box *box, Utf8 text)
 internal void
 ui_solve_size_independent(Ui_Box *root, Axis2 axis)
 {
+    ZoneScoped;
+
     switch (root->semantic_size[axis].type)
     {
         case UI_SIZE_TYPE_PX:
@@ -276,6 +318,8 @@ ui_solve_size_independent(Ui_Box *root, Axis2 axis)
 internal void
 ui_solve_size_dependent_upward(Ui_Box *root, Axis2 axis)
 {
+    ZoneScoped;
+
     switch (root->semantic_size[axis].type)
     {
         case UI_SIZE_TYPE_PCT: 
@@ -311,6 +355,8 @@ ui_solve_size_dependent_upward(Ui_Box *root, Axis2 axis)
 internal void
 ui_solve_size_dependent_downward(Ui_Box *root, Axis2 axis)
 {
+    ZoneScoped;
+
     for (Ui_Box *child = root->first; !ui_box_is_nil(child); child = child->next)
     {
         ui_solve_size_dependent_downward(child, axis);
@@ -350,6 +396,8 @@ ui_solve_size_dependent_downward(Ui_Box *root, Axis2 axis)
 internal void
 ui_solve_size_violation(Ui_Box *root, Axis2 axis)
 {
+    ZoneScoped;
+
     f32 budget = root->computed_size[axis];
 
     for (Ui_Box *child = root->first; !ui_box_is_nil(child); child = child->next)
@@ -403,10 +451,12 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
 internal void
 ui_draw(Ui_Box *root, v2 root_position)
 {
+    ZoneScoped;
+
     v2 min;
 
     // Solve absolute position.
-    if ((root->flags & UI_BOX_FLAG_DYNAMIC_POSITION) && (ui_state->tick != root->first_tick))
+    if ((root->flags & UI_BOX_FLAG_DYNAMIC_POSITION) && (ui_state->tick_current != root->first_tick))
     {
         min = v2{root->position[AXIS2_X], root->position[AXIS2_Y]};
     }
@@ -467,6 +517,8 @@ ui_draw(Ui_Box *root, v2 root_position)
 internal void
 ui_animate(void)
 {
+    ZoneScoped;
+
     f32 rate = 1 - pow(2.f, -50.f * ui_state->dt*0.2f);
 
     for (u64 slot = 0; slot < ui_state->box_table_size; ++slot)
@@ -501,7 +553,7 @@ ui_signal_from_box(Ui_Box *box)
 
     if (! ui_box_is_nil(box))
     {
-        for (Os_Event *event = os->event_sentinel->next, *next; event != os->event_sentinel; event = next)
+        for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
         {
             next = event->next;
 
@@ -544,7 +596,8 @@ ui_signal_from_box(Ui_Box *box)
         }
     }
 
-    if (intersects(aabb, os->mouse_position_last))
+    if (intersects(aabb, os->mouse_position_last) &&
+        ui_key_match(ui_state->active_key, ui_key_zero))
     {
         ui_state->hot_key = box->key;
     }
@@ -565,11 +618,44 @@ ui_key_match(Ui_Key a, Ui_Key b)
     return ( a.e[0] == b.e[0] );
 }
 
-internal Ui_Key
-ui_key_from_string(Utf8 string)
+internal Utf8
+ui_text_part_from_key_string(Utf8 string)
 {
-    Ui_Key seed = ui_seed_top();
+    u64 double_pound_pos = utf8_find_substr(string, utf8lit("##"), 0, 0);
+    if (double_pound_pos < string.len)
+    {
+        string.len = double_pound_pos;
+    }
+    return string;
+}
 
+internal Utf8
+ui_hash_part_from_key_string(Utf8 string)
+{
+    u64 triple_pound_pos = utf8_find_substr(string, utf8lit("###"), 0, 0);
+    if (triple_pound_pos < string.len)
+    {
+        string = utf8(string.str + triple_pound_pos + 3, string.len - triple_pound_pos - 3);
+    }
+    return string;
+}
+
+internal Ui_Key
+ui_key_from_stringf(Ui_Key seed, char *fmt, ...)
+{
+    Temporary_Arena scratch = scratch_begin();
+    va_list args;
+    va_start(args, fmt);
+    Utf8 string = utf8fv(scratch.arena, fmt, args);
+    Ui_Key result = ui_key_from_string(seed, string);
+    va_end(args);
+    scratch_end(scratch);
+    return result;
+}
+
+internal Ui_Key
+ui_key_from_string(Ui_Key seed, Utf8 string)
+{
     Ui_Key key = {};
     if (string.len > 0)
     {
@@ -593,7 +679,7 @@ ui_box_is_nil(Ui_Box *box)
 internal Ui_Box *
 ui_box_from_key(Ui_Key key)
 {
-    Ui_Box *result = NULL;
+    Ui_Box *result = &ui_nil_box;
 
     u64 slot = (key.e[0] % ui_state->box_table_size);
 
@@ -617,7 +703,7 @@ ui_box_from_key(Ui_Key key)
 internal Arena *
 ui_build_arena(void)
 {
-    u64 index = ui_state->tick % array_count(ui_state->build_arena);
+    u64 index = ui_state->tick_current % array_count(ui_state->build_arena);
     return ui_state->build_arena[index];
 }
 

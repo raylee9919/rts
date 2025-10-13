@@ -7,9 +7,6 @@
    ======================================================================== */
 
 
-// ---------------------------------------------------------------------------
-// @Note: cdt stands for 'constrained delaunay triangulation'.
-
 internal u32
 cdt_bin_partition(int *VIDX, u32 lo, u32 hi, int *BIN) 
 {

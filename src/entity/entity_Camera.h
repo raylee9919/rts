@@ -118,7 +118,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
         local_persist v2 mouse_position_last = {};
         local_persist b32 dragging = false;
 
-        for (Os_Event *event = os->event_sentinel->next, *next; event != os->event_sentinel; event = next)
+        for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
         {
             next = event->next;
 

@@ -582,7 +582,8 @@ gl_pbr_bind_texture_and_set_flags(Opengl *gl, Mesh *mesh, GLuint slot, GLenum wr
 
             INVALID_DEFAULT_CASE;
         }
-        if (!texture->handle) {
+        if (! texture->handle) 
+        {
             opengl_alloc_texture(gl, texture, wrapping, mipmap);
         }
         glBindTextureUnit(slot, texture->handle);
@@ -1513,7 +1514,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 GLuint gl_id = opengl_id_from_render_id(cmd.texture.id);
 
                 glBindTexture(GL_TEXTURE_2D, gl_id);
-                glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, cmd.texture.width, cmd.texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cmd.texture.data);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, cmd.texture.width, cmd.texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cmd.texture.data);
             }break;
         }
     }
@@ -1566,7 +1567,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                             else
                             {
                                 GLuint gl_id = opengl_id_from_render_id(texture_id);
-                                glBindTexture(GL_TEXTURE_2D, gl_id);
+                                glBindTextureUnit(0, gl_id);
                             }
 
                             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 4*i, 4, 1);
