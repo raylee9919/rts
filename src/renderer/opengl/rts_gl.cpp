@@ -616,9 +616,9 @@ opengl_compile_shaders(Opengl *gl)
              Pbr_No_Lighting
             );
 
-    char *pbr_vs = 
+    char *pbr_vs =
     #include "shader/pbr_vs.glsl"
-    char *pbr_fs = 
+    char *pbr_fs =
     #include "shader/pbr_fs.glsl"
 
     char *skybox_vs = 

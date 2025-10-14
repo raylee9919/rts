@@ -12,13 +12,9 @@
 #define BEGIN_ENTITY
 #define END_ENTITY
 
-#define TRACY_ENABLE
-#include "tracy/tracy/Tracy.hpp"
-#include "tracy/TracyClient.cpp"
-
-
 // @Note: [.h]
 //
+#include "embed_profiler.h"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_random.h"
@@ -74,7 +70,7 @@ update_entities(World *world, Game_State *game_state)
 }
 
 internal void
-draw_entities(Game_State *game_state, Render_Commands *commands, Render_Group *render_group, Render_Group *orthographic_group, v3 center, v3 draw_dim)
+draw_entities(Game_State *game_state, Render_Commands *commands, Render_Group *render_group, v3 center, v3 draw_dim)
 {
     World *world = game_state->world;
     for (u32 idx = 0; idx < world->entity_count; ++idx) 
@@ -82,7 +78,7 @@ draw_entities(Game_State *game_state, Render_Commands *commands, Render_Group *r
         Entity *entity = world->entities[idx];
         if (entity->id != 0) 
         {
-            entity->draw(entity, game_state, commands, render_group, orthographic_group);
+            entity->draw(entity, game_state, commands, render_group);
         }
     }
 }
@@ -100,7 +96,7 @@ update_cameras(World *world, Game_State *game_state)
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
-    FrameMark;
+    ProfileFrameMark;
 
     if (! os) 
     {
@@ -359,7 +355,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     Game_Assets *assets = game_state->assets;
     
     Render_Group *render_group       = begin_render_group(render_commands, MB(16));
-    Render_Group *orthographic_group = begin_render_group(render_commands, MB(16));
     
     // @Temporary:
     Navmesh *navmesh = game_state->navmesh;
@@ -405,7 +400,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             if (ui_expander(utf8lit("阴影 (Shadow)")))
             {
                 ui_slider_f32(&light_x, -1.f, 1.f, utf8lit("Φως X"));
-                ui_slider_f32(&light_y, 0.1f, 1.f, utf8lit("Light Y"));
+                ui_slider_f32(&light_y,  0.1f, 1.f, utf8lit("Light Y"));
                 ui_slider_f32(&light_z, -1.f, 1.f, utf8lit("빛 Z"));
                 if (ui_button(utf8lit("Valient's Method")).pressed_left)
                 {
@@ -435,11 +430,13 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     
     switch (game_state->mode) 
     {
+        default: { assert(! "invalid default case"); }break;
+
         case GAME_MODE_GAME: 
         {
             update_entities(world, game_state);
-            draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
-        } break;
+            draw_entities(game_state, render_commands, render_group, game_state->controlling_camera->position, V3(100));
+        }break;
         
         case GAME_MODE_EDITOR: 
         {
@@ -488,12 +485,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             
             // no update entities in editor mode.
             update_cameras(world, game_state);
-            draw_entities(game_state, render_commands, render_group, orthographic_group, game_state->controlling_camera->position, V3(100));
-        } break;
-        
-        default: {
-            assert(! "invalid default case"); 
-        } break;
+            draw_entities(game_state, render_commands, render_group, game_state->controlling_camera->position, V3(100));
+        }break;
     }
     
     { // @Note: Render Commands

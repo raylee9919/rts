@@ -191,7 +191,7 @@ dwrite_map_complexity(Arena *arena, IDWriteFontFace *face,
 internal Fp_Run *
 dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
 {
-    ZoneScoped;
+    ProfileScope;
 
     Temporary_Arena scratch = scratch_begin();
     HRESULT hr = S_OK;
@@ -436,7 +436,7 @@ dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
 internal void
 fp_pack_run(Fp_Run *run, b32 is_cleartype)
 {
-    ZoneScoped;
+    ProfileScope;
 
     HRESULT hr = S_OK;
     Temporary_Arena scratch = scratch_begin();
@@ -480,7 +480,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
     // @Todo: Think about floating point mathematics.
     if (absolute(font_entry->font_size - font_size) > 0.1f)
     {
-        ZoneScopedN("RebuildAtlas");
+        ProfileScopeN("RebuildAtlas");
 
         Fp_Font *fe = font_entry;
 
@@ -588,6 +588,8 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
 
                 u32 rgb_bitmap_size = (is_cleartype) ? (blackbox_width*3)*blackbox_height : blackbox_width*blackbox_height; 
                 u8 *bitmap_data_rgb = (u8 *)push_size(scratch.arena, rgb_bitmap_size);
+          
+                // @Note: Profiled. CreateAlphaTexture() takes about 7-cycles including assertion.
                 assert(SUCCEEDED(analysis->CreateAlphaTexture(texture_type, &bounds, bitmap_data_rgb, rgb_bitmap_size)));
 
                 u32 x1 = 0;
@@ -671,7 +673,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
 internal Fp_Draw_String_Result
 fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb)
 {
-    ZoneScoped;
+    ProfileScope;
 
     Fp_Run *runs = dwrite_runs_from_string(string, base_family, font_size);
 

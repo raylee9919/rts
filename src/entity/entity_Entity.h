@@ -12,7 +12,7 @@ struct Render_Group;
 #define ENTITY_FUNCTION_UPDATE(NAME) void NAME(Entity *entity, Game_State *game_state)
 typedef ENTITY_FUNCTION_UPDATE(Entity_Function_Update);
 
-#define ENTITY_FUNCTION_DRAW(NAME) void NAME(Entity *entity, Game_State *game_state, Render_Commands *commands, Render_Group *render_group, Render_Group *orthographic_group)
+#define ENTITY_FUNCTION_DRAW(NAME) void NAME(Entity *entity, Game_State *game_state, Render_Commands *commands, Render_Group *render_group)
 typedef ENTITY_FUNCTION_DRAW(Entity_Function_Draw);
 
 #define ENTITY_FUNCTION_SERIALIZE(NAME) void NAME(Entity *entity, Game_State *game_state, FILE *file)
@@ -29,14 +29,16 @@ internal ENTITY_FUNCTION_SERIALIZE(serialize_##ENTITY);\
 internal ENTITY_FUNCTION_SERIALIZE(serialize_Entity);
 
 
-enum Entity_Command {
-    Command_Invalid = 0x0,
+enum Entity_Command
+{
+    Command_Invalid = 0,
     Command_Stop,
     Command_Move,
     Command_Dieing,
 };
 
-enum Entity_Flags : u64 {
+enum Entity_Flags : u64 
+{
     Flag_Dead       = (1<<0),
     Flag_Navmesh    = (1<<1),
 };

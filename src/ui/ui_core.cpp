@@ -115,7 +115,7 @@ ui_begin(f32 dt, u32 width, u32 height)
 internal void 
 ui_end(void)
 {
-    ZoneScoped;
+    ProfileScope;
 
     assert(ui_state->current_parent == ui_state->root);
 
@@ -259,6 +259,8 @@ ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
 internal void
 ui_equip_text(Ui_Box *box, Utf8 text)
 {
+    ProfileScope;
+
     box->text = push_struct(ui_build_arena(), Ui_Text);
     {
         Fp_Draw_String_Result dsr = fp_draw_string(text, ui_state->base_family, ui_state->font_size, V2(0.f), RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
@@ -281,7 +283,7 @@ ui_equip_text(Ui_Box *box, Utf8 text)
 internal void
 ui_solve_size_independent(Ui_Box *root, Axis2 axis)
 {
-    ZoneScoped;
+    ProfileScope;
 
     switch (root->semantic_size[axis].type)
     {
@@ -318,7 +320,7 @@ ui_solve_size_independent(Ui_Box *root, Axis2 axis)
 internal void
 ui_solve_size_dependent_upward(Ui_Box *root, Axis2 axis)
 {
-    ZoneScoped;
+    ProfileScope;
 
     switch (root->semantic_size[axis].type)
     {
@@ -355,7 +357,7 @@ ui_solve_size_dependent_upward(Ui_Box *root, Axis2 axis)
 internal void
 ui_solve_size_dependent_downward(Ui_Box *root, Axis2 axis)
 {
-    ZoneScoped;
+    ProfileScope;
 
     for (Ui_Box *child = root->first; !ui_box_is_nil(child); child = child->next)
     {
@@ -396,7 +398,7 @@ ui_solve_size_dependent_downward(Ui_Box *root, Axis2 axis)
 internal void
 ui_solve_size_violation(Ui_Box *root, Axis2 axis)
 {
-    ZoneScoped;
+    ProfileScope;
 
     f32 budget = root->computed_size[axis];
 
@@ -451,7 +453,7 @@ ui_solve_size_violation(Ui_Box *root, Axis2 axis)
 internal void
 ui_draw(Ui_Box *root, v2 root_position)
 {
-    ZoneScoped;
+    ProfileScope;
 
     v2 min;
 
@@ -517,7 +519,7 @@ ui_draw(Ui_Box *root, v2 root_position)
 internal void
 ui_animate(void)
 {
-    ZoneScoped;
+    ProfileScope;
 
     f32 rate = 1 - pow(2.f, -50.f * ui_state->dt*0.2f);
 
