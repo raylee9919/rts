@@ -8,7 +8,7 @@
 
 
 // @Todo: We are testing our metaprogramming currently. Those defines are kind of 
-//         API for serializing data types of entity known to serialization module.
+//        API for serializing data types of entity known to serialization module.
 #define BEGIN_ENTITY
 #define END_ENTITY
 

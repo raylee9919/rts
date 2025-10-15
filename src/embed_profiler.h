@@ -9,7 +9,7 @@
    ======================================================================== */
 
 
-#if BUILD_DEBUG
+#if BUILD_PROFILE
 #  define TRACY_ENABLE
 #  include "tracy/tracy/Tracy.hpp"
 #  include "tracy/TracyClient.cpp"

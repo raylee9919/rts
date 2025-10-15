@@ -18,7 +18,7 @@ if "%debug%"=="1" set release=0 && echo [Debug Build]
 if "%release%"=="1" set debug=0 && echo [Release Build]
 
 set compiler=cl
-set flags_common=/std:c++17 /nologo /FC /Z7 /utf-8 /D__DEVELOPER=1 /D__MSVC=1 /I..\src /I..\src\vendor
+set flags_common=/std:c++17 /nologo /FC /Z7 /EHsc /utf-8 /D__DEVELOPER=1 /I..\src /I..\src\vendor
 set flags_debug=/Od /DBUILD_DEBUG=1
 set flags_release=/O2 /DBUILD_DEBUG=0
 set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS /wd4456 /wd4100 /wd4189 /wd4505 /wd4201 /wd4477 /wd4311 /wd4302 /wd4005 /wd4244 /wd4706
@@ -28,6 +28,8 @@ set flags_linker=/incremental:no /opt:ref
                         set flags_compile=%flags_common% %flags_warning%
 if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
 if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
+if "%profile%"=="1"     set flags_compile=%flags_compile% /DBUILD_PROFILE=1    && echo [Profiler Enabled]
+if "%asan%"=="1"        set flags_compile=%flags_compile% /fsanitize=address && echo [ASAN Enabled]
 
 
 :: ---------------------------- Projects ---------------------------- ::

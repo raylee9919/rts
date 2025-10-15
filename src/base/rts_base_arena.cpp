@@ -12,13 +12,13 @@ internal Arena *
 arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
 {
     u64 page_size = os->query_page_size();
-    u64 rsv_size = align_pow2(rsv_size_in, page_size);
-    u64 cmt_size = align_pow2(cmt_size_in, page_size);
+    u64 rsv_size  = align_pow2(rsv_size_in, page_size);
+    u64 cmt_size  = align_pow2(cmt_size_in, page_size);
 
     void *base = os->memory_reserve(rsv_size);
     os->memory_commit(base, cmt_size);
 
-    Assert(base != 0);
+    assert(base != 0);
 
     Arena *arena = (Arena *)base;
     {
@@ -30,6 +30,9 @@ arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
         arena->cmt           = cmt_size;
         arena->rsv           = rsv_size;
     }
+
+    asan_poison(arena, cmt_size);
+    asan_unpoison(arena, ARENA_HEADER_SIZE);
 
     return arena;
 }
@@ -87,6 +90,7 @@ arena_push(Arena *arena, u64 size, u64 align)
     {
         result = (u8 *)current+pos_pre;
         current->pos = pos_pst;
+        asan_unpoison(result, size);
     }
 
     return result;
@@ -114,7 +118,8 @@ arena_pop_to(Arena *arena, u64 pos)
 
     arena->current = current;
     u64 new_pos = big_pos - current->base_pos;
-    Assert(new_pos <= current->pos);
+    assert(new_pos <= current->pos);
+    asan_poison((u8 *)current + new_pos, (current->pos - new_pos));
     current->pos = new_pos;
 }
 

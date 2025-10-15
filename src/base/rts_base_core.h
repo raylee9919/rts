@@ -8,8 +8,8 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// --------------------------------------
-// @Note: Define platform.
+// NOTE: Define platform.
+//
 #ifdef _WIN32
 #  define OS_WINDOWS 1
 #endif
@@ -18,8 +18,8 @@
 #  define COMPILER_CL 1
 #endif
 
-// --------------------------------------
-// @Note: Check platform.
+// NOTE: Check platform.
+//
 #if OS_WINDOWS
 #else
 #  error "Undefined OS"
@@ -30,8 +30,8 @@
 #  error "Undefined Compiler"
 #endif
 
-// --------------------------------------
-// @Note: Define per-platform stuffs.
+// NOTE: Define per-platform stuffs.
+//
 #if OS_WINDOWS
 #  define break_debugger() __debugbreak()
 #else
@@ -44,7 +44,7 @@
 #elif (COMPILER_CLANG && OS_LINUX)
 #  define read_only __attribute__((section(".rodata")))
 #else
-// @Todo: GCC
+// TODO: GCC
 #  define read_only
 #endif
 
@@ -53,7 +53,7 @@
 #  define write_barrier() _WriteBarrier()
 #elif COMPILER_CLANG
 #  include <x86intrin.h>
-#  define write_barrier()  // @Todo:
+#  define write_barrier()  // TODO:
 #endif
 
 #if COMPILER_CL
@@ -64,8 +64,8 @@
 
 #define read_timer_stamp_counter() __rdtsc()
 
-// -----------------------------------------------
-// @Note: Align Of
+// NOTE: Align Of
+//
 #if COMPILER_CL || COMPILER_CLANG
 #  define align_of(t) __alignof(t)
 #elif COMPILER_GCC
@@ -74,11 +74,40 @@
 #  error align_of is not defined in this compiler.
 #endif
 
+// NOTE: Address Sanitizer
+//
+#if COMPILER_MSVC
+# if defined(__SANITIZE_ADDRESS__)
+#  define ASAN_ENABLED 1
+#  define NO_ASAN __declspec(no_sanitize_address)
+# else
+#  define NO_ASAN
+# endif
+#elif COMPILER_CLANG
+# if defined(__has_feature)
+#  if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+#   define ASAN_ENABLED 1
+#  endif
+# endif
+# define NO_ASAN __attribute__((no_sanitize("address")))
+#else
+# define NO_ASAN
+#endif
+
+#if ASAN_ENABLED
+extern "C" void __asan_poison_memory_region(void const volatile *addr, size_t size);
+extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
+#  define asan_poison(addr, size)   __asan_poison_memory_region((addr), (size))
+#  define asan_unpoison(addr, size) __asan_unpoison_memory_region((addr), (size))
+#else
+#  define asan_poison(addr, size)   ((void)(addr), (void)(size))
+#  define asan_unpoison(addr, size) ((void)(addr), (void)(size))
+#endif
 
 
 
 // --------------------------------------
-// @Note: 3rd-party include
+// NOTE: 3rd-party include
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
@@ -140,7 +169,7 @@ enum
 #define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
 
 // -------------------------------------
-// @Note: Clamp
+// NOTE: Clamp
 
 #define array_count(array) ( sizeof(array) / sizeof(array[0]) )
 #define int_from_ptr(p) (u64)(((u8*)p) - 0)
@@ -157,7 +186,7 @@ enum
 #define quick_sort(base, type, count, cmp) qsort((base), (count), sizeof(type), (int(*)(const void *, const void *))(cmp))
 
 // ----------------------------------
-// @Note: Memory Operations
+// NOTE: Memory Operations
 #define memory_copy(dst, src, size) memmove((dst), (src), (size))
 #define memory_set(dst, byte, size) memset((dst), (byte), (size))
 #define memory_compare(a, b, size)  memcmp((a), (b), (size))
@@ -167,13 +196,13 @@ enum
 #define zero_array(ptr, count)      memory_set((ptr), 0, sizeof(*(ptr))*(count))
 
 // ----------------------------------
-// @Note: Data Structure Macros
+// NOTE: Data Structure Macros
 #define check_null(p) ((p)==0)
 #define set_null(p) ((p)=0)
 #define check_nil(nil, p) ((p)==0 || (p)==(nil))
 
 
-// @Note: List
+// NOTE: List
 //
 #define sll_push_back_nz(f, l, n, nxt, zchk, zset) \
     ( ( zchk(f) ) ? \
@@ -205,7 +234,7 @@ enum
 
 
 // ---------------------------------------
-// @Note: Doubly Linked List
+// NOTE: Doubly Linked List
 //            You don't use a sentinel, and you pass 'item_first' pointer as a parameter to a function.
 //        In the function, you remove the first item. What happens next? When you pop out of the function, 
 //        you lost track of the 'actual' first item in the list. Maybe you can resolve this by double pointer macro though.
@@ -292,7 +321,7 @@ internal void _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, i
 
 
 // -----------------------------------------
-// @Note: Scope Exit.
+// NOTE: Scope Exit.
 template <typename F>
 struct Scope_Exit {
     Scope_Exit(F f) : f(f) {}
@@ -318,8 +347,8 @@ get_filename_from_filepath(const char *filepath)
     return result;
 }
 
-// -------------------------------------------------
-// @Note: Helper Functions
+// NOTE: Helper Functions
+//
 internal u16 to_u16_safe(u32 x);
 internal u32 to_u32_safe(u64 x);
 internal s32 to_s32_safe(s64 x);
@@ -328,8 +357,8 @@ internal umm to_raw(f32 val);
 
 
 
-// -------------------------------------------------
-// @Note: Constants
+// NOTE: Constants
+//
 read_only global const u8 U8_MAX = 0xFF;
 read_only global const u8 U8_MIN = 0;
 

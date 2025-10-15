@@ -850,8 +850,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 
     // @Note: If you change CSM_COUNT, you need to add interpolation value in here!
-    const f32 frustum_z_weights[CSM_COUNT - 1] = {
-        0.25f, 0.50f, 0.75f
+    const f32 frustum_z_weights[CSM_COUNT] = {
+        0.25f, 0.50f, 0.75f, 1.0f
     };
     f32 csm_z_spans[CSM_COUNT];
     for (u32 i = 0; i < CSM_COUNT; ++i) {
