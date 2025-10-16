@@ -7,6 +7,8 @@
    ======================================================================== */
 
 
+// TODO: Seems like COM is leaking our precious memory.
+
 
 internal Fp_State *
 fp_alloc(void)

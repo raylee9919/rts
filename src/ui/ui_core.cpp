@@ -658,16 +658,12 @@ ui_key_from_stringf(Ui_Key seed, char *fmt, ...)
 internal Ui_Key
 ui_key_from_string(Ui_Key seed, Utf8 string)
 {
+    ProfileScope;
+
     Ui_Key key = {};
     if (string.len > 0)
     {
-        memory_copy(&key, &seed, sizeof(Ui_Key));
-        for (u64 i = 0; i < string.len; ++i)
-        {
-            // @Todo: I'm just starting by being lazy and throwing djb2.
-            //         https://theartincode.stanis.me/008-djb2/
-            key.e[0] = ( (key.e[0] << 5) + key.e[0] ) + string.str[i];
-        }
+        key.e[0] = XXH3_64bits_withSeed(string.str, string.len, key.e[0]);
     }
     return key;
 }

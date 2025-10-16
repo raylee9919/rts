@@ -73,7 +73,7 @@ struct Date_Time
     u8  milliseconds;
 };
 
-// # Note: Event
+// NOTE: Event
 //
 typedef u16 Os_Event_Type;
 enum 
@@ -215,7 +215,7 @@ struct Os_Event
 
 
 
-// # Note: OS Include
+// NOTE: OS Include
 //
 #if OS_WINDOWS
 #  include "os/win32/rts_os_win32.h"
@@ -223,8 +223,8 @@ struct Os_Event
 #  error Undefined OS
 #endif
 
-// -----------------------------------------
-// @Note: File
+// Note: File
+//
 #define OS_FILE_IS_VALID(name) b32 name(Os_Handle file)
 typedef OS_FILE_IS_VALID(Os_File_Is_Valid);
 
@@ -252,8 +252,8 @@ typedef OS_FILE_COPY(Os_File_Copy);
 #define OS_MAKE_DIRECTORY(name) b32 name(Utf8 path)
 typedef OS_MAKE_DIRECTORY(Os_Make_Directory);
 
-// --------------------------------------
-// @Note: File Iterator
+// Note: File Iterator
+//
 #define OS_FILE_ITERATOR_BEGIN(name) Os_File_Iterator *name(Arena *arena, Utf8 path)
 typedef OS_FILE_ITERATOR_BEGIN(Os_File_Iterator_Begin);
 
@@ -263,8 +263,8 @@ typedef OS_FILE_ITERATOR_NEXT(Os_File_Iterator_Next);
 #define OS_FILE_ITERATOR_END(name) void name(Os_File_Iterator *it)
 typedef OS_FILE_ITERATOR_END(Os_File_Iterator_End);
 
-// --------------------------------------
-// @Note: System Info
+// Note: System Info
+//
 #define OS_QUERY_PAGE_SIZE(name) u64 name(void)
 typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
 
@@ -278,8 +278,8 @@ typedef OS_STRING_FROM_SYSTEM_PATH_KIND(Os_String_From_System_Find_Kind);
 typedef OS_ATTRIBUTES_FROM_FILE_PATH(Os_Attributes_From_File_Path);
 
 
-// ---------------------------------------
-// @Note: Memory
+// Note: Memory
+//
 #define OS_RESERVE(name) void *name(u64 size)
 typedef OS_RESERVE(Os_Reserve);
 
@@ -292,23 +292,23 @@ typedef OS_DECOMMIT(Os_Decommit);
 #define OS_RELEASE(name) void name(void *ptr, u64 size)
 typedef OS_RELEASE(Os_Release);
 
-// -----------------------------------------
-// @Note: Abort
+// Note: Abort
+//
 #define OS_ABORT(name) void name(void)
 typedef OS_ABORT(Os_Abort);
 
-// -----------------------------------------
-// @Note: Performance Counter
+// Note: Performance Counter
+//
 #define OS_PERF_COUNTER(name) u64 name(void)
 typedef OS_PERF_COUNTER(Os_Perf_Counter);
 
-// --------------------------------------
-// @Note: Time
+// Note: Time
+//
 #define OS_DATE_TIME_CURRENT(name) Date_Time name(void)
 typedef OS_DATE_TIME_CURRENT(Os_Date_Time_Current);
 
-// --------------------------------------
-// @Note: Event Poll
+// Note: Event Poll
+//
 #define OS_EVENT_POLL(name) void name(void)
 typedef OS_EVENT_POLL(Os_Event_Poll);
 
@@ -379,13 +379,14 @@ struct OS
 global OS *os;
 
 
-// # Note: Init
+// NOTE: Init
 //
 #define OS_INIT(name) void name(void)
 typedef OS_INIT(Os_Init);
 internal Os_Init os_init;
 
-// # Note: Event
+
+// NOTE: Event
 //
 internal Os_Event *
 os_event_alloc(void)

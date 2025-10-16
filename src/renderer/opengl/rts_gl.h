@@ -11,6 +11,9 @@
 
 #include <gl/gl.h>
 #include "renderer/opengl/rts_gl_corearb.h"
+#include "renderer/opengl/rts_gl_ext.h"
+
+#pragma comment(lib, "opengl32.lib")
 
 // # Note: Coordinate
 //

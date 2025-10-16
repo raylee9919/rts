@@ -22,5 +22,3 @@ OS_INIT(os_init)
 #  error Undefined OS
 #endif
 }
-
-

@@ -31,5 +31,4 @@ struct Win32_File_Find_Data
 };
 static_assert( sizeof(Win32_File_Find_Data) <= sizeof(Os_File_Iterator) );
 
-
 #endif // RTS_OS_WIN32_H

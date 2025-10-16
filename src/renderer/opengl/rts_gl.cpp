@@ -484,6 +484,7 @@ opengl_alloc_texture(Opengl *gl, Bitmap *bitmap, GLenum wrapping, b32 generate_m
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glGenerateMipmap(GL_TEXTURE_2D);
         glGenerateTextureMipmap(bitmap->handle);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8);
     } 
     else 
     {
@@ -1116,13 +1117,12 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                             glBindTextureUnit(6, gl->shadowmaps);
 
                             u32 flags = 0;
-                            b32 generatemipmap = true;
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 0, GL_REPEAT, generatemipmap, Pbr_Texture_Albedo, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 1, GL_REPEAT, generatemipmap, Pbr_Texture_Normal, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 2, GL_REPEAT, generatemipmap, Pbr_Texture_Roughness, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 3, GL_REPEAT, generatemipmap, Pbr_Texture_Metalic, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 4, GL_REPEAT, generatemipmap, Pbr_Texture_Emission, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 5, GL_REPEAT, generatemipmap, Pbr_Texture_Orm, &flags);
+                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 0, GL_REPEAT, 1, Pbr_Texture_Albedo, &flags);
+                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 1, GL_REPEAT, 1, Pbr_Texture_Normal, &flags);
+                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 2, GL_REPEAT, 1, Pbr_Texture_Roughness, &flags);
+                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 3, GL_REPEAT, 1, Pbr_Texture_Metalic, &flags);
+                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 4, GL_REPEAT, 1, Pbr_Texture_Emission, &flags);
+                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 5, GL_REPEAT, 1, Pbr_Texture_Orm, &flags);
 
                             if (frame->wireframe_mode) {
                                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

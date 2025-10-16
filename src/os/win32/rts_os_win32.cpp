@@ -6,8 +6,6 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// #Note: Win32 Handle Cast Functions
-//
 internal HANDLE
 to_win32_handle(Os_Handle handle)
 {
@@ -24,8 +22,6 @@ to_os_handle(HANDLE handle)
     return result;
 }
 
-// # Note: System Info
-//
 internal
 OS_QUERY_PAGE_SIZE(win32_query_page_size)
 {
@@ -70,7 +66,7 @@ OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
         } break;
 
         default: {
-            Assert(! "invalid default case.");
+            assert(! "invalid default case.");
         } break;
     }
 
@@ -106,8 +102,8 @@ OS_ATTRIBUTES_FROM_FILE_PATH(win32_attributes_from_file_path)
     return result;
 }
 
-// ----------------------------------------
-// @Note: File Iterator
+// NOTE: File Iterator
+//
 OS_FILE_ITERATOR_BEGIN(win32_file_iterator_begin)
 {
     Win32_File_Find_Data *file_find_data = push_struct(arena, Win32_File_Find_Data);
@@ -134,7 +130,7 @@ OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
 
     for (;;)
     {
-        // @Note: first, check initial results from FindFirstFile (dumb Windows API... never
+        // NOTE: first, check initial results from FindFirstFile (dumb Windows API... never
         //        have 2 entry points (and thus caller codepaths) to return the same stuff!)
         b32 first_was_returned = 0;
         if (! file_find_data->returned_first)
@@ -145,7 +141,7 @@ OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
             first_was_returned = 1;
         }
 
-        // @Note: if we didn't return the first, OR the first was not good, then proceed to FindNextFile
+        // NOTE: if we didn't return the first, OR the first was not good, then proceed to FindNextFile
         if (first_was_returned == 0)
         {
             result = FindNextFileW(file_find_data->handle, &find_data);
@@ -161,7 +157,7 @@ OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
         }
     }
 
-    // @Note: fill output
+    // NOTE: fill output
     if (result != 0)
     {
         Utf16 name16 = {0};
@@ -191,8 +187,8 @@ OS_FILE_ITERATOR_END(win32_file_iterator_end)
 }
 
 
-// --------------------------------------
-// @Note: Memory
+// NOTE: Memory
+//
 internal
 OS_RESERVE(win32_memory_reserve)
 {
@@ -216,13 +212,13 @@ OS_DECOMMIT(win32_memory_decommit)
 internal
 OS_RELEASE(win32_memory_release)
 {
-    // @Note: size is not required in Windows, but necessary in other OSes.
+    // NOTE: size is not required in Windows, but necessary in other OSes.
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
 
-// --------------------------------------
-// @Note: File
+// NOTE: File
+//
 internal
 OS_FILE_IS_VALID(win32_file_is_valid)
 {
@@ -289,7 +285,7 @@ OS_FILE_SIZE(win32_file_size)
 {
     HANDLE handle = to_win32_handle(file);
     if (handle == INVALID_HANDLE_VALUE)
-    { Assert(0); } // @Todo: Error-Handling.
+    { assert(0); } // @Todo: Error-Handling.
     LARGE_INTEGER file_size;
     GetFileSizeEx(handle, &file_size);
     u64 result = file_size.QuadPart;
@@ -307,7 +303,7 @@ OS_FILE_READ(win32_file_read)
     off_li.QuadPart = 0;
     if (handle == INVALID_HANDLE_VALUE)
     {
-        Assert(0);
+        assert(0);
     }
     else if (SetFilePointerEx(handle, off_li, 0, FILE_BEGIN))
     {
@@ -382,16 +378,16 @@ OS_MAKE_DIRECTORY(win32_make_directory)
     return result;
 }
 
-// --------------------------------------
-// @Note: Abort
+// NOTE: Abort
+//
 internal
 OS_ABORT(win32_abort)
 {
     ExitProcess(1);
 }
 
-// --------------------------------------
-// @Note: Event Poll
+// NOTE: Event Poll
+//
 internal
 OS_EVENT_POLL(win32_event_poll)
 {
@@ -409,8 +405,8 @@ OS_EVENT_POLL(win32_event_poll)
     }
 }
 
-// --------------------------------------
-// @Note: Performance Counter
+// NOTE: Performance Counter
+//
 internal
 OS_PERF_COUNTER(win32_perf_counter)
 {
@@ -428,8 +424,8 @@ win32_perf_counter_frequency(void)
 }
 
 
-// --------------------------------------
-// @Note: Time
+// NOTE: Time
+//
 internal
 OS_DATE_TIME_CURRENT(win32_date_time_current)
 {
@@ -454,24 +450,19 @@ OS_GET_MODIFIERS(win32_get_modifiers)
 {
     Os_Modifiers modifiers = 0;
     if (GetKeyState(VK_CONTROL) & 0x8000) { modifiers |= OS_MODIFIER_CTRL;  }
-    if (GetKeyState(VK_SHIFT) & 0x8000)   { modifiers |= OS_MODIFIER_SHIFT; }
-    if (GetKeyState(VK_MENU) & 0x8000)    { modifiers |= OS_MODIFIER_ALT;   }
+    if (GetKeyState(VK_SHIFT)   & 0x8000) { modifiers |= OS_MODIFIER_SHIFT; }
+    if (GetKeyState(VK_MENU)    & 0x8000) { modifiers |= OS_MODIFIER_ALT;   }
     return modifiers;
 }
 
 
 
-// --------------------------------------
-// @Note: Init
 internal
 OS_INIT(os_win32_init)
 {
-    // @Hack:
-    static_assert(sizeof(OS) <= 4096);
-    os = (OS *)VirtualAlloc(0, 4096, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    // HACK:
+    os = (OS *)VirtualAlloc(0, align_pow2(sizeof(OS), 4096), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
-    // ---------------------------------------------
-    // @Note: init functions.
     os->file_is_valid                   = win32_file_is_valid;
     os->file_open                       = win32_file_open;
     os->file_close                      = win32_file_close;
@@ -503,21 +494,21 @@ OS_INIT(os_win32_init)
 
     os->perf_counter                    = win32_perf_counter;
     os->perf_counter_freq               = win32_perf_counter_frequency();
-    os->perf_counter_freq_inv64         = (1.0 / (f64)os->perf_counter_freq);
-    os->perf_counter_freq_inv           = (1.0 / (f32)os->perf_counter_freq);
+    os->perf_counter_freq_inv64         = (1.f / (f64)os->perf_counter_freq);
+    os->perf_counter_freq_inv           = (1.f / (f32)os->perf_counter_freq);
 
     os->date_time_current               = win32_date_time_current;
 
     os->sleep_is_granular               = (timeBeginPeriod(1) == TIMERR_NOERROR);
 
-    // @Note: Main Arena
+    // NOTE: Main Arena
     os->arena   = arena_alloc();
 
-    // @Note: Event
+    // NOTE: Event
     os->event_arena = arena_alloc();
 
-    // ---------------------------------------------
-    // @Note: gather paths.
+    // NOTE: gather paths.
+    //
     {
         Utf8 binary_path = {};
         Utf8 appdata_path = {};
@@ -550,8 +541,8 @@ OS_INIT(os_win32_init)
         }
     }
 
-    // ---------------------------------------------
-    // @Note: init key table.
+    // NOTE: init key table.
+    //
     for (u32 i = 'A', j = OS_KEY_A; i <= 'Z'; i += 1, j += 1)
     {
         os->key_table[i] = (Os_Key)j;
