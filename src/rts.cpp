@@ -15,8 +15,6 @@
 // NOTE: [.h]
 //
 #include "embed_profiler.h"
-#include "third_party/xxhash3/xxhash.h"
-#include "third_party/xxhash3/xxhash.c"
 
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
@@ -44,6 +42,7 @@ global Renderer *renderer;
 
 // NOTE: [.cpp]
 //
+#include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.cpp"
 #include "rts_random.cpp"
 #include "rts_font.cpp"
@@ -383,8 +382,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //            2. Build new hierarchy while retaining some data(!!!)
     //
     local_persist f32 light_x = 1.f;
-    local_persist f32 light_y = 0.95f;
-    local_persist f32 light_z = 0.38f;
+    local_persist f32 light_y = 1.f;
+    local_persist f32 light_z = 1.f;
     ui_begin(platform->dt, platform->window_width, platform->window_height);
     {
         ui_platform(utf8lit("⚙"))
@@ -401,9 +400,9 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
             if (ui_expander(utf8lit("阴影 (Shadow)")))
             {
-                ui_slider_f32(&light_x, -1.f, 1.f, utf8lit("Φως X"));
-                ui_slider_f32(&light_y,  0.1f, 1.f, utf8lit("Light Y"));
-                ui_slider_f32(&light_z, -1.f, 1.f, utf8lit("빛 Z"));
+                ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("Φως X"));
+                ui_slider_f32(&light_y,  0.1f, 1.0f, utf8lit("Light Y"));
+                ui_slider_f32(&light_z, -1.0f, 1.0f, utf8lit("빛 Z"));
                 if (ui_button(utf8lit("Valient's Method")).pressed_left)
                 {
                     render_commands->csm_varient_method = !render_commands->csm_varient_method; 

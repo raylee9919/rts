@@ -11,7 +11,6 @@
 //
 global GLuint id_table[4096];
 
-
 internal void
 opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
                       GLsizei length, const GLchar *message, const void *userParam)
@@ -1169,10 +1168,10 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                                 glDisableVertexAttribArray(i);
                             }
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                        } break;
+                        }break;
 
                         default: {
-                        } break;
+                        }break;
                     }
                 }
                 buffer_at += group->capacity;
@@ -1733,8 +1732,8 @@ opengl_init(Opengl *gl)
         glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F,
                      SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION,
                      CSM_COUNT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 

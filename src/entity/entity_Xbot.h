@@ -53,7 +53,8 @@ struct Xbot : public Entity
         die_animation     = assets->xbot_die;
         attack_animation  = assets->xbot_attack;
 
-        animation_transform = push_array(game_state->frame_arena, m4x4, model->node_count);
+        // HACK:
+        animation_transform = push_array(game_state->world->arena, m4x4, model->node_count);
 
         update     = update_Xbot;
         draw       = draw_Xbot;

@@ -7,9 +7,6 @@
    ======================================================================== */
 
 
-// ----------------------------------------------------------------------------
-// @Note: Alloc/Init
-//
 internal Ui_State *
 ui_alloc(void)
 {
@@ -34,9 +31,6 @@ ui_init(Ui_State *ui)
     ui->font_size      = 14.0f;
 }
 
-// ----------------------------------------------------------------------------
-// @Note: Frame Boundaries
-//
 internal void
 ui_begin(f32 dt, u32 width, u32 height)
 {
@@ -133,9 +127,6 @@ ui_end(void)
     ui_parent_pop();
 }
 
-// ----------------------------------------------------------------------------
-// @Note: Stack
-//
 internal void
 ui_parent_push(Ui_Box *box)
 {
@@ -150,9 +141,6 @@ ui_parent_pop(void)
     ui_seed_pop();
 }
 
-// ----------------------------------------------------------------------------
-// @Note: Box Build
-//
 internal Ui_Box *
 ui_box_alloc(void)
 {
@@ -704,6 +692,7 @@ ui_build_arena(void)
     u64 index = ui_state->tick_current % array_count(ui_state->build_arena);
     return ui_state->build_arena[index];
 }
+
 
 
 
