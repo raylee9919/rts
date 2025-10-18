@@ -93,7 +93,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
             }
         }
 
-        if (length_square(desired_dir) > 0.0f)
+        if (sqlen(desired_dir) > 0.0f)
         {
             desired_dir = normalize(desired_dir); 
         }
@@ -101,7 +101,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Camera)
         v3 target_accel = desired_dir * accel_strength;
         camera->velocity += (dt*target_accel);
 
-        if (length_square(desired_dir) == 0.0f)
+        if (sqlen(desired_dir) == 0.0f)
         {
             camera->velocity -= camera->velocity * friction * dt; 
         }

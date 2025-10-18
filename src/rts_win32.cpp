@@ -6,12 +6,12 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-// # Todo: 1. Should we support scalable dpi?
+// TODO: 1. Should we support scalable dpi?
 //         2. Verfiy the OS version and load the appropriate libraries.
 //
 
 
-// # Note: [.h]
+// NOTE: [.h]
 //
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
@@ -22,17 +22,17 @@
 #include "renderer/rts_renderer.h"
 #include "rts_win32_renderer.h"
 
-// # Note: Globals
+// NOTE: Globals
 //
 global Renderer *g_renderer;
 
-// # Note: [.cpp]
+// NOTE: [.cpp]
 //
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
 
 
-// # Note: Windows Additional Libs
+// NOTE: Windows Additional Libs
 //
 #include <windowsx.h>
 #include <psapi.h>
@@ -40,26 +40,26 @@ global Renderer *g_renderer;
 #include <vssym32.h>
 
 
-// # Note: Executables (but not DLLs) exporting this symbol with this value will be
+// NOTE: Executables (but not DLLs) exporting this symbol with this value will be
 //         automatically directed to the high-performance GPU on Nvidia Optimus systems
 //         with up-to-date drivers
 //
 __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
-// # Note: Executables (but not DLLs) exporting this symbol with this value will be
+// NOTE: Executables (but not DLLs) exporting this symbol with this value will be
 //         automatically directed to the high-performance GPU on AMD PowerXpress systems
 //         with up-to-date drivers
 //
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
-// # Note: Globals
+// NOTE: Globals
 //
 global Win32_State          win32;
 global b32                  g_running = true;
 global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
 
-// # Note: Window
+// NOTE: Window
 //
 internal LRESULT 
 win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
@@ -82,12 +82,11 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         case WM_DESTROY: 
         {
-            // @Todo: Handle this as an error - recreate window?
+            // TODO: Handle this as an error - recreate window?
             g_running = false;
         }break;
 
-        // --------------------------------------------
-        // @Note: Keyboard Events
+        // NOTE: Keyboard Events
         //
         case WM_SYSKEYDOWN: 
         case WM_SYSKEYUP: 
@@ -115,7 +114,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             dll_push_back(os->event_first, os->event_last, event);
         } break;
 
-        // @Note: Text Input
+        // NOTE: Text Input
         //
         case WM_CHAR: 
         case WM_SYSCHAR:
@@ -136,9 +135,9 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 
         // --------------------------------------------
-        // @Note: Mouse
+        // NOTE: Mouse
 
-        // @Note: Mouse Move
+        // NOTE: Mouse Move
         //
         case WM_MOUSEMOVE: 
         {
@@ -159,7 +158,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         } break;
 
 
-        // @Note: Mouse Scroll
+        // NOTE: Mouse Scroll
         //
         case WM_MOUSEHWHEEL: 
         {
@@ -192,7 +191,7 @@ winproc_mouse_scroll:;
 
 
 
-        // @Note: Mouse Click
+        // NOTE: Mouse Click
         //
         case WM_LBUTTONUP: { ReleaseCapture(); is_release = 1; };
         case WM_LBUTTONDOWN: {
@@ -308,7 +307,6 @@ win32_get_client_size(HWND hwnd)
 internal void 
 win32_toggle_fullscreen(HWND window)
 {
-    // @Note: Thank you, Raymond Chen.
     DWORD style = GetWindowLong(window, GWL_STYLE);
     if (style & WS_OVERLAPPEDWINDOW) 
     {
@@ -346,8 +344,8 @@ win32_client_size(HWND hwnd)
     return result;
 }
 
-// -----------------------------------
-// @Note: Code Reloading
+// NOTE: Code Reloading
+//
 internal u64
 win32_get_last_modified(Utf8 file_path)
 {
@@ -361,7 +359,7 @@ win32_code_unload(Win32_Code *loaded)
 {
     if (loaded->dll)
     {
-        // @Todo: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
+        // TODO: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
         //        (despite our best efforts). Should we just make "never unload" be the policy?
         // FreeLibrary(loaded->dll);
         loaded->dll = 0;
@@ -436,7 +434,7 @@ win32_code_modified(Win32_Code *loaded)
     return result;
 }
 
-// # Note: Entry
+// NOTE: Entry
 //
 #if BUILD_DEBUG
 int wmain(int argc, wchar_t *argv[]) 
@@ -448,12 +446,12 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 {
 #endif
 
-    // # Note: init core.
+    // NOTE: init core.
     //
     os_init();
     thread_init();
 
-    // # Note: init platform.
+    // NOTE: init platform.
     //
     Platform platform = {};
     Utf8 binary_path = {};
@@ -474,12 +472,9 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             Os_File_Attributes local_data_attr  = os->attributes_from_file_path(local_data_path);
             Os_File_Attributes parent_data_attr = os->attributes_from_file_path(parent_data_path);
 
-            if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
-            {
+            if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY) {
                 platform.data_path = utf8_copy(platform.arena, local_data_path); 
-            }
-            else if (parent_data_attr.flags == OS_FILE_FLAG_DIRECTORY)
-            {
+            } else if (parent_data_attr.flags == OS_FILE_FLAG_DIRECTORY) {
                 platform.data_path = utf8_copy(platform.arena, parent_data_path); 
             }
 
@@ -488,7 +483,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
-    // # Note: Init gfx.
+    // NOTE: Init gfx.
     //
     if (! SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
     {
@@ -504,7 +499,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
 
 
-    // # Note: init win32 state.
+    // NOTE: init win32 state.
     // 
     {
         win32.arena = arena_alloc();
@@ -518,13 +513,13 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
-    // # Note: toggle fullscreen if needed.
+    // NOTE: toggle fullscreen if needed.
     // 
 #if !BUILD_DEBUG
     win32_toggle_fullscreen(hwnd);
 #endif
 
-    // # Note: alloc/init renderer.
+    // NOTE: alloc/init renderer.
     // 
     {
         Arena *arena = arena_alloc();
@@ -577,13 +572,13 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     win32_code_load(&game_code);
 
 
-    // ----------------------------------------
-    // @Note: Main Loop
+    // NOTE: Main Loop
+    //
     u64 old_counter = os->perf_counter();
     while (g_running) 
     {
         {
-            // @Temporary: just learning win32 calls of gathering memory status.
+            // TEMPORARY: just learning win32 calls of gathering memory status.
             MEMORYSTATUSEX ms;
             ms.dwLength = sizeof(ms);
             GlobalMemoryStatusEx(&ms);
@@ -595,7 +590,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             CloseHandle(proc);
         }
 
-        // # Note: draw resolution.
+        // NOTE: draw resolution.
         v2u render_dim = {
             1920, 1080,
             //2560, 1440,
@@ -606,7 +601,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         os->event_poll();
 
 
-        // # Note: Process Message
+        // NOTE: Process Message
         //
         for (MSG msg; PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE);)
         {
@@ -624,7 +619,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
 
 
-        // # Note: Fullscreen
+        // NOTE: Fullscreen
         //
         for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
         {
@@ -637,7 +632,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
 
 
-        // # Note: get dt.
+        // NOTE: get dt.
         //
         u64 new_counter = os->perf_counter();
         f32 dt = (new_counter - old_counter) * os->perf_counter_freq_inv;
@@ -647,7 +642,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
             if (os->sleep_is_granular)
             {
-                // # Todo: what?
+                // TODO: what?
             }
             Sleep(ms);
             dt = desired_dt;
@@ -665,28 +660,28 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         Render_Commands *render_commands = NULL;
 
-        // # Note: Render begin.
+        // NOTE: Render begin.
         //
         if (renderer_code.is_valid) 
         {
             render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim); 
         }
 
-        // # Note: Game update and render.
+        // NOTE: Game update and render.
         //
         if (game.update_and_render) 
         {
             game.update_and_render(&platform, render_commands); 
         }
 
-        // # Note: Exit if requested.
+        // NOTE: Exit if requested.
         //
         if (platform.exit_requested)
         {
             g_running = false;
         }
 
-        // # Note: Game code hot reloading.
+        // NOTE: Game code hot reloading.
         //
         if (win32_code_modified(&game_code)) 
         {
@@ -694,7 +689,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             game_code.last_modified = win32_get_last_modified(game_code.dll_path);
         }
 
-        // # Note: Render end.
+        // NOTE: Render end.
         //
         if (renderer_code.is_valid) 
         {
@@ -705,7 +700,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             renderer_functions.end_frame(renderer, g_renderer, render_commands);
         }
 
-        // # Fix: We are currently allocating redundant CPU/GPU memory.
+        // FIX: We are currently allocating redundant CPU/GPU memory.
         //if (win32_code_modified(&renderer_code)) 
         //{
         //    //renderer_functions.cleanup(renderer);

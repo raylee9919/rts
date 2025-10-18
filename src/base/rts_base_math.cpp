@@ -1,6 +1,6 @@
 /* ========================================================================
    $File: $
-   $Date: $
+/  $Date: $
    $Revision: $
    $Creator: Seong Woo Lee $
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
@@ -12,12 +12,9 @@ map(f32 x, f32 min, f32 max)
 {
     f32 t;
     f32 range = max - min;
-    if (range != 0.0f) 
-    {
-        t = ((x - min) / range);
-    } 
-    else 
-    {
+    if (range != 0.0f) {
+        t = (x - min) / range;
+    } else {
         t = 0.0f;
     }
     return t;
@@ -44,14 +41,14 @@ binormal_to_normal(f32 x)
 internal f32
 lerp(f32 a, f32 t, f32 b) 
 {
-    f32 result = b * t + (1 - t) * a;
-    return result;
+    return b*t + (1.f - t)*a;
 }
 
 internal f32
-smoothstep(f32 x, f32 min, f32 max) {
+smoothstep(f32 x, f32 min, f32 max) 
+{
     f32 p = map01(x, min, max);
-    f32 v = p * p * (3.0f - 2.0f * p);
+    f32 v = p * p * (3.f - 2.f * p);
     return v;
 }
 
@@ -62,12 +59,14 @@ safe_ratio(f32 a, f32 b) {
 }
 
 internal v2
-V2(f32 x, f32 y) {
-    return v2{x, y};
+V2(f32 x, f32 y) 
+{
+    return {x,y};
 }
 
 internal v2
-V2(f32 x) {
+V2(f32 x) 
+{
     return v2{x, x};
 }
 
@@ -145,35 +144,6 @@ operator*=(v2& a, f32 b)
     return a;
 }
 
-internal f32
-dot(v2 a, v2 b) 
-{
-    f32 result = a.x * b.x + a.y * b.y;
-    return result;
-}
-
-internal v2
-hadamard(v2 A, v2 B) 
-{
-    v2 result = {
-        A.x * B.x,
-        A.y * B.y,
-    };
-
-    return result;
-}
-
-internal v2
-hadamard(v2 A, v2u B) 
-{
-    v2 result = {
-        A.x * (f32)B.x,
-        A.y * (f32)B.y,
-    };
-
-    return result;
-}
-
 internal v2
 binormal_to_normal(v2 x)
 {
@@ -181,19 +151,41 @@ binormal_to_normal(v2 x)
 }
 
 internal f32
-length_square(v2 A) {
-    return dot(A, A);
+sqlen(v2 v) 
+{
+    return dot(v,v);
 }
 
 internal f32
-inv_length_square(v2 A) {
-    f32 result = 1.0f / dot(A, A);
+sqlen(v3 v) 
+{
+    return dot(v,v);
+}
+
+internal f32
+invsqlen(v2 v) 
+{
+    f32 result = 1.f / dot(v, v);
+    return result;
+}
+
+internal f32
+invsqlen(v3 v) 
+{
+    f32 result = 1.f / dot(v, v);
+    return result;
+}
+
+internal f32
+invsqlen(v4 v) 
+{
+    f32 result = 1.f / dot(v, v);
     return result;
 }
 
 internal f32
 length(v2 A) {
-    f32 result = sqrt(length_square(A));
+    f32 result = sqrt(sqlen(A));
     return result;
 }
 
@@ -355,47 +347,67 @@ operator *= (v3& a, f32 b)
 }
 
 internal f32
-dot(v3 a, v3 b) 
+dot(v2 a, v2 b) 
 {
-    f32 result = (a.x * b.x +
-                  a.y * b.y +
-                  a.z * b.z);
-
+    f32 result = a.x*b.x + a.y*b.y;
     return result;
-}
-
-internal v3
-hadamard(v3 A, v3 B) 
-{
-    v3 result = {
-        A.x * B.x,
-        A.y * B.y,
-        A.z * B.z 
-    };
-    return result;
-}
-
-internal v3
-cross(v3 A, v3 B) 
-{
-    v3 R = {};
-    R.x = (A.y * B.z) - (B.y * A.z);
-    R.y = (A.z * B.x) - (B.z * A.x);
-    R.z = (A.x * B.y) - (B.x * A.y);
-    return R;
 }
 
 internal f32
-length_square(v3 A) 
+dot(v3 a, v3 b) 
 {
-    f32 result = dot(A, A);
+    f32 result = (a.x*b.x + a.y*b.y + a.z*b.z);
     return result;
+}
+
+internal f32
+dot(v4 a, v4 b) 
+{
+    f32 result = (a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w);
+    return result;
+}
+
+internal v3
+cross(v3 a, v3 b) 
+{
+    v3 v = {};
+    v.x = (a.y*b.z) - (b.y*a.z);
+    v.y = (a.z*b.x) - (b.z*a.x);
+    v.z = (a.x*b.y) - (b.x*a.y);
+    return v;
+}
+
+internal v2
+hadamard(v2 a, v2 b) 
+{
+    v2 v = { a.x*b.x, a.y*b.y };
+    return v;
+}
+
+internal v3
+hadamard(v3 a, v3 b) 
+{
+    v3 v = { a.x*b.x, a.y*b.y, a.z*b.z };
+    return v;
+}
+
+internal v4
+hadamard(v4 a, v4 b) 
+{
+    v4 v;
+#if SSE_ENABLED
+    __m128 w = _mm_mul_ps(a.sse, b.sse);
+    v.sse = w;
+#else
+    v = { a.x*b.x, a.y*b.y, a.z*b.z, a.w*b.w };
+#endif
+    return v;
 }
 
 internal f32
 length(v3 A) 
 {
-    f32 result = sqrt(length_square(A));
+    f32 result = sqrt(sqlen(A));
     return result;
 }
 
@@ -713,13 +725,30 @@ z_rotation(f32 a)
 internal m4x4
 transpose(m4x4 m) 
 {
-    m4x4 r = {};
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            r.e[j][i] = m.e[i][j];
-        }
-    }
-    return r;
+    // NOTE: Commented-out code is compiled to slower code while it looks "clean".
+    // for (int i = 0; i < 4; ++i) {
+    //     for (int j = 0; j < 4; ++j) {
+    //         m.e[j][i] = m.e[i][j];
+    //     }
+    // }
+
+    m.e[0][1] = m.e[1][0];
+    m.e[0][2] = m.e[2][0];
+    m.e[0][3] = m.e[3][0];
+
+    m.e[1][0] = m.e[0][1];
+    m.e[1][2] = m.e[2][1];
+    m.e[1][3] = m.e[3][1];
+
+    m.e[2][0] = m.e[0][2];
+    m.e[2][1] = m.e[1][2];
+    m.e[2][3] = m.e[3][2];
+
+    m.e[3][0] = m.e[0][3];
+    m.e[3][1] = m.e[1][3];
+    m.e[3][2] = m.e[2][3];
+
+    return m;
 }
 
 internal m4x4
@@ -748,7 +777,7 @@ inverse(m4x4 m)
                m.e[0][1] * ( m.e[1][0] * A2323 - m.e[1][2] * A0323 + m.e[1][3] * A0223 ) +
                m.e[0][2] * ( m.e[1][0] * A1323 - m.e[1][1] * A0323 + m.e[1][3] * A0123 ) -
                m.e[0][3] * ( m.e[1][0] * A1223 - m.e[1][1] * A0223 + m.e[1][2] * A0123 ));
-    det = 1.0f / det;
+    det = 1.f / det;
 
     m4x4 result = m4x4{{
         det *   ( m.e[1][1] * A2323 - m.e[1][2] * A1323 + m.e[1][3] * A1223 ),
@@ -972,25 +1001,6 @@ add_radius_to(Rect2 rect, v2 radius)
     return result;
 }
 
-internal b32
-in_rect(Rect2 rect, v2 p)
-{
-    b32 result = (rect.min.x <= p.x && 
-                  rect.min.y <= p.y && 
-                  rect.max.x > p.x && 
-                  rect.max.y > p.y);
-    return result;
-}
-
-internal v2
-get_dim(Rect2 rect)
-{
-    v2 result = {};
-    result.x = (rect.max.x - rect.min.x);
-    result.y = (rect.max.y - rect.min.y);
-    return result;
-}
-
 internal m4x4
 trs_to_transform(v3 translation, Quaternion rotation, v3 scaling)
 {
@@ -1078,9 +1088,9 @@ ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z)
 }
 
 internal f32
-degrees_to_radian(f32 x) 
+radian_from_degree(f32 d) 
 {
-    return x*pi32*0.005556f;
+    return d*pi32*0.005556f;
 }
 
 internal f32
@@ -1098,7 +1108,7 @@ internal b32
 intersects(AABB2 box, v2 point)
 {
     b32 result = false;
-    // @Todo: Pixel perfect.
+    // TODO: Define boundary.
     if (point.x >= box.min.x && point.x < box.max.x &&
         point.y >= box.min.y && point.y < box.max.y) 
     { result = true; }
@@ -1110,9 +1120,9 @@ intersects(AABB2 a, AABB2 b)
 {
     b32 result = false;
     v2 half_dim = (a.max - a.min) * 0.5f;
+    v2 point = (a.min + a.max) * 0.5f;
     b.min -= half_dim;
     b.max += half_dim;
-    v2 point = (a.min + a.max) * 0.5f;
     result = intersects(b, point);
     return result;
 }

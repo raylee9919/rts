@@ -104,6 +104,19 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #  define asan_unpoison(addr, size) ((void)(addr), (void)(size))
 #endif
 
+// NOTE: SSE
+//
+#if defined(_MSC_VER)
+#  if defined(_M_AMD64) || ( defined(_M_IX86_FP) && _M_IX86_FP >= 1 )
+#    define SSE_ENABLED 1
+#  endif
+#else
+#  if defined(__SSE__)
+#    define SSE_ENABLED 1
+#  endif
+#endif
+
+
 
 
 // --------------------------------------

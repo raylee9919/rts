@@ -146,13 +146,10 @@ ui_box_alloc(void)
 {
     Ui_Box *box = ui_state->first_free_box;
 
-    if (box != NULL)
-    {
+    if (box != NULL) {
         zero_memory(box, sizeof(*box));
         sll_pop_front(ui_state->first_free_box, ui_state->last_free_box);
-    }
-    else
-    {
+    } else {
         box = push_struct(ui_state->permanent_arena, Ui_Box);
     }
 

@@ -290,9 +290,7 @@ enum
 
 // # Note: Texture.
 //
-#define render_texture_create_filter_dot(t,d,w,h) render_texture_create_flags(t,d,w,h,RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT)
-#define render_texture_create_filter_linear(t,d,w,h) render_texture_create_flags(t,d,w,h,RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR)
-internal Render_Id render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags);
+internal Render_Id render_texture_create(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags);
 internal void render_texture_destroy(Render_Id id);
 
 

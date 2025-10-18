@@ -259,7 +259,7 @@ render_texture_from_id(Render_Id id)
 }
 
 internal Render_Id
-render_texture_create_flags(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags)
+render_texture_create(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags)
 {
     Render_Id id;
     id.e[0] = renderer->texture_next_id++;

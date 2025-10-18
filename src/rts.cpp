@@ -99,20 +99,17 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
     ProfileFrameMark;
 
-    if (! os) 
-    {
+    if (! os) {
         os = platform->os;
     }
     
-    if (! renderer) 
-    {
+    if (! renderer) {
         renderer = platform->renderer;
         render_init();
     }
     
     Game_State *game_state = (Game_State *)platform->game_state;
-    if (! game_state) 
-    {
+    if (! game_state) {
         platform->game_state = game_state = push_struct(platform->arena, Game_State);
     }
     
@@ -239,14 +236,14 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 game_state->game_camera = push_entity(world, Camera, V3(0,0,0));
                 {
                     game_state->game_camera->init(Camera_Type_Perspective, 0.5f, 0.5f, 100000.0f, world);
-                    game_state->game_camera->orientation = euler_to_quaternion(degrees_to_radian(-45), 0, 0);
+                    game_state->game_camera->orientation = euler_to_quaternion(radian_from_degree(-45), 0, 0);
                     game_state->game_camera->position = v3{0,5,5};
                 }
                 
                 game_state->debug_camera = push_entity(world, Camera, V3(0,0,0));
                 {
                     game_state->debug_camera->init(Camera_Type_Perspective, 0.5f, 0.5f, 100000.0f, world);
-                    game_state->debug_camera->orientation = euler_to_quaternion(degrees_to_radian(-45), 0, 0);
+                    game_state->debug_camera->orientation = euler_to_quaternion(radian_from_degree(-45), 0, 0);
                     game_state->debug_camera->position += game_state->game_camera->position + v3{0,5,5};
                 }
                 
@@ -367,9 +364,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         
         for (int i = 0; i < navmesh->cdt.numtri; ++i) 
         {
-            char buf[256];
-            str_snprintf(buf, sizeof(buf), "%d", i);
-            
             v4 tmp = game_state->controlling_camera->VP * V4(get_centroid(navmesh, i), 1);
             v3 projected_position = (tmp.xyz / tmp.w);
             projected_position.xy = hadamard(binormal_to_normal(projected_position.xy), v2{(f32)platform->draw_width, (f32)platform->draw_height});

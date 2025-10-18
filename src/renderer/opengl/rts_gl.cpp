@@ -7,7 +7,7 @@
    ======================================================================== */
 
 
-// @Todo: Remove
+// TODO: Remove
 //
 global GLuint id_table[4096];
 
@@ -64,7 +64,7 @@ opengl_get_info(Opengl *gl, b32 modern_context)
             else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
             else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
-            // @Todo: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
+            // TODO: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
         }
     }
     
@@ -89,13 +89,13 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     
     if ((major > 2) || ((major == 2) && (minor >= 1))) 
     {
-        // @Note: We _believe_ we have sRGB textures in 2.1 and above automatically.
+        // NOTE: We _believe_ we have sRGB textures in 2.1 and above automatically.
         result.opengl_ext_texture_sgb = true;
     }
     
     if (major >= 3) 
     {
-        // @Note: We _believe_ we have framebuffer objects in 3.0 and above automatically.
+        // NOTE: We _believe_ we have framebuffer objects in 3.0 and above automatically.
         result.opengl_arb_framebuffer_object=true;
     }
     
@@ -138,7 +138,7 @@ opengl_create_compute_program(Opengl *gl, const char *csrc)
     } 
     else 
     {
-        // @Todo: handling.
+        // TODO: handling.
     }
     
     return program;
@@ -151,7 +151,7 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
 
     assert(glCreateShader);
 
-    // @Note: Compile vertex shader.
+    // NOTE: Compile vertex shader.
     //
     GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
     {
@@ -160,7 +160,7 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
         glCompileShader(vshader);
     }
 
-    // @Note: Compile fragment shader.
+    // NOTE: Compile fragment shader.
     //
     GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
     {
@@ -169,14 +169,14 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
         glCompileShader(fshader);
     }
 
-    // @Note: Create program.
+    // NOTE: Create program.
     //
     program = glCreateProgram();
     glAttachShader(program, vshader);
     glAttachShader(program, fshader);
     glLinkProgram(program);
 
-    // @Note: Validate program.
+    // NOTE: Validate program.
     //
     glValidateProgram(program);
     GLint linked = GL_FALSE;
@@ -200,7 +200,7 @@ opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
         assert(! "compile/link error.");
     }
 
-    // @Note: Cleanup.
+    // NOTE: Cleanup.
     //
     glDeleteShader(vshader);
     glDeleteShader(fshader);
@@ -262,7 +262,7 @@ opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char
         glDeleteShader(gshader);
         glDeleteShader(fshader);
     } else {
-        // @Todo: Error-Handling.
+        // TODO: Error-Handling.
     }
     
     return program;
@@ -332,7 +332,7 @@ opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, 
         glDeleteShader(teshader);
         glDeleteShader(fshader);
     } else {
-        // @Todo: Error-Handling.
+        // TODO: Error-Handling.
     }
     
     return program;
@@ -412,7 +412,7 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
         glDeleteShader(gshader);
         glDeleteShader(fshader);
     } else {
-        // @Todo: Error-Handling.
+        // TODO: Error-Handling.
     }
     
     return program;
@@ -760,7 +760,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     u32 render_height = frame->render_dim.h;
 
 
-    // @Note: Frame Texture
+    // NOTE: Frame Texture
     //
     {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
@@ -811,7 +811,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // @Todo: Scissor Test?
+    // TODO: Scissor Test?
     //
     //glEnable(GL_SCISSOR_TEST);
     //glScissor(0, 0, window_width, window_height);
@@ -831,7 +831,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     glFrontFace(GL_CCW);
 
 
-    // @Note: CSM Frustum
+    // NOTE: CSM Frustum
     //
     v3 *csm_frustum_positions = frame->csm_frustum_positions;
     f32 distance_between_near_and_far = distance(0.5f * (csm_frustum_positions[0] + csm_frustum_positions[3]),
@@ -849,7 +849,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         frustum_positions[frustum_point_count - 2] = csm_frustum_positions[6];
     }
 
-    // @Note: If you change CSM_COUNT, you need to add interpolation value in here!
+    // NOTE: If you change CSM_COUNT, you need to add interpolation value in here!
     const f32 frustum_z_weights[CSM_COUNT] = {
         0.25f, 0.50f, 0.75f, 1.0f
     };
@@ -901,7 +901,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 center += frustum_positions[level*4 + i];
             }
             center *= 0.125f;
-            m4x4 light_view = lookat(center + frame->csm_to_light, center, v3{0,1,0}); // @Todo: Fit z?
+            m4x4 light_view = lookat(center + frame->csm_to_light, center, v3{0,1,0}); // TODO: Fit z?
 
             v3 min = V3(F32_MAX);
             v3 max = V3(-F32_MAX);
@@ -915,7 +915,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 max.z = max(max.z, lp.z);
             }
 
-            f32 depth = max.z - min.z; // @Todo: Fit z?
+            f32 depth = max.z - min.z; // TODO: Fit z?
 
             m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.0, depth*2.0);
             light_view_projs[level] = light_proj * light_view;
@@ -936,14 +936,14 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             v3 c = lerp(AB, t, CD);
 
             m4x4 light_view = lookat(c + frame->csm_to_light * r, c, V3(0,1,0));
-            m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // @Todo: Constant min and max depths
+            m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // TODO: Constant min and max depths
             light_view_projs[level] = light_proj * light_view;
         }
     }
 
 
 
-    // @Note: Shadow map, which is basically a orthographiclly viewed depth map
+    // NOTE: Shadow map, which is basically a orthographiclly viewed depth map
     //         from directional light's perspective.
     {
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
@@ -1015,7 +1015,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    // @Note: Skybox
+    // NOTE: Skybox
     //
     {
         glDisable(GL_CULL_FACE);
@@ -1060,7 +1060,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 
 
-    // @Note: Framebuffer Texture
+    // NOTE: Framebuffer Texture
     //
     {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
@@ -1075,7 +1075,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        // @Note: PBR
+        // NOTE: PBR
         //
         {
             Pbr_Program *pbr_program = &gl->pbr_program;
@@ -1151,7 +1151,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
                             glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
 
-                            // @Todo: seems like a perf loss.
+                            // TODO: seems like a perf loss.
                             if (piece->entity_id != 0 && frame->active_entity_id == piece->entity_id) 
                             {
                                 glDisable(GL_DEPTH_TEST);
@@ -1178,7 +1178,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             }
         }
 
-        // @Note: Triangles
+        // NOTE: Triangles
         //
         {
             Simple_Program *simple_program = &gl->simple_program;
@@ -1227,7 +1227,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        // @Note: Unit Circle
+        // NOTE: Unit Circle
         //
         {
             Circle_Program *circle_program = &gl->circle_program;
@@ -1259,7 +1259,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         }
 
 
-        // @Note: Lines
+        // NOTE: Lines
         //
         {
             Simple_Program *simple_program = &gl->simple_program;
@@ -1311,7 +1311,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glEnable(GL_DEPTH_TEST);
         }
 
-        // @Note: Mouse Picking
+        // NOTE: Mouse Picking
         //
 #if 0
         {
@@ -1349,7 +1349,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    // @Note: Blt
+    // NOTE: Blt
     //
     {
         glDisable(GL_DEPTH_TEST);
@@ -1361,7 +1361,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glEnableVertexAttribArray(2);
 
 
-        // @Note: 3----1
+        // NOTE: 3----1
         //        |    |
         //        2----0
         const Textured_Vertex vertices[] = {
@@ -1383,7 +1383,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glDisableVertexAttribArray(2);
     }
 
-    // @Note: CSM Frustum
+    // NOTE: CSM Frustum
     //
     if (frame->draw_csm_frustum) 
     {
@@ -1428,7 +1428,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
     // ------------------------------------------------------------------------
 
-    // @Note: Process render commands
+    // NOTE: Process render commands
     //
     for (u32 i = 0; i < renderer->command_count; ++i)
     {
@@ -1468,7 +1468,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                     } break;
                 }
 
-                // @Note: Filtering
+                // NOTE: Filtering
                 //
                 if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT)
                 {
@@ -1482,7 +1482,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 }
 
-                // @Note: Wrapping
+                // NOTE: Wrapping
                 //
                 if (cmd.flags & RENDER_COMMAND_FLAG_TEXTURE_WRAP)
                 {
@@ -1519,7 +1519,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 
 
-    // @Note: Revamping renderer currently.
+    // NOTE: Revamping renderer currently.
     //
     for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; type += 1)
     {
@@ -1549,14 +1549,14 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                         // @Divisor Begin
                         // glVertexAttribDivisor(0, 0);
 
-                        // @Note: We are drawing quads independent to the ratio.
+                        // NOTE: We are drawing quads independent to the ratio.
                         //         We don't want glyphs to be ugly when we resize the window.
                         glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_w"), window_width);
                         glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_h"), window_height);
 
                         for (u32 i = 0; i < instance_count; i += 1)
                         {
-                            // @Todo: We are being lazy and binding the texture according to the vertex's texture id.
+                            // TODO: We are being lazy and binding the texture according to the vertex's texture id.
                             //         This seems like a lunacy and at some point, it should to be fixed.
                             Render_Id texture_id = buffer->vertices[4*i].texture_id;
                             if (texture_id.e[0] == 0)
@@ -1594,7 +1594,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 }
 
-// @Note: Program
+// NOTE: Program
 //
 internal Gl_Program
 opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src)
@@ -1678,24 +1678,21 @@ opengl_program_end(Gl_Program program, Gl_Program_Flags flags)
     glUseProgram(0);
 }
 
-// @Note: Init
+// NOTE: Init
 //
 internal void
 opengl_init(Opengl *gl)
 {
 #if BUILD_DEBUG
-    if (glDebugMessageCallbackARB) 
-    {
+    if (glDebugMessageCallbackARB) {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageCallbackARB(opengl_debug_callback, 0);
-    }
-    else 
-    {
+    } else {
         assert(! "glDebugMessageCallbackARB not found.");
     }
 #endif
 
-    // @Note: Textured Quad Shader
+    // NOTE: Textured Quad Shader
     //
     char *quad_vs = 
     #include "shader/quad_vs.glsl"
@@ -1706,10 +1703,10 @@ opengl_init(Opengl *gl)
 
 
 
-    // @Todo: Clean this
+    // TODO: Clean this
     opengl_compile_shaders(gl);
 
-    { // @Note: White Texture.
+    { // NOTE: White Texture.
         gl->white_bitmap.bits_per_channel = 8;
         gl->white_bitmap.channel_count    = 4;
         gl->white_bitmap.width            = 4;

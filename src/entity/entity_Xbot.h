@@ -117,7 +117,7 @@ internal ENTITY_FUNCTION_UPDATE(update_Xbot)
 
             e->command = Command_Move;
 
-            // # Todo: define rigorous coordinate!
+            // TODO: Define rigorous coordinate!
             //
             f32 x =  map01_binormal(mx, 0, game_state->draw_width);
             f32 y = -map01_binormal(my, 0, game_state->draw_height); // !
