@@ -48,7 +48,7 @@ internal f32
 smoothstep(f32 x, f32 min, f32 max) 
 {
     f32 p = map01(x, min, max);
-    f32 v = p * p * (3.f - 2.f * p);
+    f32 v = p*p*(3.f - 2.f*p);
     return v;
 }
 
@@ -148,6 +148,12 @@ internal v2
 binormal_to_normal(v2 x)
 {
     return (0.5f*x) + v2{0.5f, 0.5f};
+}
+
+internal f32 triarea2(v2 a, v2 b, v2 c) {
+    v2 p = c - b;
+    v2 q = a - b;
+    return p.x*q.y - p.y*q.x;
 }
 
 internal f32
@@ -450,7 +456,7 @@ point_line_distance(v2 p, v2 a, v2 b)
 {
     v2 u = p-a;
     v2 v = b-a;
-    f32 div = 1.0f / length(v);
+    f32 div = 1.f / length(v);
     f32 result = absolute(u.x*v.y - u.y*v.x) * div;
     return result;
 }
@@ -520,7 +526,7 @@ lerp(v4 a, f32 t, v4 b)
 }
 
 
-// # Note: Quaternion
+// @Note: Quaternion
 //
 internal Quaternion
 operator + (Quaternion a, Quaternion b)
@@ -1057,7 +1063,8 @@ lookat(v3 eye, v3 center, v3 up_)
 }
 
 internal m4x4
-view_transform(v3 position, Quaternion orientation) {
+view_transform(v3 position, Quaternion orientation)
+{
     m4x4 rotation = quaternion_to_m4x4(orientation);
     m4x4 result = camera_transform(get_column(rotation, 0),
                                    get_column(rotation, 1),
@@ -1080,9 +1087,9 @@ ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z)
     f32 f = safe_ratio((N + F), (N - F));
     m4x4 result = m4x4{{
         { a,  0,  0,  b},
-            { 0,  c,  0,  d},
-            { 0,  0,  e,  f},
-            { 0,  0,  0,  1}
+        { 0,  c,  0,  d},
+        { 0,  0,  e,  f},
+        { 0,  0,  0,  1}
     }};
     return result;
 }

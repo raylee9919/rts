@@ -49,14 +49,14 @@ REM rts_meta.exe
 :: ---------------------------- Game ---------------------------- ::
 :: Renderers
 set renderer_export=/EXPORT:win32_load_renderer /EXPORT:win32_begin_frame /EXPORT:win32_end_frame
-call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
+REM call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb %renderer_export%
 
 :: Build Icon
 call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Game
 call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
-call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
+REM call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 
 popd
 

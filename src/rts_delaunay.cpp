@@ -191,10 +191,6 @@ cdt_bad(f32 xp, f32 x1, f32 x2, f32 x3, f32 yp, f32 y1, f32 y2, f32 y3)
 internal Cdt_Result
 delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 {
-#if __DEVELOPER
-    u64 pc_begin = os->perf_counter();
-#endif
-
     Temporary_Arena scratch = scratch_begin();
 
     int count = (int)vertexcount;
@@ -256,15 +252,15 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     }
     cdt_bin_quicksort(VIDX, 0, count, BIN);
 
-    // @Note: Add super-triangle to vertex array.
-    positions[count].x   = -100;
-    positions[count].y   = -100;
+    // NOTE: Add super-triangle to vertex array.
+    positions[count].x   = -100.f;
+    positions[count].y   = -100.f;
 
-    positions[count+1].x = 100;
-    positions[count+1].y = -100;
+    positions[count+1].x =  100.f;
+    positions[count+1].y = -100.f;
 
-    positions[count+2].x = 0;
-    positions[count+2].y = 100;
+    positions[count+2].x =   0.f;
+    positions[count+2].y = 100.f;
 
     count += 3;
 
@@ -289,7 +285,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     { trespassable[i] = 1; }
 
     int maxstk = (count-3);
-    int *ts = push_array(scratch.arena, int, maxstk); // @Note: Sloan suggests #point is good enough for 10,000. Assertion required.
+    int *ts = push_array(scratch.arena, int, maxstk); // @Note: Sloan suggests #point is good enough for 10,000. assertion required.
     int top = -1;
 
     int numtri = 1;
@@ -347,24 +343,24 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
                 // Push newly added triangles to stack if has opposing triangle.
                 if (adj[ti][1] >= 0) {
-                    Assert(top < maxstk-1);
+                    assert(top < maxstk-1);
                     ts[++top] = ti;
                 }
 
                 if (adj[numtri][1] >= 0) {
-                    Assert(top < maxstk-1);
+                    assert(top < maxstk-1);
                     ts[++top] = numtri;
                 }
 
                 if (adj[numtri+1][1] >= 0) {
-                    Assert(top < maxstk-1);
+                    assert(top < maxstk-1);
                     ts[++top] = numtri+1;
                 }
 
                 while (top >= 0) {
                     int L = ts[top--];
                     int R = adj[L][1];
-                    Assert(R >= 0);
+                    assert(R >= 0);
 
                     int ERL = cdt_edge(adj, R, L);
                     int ERA = (ERL + 1) % 3;
@@ -409,11 +405,11 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                         if (A >= 0) {
                             int EAR = cdt_edge(adj, A, R);
                             adj[A][EAR] = L;
-                            Assert(top < maxstk-1);
+                            assert(top < maxstk-1);
                             ts[++top] = L;
                         }
                         if (B >= 0) {
-                            Assert(top < maxstk-1);
+                            assert(top < maxstk-1);
                             ts[++top] = R;
                         }
                         if (C >= 0) {
@@ -433,7 +429,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     }
 
     // @Note: Check consistency of triangulation.
-    Assert(numtri == 2*(count-3)+1);
+    assert(numtri == 2*(count-3)+1);
 
     if (navmesh->constrain_count > 0) 
     {
@@ -488,7 +484,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                             break;
                         }
                     }
-                    Assert(vii != -1);
+                    assert(vii != -1);
 
                     for (int v = 0; v < 3; ++v) {
                         if (tri[tmpT][v] == vj) {
@@ -512,7 +508,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
                     continue;
                 }
 
-                Assert(T != -1);
+                assert(T != -1);
 
                 while (1) {
                     if (tri[T][0] == vj || tri[T][1] == vj || tri[T][2] == vj) {
@@ -792,7 +788,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 
                     if (T != -1) break;
                 }
-                Assert(T != -1);
+                assert(T != -1);
 
                 if (!visited[T]) {
                     enqueue(&queue, T);
@@ -869,7 +865,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
             ++idx;
         }
     }
-    Assert(idx == result_numtri);
+    assert(idx == result_numtri);
 
     for (int T = 0; T < numtri; ++T) 
     {
@@ -887,12 +883,6 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
     // @Note: Remap to original value.
     //count-=3;
 
-#if __DEVELOPER
-    u64 pc_end = os->perf_counter();
-    f32 elapsed_ms = 1000.0f * (pc_end - pc_begin) * os->perf_counter_freq_inv;
-    printf("Generated Navmesh in %.6fms.\n", elapsed_ms);
-#endif
-
     Cdt_Result result = {};
     {
         result.numtri = result_numtri;
@@ -908,7 +898,7 @@ delaunay_triangulate(Vertex *vertices, u32 vertexcount, Navmesh *navmesh)
 internal void
 begin_constrain(Navmesh *nv)
 {
-    Assert(nv->constrain_count < nv->constrain_size);
+    assert(nv->constrain_count < nv->constrain_size);
     nv->is_constrain = true;
     nv->first_vertex = nv->vertex_count;
 }
@@ -924,17 +914,17 @@ end_constrain(Navmesh *nv)
 }
 
 internal void
-push_vertex(Navmesh *nv, v3 v) 
+push_vertex(Navmesh *nm, v3 v) 
 {
-    Assert(nv->vertex_count < nv->vertex_size);
+    assert(nm->vertex_count < nm->vertex_size);
 
-    if (nv->is_constrain) {
-        Nav_Constrain *c = nv->constrains + nv->constrain_count;
-        Assert(c->edge_count < c->edge_size);
-        c->edges[c->edge_count][0] = nv->vertex_count;
-        c->edges[c->edge_count][1] = (nv->vertex_count + 1) % nv->vertex_size;
+    if (nm->is_constrain) {
+        Nav_Constrain *c = nm->constrains + nm->constrain_count;
+        assert(c->edge_count < c->edge_size);
+        c->edges[c->edge_count][0] = nm->vertex_count;
+        c->edges[c->edge_count][1] = (nm->vertex_count + 1) % nm->vertex_size;
         ++c->edge_count;
     }
 
-    nv->vertices[nv->vertex_count++].position = v;
+    nm->vertices[nm->vertex_count++].position = v;
 }

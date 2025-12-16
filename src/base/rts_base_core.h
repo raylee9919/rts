@@ -269,6 +269,7 @@ enum
      ((zchk((p)->next) ? (0) : (((p)->next->prev) = (n))), (n)->next = (p)->next, (n)->prev = (p), (p)->next = (n),\
       ((p) == (l) ? (l) = (n) : (0))))
 #define dll_push_back_npz(f,l,n,next,prev,zchk,zset) dll_insert_npz(f,l,l,n,next,prev,zchk,zset)
+#define dll_push_back_np(f,l,n,next,prev) dll_push_back_npz(f,l,n,next,prev,check_null,set_null)
 #define dll_remove_npz(f,l,n,next,prev,zchk,zset) (((f)==(n))?\
                                                    ((f)=(f)->next, (zchk(f) ? (zset(l)) : zset((f)->prev))):\
                                                    ((l)==(n))?\
@@ -278,6 +279,7 @@ enum
 #define dll_push_back(f,l,n)      dll_push_back_npz(f,l,n,next,prev,check_null,set_null)
 #define dll_push_front(f,l,n)     dll_push_back_npz(l,f,n,prev,next,check_null,set_null)
 #define dll_insert(f,l,p,n)       dll_insert_npz(f,l,p,n,next,prev,check_null,set_null)
+#define dll_remove_np(f,l,n,next,prev) dll_remove_npz(f,l,n,next,prev,check_null,set_null)
 #define dll_remove(f,l,n)         dll_remove_npz(f,l,n,next,prev,check_null,set_null)
 
 

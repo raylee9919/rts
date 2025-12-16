@@ -1362,8 +1362,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
 
         // NOTE: 3----1
-        //        |    |
-        //        2----0
+        //       |    |
+        //       2----0
         const Textured_Vertex vertices[] = {
             {v3{ 1,-1, 0}, v2{1,0}},
             {v3{ 1, 1, 0}, v2{1,1}},

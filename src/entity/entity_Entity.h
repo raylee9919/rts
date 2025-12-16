@@ -29,7 +29,7 @@ internal ENTITY_FUNCTION_SERIALIZE(serialize_##ENTITY);\
 internal ENTITY_FUNCTION_SERIALIZE(serialize_Entity);
 
 
-enum Entity_Command
+enum Entity_Command 
 {
     Command_Invalid = 0,
     Command_Stop,

@@ -8,26 +8,11 @@
    $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-struct Camera;
 struct Entity;
 
 #define MAX_ENTITY_COUNT 1024
 
-struct World 
-{
-    Arena *arena;
-
-    Entity *entities[MAX_ENTITY_COUNT];
-    u32 entity_count;
-
-    Camera *cameras[256];
-    u32 camera_count;
-
-    u32 next_entity_id;
-};
-
-struct Game_Assets 
-{
+struct Game_Assets {
     Arena *arena;
 
     Bitmap debug_bitmap;
@@ -49,14 +34,18 @@ struct Game_Assets
     Animation *xbot_attack;
 };
 
-enum Game_Mode 
-{
-    GAME_MODE_EDITOR,
-    GAME_MODE_GAME,
+struct Chunk {
+    Entity *first_entity;
+    Entity *last_entity;
 };
 
-struct Game_State 
-{
+struct Navmesh {
+    Cdt_Context   ctx;
+    cdt_triangle *triangles;
+    int           triangle_count;
+};
+
+struct Game_State {
     b32 initted;
 
     b32 editor_initted;
@@ -65,31 +54,32 @@ struct Game_State
 
     Game_Assets *assets;
 
-    World *world;
-
     u32 draw_width;
     u32 draw_height;
 
     u32 window_width;
     u32 window_height;
 
-    f32 dt_real;
-    f32 dt_game;
-    f32 time;
-
-    Game_Mode mode;
-
     Random_Series random_series;
 
-    Camera *controlling_camera;
-    m4x4 view_proj; // @Todo: bad :<
-    Camera *game_camera;
-    Camera *debug_camera;
-    Camera *orthographic_camera;
+    Arena      *map_arena;
+    v2u         chunk_size;
+    u32         chunk_count_x;
+    u32         chunk_count_y;
+    v2          map_size;
+    Chunk      *chunks;
+    Navmesh     navmesh;
 
-    u32 active_entity_id;
+    Arena      *entity_arena;
+    Entity     *first_free_entity;
+    Entity     *last_free_entity;
+    Entity     *entity_table;
+    u32         entity_table_size;
+    u32         next_generational_id;
 
-    Navmesh *navmesh;
+    u32         game_camera_id;
+    u32         debug_camera_id;
+    u32         controlling_camera_id;
 };
 
 #endif // RTS_GAME_H

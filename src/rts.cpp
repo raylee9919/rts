@@ -9,8 +9,8 @@
 
 // TODO: We are testing our metaprogramming currently. Those defines are kind of 
 //        API for serializing data types of entity known to serialization module.
-#define BEGIN_ENTITY
-#define END_ENTITY
+//#define BEGIN_ENTITY
+//#define END_ENTITY
 
 // NOTE: [.h]
 //
@@ -19,25 +19,20 @@
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_random.h"
+#include "rts_ds.h"
 #include "rts_platform.h"
 #include "rts_font.h"
 #include "rts_asset.h"
-#include "rts_ds.h"
-#include "rts_delaunay.h"
-#include "rts_nav.h"
+#include "rts_cdt.h"
 #include "rts.h"
+#include "rts_entity.h"
 #include "rts_geogen.h"
 #include "renderer/rts_renderer.h"
 #include "ui/ui_inc.h"
-#include "generated/entity.h"
-#include "generated/entity_serialization.h"
-#include "rts_map_loader.h"
-#include "rts_sim.h"
 #include "rect_pack/rpk.h"
 #include "font_provider/fp_inc.h"
 
-// NOTE: Globals.
-//
+global Game_State *game_state;
 global Renderer *renderer;
 
 // NOTE: [.cpp]
@@ -45,54 +40,17 @@ global Renderer *renderer;
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.cpp"
 #include "rts_random.cpp"
+#include "rts_ds.cpp"
 #include "rts_font.cpp"
 #include "rts_asset.cpp"
+#include "rts_cdt.cpp"
+#include "rts_entity.cpp"
 #include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
 #include "ui/ui_inc.cpp"
-#include "rts_delaunay.cpp"
-#include "rts_nav.cpp"
-#include "rts_sim.cpp"
-#include "rts_map_loader.cpp"
 #include "rect_pack/rpk.cpp"
 #include "font_provider/fp_inc.cpp"
 
-internal void
-update_entities(World *world, Game_State *game_state)
-{
-    for (u32 idx = 0; idx < world->entity_count; ++idx) 
-    {
-        Entity *entity = world->entities[idx];
-        if (entity->id != 0) 
-        {
-            entity->update(entity, game_state);
-        }
-    }
-}
-
-internal void
-draw_entities(Game_State *game_state, Render_Commands *commands, Render_Group *render_group, v3 center, v3 draw_dim)
-{
-    World *world = game_state->world;
-    for (u32 idx = 0; idx < world->entity_count; ++idx) 
-    {
-        Entity *entity = world->entities[idx];
-        if (entity->id != 0) 
-        {
-            entity->draw(entity, game_state, commands, render_group);
-        }
-    }
-}
-
-internal void
-update_cameras(World *world, Game_State *game_state)
-{
-    for (u32 idx = 0; idx < world->camera_count; ++idx) 
-    {
-        Camera *camera = world->cameras[idx];
-        camera->update((Entity *)camera, game_state);
-    }
-}
 
 no_name_mangle
 GAME_UPDATE_AND_RENDER(game_update_and_render)
@@ -108,24 +66,19 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_init();
     }
     
-    Game_State *game_state = (Game_State *)platform->game_state;
+    game_state = (Game_State *)platform->game_state;
     if (! game_state) {
         platform->game_state = game_state = push_struct(platform->arena, Game_State);
     }
+
+    game_state->draw_width    = platform->draw_width;
+    game_state->draw_height   = platform->draw_height;
+    game_state->window_width  = platform->window_width;
+    game_state->window_height = platform->window_height;
+    // @Todo: We'll deal with timestep later.
+    f32 dt = clamp(platform->dt, 0.001f, 0.1f);
     
-    {
-        game_state->draw_width    = platform->draw_width;
-        game_state->draw_height   = platform->draw_height;
-        game_state->window_height = platform->window_width;
-        game_state->window_height = platform->window_height;
-        // TODO: Warn on out-out-range refresh.
-        game_state->dt_real = clamp(platform->dt, 0.001f, 0.1f);
-        game_state->dt_game = game_state->dt_real;
-        game_state->time   += game_state->dt_real;
-    }
-    
-    if (! game_state->initted) 
-    {
+    if (! game_state->initted) {
         game_state->initted = true;
         
         thread_init();
@@ -136,18 +89,13 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->assets = push_struct(arena, Game_Assets);
         game_state->assets->arena = arena;
         
-        
         game_state->frame_arena = arena_alloc();
         
-        // NOTE: init world.
-        //
-        Arena *world_arena = arena_alloc();
-        World *world = game_state->world = push_struct(world_arena, World);
-        world->arena = world_arena;
-        world->next_entity_id = 1;
-        
-        game_state->mode = GAME_MODE_GAME;
         game_state->random_series = rand_seed(1219);
+
+        game_state->entity_arena      = arena_alloc();
+        game_state->entity_table_size = 1024; // FIX: Memory bug in arena when set size to 4096
+        game_state->entity_table      = push_array(game_state->entity_arena, Entity, game_state->entity_table_size);
         
         { // TEMPORARY
             Temporary_Arena scratch = scratch_begin();
@@ -230,145 +178,116 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                                  utf8f(scratch.arena, "%S/textures/%s.sbmp", platform->data_path, skybox_filenames[i]),
                                  asset_arena);
             }
+
+            game_state->map_arena     = arena_alloc();
+            game_state->chunk_size    = v2u{3,3};
+            game_state->chunk_count_x = 128;
+            game_state->chunk_count_y = 128;
+            game_state->map_size.x    = game_state->chunk_size.x*game_state->chunk_count_x;
+            game_state->map_size.y    = game_state->chunk_size.y*game_state->chunk_count_y;
+            game_state->chunks        = push_array(game_state->map_arena, Chunk, game_state->chunk_count_x*game_state->chunk_count_y);
             
-            // TEMPORARY: init cameras.
             {
-                game_state->game_camera = push_entity(world, Camera, V3(0,0,0));
-                {
-                    game_state->game_camera->init(Camera_Type_Perspective, 0.5f, 0.5f, 100000.0f, world);
-                    game_state->game_camera->orientation = euler_to_quaternion(radian_from_degree(-45), 0, 0);
-                    game_state->game_camera->position = v3{0,5,5};
-                }
+                Entity *game_camera       = entity_alloc();
+                game_camera->type         = ENTITY_TYPE_CAMERA;
+                game_camera->focal_length = 0.5f;
+                game_camera->N            = 0.5f;
+                game_camera->F            = 100000.0f;
+                game_camera->position     = v3{0.f,5.f,5.f};
+                game_camera->orientation  = euler_to_quaternion(radian_from_degree(-45.f), 0.f, 0.f);
                 
-                game_state->debug_camera = push_entity(world, Camera, V3(0,0,0));
-                {
-                    game_state->debug_camera->init(Camera_Type_Perspective, 0.5f, 0.5f, 100000.0f, world);
-                    game_state->debug_camera->orientation = euler_to_quaternion(radian_from_degree(-45), 0, 0);
-                    game_state->debug_camera->position += game_state->game_camera->position + v3{0,5,5};
-                }
+                Entity *debug_camera       = entity_alloc();
+                debug_camera->type         = ENTITY_TYPE_CAMERA;
+                debug_camera->focal_length = 0.5f;
+                debug_camera->N            = 0.5f;
+                debug_camera->F            = 100000.0f;
+                debug_camera->position     = v3{0.f,5.f,5.f};
+                debug_camera->orientation  = euler_to_quaternion(radian_from_degree(-45.f), 0.f, 0.f);
                 
-                game_state->orthographic_camera = push_entity(world, Camera, V3(0,0,0));
-                {
-                    game_state->orthographic_camera->init(Camera_Type_Orthographic, 0, -100, 100, world);
-                }
-                
-                //game_state->controlling_camera = game_state->debug_camera;
-                game_state->controlling_camera = game_state->game_camera;
+                game_state->game_camera_id        = game_camera->id;
+                game_state->debug_camera_id       = debug_camera->id;
+                game_state->controlling_camera_id = game_camera->id;
             }
             
             
             geogen_backfaced_cube(&assets->skybox_mesh, asset_arena, 10000);
             
-            load_map(utf8f(scratch.arena, "%S/map/map1.smap", platform->data_path), game_state);
             
             render_commands->csm_varient_method = true;
             
-            // TEMPORARY: We are setting navmesh input data by hand.
-            {
-                Arena *arena = arena_alloc();
-                game_state->navmesh = push_struct(arena, Navmesh);
-                game_state->navmesh->arena = arena;
+            // @Note: Initialize CDT context.
+            //
+            f32 hx = 0.5f*game_state->map_size.x;
+            f32 hy = 0.5f*game_state->map_size.y;
+            cdt_init(&game_state->navmesh.ctx, 0.f, 2048.f, -2048.f, -2048.f, 2048.f, -2048.f); // @Temporary
+
+
+            // @Note: Push map boundary to the navmesh.
+            //
+            cdt_insert(&game_state->navmesh.ctx, 0, -hx, hy, -hx, -hy);
+            cdt_insert(&game_state->navmesh.ctx, 0, -hx,-hy,  hx, -hy);
+            cdt_insert(&game_state->navmesh.ctx, 0,  hx,-hy,  hx,  hy);
+            cdt_insert(&game_state->navmesh.ctx, 0,  hx, hy, -hx,  hy);
+
+            // @Temporary:
+            //
+            cdt_insert(&game_state->navmesh.ctx, 1, -2.f, 2.f, -2.f, -2.f);
+            cdt_insert(&game_state->navmesh.ctx, 1, -2.f,-2.f,  2.f, -2.f);
+            cdt_insert(&game_state->navmesh.ctx, 1,  2.f,-2.f,  2.f,  2.f);
+            cdt_insert(&game_state->navmesh.ctx, 1,  2.f, 2.f, -2.f,  2.f);
+
+
+            // TEMPORARY: Create soldier entity.
+            //
+            f32 pos_x[] = {3.f};
+            for (int i = 0; i < array_count(pos_x); ++i) {
+                Entity *soldier = entity_alloc();
+                soldier->type                = ENTITY_TYPE_SOLDIER;
+                soldier->flags               = ENTITY_FLAG_CHUNK_PARTITIONED;
+
+                soldier->radius              = 0.5f;
+                soldier->speed               = 5.0f;
+
+                soldier->position            = V3(pos_x[i],0.f,3.f);
+                soldier->orientation         = Quaternion{1,0,0,0};
+                soldier->scaling             = V3(1.f);
+                soldier->model               = assets->xbot_model;
+                soldier->idle_animation      = assets->xbot_idle;
+                soldier->running_animation   = assets->xbot_run;
+                soldier->die_animation       = assets->xbot_die;
+                soldier->attack_animation    = assets->xbot_attack;
+                // HACK:
+                soldier->animation_transform = push_array(game_state->entity_arena, m4x4, soldier->model->node_count);
             }
-            Navmesh *navmesh = game_state->navmesh;
-            navmesh->vertex_size = 1000;
-            navmesh->vertices = push_array(navmesh->arena, Vertex, navmesh->vertex_size);
-            
-            navmesh->constrain_size = 1000;
-            navmesh->constrains = push_array(navmesh->arena, Nav_Constrain, navmesh->constrain_size);
-            
-            for (u32 i = 0; i < navmesh->constrain_size; ++i) 
-            {
-                navmesh->constrains[i].edge_count = 0;
-                navmesh->constrains[i].edge_size = 1000;
-                navmesh->constrains[i].edges = (int(*)[2])push_size(navmesh->arena, sizeof(int)*2*navmesh->constrains[i].edge_size);
-            }
-            
-            push_vertex(navmesh, v3{-50,0,-50});
-            push_vertex(navmesh, v3{-50,0, 50});
-            push_vertex(navmesh, v3{ 50,0, 50});
-            push_vertex(navmesh, v3{ 50,0,-50});
-            
-            for (u32 i = 0; i < game_state->world->entity_count; ++i) 
-            {
-                Entity *e = game_state->world->entities[i];
-                if (e->flags & Flag_Navmesh) 
-                {
-                    m4x4 transform = translate(scale(identity(), e->scaling), e->position);
-                    begin_constrain(navmesh);
-                    push_vertex(navmesh, (transform*v4{-1.f, 0.f, -1.f, 1.f}).xyz);
-                    push_vertex(navmesh, (transform*v4{-1.f, 0.f,  1.f, 1.f}).xyz);
-                    push_vertex(navmesh, (transform*v4{ 1.f, 0.f,  1.f, 1.f}).xyz);
-                    push_vertex(navmesh, (transform*v4{ 1.f, 0.f, -1.f, 1.f}).xyz);
-                    end_constrain(navmesh);
-                }
-            }
-            
-            // TODO: not neat.
-            begin_constrain(navmesh);
-            {
-                push_vertex(navmesh, v3{ 1.f, 0.f,  3.f});
-                push_vertex(navmesh, v3{ 3.f, 0.f,  2.f});
-                push_vertex(navmesh, v3{ 2.f, 0.f, -2.f});
-                push_vertex(navmesh, v3{-1.f, 0.f, -4.f});
-                push_vertex(navmesh, v3{-3.f, 0.f, -3.f});
-                push_vertex(navmesh, v3{-4.f, 0.f,  1.f});
-            }
-            end_constrain(navmesh);
-            
-            for (u32 i = 0; i < navmesh->vertex_count; ++i)
-            {
-                navmesh->vertices[i].position.y = 0.01f;
-            }
-            
-            navmesh->cdt = delaunay_triangulate(navmesh->vertices, navmesh->vertex_count, navmesh);
         }
     }
     
-    { // NOTE: Begin
-        arena_clear(game_state->frame_arena);
-        render_begin();
-    }
+    arena_clear(game_state->frame_arena);
+    render_begin();
     
-    if (fp_state == NULL)
-    {
+    if (fp_state == NULL) {
         fp_state = fp_alloc();
         fp_init();
     }
     
-    
-    // NOTE: ui alloc/init
-    //
-    if (ui_state == NULL)
-    {
+    if (ui_state == NULL) {
         ui_state = ui_alloc();
         ui_init(ui_state);
     }
-    
-    // TEMPORARY:
-    game_state->active_entity_id = render_commands->active_entity_id;
-    game_state->view_proj = game_state->controlling_camera->VP;
-    
+
     // NOTE: Alias
-    World *world = game_state->world;
     Game_Assets *assets = game_state->assets;
     
-    Render_Group *render_group       = begin_render_group(render_commands, MB(16));
+    Render_Group *render_group = begin_render_group(render_commands, MB(16));
+
     
-    // TEMPORARY:
-    Navmesh *navmesh = game_state->navmesh;
-    Cdt_Result *cdt = &navmesh->cdt;
-    
-    if (render_commands->draw_navmesh) 
-    {
-        draw_triangles(render_group, navmesh->vertices, navmesh->vertex_count, (u32 *)cdt->tri, cdt->numtri, V4(V3(0.3f),1.0f));
-        
-        for (int i = 0; i < navmesh->cdt.numtri; ++i) 
-        {
-            v4 tmp = game_state->controlling_camera->VP * V4(get_centroid(navmesh, i), 1);
-            v3 projected_position = (tmp.xyz / tmp.w);
-            projected_position.xy = hadamard(binormal_to_normal(projected_position.xy), v2{(f32)platform->draw_width, (f32)platform->draw_height});
-        }
-    }
+    // Get all triangles in the navmesh
+    //
+    int triangle_count = cdt_get_triangle_count(&game_state->navmesh.ctx);
+    game_state->navmesh.triangles = push_array(game_state->frame_arena, cdt_triangle, triangle_count);
+    cdt_get_all_triangles(&game_state->navmesh.ctx, game_state->navmesh.triangles);
+    game_state->navmesh.triangle_count = triangle_count;
+
     
     
     // TEMPORARY: Testing UI
@@ -383,111 +302,109 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         ui_platform(utf8lit("⚙"))
         {
             ui_labelf("mspf: %.2f", platform->dt*1000.f);
-            ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("UI 폰트 크기"));
-            if (ui_button(utf8lit("каркасный(Wireframe)")).pressed_left)
-            {
+            ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
+            if (ui_button(utf8lit("Wireframe")).pressed_left) {
                 render_commands->wireframe_mode = !render_commands->wireframe_mode; 
             }
-            if (ui_button(utf8lit("Navmesh")).pressed_left)
-            {
+            if (ui_button(utf8lit("Navmesh")).pressed_left) {
                 render_commands->draw_navmesh = !render_commands->draw_navmesh; 
             }
-            if (ui_expander(utf8lit("阴影 (Shadow)")))
-            {
-                ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("Φως X"));
-                ui_slider_f32(&light_y,  0.1f, 1.0f, utf8lit("Light Y"));
-                ui_slider_f32(&light_z, -1.0f, 1.0f, utf8lit("빛 Z"));
-                if (ui_button(utf8lit("Valient's Method")).pressed_left)
-                {
+            if (ui_expander(utf8lit("Shadow"))) {
+                ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("x"));
+                ui_slider_f32(&light_y,  0.1f, 1.0f, utf8lit("y"));
+                ui_slider_f32(&light_z, -1.0f, 1.0f, utf8lit("z"));
+                if (ui_button(utf8lit("Valient's Method")).pressed_left) {
                     render_commands->csm_varient_method = !render_commands->csm_varient_method; 
                 }
-                if (ui_button(utf8lit("Csm Frustum")).pressed_left)
-                {
+                if (ui_button(utf8lit("CSM Frustum")).pressed_left) {
                     render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
                 }
             }
-            if (ui_button(utf8lit("カメラ切り替え(Switch Camera)")).pressed_left) 
-            {
-                if (game_state->controlling_camera == game_state->game_camera) 
-                {
-                    game_state->controlling_camera = game_state->debug_camera;
-                } 
-                else 
-                {
-                    game_state->controlling_camera = game_state->game_camera;
+            if (ui_button(utf8lit("Switch Camera")).pressed_left) {
+                if (game_state->controlling_camera_id == game_state->game_camera_id) {
+                    game_state->controlling_camera_id = game_state->debug_camera_id;
+                } else {
+                    game_state->controlling_camera_id = game_state->game_camera_id;
                 }
             }
         }
     }
     ui_end();
-    
-    
-    
-    switch (game_state->mode) 
-    {
-        default: { assert(! "invalid default case"); }break;
 
-        case GAME_MODE_GAME: 
-        {
-            update_entities(world, game_state);
-            draw_entities(game_state, render_commands, render_group, game_state->controlling_camera->position, V3(100));
-        }break;
-        
-        case GAME_MODE_EDITOR: 
-        {
-            if (! game_state->editor_initted) 
-            {
-                game_state->editor_initted = true;
-                update_entities(world, game_state);
-                game_state->controlling_camera = game_state->debug_camera;
-            }
-            
-#if 0
-            ui_dev(render_commands, game_state, input);
-            ui.begin("Editor Panel", V2(0.6f, 0.7f));
-            v4 color = V4(0.2f,0.8f,0.2f,0.4f);
-            if (ui.button(color, "Play")) 
-            {
-                game_state->mode = Game_Mode_Game;
-                game_state->controlling_camera = game_state->game_camera;
-            }
-            
-            if (ui.button(color, "Save")) 
-            {
-                Temporary_Arena scratch = scratch_begin();
-                scope_exit(scratch_end(scratch));
-                
-                Date_Time time = os.date_time_current();
-                Utf8 map_save_path = utf8f(scratch.arena, "%S/map/map1.smap", platform->data_path);
-                Utf8 map_back_path = utf8f(scratch.arena, "%S/map/backup/map1_%d_%d_%d_%d_%d_%d.smap", platform->data_path, time.year, time.month, time.day, time.hour, time.minute, time.second);
-                os.file_copy(map_back_path, map_save_path);
-                
-                FILE *file = fopen((char *)map_save_path.str, "wb");
-                Assert(file);
-                for (u32 entityidx = 0; entityidx < world->entity_count; ++entityidx) 
-                {
-                    Entity *entity = world->entities[entityidx];
-                    if (entity->serialize) 
-                    {
-                        entity->serialize(entity, game_state, file);
-                    }
-                }
-                fclose(file);
-                ui.fadeout_text(V4(1.0f), "Save");
-            }
-            ui.end();
-#endif
-            
-            // no update entities in editor mode.
-            update_cameras(world, game_state);
-            draw_entities(game_state, render_commands, render_group, game_state->controlling_camera->position, V3(100));
-        }break;
+
+    // Update entities
+    //
+    for (u32 i = 0; i < game_state->entity_table_size; ++i) {
+        Entity *bucket = game_state->entity_table + i;
+        for (Entity *entity = bucket->first, *next; entity; entity = next) {
+            next = entity->next;
+            entity_update(entity, dt);
+        }
     }
+
+    // Draw entities
+    //
+    for (u32 i = 0; i < game_state->entity_table_size; ++i) {
+        Entity *bucket = game_state->entity_table + i;
+        for (Entity *entity = bucket->first; entity; entity = entity->next) {
+            entity_draw(entity, dt, render_group, render_commands);
+        }
+    }
+
+    // Draw ground
+    //
+    Mesh *ground_mesh = assets->plane_model->meshes;
+    f32 gx = game_state->map_size.x;
+    f32 gy = game_state->map_size.y;
+    m4x4 ground_transform = {{
+        {gx,0, 0, 0},
+        {0, 1, 0, 0},
+        {0, 0,gy, 0},
+        {0, 0, 0, 1},
+    }};
+    push_mesh(render_group, ground_mesh, ground_transform, 0, 0, v2{gx,gy});
+
     
+    // Draw navmesh
+    //
+    if (1) {
+    //if (render_commands->draw_navmesh) {
+        Entity *controlling_camera = entity_from_id(game_state->controlling_camera_id);
+        m4x4 view_proj = controlling_camera->VP;
+        for (int i = 0; i < game_state->navmesh.ctx.edges.num; ++i) {
+            cdt_edge *edge = game_state->navmesh.ctx.edges.data[i];
+            cdt_quad_edge *qe = &edge->e[0];
+            v2 a = qe->org->pos;
+            v2 b = cdt_sym(qe)->org->pos;
+#if 0
+
+            // Project to NDC.
+            v4 p = view_proj*V4(a.y, 0.f, a.x, 1.f);
+            v4 q = view_proj*V4(b.y, 0.f, b.x, 1.f);
+            p.xy *= (1.f/p.w);
+            q.xy *= (1.f/q.w);
+
+            // Transform to screen space.
+            p.x = p.x*(f32)platform->draw_width;
+            p.y = p.y*(f32)platform->draw_height;
+            q.x = q.x*(f32)platform->draw_width;
+            p.y = q.y*(f32)platform->draw_height;
+
+            v4 color = cdt_is_constrained(edge) ? V4(1.f, 0.f, 1.f, 1.f) : V4(1.f, 1.f, 1.f, 1.f);
+            draw_line(render_group, V3(p.x, p.y, 0.f), V3(q.x, q.y, 0.f), color);
+#else
+            v4 color = cdt_is_constrained(edge) ? V4(1.f, 0.f, 1.f, 1.f) : V4(1.f, 1.f, 1.f, 1.f);
+            draw_line(render_group, V3(a.y, 0.f, a.x), V3(b.y, 0.f, b.x), color);
+#endif
+        }
+    }
+
     { // NOTE: Render Commands
-        render_commands->main_eye_position = game_state->controlling_camera->position;
-        render_commands->main_view_proj = game_state->controlling_camera->VP;
-        render_commands->ortho_view_proj = game_state->orthographic_camera->VP;
+        Entity *game_camera = entity_from_id(game_state->game_camera_id);
+        Entity *controlling_camera = entity_from_id(game_state->controlling_camera_id);
+
+        render_commands->main_eye_position = controlling_camera->position;
+        render_commands->main_view_proj    = controlling_camera->VP;
         
         render_commands->wireframe_color = V4(0.9f, 0.9f, 0.9f, 1.0f);
         
@@ -495,7 +412,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         //
         render_commands->skybox_on = true;
         render_commands->skybox_mesh = &assets->skybox_mesh;
-        render_commands->skybox_eye_view_proj = game_state->controlling_camera->VP;
+        render_commands->skybox_eye_view_proj = controlling_camera->VP;
         for (u32 i = 0; i < 6; ++i) 
         {
             render_commands->skybox_textures[i] = assets->skybox_textures + i;
@@ -506,7 +423,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         //
         render_commands->csm_to_light = normalize(v3{light_x, light_y, light_z});
         f32 csm_frustum_edge_length = 50.0f;
-        m4x4 inv = inverse(game_state->game_camera->VP);
+        m4x4 inv = inverse(game_camera->VP);
         // TODO: Renderer independent calculation!
         v4 ndcs[4] = {
             v4{-1,-1,-1, 1},
@@ -515,27 +432,24 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             v4{ 1, 1,-1, 1},
         };
         
-        v3 eye = game_state->game_camera->position;
+        v3 eye = game_camera->position;
         v4 positions[8];
         
-        for (u32 i = 0; i < 4; ++i) 
-        {
+        for (u32 i = 0; i < 4; ++i) {
             positions[i] = inv * ndcs[i];
             positions[i].xyz *= (1.f / positions[i].w);
         }
         
-        for (u32 i = 0; i < 4; ++i) 
-        {
+        for (u32 i = 0; i < 4; ++i) {
             v3 d = normalize(positions[i].xyz - eye);
             positions[4+i] = positions[i];
             positions[4+i].xyz += (csm_frustum_edge_length*d);
         }
         
-        for (u32 i = 0; i < 8; ++i) 
-        {
+        for (u32 i = 0; i < 8; ++i) {
             render_commands->csm_frustum_positions[i] = positions[i].xyz;
         }
-        render_commands->csm_view = game_state->game_camera->V;
+        render_commands->csm_view = game_camera->V;
     }
     
     

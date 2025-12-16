@@ -53,12 +53,10 @@ draw_triangles(Render_Group *group, Vertex *vertices, u32 vertexcount, u32 *indi
     piece->color = color;
 }
 
-internal void
-draw_line(Render_Group *group, v3 a, v3 b, v4 color) 
-{
+internal void draw_line(Render_Group *group, v3 a, v3 b, v4 color) {
     Render_Line *piece = push_render_entity(group, Render_Line);
-    piece->p[0] = a;
-    piece->p[1] = b;
+    piece->p[0]  = a;
+    piece->p[1]  = b;
     piece->color = color;
 }
 

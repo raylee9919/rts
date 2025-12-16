@@ -37,8 +37,7 @@ typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
 #define RENDERER_END_FRAME(NAME) void NAME(Platform_Renderer *platform_renderer, Renderer *renderer, Render_Commands *frame)
 typedef RENDERER_END_FRAME(Renderer_End_Frame);
 
-enum Render_Type 
-{
+enum Render_Type {
     RENDER_TYPE_NULL = 0,
 
     eRender_Mesh,
@@ -47,8 +46,7 @@ enum Render_Type
     eRender_Line,
 };
 
-struct Render_Entity_Header 
-{
+struct Render_Entity_Header {
     Render_Type type;
     u64 size;
 };
@@ -80,8 +78,7 @@ struct Render_Triangles
     v4 color;
 };
 
-struct Render_Line 
-{
+struct Render_Line {
     Render_Entity_Header header;
     v3 p[2];
     v4 color;
@@ -127,7 +124,6 @@ struct Render_Commands
 
     v3          main_eye_position;
     m4x4        main_view_proj;
-    m4x4        ortho_view_proj;
 
     b32         wireframe_mode;
     v4          wireframe_color;
