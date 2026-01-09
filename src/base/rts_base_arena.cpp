@@ -8,8 +8,7 @@
 
 
 
-internal Arena *
-arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
+internal Arena *arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
 {
     u64 page_size = os->query_page_size();
     u64 rsv_size  = align_pow2(rsv_size_in, page_size);
@@ -37,8 +36,7 @@ arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
     return arena;
 }
 
-internal void
-arena_release(Arena *arena)
+internal void arena_release(Arena *arena)
 {
     for (Arena *n = arena->current, *prev = 0; n != 0; n = prev)
     {
@@ -47,8 +45,7 @@ arena_release(Arena *arena)
     }
 }
 
-internal void *
-arena_push(Arena *arena, u64 size, u64 align)
+internal void *arena_push(Arena *arena, u64 size, u64 align)
 {
     Arena *current = arena->current;
     u64 pos_pre = align_pow2(current->pos, align);
@@ -96,16 +93,14 @@ arena_push(Arena *arena, u64 size, u64 align)
     return result;
 }
 
-internal u64
-arena_pos(Arena *arena)
+internal u64 arena_pos(Arena *arena)
 {
     Arena *current = arena->current;
     u64 pos = current->base_pos + current->pos;
     return pos;
 }
 
-internal void
-arena_pop_to(Arena *arena, u64 pos)
+internal void arena_pop_to(Arena *arena, u64 pos)
 {
     u64 big_pos = clamp_lo(ARENA_HEADER_SIZE, pos);
     Arena *current = arena->current;
@@ -123,14 +118,12 @@ arena_pop_to(Arena *arena, u64 pos)
     current->pos = new_pos;
 }
 
-internal void
-arena_clear(Arena *arena)
+internal void arena_clear(Arena *arena)
 {
     arena_pop_to(arena, 0);
 }
 
-internal void
-arena_pop(Arena *arena, u64 size)
+internal void arena_pop(Arena *arena, u64 size)
 {
     u64 pos_old = arena_pos(arena);
     u64 pos_new = pos_old;
@@ -141,8 +134,7 @@ arena_pop(Arena *arena, u64 size)
     arena_pop_to(arena, pos_new);
 }
 
-internal Temporary_Arena
-temporary_arena_begin(Arena *arena)
+internal Temporary_Arena temporary_arena_begin(Arena *arena)
 {
     u64 pos = arena_pos(arena);
     Temporary_Arena temp = {};
@@ -151,8 +143,7 @@ temporary_arena_begin(Arena *arena)
     return temp;
 }
 
-internal void
-temporary_arena_end(Temporary_Arena temp)
+internal void temporary_arena_end(Temporary_Arena temp)
 {
     arena_pop_to(temp.arena, temp.pos);
 }

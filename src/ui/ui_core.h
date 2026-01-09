@@ -8,8 +8,7 @@
    $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-enum Ui_Size_Type
-{
+enum Ui_Size_Type {
     UI_SIZE_TYPE_PX,
     UI_SIZE_TYPE_TEXT,
     UI_SIZE_TYPE_CHILDREN,
@@ -18,20 +17,17 @@ enum Ui_Size_Type
     UI_SIZE_TYPE_COUNT,
 };
 
-struct Ui_Size
-{
+struct Ui_Size {
     Ui_Size_Type  type;
     f32           value;
 };
 
-struct Ui_Key
-{
+struct Ui_Key {
     u64 e[1];
 };
 
 typedef u32 Ui_Box_Flags;
-enum
-{
+enum {
     // Interact
     //
     UI_BOX_FLAG_DISABLED           = (1<<0),
@@ -52,8 +48,7 @@ enum
     UI_BOX_FLAG_DYNAMIC_POSITION   = (1<<9),
 };
 
-struct Ui_Text
-{
+struct Ui_Text {
     Utf8    string;
     AABB2   aabb;
     f32     padding;
@@ -62,8 +57,7 @@ struct Ui_Text
     f32     max_descent;
 };
 
-struct Ui_Box
-{
+struct Ui_Box {
     // Links
     Ui_Box         *parent;
     Ui_Box         *first;
@@ -108,16 +102,14 @@ struct Ui_Box
     b32             on;
 };
 
-struct Ui_Signal
-{
+struct Ui_Signal {
     Ui_Box  *box;
 
     b32 pressed_left;
     b32 dragging_left;
 };
 
-struct Ui_Style
-{
+struct Ui_Style {
     Ui_Style *next;
 
     union {
@@ -135,8 +127,7 @@ struct Ui_Style
     };
 };
 
-struct Ui_State
-{
+struct Ui_State {
     Arena          *permanent_arena;
 
 

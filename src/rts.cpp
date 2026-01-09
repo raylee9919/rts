@@ -7,12 +7,12 @@
    ======================================================================== */
 
 
-// TODO: We are testing our metaprogramming currently. Those defines are kind of 
+// @Todo: We are testing our metaprogramming currently. Those defines are kind of 
 //        API for serializing data types of entity known to serialization module.
 //#define BEGIN_ENTITY
 //#define END_ENTITY
 
-// NOTE: [.h]
+// [.h]
 //
 #include "embed_profiler.h"
 
@@ -32,10 +32,12 @@
 #include "rect_pack/rpk.h"
 #include "font_provider/fp_inc.h"
 
+
 global Game_State *game_state;
 global Renderer *renderer;
 
-// NOTE: [.cpp]
+
+// [.cpp]
 //
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.cpp"
@@ -57,28 +59,31 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
     ProfileFrameMark;
 
-    if (! os) {
+    if (!os) {
         os = platform->os;
     }
     
-    if (! renderer) {
+    if (!renderer) {
         renderer = platform->renderer;
         render_init();
     }
     
     game_state = (Game_State *)platform->game_state;
-    if (! game_state) {
+    if (!game_state) {
         platform->game_state = game_state = push_struct(platform->arena, Game_State);
     }
 
+    // Update draw/window dimension.
+    // @Todo: Switch to immediate-mode?
     game_state->draw_width    = platform->draw_width;
     game_state->draw_height   = platform->draw_height;
     game_state->window_width  = platform->window_width;
     game_state->window_height = platform->window_height;
+
     // @Todo: We'll deal with timestep later.
     f32 dt = clamp(platform->dt, 0.001f, 0.1f);
     
-    if (! game_state->initted) {
+    if (!game_state->initted) {
         game_state->initted = true;
         
         thread_init();
@@ -239,7 +244,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // TEMPORARY: Create soldier entity.
             //
-            f32 pos_x[] = {3.f};
+            f32 pos_x[] = {3.f, 4.f, 5.f};
             for (int i = 0; i < array_count(pos_x); ++i) {
                 Entity *soldier = entity_alloc();
                 soldier->type                = ENTITY_TYPE_SOLDIER;
@@ -309,6 +314,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             if (ui_button(utf8lit("Navmesh")).pressed_left) {
                 render_commands->draw_navmesh = !render_commands->draw_navmesh; 
             }
+            
             if (ui_expander(utf8lit("Shadow"))) {
                 ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("x"));
                 ui_slider_f32(&light_y,  0.1f, 1.0f, utf8lit("y"));
@@ -320,12 +326,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                     render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
                 }
             }
-            if (ui_button(utf8lit("Switch Camera")).pressed_left) {
-                if (game_state->controlling_camera_id == game_state->game_camera_id) {
-                    game_state->controlling_camera_id = game_state->debug_camera_id;
-                } else {
-                    game_state->controlling_camera_id = game_state->game_camera_id;
+            if (ui_expander(utf8lit("Camera"))) {
+                if (ui_button(utf8lit("Switch Camera")).pressed_left) {
+                    if (game_state->controlling_camera_id == game_state->game_camera_id) {
+                        game_state->controlling_camera_id = game_state->debug_camera_id;
+                    } else {
+                        game_state->controlling_camera_id = game_state->game_camera_id;
+                    }
                 }
+                ui_slider_f32(&entity_from_id(game_state->controlling_camera_id)->focal_length, 0.001f, 10.0f, utf8lit("Focal Length"));
             }
         }
     }
@@ -367,8 +376,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     
     // Draw navmesh
     //
-    if (1) {
-    //if (render_commands->draw_navmesh) {
+    if (render_commands->draw_navmesh) {
         Entity *controlling_camera = entity_from_id(game_state->controlling_camera_id);
         m4x4 view_proj = controlling_camera->VP;
         for (int i = 0; i < game_state->navmesh.ctx.edges.num; ++i) {
@@ -376,26 +384,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             cdt_quad_edge *qe = &edge->e[0];
             v2 a = qe->org->pos;
             v2 b = cdt_sym(qe)->org->pos;
-#if 0
-
-            // Project to NDC.
-            v4 p = view_proj*V4(a.y, 0.f, a.x, 1.f);
-            v4 q = view_proj*V4(b.y, 0.f, b.x, 1.f);
-            p.xy *= (1.f/p.w);
-            q.xy *= (1.f/q.w);
-
-            // Transform to screen space.
-            p.x = p.x*(f32)platform->draw_width;
-            p.y = p.y*(f32)platform->draw_height;
-            q.x = q.x*(f32)platform->draw_width;
-            p.y = q.y*(f32)platform->draw_height;
-
-            v4 color = cdt_is_constrained(edge) ? V4(1.f, 0.f, 1.f, 1.f) : V4(1.f, 1.f, 1.f, 1.f);
-            draw_line(render_group, V3(p.x, p.y, 0.f), V3(q.x, q.y, 0.f), color);
-#else
             v4 color = cdt_is_constrained(edge) ? V4(1.f, 0.f, 1.f, 1.f) : V4(1.f, 1.f, 1.f, 1.f);
             draw_line(render_group, V3(a.y, 0.f, a.x), V3(b.y, 0.f, b.x), color);
-#endif
         }
     }
 

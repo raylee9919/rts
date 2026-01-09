@@ -166,7 +166,8 @@ internal void entity_update(Entity *entity, f32 dt) {
                 next = event->next;
 
                 if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_RIGHT) {
-                    os_event_consume(event);
+                    // @Hack
+                    //os_event_consume(event);
 
                     entity->command = ENTITY_CMD_MOVE;
 
@@ -197,7 +198,7 @@ internal void entity_update(Entity *entity, f32 dt) {
                     v3 v = normalize(far_p.xyz - near_p.xyz);
 
                     // Define a plane.
-                    v3 n  = v3{0,1,0};
+                    v3 n = v3{0,1,0};
                     f32 d = 0.f;
 
                     // Ray-Plane intersection.
@@ -387,7 +388,7 @@ internal void entity_update(Entity *entity, f32 dt) {
                             int apex_idx = portal_count - 1;
                             int l_idx    = portal_count - 1;
                             int r_idx    = portal_count - 1;
-                            v2 apex  = {entity->position.z, entity->position.x};
+                            v2 apex  = v2{entity->position.z, entity->position.x};
                             v2 l_end = apex;
                             v2 r_end = apex;
 
@@ -448,14 +449,11 @@ internal void entity_update(Entity *entity, f32 dt) {
 
             // Move
             //
-            if (entity->command == ENTITY_CMD_MOVE) 
-            {
-                if (!entity->waypoint_queue.empty()) 
-                {
+            if (entity->command == ENTITY_CMD_MOVE) {
+                if (!entity->waypoint_queue.empty()) {
                     v3 waypoint = entity->waypoint_queue.front();
                     f32 dist = distance(entity->position, waypoint);
-                    if (waypoint == entity->destination) 
-                    {
+                    if (waypoint == entity->destination) {
                         // @Fix: twitching character when he starts near the destination point.
                         f32 stop_radius = 1.0f;
                         if (dist > stop_radius) {
@@ -585,9 +583,12 @@ internal void entity_update(Entity *entity, f32 dt) {
     }
 
     if (entity->flags & ENTITY_FLAG_COLLIDEABLE) {
+
     }
 
     if (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED) {
+        // @Fix: Infinite loop
+        //
         u16 chunk_x = min(max(entity->position.x, 0.f), game_state->map_size.x) / game_state->chunk_size.x;
         u16 chunk_y = min(max(entity->position.z, 0.f), game_state->map_size.y) / game_state->chunk_size.y;
 
@@ -630,10 +631,8 @@ internal void entity_draw(Entity *entity, f32 dt, Render_Group *render_group, Re
             commands->debug_transform = transform;
             commands->debug_radius = entity->radius;
 
-            if (entity->command == ENTITY_CMD_MOVE) 
-            {
-                if (commands->draw_navmesh) 
-                {
+            if (entity->command == ENTITY_CMD_MOVE) {
+                if (commands->draw_navmesh) {
                     // Draw waypoints
                     //
                     for (int i = 0; i < entity->debug_waypoint_queue.count() - 1; ++i) {

@@ -131,7 +131,7 @@ OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
     for (;;)
     {
         // NOTE: first, check initial results from FindFirstFile (dumb Windows API... never
-        //        have 2 entry points (and thus caller codepaths) to return the same stuff!)
+        //       have 2 entry points (and thus caller codepaths) to return the same stuff!)
         b32 first_was_returned = 0;
         if (! file_find_data->returned_first)
         {

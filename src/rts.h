@@ -73,9 +73,9 @@ struct Game_State {
     Arena      *entity_arena;
     Entity     *first_free_entity;
     Entity     *last_free_entity;
+    u32         next_generational_id;
     Entity     *entity_table;
     u32         entity_table_size;
-    u32         next_generational_id;
 
     u32         game_camera_id;
     u32         debug_camera_id;
