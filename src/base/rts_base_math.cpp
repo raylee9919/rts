@@ -41,7 +41,8 @@ lerp(f32 a, f32 t, f32 b)
 internal f32
 hermite(f32 a, f32 t, f32 b)
 {
-    f32 t2 = t*t, t3 = t2*t;
+    f32 t2 = t*t;
+    f32 t3 = t2*t;
     return lerp(a, t3*(6*t2 - 15*t + 10), b);
 }
 
@@ -642,6 +643,17 @@ dot(Quaternion a, Quaternion b)
                    (a.x * b.x) +
                    (a.y * b.y) +
                    (a.z * b.z) );
+    return result;
+}
+
+internal Quaternion
+nlerp(Quaternion a, f32 t, Quaternion b)
+{
+    Quaternion result;
+    result.w = lerp(a.w, t, b.w);
+    result.x = lerp(a.x, t, b.x);
+    result.y = lerp(a.y, t, b.y);
+    result.z = lerp(a.z, t, b.z);
     return result;
 }
 

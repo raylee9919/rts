@@ -1,12 +1,6 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
-// #Todo: This value must be shared by graphics APIs.
+// @Todo: This value must be shared by graphics APIs.
 //
 #define MAX_LIGHTS              10
 #define SHADOWMAP_RESOLUTION    1024
@@ -14,7 +8,7 @@
 static_assert(CSM_COUNT > 0, "CSM_COUNT must be bigger than 0!");
 
 
-// # Note: Constants
+// Constants
 //
 #define RGBA_WHITE      v4{1.0f, 1.0f, 1.0f, 1.0f}
 #define RGBA_BLACK      v4{0.0f, 0.0f, 0.0f, 1.0f}
@@ -40,7 +34,7 @@ typedef RENDERER_END_FRAME(Renderer_End_Frame);
 enum Render_Type {
     RENDER_TYPE_NULL = 0,
 
-    eRender_Mesh,
+    //eRender_Mesh,
     eRender_Bitmap,
     eRender_Triangles,
     eRender_Line,
@@ -55,17 +49,6 @@ struct Render_Quad
 {
     Render_Entity_Header header;
     Bitmap *bitmap;
-};
-
-struct Render_Mesh 
-{
-    Render_Entity_Header header;
-    Mesh *mesh;
-    m4x4 world_transform;
-    u32 entity_id;
-    m4x4 *animation_transforms;
-    v2 uv_scale;
-    v4 tint;
 };
 
 struct Render_Triangles 
@@ -103,12 +86,12 @@ struct Render_Group
 {
     u64 capacity;
     u64 used;
-    u8 *base;
+    u8* base;
 };
 
 struct Platform_Renderer 
 {
-    void *platform;
+    void* platform;
 };
 
 struct Render_Commands 
@@ -118,9 +101,9 @@ struct Render_Commands
     
     u64         push_buffer_size;
     u64         push_buffer_used;
-    u8         *push_buffer_base;
+    u8*         push_buffer_base;
 
-    Mesh       *sphere_mesh;
+    Mesh*       sphere_mesh;
 
     v3          main_eye_position;
     m4x4        main_view_proj;
@@ -138,8 +121,8 @@ struct Render_Commands
     b32         draw_navmesh;
 
     b32         skybox_on;
-    Mesh       *skybox_mesh;
-    Bitmap     *skybox_textures[6];
+    Mesh*       skybox_mesh;
+    Bitmap*     skybox_textures[6];
     m4x4        skybox_eye_view_proj;
 
     v2          toggled_down_mouse_position;
@@ -151,16 +134,9 @@ struct Render_Commands
     f32         debug_radius;
 };
 
-internal void
-push_mesh(Render_Group *group, Mesh *mesh,
-          m4x4 world_transform, m4x4 *animation_transforms, u32 entity_id, v2 uv_scale, v4 tint);
+internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u32 entity_id, v2 uv_scale, v4 tint = v4{1,1,1,1});
 
-internal void
-push_mesh(Render_Group *group, Mesh *mesh,
-          m4x4 world_transform, m4x4 *animation_transforms, u32 entity_id, v2 uv_scale);
-
-internal void
-draw_line(Render_Group *group, v3 a, v3 b, v4 color);
+internal void draw_line(Render_Group *group, v3 a, v3 b, v4 color);
 
 
 // ----------------------------------------------------------
@@ -230,10 +206,10 @@ enum Render_Command_Type
 typedef u32 Render_Command_Flags;
 enum 
 {
-    RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT          = (1<<0),
-    RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR       = (1<<1),
-    RENDER_COMMAND_FLAG_TEXTURE_WRAP                = (1<<2),
-    RENDER_COMMAND_FLAG_TEXTURE_MIPMAP              = (1<<3),
+    RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT    = (1<<0),
+    RENDER_COMMAND_FLAG_TEXTURE_FILTER_LINEAR = (1<<1),
+    RENDER_COMMAND_FLAG_TEXTURE_WRAP          = (1<<2),
+    RENDER_COMMAND_FLAG_TEXTURE_MIPMAP        = (1<<3),
 };
 
 struct Render_Command
@@ -248,25 +224,42 @@ struct Render_Command
     };
 };
 
+struct Render_Mesh 
+{
+    //Render_Entity_Header header;
+
+    Mesh* mesh;
+    m4x4  world_transform;
+    u32   entity_id;
+    m4x4* animation_transforms;
+    v2    uv_scale;
+    v4    tint;
+};
+
 struct Renderer
 {
-    Arena *arena;
+    Arena* arena;
 
-    // # Note: Vertex/Instance Buffer
+    // Vertex/Instance Buffer
     Render_Buffer buffer[RENDER_VERTEX_TYPE_COUNT];
     
-    // # Note: Texture
-    Arena           *texture_arena;
-    Render_Texture  *texture_free_first;
-    Render_Texture  *texture_free_last;
-    Render_Texture  *texture_table;
-    u64              texture_table_size;
-    u64              texture_next_id;
+    // Texture
+    Arena*          texture_arena;
+    Render_Texture* texture_free_first;
+    Render_Texture* texture_free_last;
+    Render_Texture* texture_table;
+    u64             texture_table_size;
+    u64             texture_next_id;
 
-    // # Note: Command Buffer
-    Arena          *command_arena;
-    Render_Command *commands;
+    // Command Buffer
+    Arena*          command_arena;
+    Render_Command* commands;
     u64             command_count;
+
+    // Meshes
+    Render_Mesh*    meshes;
+    u32             num_meshes;
+    u32             max_meshes;
 };
 
 typedef u8 Render_String_Flags;

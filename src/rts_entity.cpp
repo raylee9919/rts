@@ -131,11 +131,19 @@ entity_orient_to(Entity* entity, v3 target, f32 dt)
 }
 
 internal bool
-entity_is_targetable(Entity* entity)
+entity_is_dead(Entity* entity)
 {
     if ((entity->command == ENTITY_CMD_DIEING) || (entity->flags & ENTITY_FLAG_DEAD)) {
-        return false;
+        return true;
     }
+    return false;
+}
+
+internal bool
+entity_is_targetable(Entity* entity)
+{
+    if (entity_is_dead(entity)) return false;
+    if (!(entity->flags & ENTITY_FLAG_IS_UNIT)) return false;
     return true;
 }
 
@@ -397,6 +405,10 @@ entity_bucket_from_id(u64 id)
 internal Entity* 
 entity_from_id(u64 id) 
 {
+    if (id == 0) {
+        return nullptr;
+    }
+
     Entity* result = nullptr;
     Entity* bucket = entity_bucket_from_id(id);
 
@@ -509,7 +521,7 @@ entity_release(u64 id)
 }
 
 internal void 
-entity_update(Entity* entity, f32 dt) 
+entity_update(Entity* entity, const f32 dt) 
 {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
@@ -630,7 +642,7 @@ entity_update(Entity* entity, f32 dt)
         } break;
 
         case ENTITY_TYPE_SOLDIER: {
-            if (entity->team == TEAM_PLAYER) {
+            if (!entity_is_dead(entity) && entity->team == TEAM_PLAYER) {
                 for (Os_Event* event = os->event_first, *next; event != nullptr; event = next) {
                     next = event->next;
 
@@ -683,17 +695,17 @@ entity_update(Entity* entity, f32 dt)
 
                             // @Robustness
                             entity->command  = ENTITY_CMD_MOVE;
-                            entity->attack_t = entity->attack_min_t;
                         }
                     }
                 }
             }
 
 
-            if (entity->hitpoints <= 0.f) {
+            static int count = 0;
+            if (entity->hitpoints <= 0.f && entity->command != ENTITY_CMD_DIEING) {
                 entity->command = ENTITY_CMD_DIEING;
+                count += 1;
             }
-
 
             if (entity->command == ENTITY_CMD_STOP) {
                 const f32 aggro_radius = 8.f;
@@ -736,30 +748,33 @@ entity_update(Entity* entity, f32 dt)
 
                 Entity* other = entity_from_id(entity->target_id);
                 if (other) {
-                    if (entity_is_targetable(other)) {
+                    if (!entity_is_dead(other)) {
                         // @Robustness
                         f32 dist = distance(entity->position, other->position) - entity->radius - other->radius;
                         if (dist < attackable_dist) {
                             entity_clear_path_data(entity);
                             entity_orient_to(entity, other->position, dt);
 
-
                             // Do damage to the target.
-                            const f32 new_attack_t = entity->attack_t + dt;
-                            const f32 damage_t     = 0.5f;
-                            const f32 damage       = 8.f;
-                            assert(damage_t < entity->attack_max_t);
+                            const f32 damage    = 8.f;   // Damage per hit
+                            const f32 damage_t  = 0.8f;  // Hit time in animation timeline [0, attack_max_t)
+                            const f32 period    = entity->attack_max_t;
 
-                            const f32 num_attacks  = floorf(safe_ratio(new_attack_t, entity->attack_max_t));
-                            if (num_attacks > 0.f) {
-                                const f32 total_damage = num_attacks * damage;
+                            const f32 prev_t = entity->prev_attack_t;
+                            const f32 curr_t = prev_t + dt;
+
+                            assert(damage_t < period);
+
+                            // Count crossings
+                            const u32 hits =
+                                (u32)floor((curr_t - damage_t) / period) -
+                                (u32)floor((prev_t - damage_t) / period);
+
+                            if (hits > 0) {
+                                const f32 total_damage = (f32)hits * damage;
                                 other->hitpoints = max(other->hitpoints - total_damage, 0.f);
                             }
-
-                            entity->attack_t = fmod_cycling(new_attack_t, entity->attack_max_t);
                         } else {
-                            entity->attack_t = entity->attack_min_t;
-
                             if (dist < chase_dist) {
                                 entity_clear_path_data(entity);
                                 // @Todo: Tick or something. It is ridiculous.
@@ -771,15 +786,21 @@ entity_update(Entity* entity, f32 dt)
                         }
                     } else {
                         entity->target_id = 0;
-                        entity->command = ENTITY_CMD_STOP;
+                        entity->command   = ENTITY_CMD_STOP;
                         entity_clear_path_data(entity);
-                        entity->attack_t = 0.f;
                     }
                 }
-            } else if (entity->command = ENTITY_CMD_DIEING) {
+            } else if (entity->command == ENTITY_CMD_DIEING) {
                 entity_clear_path_data(entity);
-                entity->attack_t = 0.f;
                 entity->flags &= (~ENTITY_FLAG_COLLIDEABLE);
+            }
+
+
+            entity->prev_attack_t = entity->attack_t;
+            if (entity->command == ENTITY_CMD_ATTACK && entity->waypoint_queue.empty()) {
+                entity->attack_t = fmod_cycling(entity->attack_t + dt, entity->attack_max_t);
+            } else {
+                entity->attack_t = 0.f;
             }
             
 
@@ -825,13 +846,13 @@ entity_update(Entity* entity, f32 dt)
             // 
             // @Todo: Hideous... NEED PROPER ANIMATION BLENDING!!
             //
-            if (entity_is_targetable(entity)) {
-                if (entity->model) {
+            if (entity->model) {
+                if (!entity_is_dead(entity)) {
                     if (entity->attack_t > 0.f) {
                         Animation_Channel* channel = &entity->animation_channels[0];
                         channel->animation = entity->attack_animation;
 
-                        const f32 t = map01(entity->attack_t, entity->attack_min_t, entity->attack_max_t); // [0,1]
+                        const f32 t = map01(entity->attack_t, 0.f, entity->attack_max_t); // [0,1]
                         const f32 anim_t = t * channel->animation->duration;
 
                         eval(entity->model, channel->animation, anim_t, entity->animation_transform, true);
@@ -867,29 +888,29 @@ entity_update(Entity* entity, f32 dt)
                             eval(entity->model, 0, 0, entity->animation_transform, false);
                         }
                     }
-                }
-            } else if (entity->command == ENTITY_CMD_DIEING) {
-                Animation_Channel *channel = &entity->animation_channels[0];
+                } else if (entity->command == ENTITY_CMD_DIEING) {
+                    Animation_Channel *channel = &entity->animation_channels[0];
 
-                // @Temporary
-                f32 lo = 0.0f;
-                f32 hi = 0.1f;
-                f32 t = map(entity->transition_t, lo, hi);
+                    // @Temporary
+                    f32 lo = 0.0f;
+                    f32 hi = 0.1f;
+                    f32 t = map(entity->transition_t, lo, hi);
 
-                if (t < 1.0f) {
-                    interpolate(entity->model, channel->animation, channel->dt, t, entity->die_animation, 0.0f);
-                    eval(entity->model, 0, 0, entity->animation_transform, false);
-                } else {
-                    eval(entity->model, entity->die_animation, entity->transition_t - hi, entity->animation_transform, true);
-                    if (entity->transition_t >= entity->die_animation->duration) {
-                        entity->flags |= ENTITY_FLAG_DEAD;
+                    if (t < 1.0f) {
+                        interpolate(entity->model, channel->animation, channel->dt, t, entity->die_animation, 0.0f);
+                        eval(entity->model, 0, 0, entity->animation_transform, false);
+                    } else {
+                        eval(entity->model, entity->die_animation, entity->transition_t - hi, entity->animation_transform, true);
+                        if (entity->transition_t >= entity->die_animation->duration) {
+                            entity->flags |= ENTITY_FLAG_DEAD;
+                        }
                     }
+                    entity->transition_t += dt*1.5f;
+                } else if (entity->flags & ENTITY_FLAG_DEAD) {
+                    eval(entity->model, entity->die_animation, entity->die_animation->duration, entity->animation_transform, true);
+                } else {
+                    INVALID_CODE_PATH;
                 }
-                entity->transition_t += dt*1.5f;
-            } else if (entity->flags & ENTITY_FLAG_DEAD) {
-                eval(entity->model, entity->die_animation, entity->die_animation->duration, entity->animation_transform, true);
-            } else {
-                INVALID_CODE_PATH;
             }
         } break;
 
@@ -1046,7 +1067,7 @@ lb_update_children:
 }
 
 internal void 
-entity_draw(Entity *entity, f32 dt, Render_Group *render_group, Render_Commands *commands) 
+entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands* commands) 
 {
     switch (entity->type) {
         default: {
@@ -1058,7 +1079,7 @@ entity_draw(Entity *entity, f32 dt, Render_Group *render_group, Render_Commands 
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->mesh_count; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(render_group, mesh, transform, entity->animation_transform, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f));
                 }
             }
 
@@ -1098,7 +1119,7 @@ entity_draw(Entity *entity, f32 dt, Render_Group *render_group, Render_Commands 
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->mesh_count; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(render_group, mesh, transform, entity->animation_transform, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2{1,1});
                 }
             }
         } break;

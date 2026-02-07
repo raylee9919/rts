@@ -1,422 +1,10 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
-// TODO: Remove
+// @Todo: Remove
 //
 global GLuint id_table[4096];
 
-internal void
-opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
-                      GLsizei length, const GLchar *message, const void *userParam)
-{
-    char *error = (char *)message;
-    switch (severity) 
-    {
-        case GL_DEBUG_SEVERITY_LOW: {
-
-        } break;
-        case GL_DEBUG_SEVERITY_MEDIUM: {
-            // assert(0);
-        } break;
-        case GL_DEBUG_SEVERITY_HIGH: {
-            gl_printf((char *)message);
-            assert(! "high severity");
-        } break;
-    }
-}
-
-internal Gl_Info
-opengl_get_info(Opengl *gl, b32 modern_context)
-{
-    Gl_Info result = {};
-    {
-        result.modern_context = modern_context;
-        result.vendor         = (char *)glGetString(GL_VENDOR);
-        result.renderer       = (char *)glGetString(GL_RENDERER);
-        result.version        = (char *)glGetString(GL_VERSION);
-    }
-    
-    if (result.modern_context) 
-    {
-        result.shading_language_version = (char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
-    }
-    else 
-    {
-        result.shading_language_version = "(none)";
-    }
-    
-    if (glGetStringi)
-    {
-        GLint extension_count = 0;
-        glGetIntegerv(GL_NUM_EXTENSIONS, &extension_count);
-        for (GLint i = 0; i < extension_count; ++i)
-        {
-            char *ext_name = (char *)glGetStringi(GL_EXTENSIONS, i);
-            
-            if (0) {}
-            else if(string_equal(ext_name, "GL_EXT_texture_sRGB")) { result.opengl_ext_texture_sgb=true; }
-            else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
-            else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
-            else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
-            // TODO: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
-        }
-    }
-    
-    char *major_at = result.version;
-    char *minor_at = 0;
-    for (char *at = result.version; *at; ++at) 
-    {
-        if (at[0] == '.') 
-        {
-            minor_at = at + 1;
-            break;
-        }
-    }
-    
-    s32 major = 1;
-    s32 minor = 0;
-    if (minor_at) 
-    {
-        major = s32_from_z(major_at);
-        minor = s32_from_z(minor_at);
-    }
-    
-    if ((major > 2) || ((major == 2) && (minor >= 1))) 
-    {
-        // NOTE: We _believe_ we have sRGB textures in 2.1 and above automatically.
-        result.opengl_ext_texture_sgb = true;
-    }
-    
-    if (major >= 3) 
-    {
-        // NOTE: We _believe_ we have framebuffer objects in 3.0 and above automatically.
-        result.opengl_arb_framebuffer_object=true;
-    }
-    
-    return result;
-}
-
-internal GLuint
-opengl_create_compute_program(Opengl *gl, const char *csrc)
-{
-    GLuint program = 0;
-
-    if (glCreateShader) 
-    {
-        GLuint cshader = glCreateShader(GL_COMPUTE_SHADER);
-        const GLchar *cunit[] = { g_shader_header, g_shared, csrc };
-        glShaderSource(cshader, array_count(cunit), (const GLchar **)cunit, 0);
-        glCompileShader(cshader);
-
-        program = glCreateProgram();
-        glAttachShader(program, cshader);
-        glLinkProgram(program);
-
-        glValidateProgram(program);
-        GLint linked = false;
-        glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (! linked) 
-        {
-            GLsizei stub;
-
-            GLchar clog[1024];
-            glGetProgramInfoLog(cshader, sizeof(clog), &stub, clog);
-
-            GLchar plog[1024];
-            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-
-            assert(!"compile/link error.");
-        }
-
-        glDeleteShader(cshader);
-    } 
-    else 
-    {
-        // TODO: handling.
-    }
-    
-    return program;
-}
-
-internal GLuint
-opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
-{
-    GLuint program = 0;
-
-    assert(glCreateShader);
-
-    // NOTE: Compile vertex shader.
-    //
-    GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-    {
-        const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
-        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
-        glCompileShader(vshader);
-    }
-
-    // NOTE: Compile fragment shader.
-    //
-    GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-    {
-        const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
-        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
-        glCompileShader(fshader);
-    }
-
-    // NOTE: Create program.
-    //
-    program = glCreateProgram();
-    glAttachShader(program, vshader);
-    glAttachShader(program, fshader);
-    glLinkProgram(program);
-
-    // NOTE: Validate program.
-    //
-    glValidateProgram(program);
-    GLint linked = GL_FALSE;
-    glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (! linked) 
-    {
-        GLsizei stub;
-
-        GLchar vlog[1024];
-        zero_memory(vlog, sizeof(*vlog)*array_count(vlog));
-        glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
-
-        GLchar flog[1024];
-        zero_memory(flog, sizeof(*flog)*array_count(flog));
-        glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
-
-        GLchar plog[1024];
-        zero_memory(plog, sizeof(*plog)*array_count(plog));
-        glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-
-        assert(! "compile/link error.");
-    }
-
-    // NOTE: Cleanup.
-    //
-    glDeleteShader(vshader);
-    glDeleteShader(fshader);
-
-    return program;
-}
-
-internal GLuint
-opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char *fsrc)
-{
-    GLuint program = 0;
-
-    if (glCreateShader) 
-    {
-        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-        const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
-        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
-        glCompileShader(vshader);
-
-        GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
-        const GLchar *gunit[] = { g_shader_header, g_shared, gsrc };
-        glShaderSource(gshader, array_count(gunit), (const GLchar **)gunit, 0);
-        glCompileShader(gshader);
-
-        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-        const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
-        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
-        glCompileShader(fshader);
-
-        program = glCreateProgram();
-        glAttachShader(program, vshader);
-        glAttachShader(program, gshader);
-        glAttachShader(program, fshader);
-        glLinkProgram(program);
-
-        glValidateProgram(program);
-        GLint linked = false;
-        glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (!linked) 
-        {
-            GLsizei stub;
-
-            GLchar vlog[1024];
-            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
-
-            GLchar glog[1024];
-            glGetShaderInfoLog(gshader, sizeof(glog), &stub, glog);
-
-            GLchar flog[1024];
-            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
-
-            GLchar plog[1024];
-            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-
-            assert(!"compile/link error.");
-        }
-
-        glDeleteShader(vshader);
-        glDeleteShader(gshader);
-        glDeleteShader(fshader);
-    } else {
-        // TODO: Error-Handling.
-    }
-    
-    return program;
-}
-
-internal GLuint
-opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *fs)
-{
-    GLuint program = 0;
-
-    if (glCreateShader) 
-    {
-        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-        const GLchar *vunit[] = { g_shader_header, g_shared, vs };
-        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
-        glCompileShader(vshader);
-
-        GLuint tcshader = glCreateShader(GL_TESS_CONTROL_SHADER);
-        const GLchar *tcsunit[] = { g_shader_header, g_shared, tcs };
-        glShaderSource(tcshader, array_count(tcsunit), (const GLchar **)tcsunit, 0);
-        glCompileShader(tcshader);
-
-        GLuint teshader = glCreateShader(GL_TESS_EVALUATION_SHADER);
-        const GLchar *tesunit[] = { g_shader_header, g_shared, tes };
-        glShaderSource(teshader, array_count(tesunit), (const GLchar **)tesunit, 0);
-        glCompileShader(teshader);
-
-        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-        const GLchar *funit[] = { g_shader_header, g_shared, fs };
-        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
-        glCompileShader(fshader);
-
-        program = glCreateProgram();
-        glAttachShader(program, vshader);
-        glAttachShader(program, tcshader);
-        glAttachShader(program, teshader);
-        glAttachShader(program, fshader);
-        glLinkProgram(program);
-
-        glValidateProgram(program);
-        GLint linked = false;
-        glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (!linked) 
-        {
-            GLsizei stub;
-
-            GLchar vlog[1024];
-            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
-
-            GLchar tcslog[1024];
-            glGetShaderInfoLog(tcshader, sizeof(tcslog), &stub, tcslog);
-
-            GLchar teslog[1024];
-            glGetShaderInfoLog(teshader, sizeof(teslog), &stub, teslog);
-
-            GLchar flog[1024];
-            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
-
-            GLchar plog[1024];
-            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-
-            assert(!"compile/link error.");
-        }
-
-        glDeleteShader(vshader);
-        glDeleteShader(tcshader);
-        glDeleteShader(teshader);
-        glDeleteShader(fshader);
-    } else {
-        // TODO: Error-Handling.
-    }
-    
-    return program;
-}
-
-internal GLuint
-opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *gs, const char *fs)
-{
-    GLuint program = 0;
-
-    if (glCreateShader) 
-    {
-        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
-        const GLchar *vunit[] = { g_shader_header, g_shared, vs };
-        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
-        glCompileShader(vshader);
-
-        GLuint tcshader = glCreateShader(GL_TESS_CONTROL_SHADER);
-        const GLchar *tcsunit[] = { g_shader_header, g_shared, tcs };
-        glShaderSource(tcshader, array_count(tcsunit), (const GLchar **)tcsunit, 0);
-        glCompileShader(tcshader);
-
-        GLuint teshader = glCreateShader(GL_TESS_EVALUATION_SHADER);
-        const GLchar *tesunit[] = { g_shader_header, g_shared, tes };
-        glShaderSource(teshader, array_count(tesunit), (const GLchar **)tesunit, 0);
-        glCompileShader(teshader);
-
-        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
-        const GLchar *funit[] = { g_shader_header, g_shared, fs };
-        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
-        glCompileShader(fshader);
-
-        GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
-        const GLchar *gunit[] = { g_shader_header, g_shared, gs };
-        glShaderSource(gshader, array_count(gunit), (const GLchar **)gunit, 0);
-        glCompileShader(gshader);
-
-        program = glCreateProgram();
-        glAttachShader(program, vshader);
-        glAttachShader(program, tcshader);
-        glAttachShader(program, teshader);
-        glAttachShader(program, fshader);
-        glAttachShader(program, gshader);
-        glLinkProgram(program);
-
-        glValidateProgram(program);
-        GLint linked = false;
-        glGetProgramiv(program, GL_LINK_STATUS, &linked);
-        if (!linked) 
-        {
-            GLsizei stub;
-
-            GLchar vlog[1024];
-            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
-
-            GLchar tcslog[1024];
-            glGetShaderInfoLog(tcshader, sizeof(tcslog), &stub, tcslog);
-
-            GLchar teslog[1024];
-            glGetShaderInfoLog(teshader, sizeof(teslog), &stub, teslog);
-
-            GLchar gslog[1024];
-            glGetShaderInfoLog(gshader, sizeof(gslog), &stub, gslog);
-
-            GLchar flog[1024];
-            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
-
-            GLchar plog[1024];
-            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
-
-            assert(!"compile/link error.");
-        }
-
-        glDeleteShader(vshader);
-        glDeleteShader(tcshader);
-        glDeleteShader(teshader);
-        glDeleteShader(gshader);
-        glDeleteShader(fshader);
-    } else {
-        // TODO: Error-Handling.
-    }
-    
-    return program;
-}
 
 internal void
 opengl_alloc_texture(Opengl *gl, Bitmap *bitmap, GLenum wrapping, b32 generate_mipmap = false)
@@ -582,8 +170,7 @@ gl_pbr_bind_texture_and_set_flags(Opengl *gl, Mesh *mesh, GLuint slot, GLenum wr
 
             INVALID_DEFAULT_CASE;
         }
-        if (! texture->handle) 
-        {
+        if (! texture->handle) {
             opengl_alloc_texture(gl, texture, wrapping, mipmap);
         }
         glBindTextureUnit(slot, texture->handle);
@@ -943,11 +530,15 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
 
 
-    // NOTE: Shadow map, which is basically a orthographiclly viewed depth map
-    //         from directional light's perspective.
+    // Shadow map
+    //
     {
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
+        defer(glViewport(0, 0, window_width, window_height));
+
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
+        defer(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
         glClear(GL_DEPTH_BUFFER_BIT);
 
         glEnable(GL_CULL_FACE);
@@ -956,71 +547,49 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
         m4x4 identity_view_proj = identity();
 
-        Shadowmap_Program *shadowmap_program = &gl->shadowmap_program;
+        Shadowmap_Program* shadowmap_program = &gl->shadowmap_program;
         glUseProgram(shadowmap_program->id);
 
         glUniformMatrix4fv(shadowmap_program->light_view_projs, CSM_COUNT, true, (GLfloat *)light_view_projs);
 
-        for (u8 *buffer_at = frame->push_buffer_base;
-             buffer_at < frame->push_buffer_base + frame->push_buffer_used;)
-        {
-            Render_Group *group = (Render_Group *)buffer_at;
-            buffer_at += sizeof(Render_Group);
+        for (u32 i = 0; i < renderer->num_meshes; ++i) {
+            Render_Mesh* piece = renderer->meshes + i;
 
-            for (u8 *group_at = buffer_at;
-                 group_at < group->base + group->used;)
+            Mesh *mesh = piece->mesh;
+
+            glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
+            glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
+            glUniform1i(shadowmap_program->is_skeletal, piece->animation_transforms ? 1 : 0);
+            if (piece->animation_transforms) 
             {
-                Render_Entity_Header *entity = (Render_Entity_Header *)group_at;
-                group_at += entity->size;
-                switch (entity->type)
-                {
-                    case eRender_Mesh: {
-                        Render_Mesh *piece = (Render_Mesh *)entity;
-                        Mesh *mesh = piece->mesh;
-
-                        glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
-                        glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
-                        glUniform1i(shadowmap_program->is_skeletal, piece->animation_transforms ? 1 : 0);
-                        if (piece->animation_transforms) 
-                        {
-                            glUniformMatrix4fv(shadowmap_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
-                        }
-
-                        glEnableVertexAttribArray(0);
-                        glEnableVertexAttribArray(5);
-                        glEnableVertexAttribArray(6);
-
-                        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
-                        glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
-                        glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
-
-                        glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
-
-                        glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
-
-                        glDisableVertexAttribArray(0);
-                        glDisableVertexAttribArray(5);
-                        glDisableVertexAttribArray(6);
-                    } break;
-
-                    default: {
-                    } break;
-                }
+                glUniformMatrix4fv(shadowmap_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
             }
-            buffer_at += group->capacity;
-        }
 
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, window_width, window_height);
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(5);
+            glEnableVertexAttribArray(6);
+
+            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
+            glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
+            glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
+
+            glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
+
+            glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
+
+            glDisableVertexAttribArray(0);
+            glDisableVertexAttribArray(5);
+            glDisableVertexAttribArray(6);
+        }
     }
 
-    // NOTE: Skybox
+
+    // Skybox
     //
     {
         glDisable(GL_CULL_FACE);
-        if (! gl->skybox_texture) 
-        {
+        if (!gl->skybox_texture) {
             glGenTextures(1, &gl->skybox_texture);
             glBindTexture(GL_TEXTURE_CUBE_MAP, gl->skybox_texture);
             for (u32 i = 0; i < 6; ++i) 
@@ -1035,9 +604,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE); 
             }
-        } 
-        else 
-        {
+        } else {
             glBindTexture(GL_TEXTURE_CUBE_MAP, gl->skybox_texture);
         }
 
@@ -1060,7 +627,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 
 
-    // NOTE: Framebuffer Texture
+    // Framebuffer Texture
     //
     {
         glBindFramebuffer(GL_FRAMEBUFFER, gl->fbo);
@@ -1075,96 +642,76 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        // NOTE: PBR
+        // PBR
         //
         {
             Pbr_Program* pbr_program = &gl->pbr_program;
             glUseProgram(pbr_program->id);
 
-            for (u8* buffer_at = frame->push_buffer_base;
-                 buffer_at < frame->push_buffer_base + frame->push_buffer_used;)
-            {
-                Render_Group* group = (Render_Group *)buffer_at;
-                buffer_at += sizeof(Render_Group);
+            for (u32 i = 0; i < renderer->num_meshes; ++i) {
+                Render_Mesh* piece = renderer->meshes + i;
 
-                for (u8* group_at = buffer_at;
-                     group_at < group->base + group->used;)
-                {
-                    Render_Entity_Header* entity = (Render_Entity_Header* )group_at;
-                    group_at += entity->size;
-                    switch (entity->type)
-                    {
-                        case eRender_Mesh: 
-                        {
-                            Render_Mesh* piece = (Render_Mesh *)entity;
-                            Mesh* mesh = piece->mesh;
+                Mesh* mesh = piece->mesh;
 
-                            glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
-                            glUniform1i(pbr_program->is_skeletal, piece->animation_transforms ? 1 : 0);
-                            glUniformMatrix4fv(pbr_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
-                            glUniform2f(pbr_program->uv_scale, piece->uv_scale.x, piece->uv_scale.y);
-                            glUniform3fv(pbr_program->eye_position, 1, (GLfloat *)&frame->main_eye_position);
-                            glUniformMatrix4fv(pbr_program->csm_view, 1, true, &frame->csm_view.e[0][0]);
-                            glUniform1ui(pbr_program->entity_id, piece->entity_id);
-                            glUniform1ui(pbr_program->hot_entity_id, frame->hot_entity_id);
-                            glUniform1ui(pbr_program->active_entity_id, frame->active_entity_id);
-                            glUniform4fv(pbr_program->wireframe_color, 1, (GLfloat *)&frame->wireframe_color);
-                            glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
-                            glUniformMatrix4fv(pbr_program->shadowmap_view_projs, CSM_COUNT, true, &light_view_projs[0].e[0][0]);
-                            glUniform3fv(pbr_program->to_light, 1, (GLfloat *)&frame->csm_to_light);
-                            glUniform1fv(pbr_program->csm_z_spans, CSM_COUNT, csm_z_spans);
-                            glBindTextureUnit(6, gl->shadowmaps);
+                glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
+                glUniform1i(pbr_program->is_skeletal, piece->animation_transforms ? 1 : 0);
+                glUniformMatrix4fv(pbr_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
+                glUniform2f(pbr_program->uv_scale, piece->uv_scale.x, piece->uv_scale.y);
+                glUniform3fv(pbr_program->eye_position, 1, (GLfloat *)&frame->main_eye_position);
+                glUniformMatrix4fv(pbr_program->csm_view, 1, true, &frame->csm_view.e[0][0]);
+                glUniform1ui(pbr_program->entity_id, piece->entity_id);
+                glUniform1ui(pbr_program->hot_entity_id, frame->hot_entity_id);
+                glUniform1ui(pbr_program->active_entity_id, frame->active_entity_id);
+                glUniform4fv(pbr_program->wireframe_color, 1, (GLfloat *)&frame->wireframe_color);
+                glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
+                glUniformMatrix4fv(pbr_program->shadowmap_view_projs, CSM_COUNT, true, &light_view_projs[0].e[0][0]);
+                glUniform3fv(pbr_program->to_light, 1, (GLfloat *)&frame->csm_to_light);
+                glUniform1fv(pbr_program->csm_z_spans, CSM_COUNT, csm_z_spans);
+                glBindTextureUnit(6, gl->shadowmaps);
 
-                            u32 flags = 0;
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 0, GL_REPEAT, 1, Pbr_Texture_Albedo, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 1, GL_REPEAT, 1, Pbr_Texture_Normal, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 2, GL_REPEAT, 1, Pbr_Texture_Roughness, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 3, GL_REPEAT, 1, Pbr_Texture_Metalic, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 4, GL_REPEAT, 1, Pbr_Texture_Emission, &flags);
-                            gl_pbr_bind_texture_and_set_flags(gl, mesh, 5, GL_REPEAT, 1, Pbr_Texture_Orm, &flags);
+                u32 flags = 0;
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 0, GL_REPEAT, 1, Pbr_Texture_Albedo, &flags);
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 1, GL_REPEAT, 1, Pbr_Texture_Normal, &flags);
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 2, GL_REPEAT, 1, Pbr_Texture_Roughness, &flags);
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 3, GL_REPEAT, 1, Pbr_Texture_Metalic, &flags);
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 4, GL_REPEAT, 1, Pbr_Texture_Emission, &flags);
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 5, GL_REPEAT, 1, Pbr_Texture_Orm, &flags);
 
-                            if (frame->wireframe_mode) {
-                                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                                opengl_set_flags_for_wireframe_mode(&flags);
-                            }
-                            glUniform1ui(pbr_program->flags, flags);
-
-                            for (u32 i = 0; i < 7; ++i) {
-                                glEnableVertexAttribArray(i);
-                            }
-
-                            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
-                            glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, normal)));
-                            glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, uv)));
-                            glVertexAttribPointer(3, 4, GL_FLOAT, true,  sizeof(Vertex), (GLvoid *)(offset_of(Vertex, color)));
-                            glVertexAttribPointer(4, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, tangent)));
-                            glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
-                            glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
-
-                            glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
-                            glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
-
-                            if (piece->animation_transforms) {
-                                glUniformMatrix4fv(pbr_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
-                            }
-
-                            glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
-
-                            for (u32 i = 0; i < 7; ++i) {
-                                glDisableVertexAttribArray(i);
-                            }
-                            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                        } break;
-
-                        default: {
-                        } break;
-                    }
+                if (frame->wireframe_mode) {
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                    opengl_set_flags_for_wireframe_mode(&flags);
                 }
-                buffer_at += group->capacity;
+                glUniform1ui(pbr_program->flags, flags);
+
+                for (u32 i = 0; i < 7; ++i) {
+                    glEnableVertexAttribArray(i);
+                }
+
+                glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
+                glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, normal)));
+                glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, uv)));
+                glVertexAttribPointer(3, 4, GL_FLOAT, true,  sizeof(Vertex), (GLvoid *)(offset_of(Vertex, color)));
+                glVertexAttribPointer(4, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, tangent)));
+                glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
+                glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
+
+                glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
+
+                if (piece->animation_transforms) {
+                    glUniformMatrix4fv(pbr_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
+                }
+
+                glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
+
+                for (u32 i = 0; i < 7; ++i) {
+                    glDisableVertexAttribArray(i);
+                }
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             }
         }
 
-        // NOTE: Triangles
+        // Triangles
         //
         {
             Simple_Program *simple_program = &gl->simple_program;
@@ -1247,7 +794,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         }
 
 
-        // NOTE: Lines
+        // Lines
         //
         {
             Simple_Program *simple_program = &gl->simple_program;
@@ -1337,7 +884,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glViewport(0, 0, window_width, window_height);
     }
 
-    // NOTE: Blt
+    // Blt
     //
     {
         glDisable(GL_DEPTH_TEST);
@@ -1371,7 +918,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glDisableVertexAttribArray(2);
     }
 
-    // NOTE: CSM Frustum
+    // CSM Frustum
     //
     if (frame->draw_csm_frustum) 
     {
@@ -1666,8 +1213,416 @@ opengl_program_end(Gl_Program program, Gl_Program_Flags flags)
     glUseProgram(0);
 }
 
-// NOTE: Init
 //
+// Program creation.
+//
+internal GLuint
+opengl_create_compute_program(Opengl *gl, const char *csrc)
+{
+    GLuint program = 0;
+
+    if (glCreateShader) 
+    {
+        GLuint cshader = glCreateShader(GL_COMPUTE_SHADER);
+        const GLchar *cunit[] = { g_shader_header, g_shared, csrc };
+        glShaderSource(cshader, array_count(cunit), (const GLchar **)cunit, 0);
+        glCompileShader(cshader);
+
+        program = glCreateProgram();
+        glAttachShader(program, cshader);
+        glLinkProgram(program);
+
+        glValidateProgram(program);
+        GLint linked = false;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (! linked) 
+        {
+            GLsizei stub;
+
+            GLchar clog[1024];
+            glGetProgramInfoLog(cshader, sizeof(clog), &stub, clog);
+
+            GLchar plog[1024];
+            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
+
+            assert(!"compile/link error.");
+        }
+
+        glDeleteShader(cshader);
+    } else {
+        // TODO: handling.
+    }
+    
+    return program;
+}
+
+internal GLuint
+opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc)
+{
+    GLuint program = 0;
+
+    assert(glCreateShader);
+
+    // NOTE: Compile vertex shader.
+    //
+    GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+    {
+        const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
+        glCompileShader(vshader);
+    }
+
+    // NOTE: Compile fragment shader.
+    //
+    GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
+    {
+        const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
+        glCompileShader(fshader);
+    }
+
+    // NOTE: Create program.
+    //
+    program = glCreateProgram();
+    glAttachShader(program, vshader);
+    glAttachShader(program, fshader);
+    glLinkProgram(program);
+
+    // NOTE: Validate program.
+    //
+    glValidateProgram(program);
+    GLint linked = GL_FALSE;
+    glGetProgramiv(program, GL_LINK_STATUS, &linked);
+    if (! linked) 
+    {
+        GLsizei stub;
+
+        GLchar vlog[1024];
+        zero_memory(vlog, sizeof(*vlog)*array_count(vlog));
+        glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
+
+        GLchar flog[1024];
+        zero_memory(flog, sizeof(*flog)*array_count(flog));
+        glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
+
+        GLchar plog[1024];
+        zero_memory(plog, sizeof(*plog)*array_count(plog));
+        glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
+
+        assert(! "compile/link error.");
+    }
+
+    // NOTE: Cleanup.
+    //
+    glDeleteShader(vshader);
+    glDeleteShader(fshader);
+
+    return program;
+}
+
+internal GLuint
+opengl_create_program(Opengl *gl, const char *vsrc, const char *gsrc, const char *fsrc)
+{
+    GLuint program = 0;
+
+    if (glCreateShader) 
+    {
+        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+        const GLchar *vunit[] = { g_shader_header, g_shared, vsrc };
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
+        glCompileShader(vshader);
+
+        GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
+        const GLchar *gunit[] = { g_shader_header, g_shared, gsrc };
+        glShaderSource(gshader, array_count(gunit), (const GLchar **)gunit, 0);
+        glCompileShader(gshader);
+
+        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
+        const GLchar *funit[] = { g_shader_header, g_shared, fsrc };
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
+        glCompileShader(fshader);
+
+        program = glCreateProgram();
+        glAttachShader(program, vshader);
+        glAttachShader(program, gshader);
+        glAttachShader(program, fshader);
+        glLinkProgram(program);
+
+        glValidateProgram(program);
+        GLint linked = false;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (!linked) 
+        {
+            GLsizei stub;
+
+            GLchar vlog[1024];
+            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
+
+            GLchar glog[1024];
+            glGetShaderInfoLog(gshader, sizeof(glog), &stub, glog);
+
+            GLchar flog[1024];
+            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
+
+            GLchar plog[1024];
+            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
+
+            assert(!"compile/link error.");
+        }
+
+        glDeleteShader(vshader);
+        glDeleteShader(gshader);
+        glDeleteShader(fshader);
+    } else {
+        // TODO: Error-Handling.
+    }
+    
+    return program;
+}
+
+internal GLuint
+opengl_create_tessellation_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *fs)
+{
+    GLuint program = 0;
+
+    if (glCreateShader) 
+    {
+        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+        const GLchar *vunit[] = { g_shader_header, g_shared, vs };
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
+        glCompileShader(vshader);
+
+        GLuint tcshader = glCreateShader(GL_TESS_CONTROL_SHADER);
+        const GLchar *tcsunit[] = { g_shader_header, g_shared, tcs };
+        glShaderSource(tcshader, array_count(tcsunit), (const GLchar **)tcsunit, 0);
+        glCompileShader(tcshader);
+
+        GLuint teshader = glCreateShader(GL_TESS_EVALUATION_SHADER);
+        const GLchar *tesunit[] = { g_shader_header, g_shared, tes };
+        glShaderSource(teshader, array_count(tesunit), (const GLchar **)tesunit, 0);
+        glCompileShader(teshader);
+
+        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
+        const GLchar *funit[] = { g_shader_header, g_shared, fs };
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
+        glCompileShader(fshader);
+
+        program = glCreateProgram();
+        glAttachShader(program, vshader);
+        glAttachShader(program, tcshader);
+        glAttachShader(program, teshader);
+        glAttachShader(program, fshader);
+        glLinkProgram(program);
+
+        glValidateProgram(program);
+        GLint linked = false;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (!linked) 
+        {
+            GLsizei stub;
+
+            GLchar vlog[1024];
+            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
+
+            GLchar tcslog[1024];
+            glGetShaderInfoLog(tcshader, sizeof(tcslog), &stub, tcslog);
+
+            GLchar teslog[1024];
+            glGetShaderInfoLog(teshader, sizeof(teslog), &stub, teslog);
+
+            GLchar flog[1024];
+            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
+
+            GLchar plog[1024];
+            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
+
+            assert(!"compile/link error.");
+        }
+
+        glDeleteShader(vshader);
+        glDeleteShader(tcshader);
+        glDeleteShader(teshader);
+        glDeleteShader(fshader);
+    } else {
+        // TODO: Error-Handling.
+    }
+    
+    return program;
+}
+
+internal GLuint
+opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const char *tcs, const char *tes, const char *gs, const char *fs)
+{
+    GLuint program = 0;
+
+    if (glCreateShader) 
+    {
+        GLuint vshader = glCreateShader(GL_VERTEX_SHADER);
+        const GLchar *vunit[] = { g_shader_header, g_shared, vs };
+        glShaderSource(vshader, array_count(vunit), (const GLchar **)vunit, 0);
+        glCompileShader(vshader);
+
+        GLuint tcshader = glCreateShader(GL_TESS_CONTROL_SHADER);
+        const GLchar *tcsunit[] = { g_shader_header, g_shared, tcs };
+        glShaderSource(tcshader, array_count(tcsunit), (const GLchar **)tcsunit, 0);
+        glCompileShader(tcshader);
+
+        GLuint teshader = glCreateShader(GL_TESS_EVALUATION_SHADER);
+        const GLchar *tesunit[] = { g_shader_header, g_shared, tes };
+        glShaderSource(teshader, array_count(tesunit), (const GLchar **)tesunit, 0);
+        glCompileShader(teshader);
+
+        GLuint fshader = glCreateShader(GL_FRAGMENT_SHADER);
+        const GLchar *funit[] = { g_shader_header, g_shared, fs };
+        glShaderSource(fshader, array_count(funit), (const GLchar **)funit, 0);
+        glCompileShader(fshader);
+
+        GLuint gshader = glCreateShader(GL_GEOMETRY_SHADER);
+        const GLchar *gunit[] = { g_shader_header, g_shared, gs };
+        glShaderSource(gshader, array_count(gunit), (const GLchar **)gunit, 0);
+        glCompileShader(gshader);
+
+        program = glCreateProgram();
+        glAttachShader(program, vshader);
+        glAttachShader(program, tcshader);
+        glAttachShader(program, teshader);
+        glAttachShader(program, fshader);
+        glAttachShader(program, gshader);
+        glLinkProgram(program);
+
+        glValidateProgram(program);
+        GLint linked = false;
+        glGetProgramiv(program, GL_LINK_STATUS, &linked);
+        if (!linked) 
+        {
+            GLsizei stub;
+
+            GLchar vlog[1024];
+            glGetShaderInfoLog(vshader, sizeof(vlog), &stub, vlog);
+
+            GLchar tcslog[1024];
+            glGetShaderInfoLog(tcshader, sizeof(tcslog), &stub, tcslog);
+
+            GLchar teslog[1024];
+            glGetShaderInfoLog(teshader, sizeof(teslog), &stub, teslog);
+
+            GLchar gslog[1024];
+            glGetShaderInfoLog(gshader, sizeof(gslog), &stub, gslog);
+
+            GLchar flog[1024];
+            glGetShaderInfoLog(fshader, sizeof(flog), &stub, flog);
+
+            GLchar plog[1024];
+            glGetProgramInfoLog(program, sizeof(plog), &stub, plog);
+
+            assert(!"compile/link error.");
+        }
+
+        glDeleteShader(vshader);
+        glDeleteShader(tcshader);
+        glDeleteShader(teshader);
+        glDeleteShader(gshader);
+        glDeleteShader(fshader);
+    } else {
+        // TODO: Error-Handling.
+    }
+    
+    return program;
+}
+
+// Inits
+//
+internal void
+opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                      GLsizei length, const GLchar *message, const void *userParam)
+{
+    char *error = (char *)message;
+    switch (severity) 
+    {
+        case GL_DEBUG_SEVERITY_LOW: {
+
+        } break;
+        case GL_DEBUG_SEVERITY_MEDIUM: {
+            // assert(0);
+        } break;
+        case GL_DEBUG_SEVERITY_HIGH: {
+            gl_printf((char *)message);
+            assert(! "high severity");
+        } break;
+    }
+}
+
+internal Gl_Info
+opengl_get_info(Opengl *gl, b32 modern_context)
+{
+    Gl_Info result = {};
+    {
+        result.modern_context = modern_context;
+        result.vendor         = (char *)glGetString(GL_VENDOR);
+        result.renderer       = (char *)glGetString(GL_RENDERER);
+        result.version        = (char *)glGetString(GL_VERSION);
+    }
+    
+    if (result.modern_context) 
+    {
+        result.shading_language_version = (char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
+    }
+    else 
+    {
+        result.shading_language_version = "(none)";
+    }
+    
+    if (glGetStringi)
+    {
+        GLint extension_count = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &extension_count);
+        for (GLint i = 0; i < extension_count; ++i)
+        {
+            char *ext_name = (char *)glGetStringi(GL_EXTENSIONS, i);
+            
+            if (0) {}
+            else if(string_equal(ext_name, "GL_EXT_texture_sRGB")) { result.opengl_ext_texture_sgb=true; }
+            else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
+            else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
+            else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
+            // TODO: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
+        }
+    }
+    
+    char *major_at = result.version;
+    char *minor_at = 0;
+    for (char *at = result.version; *at; ++at) 
+    {
+        if (at[0] == '.') 
+        {
+            minor_at = at + 1;
+            break;
+        }
+    }
+    
+    s32 major = 1;
+    s32 minor = 0;
+    if (minor_at) 
+    {
+        major = s32_from_z(major_at);
+        minor = s32_from_z(minor_at);
+    }
+    
+    if ((major > 2) || ((major == 2) && (minor >= 1))) 
+    {
+        // NOTE: We _believe_ we have sRGB textures in 2.1 and above automatically.
+        result.opengl_ext_texture_sgb = true;
+    }
+    
+    if (major >= 3) 
+    {
+        // NOTE: We _believe_ we have framebuffer objects in 3.0 and above automatically.
+        result.opengl_arb_framebuffer_object=true;
+    }
+    
+    return result;
+}
+
 internal void
 opengl_init(Opengl *gl)
 {

@@ -1,15 +1,9 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
 #define push_render_entity(GROUP, STRUCT)  (STRUCT *)__push_render_entity(GROUP, sizeof(STRUCT), e##STRUCT)
 internal Render_Entity_Header *
-__push_render_entity(Render_Group *renderGroup, u32 size, Render_Type type)
+__push_render_entity(Render_Group* renderGroup, u32 size, Render_Type type)
 {
     assert(size + renderGroup->used <= renderGroup->capacity);
 
@@ -22,24 +16,34 @@ __push_render_entity(Render_Group *renderGroup, u32 size, Render_Type type)
     return header;
 }
 
-internal void
-push_mesh(Render_Group *group, Mesh *mesh,
-          m4x4 world_transform, m4x4 *animation_transforms, u32 entity_id, v2 uv_scale, v4 tint)
-{
-    Render_Mesh *piece          = push_render_entity(group, Render_Mesh);
-    piece->mesh                 = mesh;
-    piece->world_transform      = world_transform;
-    piece->animation_transforms = animation_transforms;
-    piece->entity_id            = entity_id;
-    piece->uv_scale             = uv_scale;
-    piece->tint                 = tint;
-}
+//internal void
+//push_mesh(Render_Group* group, Mesh* mesh,
+//          m4x4 world_transform, m4x4* animation_transforms, u32 entity_id, v2 uv_scale, v4 tint)
+//{
+//    Render_Mesh *piece          = push_render_entity(group, Render_Mesh);
+//    piece->mesh                 = mesh;
+//    piece->world_transform      = world_transform;
+//    piece->animation_transforms = animation_transforms;
+//    piece->entity_id            = entity_id;
+//    piece->uv_scale             = uv_scale;
+//    piece->tint                 = tint;
+//}
 
 internal void
-push_mesh(Render_Group *group, Mesh *mesh,
-          m4x4 world_transform, m4x4 *animation_transforms, u32 entity_id, v2 uv_scale)
+push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u32 entity_id, v2 uv_scale, v4 tint)
 {
-    push_mesh(group, mesh, world_transform, animation_transforms, entity_id, uv_scale, V4(1.0f));
+    assert(r->num_meshes < r->max_meshes);
+
+    Render_Mesh* piece = r->meshes + r->num_meshes;
+    {
+        piece->mesh                 = mesh;
+        piece->world_transform      = world_transform;
+        piece->animation_transforms = animation_transforms;
+        piece->entity_id            = entity_id;
+        piece->uv_scale             = uv_scale;
+        piece->tint                 = tint;
+    }
+    ++r->num_meshes;
 }
 
 internal void
@@ -113,23 +117,25 @@ render_vertex_push(Render_Vertex_Type type)
 internal void
 render_init(void)
 {
-    for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i)
-    {
+    for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i) {
         Render_Buffer *buffer = renderer->buffer + i;
         buffer->vertices = push_array(renderer->arena, Render_Vertex, render_max_vertex_count);
     }
 
-    // Note: Texture
-    //
+    // Texture
     renderer->texture_arena      = arena_alloc();
     renderer->texture_table_size = 2048;
     renderer->texture_table      = push_array(renderer->texture_arena, Render_Texture, renderer->texture_table_size);
     renderer->texture_next_id    = 1;
 
-    // Note: Command buffer
-    //
+    // Command buffer
     renderer->command_arena = arena_alloc();
     renderer->commands = push_array(renderer->command_arena, Render_Command, render_max_command_count);
+
+
+    renderer->num_meshes = 0;
+    renderer->max_meshes = 2048;
+    renderer->meshes     = push_array(renderer->arena, Render_Mesh, renderer->max_meshes);
 }
 
 // # Note: Sort Cmp Functions
@@ -167,22 +173,25 @@ render_end(void)
 {
     for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; ++type)
     {
-        Render_Buffer *buffer = renderer->buffer + type;
+        Render_Buffer* buffer = renderer->buffer + type;
         u64 count = buffer->vertex_count;
 
         switch (type)
         {
-            case RENDER_VERTEX_TYPE_QUAD: 
-            {
+            case RENDER_VERTEX_TYPE_QUAD: {
                 //quick_sort(buffer->vertices, Render_Vertex, count, render_cmp_texture_id);
             } break;
 
-            default: 
-            {
+            default: {
                 assert(! "not implemented yet?");
             } break;
         }
     }
+
+
+    // Sort meshes by type so we can do instanced draw.
+    //
+    qsort(renderer->meshes, renderer->num_meshes, sizeof(renderer->meshes[0]), COMPAREEEEE);
 }
 
 internal void

@@ -1,12 +1,6 @@
-#ifndef RTS_RENDERER_OPENGL_H
-#define RTS_RENDERER_OPENGL_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 
 #include <gl/gl.h>
@@ -275,7 +269,7 @@ struct Opengl
 //
 #define GET_UNIFORM_LOCATION(Program, Name) gl->Program.Name = glGetUniformLocation(gl->Program.id, #Name);
 
-// # Note: Function Declarations.
+// Function Declarations.
 //
 internal void opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
 internal Gl_Info opengl_get_info(Opengl *gl, b32 modern_context);
@@ -304,5 +298,3 @@ internal void opengl_program_end(Gl_Program program, Gl_Program_Flags flags);
 // # Note: Init
 //
 internal void opengl_init(Opengl *gl);
-
-#endif // RTS_RENDERER_OPENGL_H

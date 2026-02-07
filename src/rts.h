@@ -76,7 +76,7 @@ struct Game_State {
     Arena*      entity_arena;
     Entity*     first_free_entity;
     Entity*     last_free_entity;
-    u32         next_generational_id;
+    u32         next_generational_id; // 0 is null.
     Entity*     root_entity;
     Entity*     entity_table;
     u32         entity_table_size;
@@ -84,6 +84,8 @@ struct Game_State {
     u32         game_camera_id;
     u32         debug_camera_id;
     u32         controlling_camera_id;
+
+    List<Entity*> selected_entities;
 };
 
 #endif // RTS_GAME_H

@@ -286,32 +286,34 @@ interpolate_trs(TRS trs1, f32 t, TRS trs2)
 {
     TRS result = {};
     result.translation = lerp(trs1.translation, t, trs2.translation);
-    result.rotation = slerp(trs1.rotation, t, trs2.rotation);
-    result.scaling = lerp(trs1.scaling, t, trs2.scaling);
+
+    Quaternion first  = trs1.rotation;
+    Quaternion second = trs2.rotation;
+    if (dot(first, second) < 0.f) {
+        second = -second;
+    }
+    result.rotation = nlerp(first, t, second);
+
+    result.scaling     = lerp(trs1.scaling, t, trs2.scaling);
     return result;
 }
 
 internal TRS
-interpolate_sample(Sample *sample, f32 dt)
+interpolate_sample(Sample* sample, f32 dt)
 {
     TRS result = {};
 
     // Translation
     result.translation = (sample->translations + (sample->translation_count - 1))->vec;
-    for (u32 translation_idx = 0;
-         translation_idx < sample->translation_count;
-         ++translation_idx)
+    for (u32 translation_idx = 0; translation_idx < sample->translation_count; ++translation_idx)
     {
         dt_v3_Pair *hi_key = sample->translations + translation_idx;
-        if (hi_key->dt > dt)
-        {
+        if (hi_key->dt > dt) {
             dt_v3_Pair *lo_key = (hi_key - 1);
             f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
             result.translation = lerp(lo_key->vec, t, hi_key->vec);
             break;
-        }
-        else if (hi_key->dt == dt)
-        {
+        } else if (hi_key->dt == dt) {
             result.translation = hi_key->vec;
             break;
         }
@@ -319,20 +321,20 @@ interpolate_sample(Sample *sample, f32 dt)
 
     // Rotation
     result.rotation = (sample->rotations + (sample->rotation_count - 1))->q;
-    for (u32 rotation_idx = 0;
-         rotation_idx < sample->rotation_count;
-         ++rotation_idx)
+    for (u32 rotation_idx = 0; rotation_idx < sample->rotation_count; ++rotation_idx) 
     {
-        dt_qt_Pair *hi_key = sample->rotations + rotation_idx;
-        if (hi_key->dt > dt)
-        {
-            dt_qt_Pair *lo_key = (hi_key - 1);
+        dt_qt_Pair* hi_key = sample->rotations + rotation_idx;
+        if (hi_key->dt > dt) {
+            dt_qt_Pair* lo_key = (hi_key - 1);
             f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
-            result.rotation = slerp(lo_key->q, t, hi_key->q);
+            Quaternion first  = lo_key->q;
+            Quaternion second = hi_key->q;
+            if (dot(first, second) < 0.f) {
+                second = -second;
+            }
+            result.rotation = nlerp(first, t, second);
             break;
-        }
-        else if (hi_key->dt == dt)
-        {
+        } else if (hi_key->dt == dt) {
             result.rotation = hi_key->q;
             break;
         }
@@ -340,20 +342,15 @@ interpolate_sample(Sample *sample, f32 dt)
 
     // Scaling
     result.scaling = (sample->scalings + (sample->scaling_count - 1))->vec;
-    for (u32 scaling_idx = 0;
-         scaling_idx < sample->scaling_count;
-         ++scaling_idx)
+    for (u32 scaling_idx = 0; scaling_idx < sample->scaling_count; ++scaling_idx) 
     {
         dt_v3_Pair *hi_key = sample->scalings + scaling_idx;
-        if (hi_key->dt > dt)
-        {
+        if (hi_key->dt > dt) {
             dt_v3_Pair *lo_key = (hi_key - 1);
             f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
             result.scaling = lerp(lo_key->vec, t, hi_key->vec);
             break;
-        }
-        else if (hi_key->dt == dt)
-        {
+        } else if (hi_key->dt == dt) {
             result.scaling = hi_key->vec;
             break;
         }
@@ -382,22 +379,17 @@ eval(Model* model, Animation* anim, f32 dt, m4x4* out_transforms, b32 do_eval_no
     Eval_Stack stack = {};
 
     Eval_Stack_Frame *frame = stack.frames;
-    for (;;)
-    {
+    for (;;) {
         Node* node = model->nodes + frame->node_id;
 
-        if (frame->next_child_idx == node->child_count)
-        {
+        if (frame->next_child_idx == node->child_count) {
             if (stack.top == 0) {
                 break;
             } else {
                 stack.frames[stack.top--] = {};
             }
-        }
-        else
-        {
-            if (!frame->global_transform_done)
-            {
+        } else {
+            if (!frame->global_transform_done) {
                 if (do_eval_node) {
                     eval_node(anim, dt, node);
                 }

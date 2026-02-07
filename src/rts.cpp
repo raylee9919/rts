@@ -56,7 +56,7 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 {
     Entity* soldier            = entity_alloc();
     soldier->type              = ENTITY_TYPE_SOLDIER;
-    soldier->flags             = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_COLLIDEABLE;
+    soldier->flags             = ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_COLLIDEABLE;
     soldier->team              = team;
 
     soldier->radius            = 0.5f;
@@ -65,8 +65,7 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     soldier->min_t             = 0.0f;
     soldier->max_t             = 0.5f;
 
-    soldier->attack_min_t      = 0.0f;
-    soldier->attack_max_t      = 0.8f;
+    soldier->attack_max_t      = 1.0f;
 
     soldier->hitpoints         = 40.f;
 
@@ -98,6 +97,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     if (!renderer) {
         renderer = platform->renderer;
         render_init();
+    } else {
+        renderer->num_meshes = 0;
     }
     
     game_state = (Game_State *)platform->game_state;
@@ -113,7 +114,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     game_state->window_height = platform->window_height;
 
     // @Todo: We'll deal with timestep later.
-    f32 dt = clamp(platform->dt, 0.001f, 0.1f);
+    const f32 dt = platform->dt;
+    //constexpr f32 dt = 1.f / 60.f;
     
     if (!game_state->initted) {
         game_state->initted = true;
@@ -130,11 +132,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         
         game_state->random_series = rand_seed(1219);
 
-        game_state->entity_arena      = arena_alloc();
-        game_state->root_entity       = push_struct(game_state->entity_arena, Entity);
-        game_state->root_entity->type = ENTITY_TYPE_ROOT;
-        game_state->entity_table_size = 1024; // FIX: Memory bug in arena when set size to 4096
-        game_state->entity_table      = push_array(game_state->entity_arena, Entity, game_state->entity_table_size);
+        game_state->entity_arena         = arena_alloc();
+        game_state->root_entity          = push_struct(game_state->entity_arena, Entity);
+        game_state->root_entity->type    = ENTITY_TYPE_ROOT;
+        game_state->entity_table_size    = 1024; // FIX: Memory bug in arena when set size to 4096
+        game_state->entity_table         = push_array(game_state->entity_arena, Entity, game_state->entity_table_size);
+        game_state->next_generational_id = 1;
         
         { // TEMPORARY
             Temporary_Arena scratch = scratch_begin();
@@ -268,7 +271,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 game_camera->N            = 0.5f;
                 game_camera->F            = 100000.0f;
                 game_camera->position     = v3(0.f, 10.f, 8.f);
-                game_camera->orientation  = euler_to_quaternion(radian_from_degree(-30.f), 0.f, 0.f);
+                game_camera->orientation  = euler_to_quaternion(radian_from_degree(-55.f), 0.f, 0.f);
                 game_camera->flags |= ENTITY_FLAG_GAME_CAMERA;
                 entity_init(game_camera, nullptr);
                 
@@ -312,7 +315,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             constexpr int num_soldiers = 2;
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
-                f32 z = 5.f + 1.f*(i/num_soldiers);
+                f32 z = 0.f + 1.f*(i/num_soldiers);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_PLAYER, assets);
 
 
@@ -337,7 +340,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 8.f;
-                f32 z = 5.f + 1.f*(i/num_soldiers);
+                f32 z = 0.f + 1.f*(i/num_soldiers);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
             }
 
@@ -375,7 +378,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     // NOTE: Alias
     Game_Assets *assets = game_state->assets;
     
-    Render_Group *render_group = begin_render_group(render_commands, MB(16));
+    Render_Group* render_group = begin_render_group(render_commands, MB(16));
 
     
     // Get all triangles in the navmesh
@@ -394,11 +397,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     local_persist f32 light_x = 1.f;
     local_persist f32 light_y = 1.f;
     local_persist f32 light_z = 1.f;
-    ui_begin(platform->dt, platform->window_width, platform->window_height);
+    ui_begin(dt, platform->window_width, platform->window_height);
     {
         ui_platform(utf8lit("⚙"))
         {
-            ui_labelf("mspf: %.2f", platform->dt*1000.f);
+            ui_labelf("mspf: %.2f", dt*1000.f);
             ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
             if (ui_button(utf8lit("Wireframe")).pressed_left) {
                 render_commands->wireframe_mode = !render_commands->wireframe_mode; 
@@ -437,6 +440,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //
     entity_update(game_state->root_entity, dt);
 
+
     // Draw entities
     //
     for (u32 i = 0; i < game_state->entity_table_size; ++i) {
@@ -457,7 +461,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         {0, 0,gy, 0},
         {0, 0, 0, 1},
     }};
-    push_mesh(render_group, ground_mesh, ground_transform, 0, 0, v2{gx,gy});
+    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, v2{gx,gy});
 
     
     // Draw navmesh
@@ -476,8 +480,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
 
     { // NOTE: Render Commands
-        Entity *game_camera = entity_from_id(game_state->game_camera_id);
-        Entity *controlling_camera = entity_from_id(game_state->controlling_camera_id);
+        Entity* game_camera = entity_from_id(game_state->game_camera_id);
+        Entity* controlling_camera = entity_from_id(game_state->controlling_camera_id);
 
         render_commands->main_eye_position = controlling_camera->position;
         render_commands->main_view_proj    = controlling_camera->VP;

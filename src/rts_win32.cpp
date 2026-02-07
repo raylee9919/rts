@@ -519,12 +519,13 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     win32_toggle_fullscreen(hwnd);
 #endif
 
-    // NOTE: alloc/init renderer.
+    // alloc/init renderer.
     // 
     {
         Arena *arena = arena_alloc();
         g_renderer = push_struct(arena, Renderer);
         g_renderer->arena = arena;
+
         platform.renderer = g_renderer;
     }
 
@@ -544,13 +545,12 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         renderer_code.last_modified  = win32_get_last_modified(renderer_code.dll_path);
     }
     win32_code_load(&renderer_code);
-    if (! renderer_code.is_valid) 
-    {
+    if (! renderer_code.is_valid) {
         assert(! "Couldn't load the renderer code."); 
     }
 
-    Arena *renderer_arena = arena_alloc();
-    Platform_Renderer *renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
+    Arena* renderer_arena = arena_alloc();
+    Platform_Renderer* renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
 
 
@@ -660,10 +660,9 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         Render_Commands *render_commands = NULL;
 
-        // NOTE: Render begin.
+        // Render begin.
         //
-        if (renderer_code.is_valid) 
-        {
+        if (renderer_code.is_valid) {
             render_commands = renderer_functions.begin_frame(renderer, window_dim, render_dim); 
         }
 
@@ -690,7 +689,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             game_code.last_modified = win32_get_last_modified(game_code.dll_path);
         }
 
-        // NOTE: Render end.
+        // Render end.
         //
         if (renderer_code.is_valid) 
         {

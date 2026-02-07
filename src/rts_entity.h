@@ -23,10 +23,14 @@ enum {
 typedef u64 Entity_Flags;
 enum {
     ENTITY_FLAG_DEAD              = (1<<0),
-    ENTITY_FLAG_CHUNK_PARTITIONED = (1<<1),
-    ENTITY_FLAG_COLLIDEABLE       = (1<<2),
-    ENTITY_FLAG_GAME_CAMERA       = (1<<3),
-    ENTITY_FLAG_FREE_CAMERA       = (1<<4),
+
+    ENTITY_FLAG_IS_UNIT           = (1<<1),
+    ENTITY_FLAG_CHUNK_PARTITIONED = (1<<2),
+    ENTITY_FLAG_COLLIDEABLE       = (1<<3),
+
+    ENTITY_FLAG_GAME_CAMERA       = (1<<4),
+    ENTITY_FLAG_FREE_CAMERA       = (1<<5),
+
 };
 
 typedef u8 Team;
@@ -108,7 +112,7 @@ struct Entity {
     // Attack curve's horizontal axis is time.
     //                  vertical axis is normalized 0 to 1.
     f32 attack_t;
-    f32 attack_min_t;
+    f32 prev_attack_t;
     f32 attack_max_t;
 
 

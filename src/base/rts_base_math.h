@@ -164,6 +164,7 @@ internal Quaternion operator * (Quaternion a, Quaternion b);
 internal Quaternion operator * (Quaternion a, f32 b);
 internal Quaternion operator * (f32 b, Quaternion a);
 internal Quaternion operator - (Quaternion in);
+internal Quaternion nlerp(Quaternion a, f32 t, Quaternion b);
 internal Quaternion slerp(Quaternion q1, f32 t, Quaternion q2);
 internal m4x4 operator * (m4x4 a, m4x4 b);
 internal v4 operator * (m4x4 m, v4 p);
