@@ -1078,26 +1078,26 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         // NOTE: PBR
         //
         {
-            Pbr_Program *pbr_program = &gl->pbr_program;
+            Pbr_Program* pbr_program = &gl->pbr_program;
             glUseProgram(pbr_program->id);
 
-            for (u8 *buffer_at = frame->push_buffer_base;
+            for (u8* buffer_at = frame->push_buffer_base;
                  buffer_at < frame->push_buffer_base + frame->push_buffer_used;)
             {
-                Render_Group *group = (Render_Group *)buffer_at;
+                Render_Group* group = (Render_Group *)buffer_at;
                 buffer_at += sizeof(Render_Group);
 
-                for (u8 *group_at = buffer_at;
+                for (u8* group_at = buffer_at;
                      group_at < group->base + group->used;)
                 {
-                    Render_Entity_Header *entity = (Render_Entity_Header *)group_at;
+                    Render_Entity_Header* entity = (Render_Entity_Header* )group_at;
                     group_at += entity->size;
                     switch (entity->type)
                     {
                         case eRender_Mesh: 
                         {
-                            Render_Mesh *piece = (Render_Mesh *)entity;
-                            Mesh *mesh = piece->mesh;
+                            Render_Mesh* piece = (Render_Mesh *)entity;
+                            Mesh* mesh = piece->mesh;
 
                             glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
                             glUniform1i(pbr_program->is_skeletal, piece->animation_transforms ? 1 : 0);
@@ -1129,8 +1129,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                             }
                             glUniform1ui(pbr_program->flags, flags);
 
-                            for (u32 i = 0; i < 7; ++i) 
-                            {
+                            for (u32 i = 0; i < 7; ++i) {
                                 glEnableVertexAttribArray(i);
                             }
 
@@ -1151,27 +1150,14 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
                             glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
 
-                            // TODO: seems like a perf loss.
-                            if (piece->entity_id != 0 && frame->active_entity_id == piece->entity_id) 
-                            {
-                                glDisable(GL_DEPTH_TEST);
-                                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                                opengl_set_flags_for_wireframe_mode(&flags);
-                                glUniform1ui(pbr_program->flags, flags);
-                                glUniform4f(pbr_program->wireframe_color, 1.0f, 1.0f, 0.0f, 1.0f);
-                                glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
-                                glEnable(GL_DEPTH_TEST);
-                            }
-
-                            for (u32 i = 0; i < 7; ++i) 
-                            {
+                            for (u32 i = 0; i < 7; ++i) {
                                 glDisableVertexAttribArray(i);
                             }
                             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                        }break;
+                        } break;
 
                         default: {
-                        }break;
+                        } break;
                     }
                 }
                 buffer_at += group->capacity;
@@ -1227,9 +1213,10 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        // NOTE: Unit Circle
+        // Draw unit cirle.
         //
         {
+#if 0
             Circle_Program *circle_program = &gl->circle_program;
             glUseProgram(circle_program->id);
 
@@ -1256,6 +1243,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
             glDisableVertexAttribArray(0);
+#endif
         }
 
 
@@ -1594,7 +1582,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
     }
 }
 
-// NOTE: Program
+// Program
 //
 internal Gl_Program
 opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src)

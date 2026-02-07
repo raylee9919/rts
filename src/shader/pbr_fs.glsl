@@ -170,7 +170,7 @@ void main()
                 v2 offset = poisson_disk[i] * inv_possion_radius;
                 float depth = texture(shadowmaps, vec3(shadowmap_uv + offset, layer)).r;
                 if (frag.z > depth + bias) {
-                    shadowness += 1.0;
+                    shadowness += 0.8;
                 }
             }
             const float inv_sample_count = 1.0/16.0;

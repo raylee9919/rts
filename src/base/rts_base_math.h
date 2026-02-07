@@ -17,6 +17,9 @@
 union v2 {
     struct { f32 x, y; };
     f32 e[2];
+
+    v2() = default;
+    v2(f32 x_, f32 y_);
 };
 
 union v2s { 
@@ -30,15 +33,15 @@ union v2u {
     u32 e[2];
 };
 
-union v3 {
-    struct {
-        union {
-            struct { f32 x, y; };
-            v2 xy;
-        };
-        f32 z;
+struct v3 {
+    union {
+        struct { f32 x, y, z; };
+        f32 e[3];
     };
-    f32 e[3];
+
+    v3() = default;
+    v3(f32 f);
+    v3(f32 x_, f32 y_, f32 z_);
 };
 
 union v4 {
@@ -75,6 +78,9 @@ union m4x4 {
 
 struct Quaternion {
     f32 w, x, y, z;
+
+    Quaternion() = default;
+    Quaternion(f32 w_, f32 x_, f32 y_, f32 z_);
 };
 
 struct Rect2 {

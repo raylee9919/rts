@@ -11,45 +11,43 @@
 
 // @Todo: Not thrilled of this macro.
 #define READ(to, type)\
-    to = *(type *)at; \
+    memcpy(&to, at, sizeof(type)); \
     at += sizeof(to);
 #define READ_COUNT(to, type, count) \
     to = push_array(arena, type, count); \
-    memory_copy(to, at, sizeof(type)*count); \
+    memcpy(to, at, sizeof(type)*count); \
     at += (sizeof(type)*count);
 
 
 
 internal void
-asset_load_model(Model *model, Utf8 file_path, Arena *arena)
+asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale)
 {
     Temporary_Arena scratch = scratch_begin();
+    defer(scratch_end(scratch));
 
-    Assert(model);
+    assert(model);
 
-    // ----------------------------------------------
-    // @Note: read entire file.
+    // Note: read entire file.
+    //
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
-    u8 *at  = entire_file.str;
-    u8 *end = at + entire_file.len;
+    u8* at  = entire_file.str;
+    u8* end = at + entire_file.len;
 
     READ(model->mesh_count, u32);
 
     model->meshes = push_array(arena, Mesh, model->mesh_count);
-    for (u32 mesh_idx = 0;
-         mesh_idx < model->mesh_count;
-         ++mesh_idx)
+    for (u32 mesh_idx = 0; mesh_idx < model->mesh_count; ++mesh_idx)
     {
         Mesh *mesh = model->meshes + mesh_idx;
 
         READ(mesh->vertex_count, u32);
         mesh->vertices = push_array(arena, Vertex, mesh->vertex_count);
-        for (u32 vertex_idx = 0;
-             vertex_idx < mesh->vertex_count;
-             ++vertex_idx)
+        for (u32 vertex_idx = 0; vertex_idx < mesh->vertex_count; ++vertex_idx)
         {
             Vertex *vertex = mesh->vertices + vertex_idx;
             READ(vertex->position, v3);
+            vertex->position = hadamard(vertex->position, scale);
             READ(vertex->normal, v3);
             READ(vertex->uv, v2);
             READ(vertex->color, v4);
@@ -67,13 +65,11 @@ asset_load_model(Model *model, Utf8 file_path, Arena *arena)
         READ_COUNT(mesh->indices, u32, mesh->index_count);
     }
 
-    //
     // Material
     //
     READ(model->material_count, u32);
     READ_COUNT(model->materials, Material, model->material_count);
 
-    //
     // Nodes
     //
     READ(model->node_count, u32);
@@ -82,11 +78,9 @@ asset_load_model(Model *model, Utf8 file_path, Arena *arena)
         READ(model->root_bone_node_id, s32);
         model->nodes = push_array(arena, Node, model->node_count);
 
-        for (u32 node_idx = 0;
-             node_idx < model->node_count;
-             ++node_idx)
+        for (u32 node_idx = 0; node_idx < model->node_count; ++node_idx)
         {
-            Node *node = model->nodes + node_idx;
+            Node* node = model->nodes + node_idx;
 
             READ(node->id, s32);
             READ(node->offset, m4x4);
@@ -96,8 +90,7 @@ asset_load_model(Model *model, Utf8 file_path, Arena *arena)
         }
     }
 
-    Assert(at == end);
-    scratch_end(scratch);
+    assert(at == end);
 }
 
 internal u32
@@ -114,21 +107,21 @@ get_triangle_count(Model *model)
 
 internal u32
 animation_hash(u32 id, u32 length) {
-    // @TODO: Better hash function!
+    // @Todo: Better hash function!
     u32 slot = ((id * 23 + id * 8) % length);
     return slot;
 }
 
 internal void
-asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena)
+asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
     Assert(anim);
 
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
 
-    u8 *at  = entire_file.str;
-    u8 *end = at + entire_file.len;
+    u8* at  = entire_file.str;
+    u8* end = at + entire_file.len;
 
     READ_COUNT(anim->name, char, string_length((char *)at) + 1);
 
@@ -198,8 +191,9 @@ internal void
 asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
+    defer(scratch_end(scratch));
 
-    Assert(bitmap);
+    assert(bitmap);
 
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
 
@@ -216,15 +210,40 @@ asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
     bitmap->memory = push_array(arena, u8, bitmap->size); // @Memory!
     READ_COUNT(bitmap->memory, u8, bitmap->size);
 
-    Assert(at == end);
-    scratch_end(scratch);
+    assert(at == end);
+}
+
+internal void
+asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
+{
+    Temporary_Arena scratch = scratch_begin();
+    defer(scratch_end(scratch));
+
+    assert(bitmap);
+
+    Utf8 contents = read_entire_file(scratch.arena, file_path);
+
+    stbi_set_flip_vertically_on_load(true);
+    int x, y, num_channels;
+    u8* data = stbi_load_from_memory(contents.str, contents.len, &x, &y, &num_channels, 0);
+
+    bitmap->bits_per_channel = 8;
+    bitmap->channel_count    = num_channels;
+    bitmap->width            = x;
+    bitmap->height           = y;
+    bitmap->pitch            = (bitmap->width*bitmap->bits_per_channel*bitmap->channel_count)>>3;
+    bitmap->size             = (bitmap->width*bitmap->height*bitmap->bits_per_channel*bitmap->channel_count);
+    bitmap->handle           = 0;
+    bitmap->memory           = data;
+
+    // @Todo: release memory via cstd api.
 }
 
 #undef READ
 #undef READ_COUNT
 
-// ---------------------------------------
-// @Note: Animation
+// Note: Animation
+//
 
 internal Node_Hash_Result
 get_sample_index(Animation *anim, u32 id) 
@@ -365,14 +384,15 @@ eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_
     Eval_Stack_Frame *frame = stack.frames;
     for (;;)
     {
-        Node *node = model->nodes + frame->node_id;
+        Node* node = model->nodes + frame->node_id;
 
         if (frame->next_child_idx == node->child_count)
         {
-            if (stack.top == 0) 
+            if (stack.top == 0) {
                 break;
-            else 
+            } else {
                 stack.frames[stack.top--] = {};
+            }
         }
         else
         {
@@ -402,9 +422,7 @@ eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_
 internal void
 interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f32 dt2)
 {
-    for (s32 id = 0;
-         id < (s32)model->node_count;
-         ++id)
+    for (s32 id = 0; id < (s32)model->node_count; ++id)
     {
         Node *node = model->nodes + id;
         Node_Hash_Result res1 = get_sample_index(anim1, id);

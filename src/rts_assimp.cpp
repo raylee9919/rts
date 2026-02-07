@@ -7,26 +7,27 @@
    ======================================================================== */
 
 
-// --------------------------------------
-// @Note: Assimp includes.
+// Assimp includes.
+//
 #include "vendor/assimp/Importer.hpp"
 #include "vendor/assimp/scene.h"
 #include "vendor/assimp/postprocess.h"
 
-// --------------------------------------
-// @Note: [.h]
+// [.h]
+//
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_font.h"
 #include "rts_asset.h"
 
+#define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION
-#include "vendor/stb_image.h"
+#include "third_party/stb/stb_image.h"
 
 #include "rts_assimp.h"
 
-// --------------------------------------
-// @Note: [.cpp]
+// [.cpp]
+//
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
 
@@ -201,11 +202,16 @@ fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashma
         aiNode *node = nodes[i];
         Asset_Node *asset_node = asset_nodes + next_to_write++;
 
+
         asset_node->id = id_from_name(node->mName.data, hashmap);
+#if 0
+        printf("index:%d, id:%d, name:%s\n", i, asset_node->id, node->mName.data);
+#endif
         asset_node->offset = identity();
         asset_node->transform = m4x4_from_ai(node->mTransformation);
         asset_node->child_count = node->mNumChildren;
         asset_node->child_ids = malloc_array(s32, node->mNumChildren);
+
         for (u32 j = 0; j < node->mNumChildren; ++j) {
             asset_node->child_ids[j] = id_from_name(node->mChildren[j]->mName.data, hashmap);
         }
@@ -352,7 +358,7 @@ fill_asset_meshes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashm
                 aiVertexWeight *vw = bone->mWeights + vw_idx;
                 u32 vertex_idx = vw->mVertexId;
                 f32 weight = vw->mWeight;
-                assert(weight != 0.0f);
+                //assert(weight != 0.0f);
 
                 Asset_Vertex *asset_vertex = asset_mesh->vertices + vertex_idx;
                 u32 next = get_next_unfilled_bone_index(asset_vertex);
@@ -520,8 +526,8 @@ create_output_animation_filepath(char *in_filepath, char *anim_name)
 
 int main(void)
 {
-    // -----------------------------------
-    // @Note: Init codebase.
+    // Init codebase.
+    //
     os_init();
     thread_init();
 
@@ -532,15 +538,16 @@ int main(void)
         //"../data/skeleton_lord_idle.fbx",
         //"../data/skeleton_lord_run.fbx",
         //"../data/input/model/skeleton_lord_idle.dae",
-        //"../data/input/model/skeleton_lord_run.dae",
+        "../data/input/model/skeleton_lord_run.dae",
         //"../data/input/model/skeleton_lord_die.dae",
         //"../data/input/model/skeleton_lord_attack.dae",
         //"../data/input/model/crate.dae",
         //"../data/input/model/sphere.fbx",
         //"../data/input/model/plane.fbx",
         //"../data/input/model/rock.dae",
-        "../data/input/model/troll_idle.dae",
-        "../data/input/model/troll_walk.dae",
+        //"../data/input/model/troll_idle.dae",
+        //"../data/input/model/troll_walk.dae",
+        //"../data/input/model/castle.fbx",
     };
 
     stbi_set_flip_vertically_on_load(true);

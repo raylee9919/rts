@@ -792,3 +792,55 @@ v3 gizmo(u32 id, v3 pos, qt rotation)
     return result;
 }
 #endif
+
+#if 0
+// Entity move
+                if (!entity->waypoint_queue.empty()) {
+                    v3 waypoint = entity->waypoint_queue.front();
+                    f32 dist = distance(entity->position, waypoint);
+                    if (waypoint == entity->destination) {
+                        // @Fix: twitching character when he starts near the destination point.
+                        f32 stop_radius = 1.0f;
+                        if (dist > stop_radius) {
+                            v3 dir = normalize(waypoint - entity->position);
+                            v3 forward = normalize((quaternion_to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
+                            f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
+                            if (c < 1.0f) {
+                                f32 radian = dt*10.0f;
+                                if (cross(forward, dir).y < 0.0f) {
+                                    radian = -radian;
+                                }
+                                entity->orientation = rotate(entity->orientation, v3{0,1,0}, radian);
+                            }
+
+                            entity->transition_t += 2.0f*dt;
+                            entity->transition_t = clamp01(entity->transition_t);
+                        } else {
+                            f32 t = map01(dist, 0.0f, stop_radius);
+                            entity->transition_t = lerp(0.0f, t, 0.7f);
+                            entity->waypoint_queue.pop();
+                        }
+                    } else {
+                        f32 waypoint_reached_radius = 0.20f;
+                        if (dist > waypoint_reached_radius) {
+                            v3 dir = normalize(waypoint - entity->position);
+                            v3 forward = normalize((quaternion_to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
+                            f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
+                            if (c < 1.0f) {
+                                f32 radian = dt*10.0f;
+                                if (cross(forward, dir).y < 0.0f) {
+                                    radian = -radian;
+                                }
+                                entity->orientation = rotate(entity->orientation, v3{0,1,0}, radian);
+                            }
+
+                            entity->transition_t += 2.0f*dt;
+                            entity->transition_t = clamp01(entity->transition_t);
+                        } else {
+                            entity->waypoint_queue.pop();
+                        }
+                    }
+                } else {
+                    entity->command = ENTITY_CMD_IDLE;
+                }
+#endif

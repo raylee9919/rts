@@ -265,12 +265,14 @@ platform_opengl_set_vsync(Opengl *gl, b32 vsync_enabled)
     }
 }
 
+extern "C" __declspec(dllexport)
 RENDERER_BEGIN_FRAME(win32_begin_frame)
 {
     Render_Commands *result = opengl_frame_begin((Opengl *)renderer, os_window_dim, render_dim);
     return result;
 }
 
+extern "C" __declspec(dllexport)
 RENDERER_END_FRAME(win32_end_frame)
 {
     opengl_frame_end((Opengl *)platform_renderer, renderer, frame);
@@ -447,6 +449,7 @@ win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS *os_init
     return gl;
 }
 
+extern "C" __declspec(dllexport)
 WIN32_LOAD_RENDERER_ENTRY()
 {
     Platform_Renderer *result = (Platform_Renderer *)win32_init_opengl(window_dc, push_buffer_size, renderer_arena, os_init);

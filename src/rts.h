@@ -17,26 +17,29 @@ struct Game_Assets {
 
     Bitmap debug_bitmap;
 
-    Model *xbot_model;
-    Model *crate_model;
+    Model* skeleton_model;
+    Model* warrior_model;
+    Model* castle_model;
+    Model* sword_model;
+    Model* crate_model;
+    Model* sphere_model;
+    Model* plane_model;
+    Model* rock_model;
 
-    Mesh skybox_mesh;
+    Mesh   skybox_mesh;
     Bitmap skybox_textures[6];
 
-    Model *sphere_model;
-    Model *plane_model;
-
-    Model *rock_model;
-
-    Animation *xbot_idle;
-    Animation *xbot_run;
-    Animation *xbot_die;
-    Animation *xbot_attack;
+    Animation* xbot_idle;
+    Animation* xbot_run;
+    Animation* xbot_die;
+    Animation* xbot_attack;
+               
+    Animation* warrior_idle;
 };
 
 struct Chunk {
-    Entity *first_entity;
-    Entity *last_entity;
+    Entity* first_entity;
+    Entity* last_entity;
 };
 
 struct Navmesh {
@@ -50,9 +53,9 @@ struct Game_State {
 
     b32 editor_initted;
 
-    Arena *frame_arena;
+    Arena* frame_arena;
 
-    Game_Assets *assets;
+    Game_Assets* assets;
 
     u32 draw_width;
     u32 draw_height;
@@ -62,19 +65,20 @@ struct Game_State {
 
     Random_Series random_series;
 
-    Arena      *map_arena;
+    Arena*      map_arena;
     v2u         chunk_size;
-    u32         chunk_count_x;
-    u32         chunk_count_y;
+    u16         chunk_count_x;
+    u16         chunk_count_y;
     v2          map_size;
-    Chunk      *chunks;
+    Chunk*      chunks;
     Navmesh     navmesh;
 
-    Arena      *entity_arena;
-    Entity     *first_free_entity;
-    Entity     *last_free_entity;
+    Arena*      entity_arena;
+    Entity*     first_free_entity;
+    Entity*     last_free_entity;
     u32         next_generational_id;
-    Entity     *entity_table;
+    Entity*     root_entity;
+    Entity*     entity_table;
     u32         entity_table_size;
 
     u32         game_camera_id;

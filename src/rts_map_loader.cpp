@@ -59,25 +59,29 @@ peek_next_character(Lexer *lexer, int ahead = 0)
     return result;
 }
 
-void push_token(Lexer *lexer, Token token) {
+void push_token(Lexer *lexer, Token token) 
+{
     Assert(lexer->token_count < array_count(lexer->tokens));
     lexer->tokens[lexer->token_count++] = token;
 }
 
-void push_eof(Lexer *lexer) {
+void push_eof(Lexer *lexer) 
+{
     Token token = {};
     token.type = TOKEN_END_OF_INPUT;
     push_token(lexer, token);
 }
 
-void push_single_token(Lexer *lexer) {
+void push_single_token(Lexer *lexer) 
+{
     int c = peek_next_character(lexer);
     Token token = {};
     token.type = (Token_Type)c;
     push_token(lexer, token);
 }
 
-void push_identifier(Lexer *lexer) {
+void push_identifier(Lexer *lexer) 
+{
     Token token = {};
     token.type = TOKEN_IDENT;
 
@@ -94,7 +98,8 @@ void push_identifier(Lexer *lexer) {
     push_token(lexer, token);
 }
 
-Token lex_decimal(Lexer *lexer) {
+Token lex_decimal(Lexer *lexer) 
+{
     Token token = {};
 
     int c = peek_next_character(lexer);
@@ -139,7 +144,8 @@ Token lex_decimal(Lexer *lexer) {
     return token;
 }
 
-Token lex_hexadecimal(Lexer *lexer) {
+Token lex_hexadecimal(Lexer *lexer) 
+{
     Token token = {};
 
     eat_character(lexer); // 0
@@ -163,7 +169,8 @@ Token lex_hexadecimal(Lexer *lexer) {
     return token;
 }
 
-void push_number(Lexer *lexer) {
+void push_number(Lexer *lexer) 
+{
     Token token = {};
 
     if (peek_next_character(lexer) == '0') {

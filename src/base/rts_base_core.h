@@ -134,7 +134,6 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #define internal        static
 #define global          static
 #define local_persist   static
-#define no_name_mangle  extern "C"
 
 typedef int8_t      s8;  
 typedef int16_t     s16; 
@@ -149,9 +148,7 @@ typedef s16         b16;
 typedef s32         b32;
 typedef float       f32; 
 typedef double      f64; 
-typedef size_t      mmm;
 typedef uintptr_t   umm;
-typedef intptr_t    smm;
 
 typedef u8 Axis2;
 enum
@@ -235,6 +232,7 @@ enum
     ( ( (f)==(l) ) ? \
       ( zset(f), zset(l) ) : \
       ( (f)=(f)->next ) )
+#define sll_pop_front_n(f, l, next) sll_pop_front_nz(f,l,next,set_null)
 #define sll_pop_front(f, l) sll_pop_front_nz(f,l,next,set_null)
 
 #define stack_push_n(f, n, next) ((n)->next=(f), (f)=(n))
@@ -347,7 +345,7 @@ template <typename F>
 Scope_Exit<F> scope_exit_make(F f) {
     return Scope_Exit<F>(f);
 };
-#define scope_exit(code) \
+#define defer(code) \
     auto CONCAT2(scope_exit_, __LINE__) = scope_exit_make([=](){code;})
 
 

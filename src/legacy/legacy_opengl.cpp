@@ -881,3 +881,17 @@ gl_voxelize_scene(s32 write, Render_Batch *batch, m4x4 voxelize_clip_P, v3 light
         }
 #endif
 #endif
+
+
+#if 0
+                            // TODO: seems like a perf loss.
+                            if (piece->entity_id != 0 && frame->active_entity_id == piece->entity_id) {
+                                glDisable(GL_DEPTH_TEST);
+                                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                                opengl_set_flags_for_wireframe_mode(&flags);
+                                glUniform1ui(pbr_program->flags, flags);
+                                glUniform4f(pbr_program->wireframe_color, 1.0f, 1.0f, 0.0f, 1.0f);
+                                glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
+                                glEnable(GL_DEPTH_TEST);
+                            }
+#endif

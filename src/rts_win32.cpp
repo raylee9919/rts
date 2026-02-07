@@ -592,8 +592,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         // NOTE: draw resolution.
         v2u render_dim = {
-            1920, 1080,
-            //2560, 1440,
+            //1920, 1080,
+            2560, 1440,
         };
         v2u window_dim = win32_client_size(hwnd);
 
@@ -685,6 +685,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         //
         if (win32_code_modified(&game_code)) 
         {
+            __debugbreak();
             win32_code_reload(&game_code); 
             game_code.last_modified = win32_get_last_modified(game_code.dll_path);
         }

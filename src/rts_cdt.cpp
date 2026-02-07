@@ -533,7 +533,7 @@ cdt_locate_result cdt_locate_point(Cdt_Context *ctx, f32 x, f32 y) {
     cdt_locate_result result = {0};
     cdt_quad_edge *begin_edge = &ctx->edges.data[0]->e[0];
 
-    v2 target = {0};
+    v2 target = {};
     target.x = x;
     target.y = y;
 
@@ -769,9 +769,9 @@ void cdt_insert_segment(cdt_id id, cdt_vertex *vert1, cdt_vertex *vert2) {
 void cdt_init(Cdt_Context *ctx, f32 x1, f32 y1, f32 x2, f32 y2, f32 x3, f32 y3) {
     memset(ctx, 0, sizeof(Cdt_Context));
 
-    v2 a = {0};
-    v2 b = {0};
-    v2 c = {0};
+    v2 a = {};
+    v2 b = {};
+    v2 c = {};
     a.x = x1; a.y = y1;
     b.x = x2; b.y = y2;
     c.x = x3; c.y = y3;

@@ -8,7 +8,8 @@
    $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
    ======================================================================== */
 
-enum Ui_Size_Type {
+enum Ui_Size_Type 
+{
     UI_SIZE_TYPE_PX,
     UI_SIZE_TYPE_TEXT,
     UI_SIZE_TYPE_CHILDREN,

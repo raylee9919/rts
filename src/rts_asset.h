@@ -24,6 +24,8 @@
 #define ASSET_MAP_DIRECTORY             "map/"
 
 
+typedef s32 Joint_Id;
+
 
 struct Asset_Vertex 
 {
@@ -91,8 +93,8 @@ struct Asset_Node
     m4x4 offset;     // mesh-space to bone-space. aiBone... if unavailable, set to no-op matrix...?
     m4x4 transform;  // transform in parent's bone-space. aiNode
 
-    u32 child_count;
-    s32 *child_ids;
+    u32  child_count;
+    s32* child_ids;
 };
 
 struct Asset_Model 
@@ -105,7 +107,7 @@ struct Asset_Model
 
     u32 node_count;
     s32 root_bone_node_id;
-    Asset_Node *nodes;
+    Asset_Node* nodes;
 };
 
 struct dt_v3_Pair 
@@ -238,24 +240,24 @@ struct Model
     Node *nodes;
 };
 
-// ------------------------------------
-// @Note: Animation
+// Note: Animation
+//
 struct Animation_Hash_Slot 
 {
     u32 id;
     u32 idx;
-    Animation_Hash_Slot *next;
+    Animation_Hash_Slot* next;
 };
 
 struct Animation_Hash_Entry 
 {
-    Animation_Hash_Slot *first;
+    Animation_Hash_Slot* first;
 };
 
 struct Animation_Hash_Table 
 {
     u32 entry_count;
-    Animation_Hash_Entry *entries;
+    Animation_Hash_Entry* entries;
 };
 
 struct Sample 
@@ -266,9 +268,9 @@ struct Sample
     u32         rotation_count;
     u32         scaling_count;
 
-    dt_v3_Pair  *translations;
-    dt_qt_Pair  *rotations;
-    dt_v3_Pair  *scalings;
+    dt_v3_Pair* translations;
+    dt_qt_Pair* rotations;
+    dt_v3_Pair* scalings;
 };
 
 struct Animation 
@@ -278,7 +280,7 @@ struct Animation
     f32 duration;
 
     u32 sample_count;
-    Sample *samples;
+    Sample* samples;
 
     Animation_Hash_Table hash_table;
 };
@@ -319,7 +321,7 @@ struct Eval_Stack
     
 
 internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
-internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena);
+internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale = v3(1.f));
 internal void asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena);
 internal u32 get_triangle_count(Model *model);
 internal u32 animation_hash(u32 id, u32 length);
