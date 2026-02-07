@@ -1,10 +1,19 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+template<typename T>
+struct Link {
+    Link<T> *next;
+    Link<T> *prev;
+    T  data;
+};
+
+template<typename T>
+struct List {
+    Link<T> *first;
+    Link<T> *last;
+};
+
+
 
 template<typename T>
 struct Array {

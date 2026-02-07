@@ -1,12 +1,6 @@
-#if !defined(RTS_ENTITY_H)
-#define RTS_ENTITY_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 enum Entity_Type {
     ENTITY_TYPE_INVALID = 0,
@@ -46,6 +40,7 @@ struct Entity {
     Entity_Type  type;
     Entity_Flags flags;
 
+
     Entity_Command command;
 
 
@@ -70,36 +65,54 @@ struct Entity {
     Quaternion  orientation;
     v3          scaling;
 
+
     // @Todo: Unsafe
     Entity*     parent;
     Joint_Id    parent_joint_id;
     v3          local_position;
     Quaternion  local_orientation;
 
+
     f32         radius;
     u16         chunk_x;
     u16         chunk_y;
 
-    //v3          accel;
     v3          velocity;
     v3          destination;
     f32         speed;
-    f32         speed_t;
     
     f32         transition_t;
+
+    u32         target_id;
 
 
     Model* model;
 
-    Animation_Channel   animation_channels[1];
-    m4x4                *animation_transform;
-    Animation           *idle_animation;
-    Animation           *running_animation;
-    Animation           *die_animation;
-    Animation           *attack_animation;
+    Animation_Channel    animation_channels[1];
+    m4x4*                animation_transform;
+    Animation*           idle_animation;
+    Animation*           running_animation;
+    Animation*           die_animation;
+    Animation*           attack_animation;
 
     
     Team team;
+
+
+    // Movement curve's horizontal axis is time.
+    //                    vertical axis is speed.
+    f32 speed_t;
+    f32 min_t;
+    f32 max_t;
+
+    // Attack curve's horizontal axis is time.
+    //                  vertical axis is normalized 0 to 1.
+    f32 attack_t;
+    f32 attack_min_t;
+    f32 attack_max_t;
+
+
+    f32 hitpoints;
     
 
     f32 focal_length;
@@ -127,11 +140,6 @@ struct Entity {
 
 
 
+
 internal Chunk* chunk_from_chunk_position(u16 x, u16 y);
 internal void chunk_position_from_world_position(f32 world_x, f32 world_y, u16* out_x, u16* out_y);
-
-
-
-
-
-#endif // RTS_ENTITY_H

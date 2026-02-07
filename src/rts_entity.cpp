@@ -30,6 +30,40 @@ entity_clear_path_data(Entity* entity)
     entity->debug_waypoint_queue.clear();
 }
 
+internal List<Entity*>
+entites_from_position_and_radius(v3 position, f32 radius, Arena* arena)
+{
+    List<Entity*> result = {};
+    
+    const f32 x = position.x;
+    const f32 y = position.z;
+    const v2 pos = v2(x, y);
+
+    const f32 min_x = x - radius;
+    const f32 max_x = x + radius;
+    const f32 min_y = y - radius;
+    const f32 max_y = y + radius;
+
+    u16 min_cx, max_cx, min_cy, max_cy;
+    chunk_position_from_world_position(min_x, min_y, &min_cx, &min_cy);
+    chunk_position_from_world_position(max_x, max_y, &max_cx, &max_cy);
+
+    for (u16 chunk_y = min_cy; chunk_y <= max_cy; ++chunk_y) {
+        for (u16 chunk_x = min_cx; chunk_x <= max_cx; ++chunk_x) {
+            Chunk* chunk = chunk_from_chunk_position(chunk_x, chunk_y);
+            for (Entity* entity = chunk->first_entity, *next; entity != nullptr; entity = next) {
+                next = entity->next_in_chunk;
+
+                Link<Entity*> *node = (Link<Entity*> *)push_size(arena, sizeof(Link<Entity*>));
+                node->data = entity;
+                dll_push_back(result.first, result.last, node);
+            }
+        }
+    }
+
+    return result;
+}
+
 internal void
 entity_propagate_arrival(Entity* entity)
 {
@@ -81,6 +115,273 @@ entity_propagate_arrival(Entity* entity)
     }
 }
 
+internal void
+entity_orient_to(Entity* entity, v3 target, f32 dt)
+{
+    const v3 dir = normalize(target - entity->position);
+    const v3 forward = normalize((quaternion_to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
+    const f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
+    if (c < 1.0f) {
+        f32 radian = dt*10.0f;
+        if (cross(forward, dir).y < 0.0f) {
+            radian = -radian;
+        }
+        entity->orientation = rotate(entity->orientation, v3{0,1,0}, radian);
+    }
+}
+
+internal bool
+entity_is_targetable(Entity* entity)
+{
+    if ((entity->command == ENTITY_CMD_DIEING) || (entity->flags & ENTITY_FLAG_DEAD)) {
+        return false;
+    }
+    return true;
+}
+
+internal bool
+entity_is_pushable(Entity* me, Entity* other)
+{
+    if (other->command == ENTITY_CMD_ATTACK) return false;
+    if (me->team != other->team) return false;
+    return true;
+}
+
+// Modifies 'l_points', 'r_points' and 'waypoint_queue'.
+//
+internal void
+entity_find_path(Entity* entity, v3 destination)
+{
+    // Alias
+    cdt_triangle* triangles = game_state->navmesh.triangles;
+    Cdt_Context* ctx = &game_state->navmesh.ctx;
+    int num_tri = game_state->navmesh.triangle_count;
+
+    // Find the triangles that contain the source and destination points.
+    //
+    v2 src = v2(entity->position.z, entity->position.x);
+    v2 dst = v2(destination.z, destination.x);
+
+    cdt_triangle src_tri = cdt_get_triangle_containing_point(ctx, src.x, src.y);
+    cdt_triangle dst_tri = cdt_get_triangle_containing_point(ctx, dst.x, dst.y);
+
+    int src_idx = -1;
+    int dst_idx = -1;
+
+    for (int i = 0; i < num_tri; ++i) {
+        if (triangles[i].edges[0] == src_tri.edges[0] ||
+            triangles[i].edges[1] == src_tri.edges[0] ||
+            triangles[i].edges[2] == src_tri.edges[0]) 
+        {
+            src_idx = i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < num_tri; ++i) {
+        if (triangles[i].edges[0] == dst_tri.edges[0] ||
+            triangles[i].edges[1] == dst_tri.edges[0] ||
+            triangles[i].edges[2] == dst_tri.edges[0]) 
+        {
+            dst_idx = i;
+            break;
+        }
+    }
+
+    // A*
+    //
+    // Uses Euclidean distance to the destination triangle as the heuristic.
+    // Uses the sum of distance from each triangle centroid to the shared edge as the edge weight.
+    //
+
+    // Preprocess
+    f32 unreachable_dist = F32_MAX;
+    // @Temporary:
+    f32* f_costs = push_array(game_state->frame_arena, f32, num_tri);
+    int* parent = push_array(game_state->frame_arena, int, num_tri);
+    for (int i = 0; i < num_tri; ++i) {
+        f_costs[i] = unreachable_dist; 
+        parent[i] = i;
+    }
+    f_costs[src_idx] = 0.f;
+    parent[src_idx]  = -1;
+
+    Priority_Queue<Pair<f32, int>> open_list = {};
+    open_list.push({0.f, src_idx});
+
+    v2 dst_center = V2((dst_tri.x[0] + dst_tri.x[1] + dst_tri.x[2]) * 0.333333333f, 
+                       (dst_tri.y[0] + dst_tri.y[1] + dst_tri.y[2]) * 0.333333333f);
+
+
+    // A* loop: f_cost = g_cost + h_cost(heuristic)
+    //
+    while (open_list.size > 0) {
+        // Pop the shortest in the open list. Implemented with priority queue.
+        auto fcost_index = open_list.pop();
+        f32 f_cost_cur   = fcost_index.x;
+        int idx_cur      = fcost_index.y;
+
+        // Reached the destination triangle.
+        if (idx_cur == dst_idx) {
+            break; 
+        }
+
+        if (f_cost_cur > f_costs[idx_cur]) {
+            continue;
+        }
+
+        cdt_triangle tri = triangles[idx_cur];
+        v2 tri_center = V2((tri.x[0] + tri.x[1] + tri.x[2]) * 0.333333f,
+                           (tri.y[0] + tri.y[1] + tri.y[2]) * 0.333333f);
+
+        cdt_triangles adj = cdt_get_adjacent_triangles(tri);
+        for (int i = 0; i < 3; ++i) {
+            cdt_triangle adj_tri = adj.triangles[i];
+
+            cdt_edge* portal_edge = cdt_get_edge(tri.edges[i]);
+
+            // One cannot pass through a solid wall.
+            if (cdt_is_constrained(portal_edge)) {
+                continue;
+            }
+
+            // One cannot pass through a narrow pass.
+            v2 p = V2(portal_edge->e[2].org->pos.x, portal_edge->e[2].org->pos.y);
+            v2 q = v2(portal_edge->e[0].org->pos.x, portal_edge->e[0].org->pos.y);
+            f32 margin = 0.01f;
+            if (distance(p,q) < entity->radius*2.f + margin) {
+                continue;
+            }
+            v2 edge_center = (p+q)*0.5f;
+
+            int adj_idx = -1;
+            for (int j = 0; j < num_tri; ++j) {
+                if (triangles[j].edges[0] == adj_tri.edges[0] ||
+                    triangles[j].edges[1] == adj_tri.edges[0] ||
+                    triangles[j].edges[2] == adj_tri.edges[0]) 
+                {
+                    adj_idx = j;
+                }
+            }
+            assert(adj_idx != -1);
+
+            v2 adj_center = V2((adj_tri.x[0] + adj_tri.x[1] + adj_tri.x[2]) * 0.333333f,
+                               (adj_tri.y[0] + adj_tri.y[1] + adj_tri.y[2]) * 0.333333f);
+
+            f32 h_cost_cur   = distance(tri_center, dst_center);
+            f32 g_cost_cur   = f_cost_cur - h_cost_cur;
+            f32 g_cur_to_adj = distance(tri_center, edge_center) + distance(edge_center, adj_center);
+            f32 g_cost_adj   = g_cost_cur + g_cur_to_adj;
+            f32 h_cost_adj   = distance(adj_center, dst_center);
+            f32 f_cost_new   = g_cost_adj + h_cost_adj;
+
+            if (f_costs[adj_idx] > f_cost_new) {
+                parent[adj_idx] = idx_cur;
+                f_costs[adj_idx]  = f_cost_new;
+
+                Pair<f32, int> new_entry = {f_cost_new, adj_idx};
+                open_list.push(new_entry);
+            }
+        }
+    }
+
+
+    // Gather portal edges' points.
+    //
+    if (f_costs[dst_idx] != unreachable_dist) {
+        entity->l_points.push(dst);
+        entity->r_points.push(dst);
+        if (src_idx != dst_idx) {
+            for (int t = dst_idx; t != src_idx; t = parent[t]) {
+                cdt_triangle tri = triangles[t];
+                cdt_quad_edge *portal = cdt_get_portal_edge(tri, triangles[parent[t]]);
+
+                v2 r = V2(portal->org->pos.x, portal->org->pos.y);
+                v2 l = V2(cdt_sym(portal)->org->pos.x, cdt_sym(portal)->org->pos.y);
+
+                // Deflate the edge widths by the entity's diameter.
+                v2 lr = normalize(r-l);
+                v2 rl = normalize(l-r);
+                l += lr*entity->radius;
+                r += rl*entity->radius;
+
+                entity->l_points.push(l);
+                entity->r_points.push(r);
+            }
+            entity->l_points.push(src);
+            entity->r_points.push(src);
+        }
+
+
+        // Run the 'Simple Stupid Funnel' and push the resulting waypoints to the queue.
+        // https://digestingduck.blogspot.com/2010/03/simple-stupid-funnel-algorithm.html
+        //
+        // @Todo: Can I do better?
+        //
+
+        int portal_count = entity->l_points.count;
+        int apex_idx = portal_count - 1;
+        int l_idx    = portal_count - 1;
+        int r_idx    = portal_count - 1;
+        v2 apex  = v2{entity->position.z, entity->position.x};
+        v2 l_end = apex;
+        v2 r_end = apex;
+
+        entity->waypoint_queue.push(entity->position);
+        for (int i = portal_count - 2; i >= 0; --i) {
+            v2 l = entity->l_points[i];
+            v2 r = entity->r_points[i];
+
+            if (triarea2(l, apex, l_end) <= 0.f) {
+                if ((apex.x==l_end.x && apex.y==l_end.y) || (triarea2(l, apex, r_end) > 0.f)) {
+                    l_end = l;
+                    l_idx = i;
+                } else {
+                    entity->waypoint_queue.push(V3(r_end.y, 0.f, r_end.x)); // @Hack
+
+                    apex = r_end;
+                    apex_idx = r_idx;
+
+                    l_end = apex;
+                    r_end = apex;
+
+                    r_idx = apex_idx;
+                    l_idx = apex_idx;
+
+                    i = apex_idx;
+                    continue;
+                }
+            }
+
+            if (triarea2(r, apex, r_end) >= 0.f) {
+                if ((apex.x==r_end.x && apex.y==r_end.y) || (triarea2(r, apex, l_end) < 0.f)) {
+                    r_end = r;
+                    r_idx = i;
+                } else {
+                    entity->waypoint_queue.push(V3(l_end.y, 0.f, l_end.x)); // @Hack
+
+                    apex = l_end;
+                    apex_idx = l_idx;
+
+                    r_end = apex;
+                    l_end = apex;
+
+                    l_idx = apex_idx;
+                    r_idx = apex_idx;
+
+                    i = apex_idx;
+                    continue;
+                }
+            }
+
+        }
+        entity->destination = destination;
+
+        entity->waypoint_queue.push(destination);
+        entity->debug_waypoint_queue = entity->waypoint_queue;
+        entity->waypoint_queue.pop(); // I don't want self position in the queue.
+    }
+}
 
 // Management
 //
@@ -210,6 +511,9 @@ entity_release(u64 id)
 internal void 
 entity_update(Entity* entity, f32 dt) 
 {
+    Temporary_Arena scratch = scratch_begin();
+    defer(scratch_end(scratch));
+
     u32 id = entity->id;
 
     switch (entity->type) {
@@ -373,288 +677,133 @@ entity_update(Entity* entity, f32 dt)
                             t = -(dot(o, n) + d) / denom;
                             v3 dstv3 = o + t*v;
 
-                            // Clear old path data.
-                            //
+                            // Clear old path data and find new path.
                             entity_clear_path_data(entity);
-
-                            // Alias
-                            cdt_triangle* triangles = game_state->navmesh.triangles;
-                            Cdt_Context* ctx = &game_state->navmesh.ctx;
-                            int num_tri = game_state->navmesh.triangle_count;
-
-                            // Find the triangles that contain the source and destination points.
-                            //
-                            v2 src = v2{entity->position.z, entity->position.x};
-                            v2 dst = v2{dstv3.z, dstv3.x};
-
-                            cdt_triangle src_tri = cdt_get_triangle_containing_point(ctx, src.x, src.y);
-                            cdt_triangle dst_tri = cdt_get_triangle_containing_point(ctx, dst.x, dst.y);
-
-                            int src_idx = -1;
-                            int dst_idx = -1;
-
-                            for (int i = 0; i < num_tri; ++i) {
-                                if (triangles[i].edges[0] == src_tri.edges[0] ||
-                                    triangles[i].edges[1] == src_tri.edges[0] ||
-                                    triangles[i].edges[2] == src_tri.edges[0]) 
-                                {
-                                    src_idx = i;
-                                    break;
-                                }
-                            }
-
-                            for (int i = 0; i < num_tri; ++i) {
-                                if (triangles[i].edges[0] == dst_tri.edges[0] ||
-                                    triangles[i].edges[1] == dst_tri.edges[0] ||
-                                    triangles[i].edges[2] == dst_tri.edges[0]) 
-                                {
-                                    dst_idx = i;
-                                    break;
-                                }
-                            }
-
-                            // A*
-                            //
-                            // Uses Euclidean distance to the destination triangle as the heuristic.
-                            // Uses the sum of distance from each triangle centroid to the shared edge as the edge weight.
-                            //
-
-                            // Preprocess
-                            f32 unreachable_dist = F32_MAX;
-                            // @Temporary:
-                            f32 *f_costs = push_array(game_state->frame_arena, f32, num_tri);
-                            int *parent = push_array(game_state->frame_arena, int, num_tri);
-                            for (int i = 0; i < num_tri; ++i) {
-                                f_costs[i] = unreachable_dist; 
-                                parent[i] = i;
-                            }
-                            f_costs[src_idx] = 0.f;
-                            parent[src_idx] = -1;
-
-                            Priority_Queue<Pair<f32, int>> open_list = {};
-                            open_list.push({0.f, src_idx});
-
-                            v2 dst_center = V2((dst_tri.x[0] + dst_tri.x[1] + dst_tri.x[2]) * 0.333333f, 
-                                               (dst_tri.y[0] + dst_tri.y[1] + dst_tri.y[2]) * 0.333333f);
-
-
-                            // A* loop: f_cost = g_cost + h_cost(heuristic)
-                            //
-                            while (open_list.size > 0) {
-                                // Pop the shortest in the open list. Implemented with priority queue.
-                                auto fcost_index = open_list.pop();
-                                f32 f_cost_cur   = fcost_index.x;
-                                int idx_cur      = fcost_index.y;
-
-                                // Reached the destination triangle.
-                                if (idx_cur == dst_idx) {
-                                    break; 
-                                }
-
-                                if (f_cost_cur > f_costs[idx_cur]) {
-                                    continue;
-                                }
-
-                                cdt_triangle tri = triangles[idx_cur];
-                                v2 tri_center = V2((tri.x[0] + tri.x[1] + tri.x[2]) * 0.333333f,
-                                                   (tri.y[0] + tri.y[1] + tri.y[2]) * 0.333333f);
-
-                                cdt_triangles adj = cdt_get_adjacent_triangles(tri);
-                                for (int i = 0; i < 3; ++i) {
-                                    cdt_triangle adj_tri = adj.triangles[i];
-
-                                    cdt_edge *portal_edge = cdt_get_edge(tri.edges[i]);
-
-                                    // One cannot pass through a solid wall.
-                                    if (cdt_is_constrained(portal_edge)) {
-                                        continue;
-                                    }
-
-                                    // One cannot pass through a narrow pass.
-                                    v2 p = V2(portal_edge->e[2].org->pos.x, portal_edge->e[2].org->pos.y);
-                                    v2 q = V2(portal_edge->e[0].org->pos.x, portal_edge->e[0].org->pos.y);
-                                    f32 margin = 0.01f;
-                                    if (distance(p,q) < entity->radius*2.f + margin) {
-                                        continue;
-                                    }
-                                    v2 edge_center = (p+q)*0.5f;
-
-                                    int adj_idx = -1;
-                                    for (int j = 0; j < num_tri; ++j) {
-                                        if (triangles[j].edges[0] == adj_tri.edges[0] ||
-                                            triangles[j].edges[1] == adj_tri.edges[0] ||
-                                            triangles[j].edges[2] == adj_tri.edges[0]) 
-                                        {
-                                            adj_idx = j;
-                                        }
-                                    }
-                                    assert(adj_idx != -1);
-
-                                    v2 adj_center = V2((adj_tri.x[0] + adj_tri.x[1] + adj_tri.x[2]) * 0.333333f,
-                                                       (adj_tri.y[0] + adj_tri.y[1] + adj_tri.y[2]) * 0.333333f);
-
-                                    f32 h_cost_cur   = distance(tri_center, dst_center);
-                                    f32 g_cost_cur   = f_cost_cur - h_cost_cur;
-                                    f32 g_cur_to_adj = distance(tri_center, edge_center) + distance(edge_center, adj_center);
-                                    f32 g_cost_adj   = g_cost_cur + g_cur_to_adj;
-                                    f32 h_cost_adj   = distance(adj_center, dst_center);
-                                    f32 f_cost_new   = g_cost_adj + h_cost_adj;
-
-                                    if (f_costs[adj_idx] > f_cost_new) {
-                                        parent[adj_idx] = idx_cur;
-                                        f_costs[adj_idx]  = f_cost_new;
-
-                                        Pair<f32, int> new_entry = {f_cost_new, adj_idx};
-                                        open_list.push(new_entry);
-                                    }
-                                }
-                            }
-
-
-                            // Gather portal edges' points.
-                            //
-                            if (f_costs[dst_idx] != unreachable_dist) {
-                                entity->l_points.push(dst);
-                                entity->r_points.push(dst);
-                                if (src_idx != dst_idx) {
-                                    for (int t = dst_idx; t != src_idx; t = parent[t]) {
-                                        cdt_triangle tri = triangles[t];
-                                        cdt_quad_edge *portal = cdt_get_portal_edge(tri, triangles[parent[t]]);
-
-                                        v2 r = V2(portal->org->pos.x, portal->org->pos.y);
-                                        v2 l = V2(cdt_sym(portal)->org->pos.x, cdt_sym(portal)->org->pos.y);
-
-                                        // Deflate the edge widths by the entity's diameter.
-                                        v2 lr = normalize(r-l);
-                                        v2 rl = normalize(l-r);
-                                        l += lr*entity->radius;
-                                        r += rl*entity->radius;
-
-                                        entity->l_points.push(l);
-                                        entity->r_points.push(r);
-                                    }
-                                    entity->l_points.push(src);
-                                    entity->r_points.push(src);
-                                }
-
-
-                                // Run the 'Simple Stupid Funnel' and push the resulting waypoints to the queue.
-                                // https://digestingduck.blogspot.com/2010/03/simple-stupid-funnel-algorithm.html
-                                //
-                                // @Todo: Can I do better?
-                                //
-
-                                int portal_count = entity->l_points.count;
-                                int apex_idx = portal_count - 1;
-                                int l_idx    = portal_count - 1;
-                                int r_idx    = portal_count - 1;
-                                v2 apex  = v2{entity->position.z, entity->position.x};
-                                v2 l_end = apex;
-                                v2 r_end = apex;
-
-                                entity->waypoint_queue.push(entity->position);
-                                for (int i = portal_count - 2; i >= 0; --i) {
-                                    v2 l = entity->l_points[i];
-                                    v2 r = entity->r_points[i];
-
-                                    if (triarea2(l, apex, l_end) <= 0.f) {
-                                        if ((apex.x==l_end.x && apex.y==l_end.y) || (triarea2(l, apex, r_end) > 0.f)) {
-                                            l_end = l;
-                                            l_idx = i;
-                                        } else {
-                                            entity->waypoint_queue.push(V3(r_end.y, 0.f, r_end.x)); // @Hack
-
-                                            apex = r_end;
-                                            apex_idx = r_idx;
-
-                                            l_end = apex;
-                                            r_end = apex;
-
-                                            r_idx = apex_idx;
-                                            l_idx = apex_idx;
-
-                                            i = apex_idx;
-                                            continue;
-                                        }
-                                    }
-
-                                    if (triarea2(r, apex, r_end) >= 0.f) {
-                                        if ((apex.x==r_end.x && apex.y==r_end.y) || (triarea2(r, apex, l_end) < 0.f)) {
-                                            r_end = r;
-                                            r_idx = i;
-                                        } else {
-                                            entity->waypoint_queue.push(V3(l_end.y, 0.f, l_end.x)); // @Hack
-
-                                            apex = l_end;
-                                            apex_idx = l_idx;
-
-                                            r_end = apex;
-                                            l_end = apex;
-
-                                            l_idx = apex_idx;
-                                            r_idx = apex_idx;
-
-                                            i = apex_idx;
-                                            continue;
-                                        }
-                                    }
-                                }
-                                entity->waypoint_queue.push(dstv3);
-                            }
+                            entity_find_path(entity, dstv3);
 
                             // @Robustness
-                            entity->command = ENTITY_CMD_MOVE;
-                            entity->destination = dstv3;
-
-                            entity->debug_waypoint_queue = entity->waypoint_queue;
+                            entity->command  = ENTITY_CMD_MOVE;
+                            entity->attack_t = entity->attack_min_t;
                         }
                     }
                 }
             }
 
-            const f32 min_t = 0.0f;
-            const f32 max_t = 0.5f;
+
+            if (entity->hitpoints <= 0.f) {
+                entity->command = ENTITY_CMD_DIEING;
+            }
+
 
             if (entity->command == ENTITY_CMD_STOP) {
-                entity->speed_t = max(entity->speed_t - dt, min_t);
+                const f32 aggro_radius = 8.f;
+                auto entities = entites_from_position_and_radius(entity->position, aggro_radius, scratch.arena);
+                f32 min_dist = F32_MAX;
+
+                for (Link<Entity*> *node = entities.first; node != nullptr; node = node->next) {
+                    Entity* other = node->data;
+
+                    if (other->team == entity->team) {
+                        continue;
+                    }
+
+                    if (other->id == entity->id) {
+                        continue;
+                    }
+
+                    if (!entity_is_targetable(other)) {
+                        continue;
+                    }
+
+                    f32 dist = distance(entity->position, other->position);
+                    if (dist < aggro_radius) {
+                        if (dist < min_dist) {
+                            min_dist = dist;
+                            entity->command   = ENTITY_CMD_ATTACK;
+                            entity->target_id = other->id;
+                        }
+                    }
+                }
             } else if (entity->command == ENTITY_CMD_MOVE) {
                 const f32 arrival_threshold = 1.0f;
                 if (entity->waypoint_queue.empty()) {
-                    // No waypoint to go. Switch to 'stop'.
                     entity->command = ENTITY_CMD_STOP;
-                    entity_clear_path_data(entity);
-                } else {
-                    const v3 waypoint = entity->waypoint_queue.front();
-                    const f32 dist = distance(entity->position, waypoint);
-
-                    // Check if entity has reached the waypoint.
-                    if (dist < arrival_threshold) {
-                        entity->waypoint_queue.pop();
-
-                        if (entity->waypoint_queue.empty()) {
-                            // Waypoint was the destination. Switch state to 'stop'.
-                            entity->command = ENTITY_CMD_STOP;
-                            entity_clear_path_data(entity);
-
-                            // Notify nearby comrades of the arrival.
-                            entity_propagate_arrival(entity);
-                        }
-                    }
-
-                    // Update orientation.
-                    const v3 dir = normalize(waypoint - entity->position);
-                    const v3 forward = normalize((quaternion_to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
-                    const f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
-                    if (c < 1.0f) {
-                        f32 radian = dt*10.0f;
-                        if (cross(forward, dir).y < 0.0f) {
-                            radian = -radian;
-                        }
-                        entity->orientation = rotate(entity->orientation, v3{0,1,0}, radian);
-                    }
-
-                    entity->speed_t = min(entity->speed_t + dt, max_t);
+                    entity_propagate_arrival(entity);
                 }
+            } else if (entity->command == ENTITY_CMD_ATTACK) {
+                const f32 attackable_dist = 1.0f;
+                const f32 chase_dist      = 16.f;
+
+                Entity* other = entity_from_id(entity->target_id);
+                if (other) {
+                    if (entity_is_targetable(other)) {
+                        // @Robustness
+                        f32 dist = distance(entity->position, other->position) - entity->radius - other->radius;
+                        if (dist < attackable_dist) {
+                            entity_clear_path_data(entity);
+                            entity_orient_to(entity, other->position, dt);
+
+
+                            // Do damage to the target.
+                            const f32 new_attack_t = entity->attack_t + dt;
+                            const f32 damage_t     = 0.5f;
+                            const f32 damage       = 8.f;
+                            assert(damage_t < entity->attack_max_t);
+
+                            const f32 num_attacks  = floorf(safe_ratio(new_attack_t, entity->attack_max_t));
+                            if (num_attacks > 0.f) {
+                                const f32 total_damage = num_attacks * damage;
+                                other->hitpoints = max(other->hitpoints - total_damage, 0.f);
+                            }
+
+                            entity->attack_t = fmod_cycling(new_attack_t, entity->attack_max_t);
+                        } else {
+                            entity->attack_t = entity->attack_min_t;
+
+                            if (dist < chase_dist) {
+                                entity_clear_path_data(entity);
+                                // @Todo: Tick or something. It is ridiculous.
+                                entity_find_path(entity, other->position);
+                            } else {
+                                entity->command = ENTITY_CMD_STOP;
+                                entity_clear_path_data(entity);
+                            }
+                        }
+                    } else {
+                        entity->target_id = 0;
+                        entity->command = ENTITY_CMD_STOP;
+                        entity_clear_path_data(entity);
+                        entity->attack_t = 0.f;
+                    }
+                }
+            } else if (entity->command = ENTITY_CMD_DIEING) {
+                entity_clear_path_data(entity);
+                entity->attack_t = 0.f;
+                entity->flags &= (~ENTITY_FLAG_COLLIDEABLE);
+            }
+            
+
+            // Process waypoint queue.
+            if (entity->waypoint_queue.empty()) {
+                entity_clear_path_data(entity);
+                entity->speed_t = max(entity->speed_t - dt, entity->min_t);
+            } else {
+                const v3 waypoint = entity->waypoint_queue.front();
+                const f32 dist = distance(entity->position, waypoint);
+                const f32 arrival_threshold = 1.0f;
+
+                // Check if entity has reached the waypoint.
+                if (dist < arrival_threshold) {
+                    entity->waypoint_queue.pop();
+
+                    if (entity->waypoint_queue.empty()) {
+                        entity_clear_path_data(entity);
+                    }
+                }
+
+                // Update orientation and speed.
+                entity_orient_to(entity, waypoint, dt);
+                entity->speed_t = min(entity->speed_t + dt, entity->max_t);
             }
 
 
@@ -667,49 +816,62 @@ entity_update(Entity* entity, f32 dt)
             // Update speed.
             const f32 min_speed = 0.0f;
             const f32 max_speed = 3.0f;
-            f32 norm_t          = map(entity->speed_t, min_t, max_t);
+            f32 norm_t          = map(entity->speed_t, entity->min_t, entity->max_t);
             entity->speed       = hermite(min_speed, norm_t, max_speed);
 
 
 
             // Animation
+            // 
+            // @Todo: Hideous... NEED PROPER ANIMATION BLENDING!!
             //
-            if (!(entity->flags & ENTITY_FLAG_DEAD)) {
+            if (entity_is_targetable(entity)) {
                 if (entity->model) {
-                    f32 v  = entity->speed;
-                    f32 lo = 0.0001f;
-                    f32 hi = 0.7f;
-                    Animation_Channel* channel = &entity->animation_channels[0];
+                    if (entity->attack_t > 0.f) {
+                        Animation_Channel* channel = &entity->animation_channels[0];
+                        channel->animation = entity->attack_animation;
 
-                    if (v <= lo) {
-                        Animation* new_anim = entity->idle_animation;
-                        if (channel->animation != new_anim) {
-                            channel->animation = new_anim;
-                            channel->dt = 0.0f;
-                        }
-                        eval(entity->model, channel->animation, channel->dt, entity->animation_transform, true);
-                        anim_accumulate(channel, dt);
-                    } else if (v > hi) {
-                        Animation *new_anim = entity->running_animation;
-                        if (channel->animation != new_anim) {
-                            channel->animation = new_anim;
-                            channel->dt = 0.0f;
-                        }
-                        eval(entity->model, channel->animation, channel->dt, entity->animation_transform, true);
-                        anim_accumulate(channel, dt);
+                        const f32 t = map01(entity->attack_t, entity->attack_min_t, entity->attack_max_t); // [0,1]
+                        const f32 anim_t = t * channel->animation->duration;
+
+                        eval(entity->model, channel->animation, anim_t, entity->animation_transform, true);
                     } else {
-                        f32 t = map01(v, lo, hi);
-                        if (channel->animation == entity->idle_animation) {
-                            interpolate(entity->model, channel->animation, channel->dt, t, entity->running_animation, 0.0f);
+                        f32 v  = entity->speed;
+                        f32 lo = 0.0001f;
+                        f32 hi = 0.7f;
+                        Animation_Channel* channel = &entity->animation_channels[0];
+
+                        if (v <= lo) {
+                            Animation* new_anim = entity->idle_animation;
+                            if (channel->animation != new_anim) {
+                                channel->animation = new_anim;
+                                channel->dt = 0.0f;
+                            }
+                            eval(entity->model, channel->animation, channel->dt, entity->animation_transform, true);
+                            anim_accumulate(channel, dt);
+                        } else if (v > hi) {
+                            Animation *new_anim = entity->running_animation;
+                            if (channel->animation != new_anim) {
+                                channel->animation = new_anim;
+                                channel->dt = 0.0f;
+                            }
+                            eval(entity->model, channel->animation, channel->dt, entity->animation_transform, true);
+                            anim_accumulate(channel, dt);
                         } else {
-                            interpolate(entity->model, entity->idle_animation, 0.0f, t, channel->animation, channel->dt);
+                            f32 t = map01(v, lo, hi);
+                            if (channel->animation == entity->idle_animation) {
+                                interpolate(entity->model, channel->animation, channel->dt, t, entity->running_animation, 0.0f);
+                            } else {
+                                interpolate(entity->model, entity->idle_animation, 0.0f, t, channel->animation, channel->dt);
+                            }
+                            eval(entity->model, 0, 0, entity->animation_transform, false);
                         }
-                        eval(entity->model, 0, 0, entity->animation_transform, false);
                     }
                 }
-            } else if (entity->command = ENTITY_CMD_DIEING) {
+            } else if (entity->command == ENTITY_CMD_DIEING) {
                 Animation_Channel *channel = &entity->animation_channels[0];
 
+                // @Temporary
                 f32 lo = 0.0f;
                 f32 hi = 0.1f;
                 f32 t = map(entity->transition_t, lo, hi);
@@ -723,7 +885,7 @@ entity_update(Entity* entity, f32 dt)
                         entity->flags |= ENTITY_FLAG_DEAD;
                     }
                 }
-                entity->transition_t += dt;
+                entity->transition_t += dt*1.5f;
             } else if (entity->flags & ENTITY_FLAG_DEAD) {
                 eval(entity->model, entity->die_animation, entity->die_animation->duration, entity->animation_transform, true);
             } else {
@@ -813,11 +975,16 @@ entity_update(Entity* entity, f32 dt)
                                 const v2 normal = normalize(other_pos - pos);
                                 const f32 depth = radii - dist;
 
-                                entity->position.x -= normal.x*depth*0.5f;
-                                entity->position.z -= normal.y*depth*0.5f;
+                                if (entity_is_pushable(entity, other)) {
+                                    entity->position.x -= normal.x*depth*0.5f;
+                                    entity->position.z -= normal.y*depth*0.5f;
 
-                                other->position.x += normal.x*depth*0.5f;
-                                other->position.z += normal.y*depth*0.5f;
+                                    other->position.x += normal.x*depth*0.5f;
+                                    other->position.z += normal.y*depth*0.5f;
+                                } else {
+                                    entity->position.x -= normal.x*depth;
+                                    entity->position.z -= normal.y*depth;
+                                }
                             }
                         } else if (other->navmesh_scale > 0.f) {
                             // nearest position on navmesh's rectangle to unit's circle.
@@ -898,7 +1065,7 @@ entity_draw(Entity *entity, f32 dt, Render_Group *render_group, Render_Commands 
             commands->debug_transform = transform;
             commands->debug_radius = entity->radius;
 
-            if (entity->command == ENTITY_CMD_MOVE) {
+            if (!entity->debug_waypoint_queue.empty()) {
                 if (commands->draw_navmesh) {
                     // Draw waypoints
                     //

@@ -1,10 +1,4 @@
-/* ========================================================================
-   $File: $
-/  $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
 internal f32
@@ -167,6 +161,20 @@ internal f32 triarea2(v2 a, v2 b, v2 c) {
     v2 p = c - b;
     v2 q = a - b;
     return p.x*q.y - p.y*q.x;
+}
+
+internal f64
+fmod_cycling(f64 x, f64 y)
+{
+    assert( y != 0 );
+    f64 remainder = x - (floor(x/y) * y);
+    return remainder;
+}
+
+internal f32
+fmod_cycling(f32 x, f32 y)
+{
+    return (f32)fmod_cycling((f64)x, (f64)y);
 }
 
 internal f32

@@ -377,7 +377,7 @@ eval_node(Animation *anim, f32 dt, Node *node)
 }
 
 internal void
-eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_node)
+eval(Model* model, Animation* anim, f32 dt, m4x4* out_transforms, b32 do_eval_node)
 {
     Eval_Stack stack = {};
 
@@ -406,7 +406,7 @@ eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_
                 m4x4 final_transform = global_transform * node->offset;
 
                 frame->global_transform = global_transform;
-                final_transforms[node->id] = final_transform;
+                out_transforms[node->id] = final_transform;
 
                 frame->global_transform_done = true;
             }
@@ -420,32 +420,31 @@ eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_
 }
 
 internal void
-interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f32 dt2)
+interpolate(Model* model, Animation* anim1, f32 dt1, f32 t, Animation* anim2, f32 dt2)
 {
-    for (s32 id = 0; id < (s32)model->node_count; ++id)
-    {
-        Node *node = model->nodes + id;
+    for (s32 id = 0; id < (s32)model->node_count; ++id) {
+        Node* node = model->nodes + id;
+
         Node_Hash_Result res1 = get_sample_index(anim1, id);
         Node_Hash_Result res2 = get_sample_index(anim2, id);
 
-        if (res1.found && res2.found)
-        {
-            Sample *sample1 = anim1->samples + res1.idx;
-            Sample *sample2 = anim2->samples + res2.idx;
-            Assert(sample1->id == id && sample1->id == sample2->id);
+        if (res1.found && res2.found) {
+            Sample* sample1 = anim1->samples + res1.idx;
+            Sample* sample2 = anim2->samples + res2.idx;
+
+            assert(sample1->id == id && sample1->id == sample2->id);
 
             TRS trs1 = interpolate_sample(sample1, dt1);
             TRS trs2 = interpolate_sample(sample2, dt2);
             TRS r = interpolate_trs(trs1, t, trs2);
             m4x4 transform = trs_to_transform(r.translation, r.rotation, r.scaling);
             node->current_transform = transform;
-        }
-        else
-        {
+        } else {
             node->current_transform = node->base_transform;
         }
     }
 }
+
 // # Note: New asset codes below here!
 //
 

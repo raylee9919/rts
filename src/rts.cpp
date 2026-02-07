@@ -51,6 +51,40 @@ global Renderer* renderer;
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
 
+internal Entity*
+debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
+{
+    Entity* soldier            = entity_alloc();
+    soldier->type              = ENTITY_TYPE_SOLDIER;
+    soldier->flags             = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_COLLIDEABLE;
+    soldier->team              = team;
+
+    soldier->radius            = 0.5f;
+    soldier->speed             = 5.0f;
+
+    soldier->min_t             = 0.0f;
+    soldier->max_t             = 0.5f;
+
+    soldier->attack_min_t      = 0.0f;
+    soldier->attack_max_t      = 0.8f;
+
+    soldier->hitpoints         = 40.f;
+
+    soldier->position          = v3(x, 0.f, z);
+    soldier->orientation       = Quaternion{1,0,0,0};
+    soldier->scaling           = v3(1.f);
+    soldier->model             = assets->skeleton_model;
+    soldier->idle_animation    = assets->xbot_idle;
+    soldier->running_animation = assets->xbot_run;
+    soldier->die_animation     = assets->xbot_die;
+    soldier->attack_animation  = assets->xbot_attack;
+    // @Hack:
+    soldier->animation_transform = push_array(game_state->entity_arena, m4x4, soldier->model->node_count);
+    entity_init(soldier, nullptr);
+
+    return soldier;
+}
+
 
 extern "C" __declspec(dllexport)
 GAME_UPDATE_AND_RENDER(game_update_and_render)
@@ -275,30 +309,16 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            constexpr int num_soldiers = 3;
+            constexpr int num_soldiers = 2;
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
-                Entity* soldier = entity_alloc();
-                soldier->type              = ENTITY_TYPE_SOLDIER;
-                soldier->flags             = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_COLLIDEABLE;
-
-                soldier->radius            = 0.5f;
-                soldier->speed             = 5.0f;
-
-                soldier->position          = v3(5.f+1.f*(i%num_soldiers), 0.f, 0.f+1.f*(i/num_soldiers));
-                soldier->orientation       = Quaternion{1,0,0,0};
-                soldier->scaling           = V3(1.f);
-                soldier->model             = assets->skeleton_model;
-                soldier->idle_animation    = assets->xbot_idle;
-                soldier->running_animation = assets->xbot_run;
-                soldier->die_animation     = assets->xbot_die;
-                soldier->attack_animation  = assets->xbot_attack;
-                // @Hack:
-                soldier->animation_transform = push_array(game_state->entity_arena, m4x4, soldier->model->node_count);
-                entity_init(soldier, nullptr);
+                f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
+                f32 z = 5.f + 1.f*(i/num_soldiers);
+                Entity* soldier = debug_spawn_soldier(x, z, TEAM_PLAYER, assets);
 
 
                 // Create a sword and attach it to soldier.
                 //
+#if 0
                 Entity* sword = entity_alloc();
                 sword->type              = ENTITY_TYPE_SWORD;
                 sword->position          = v3(0.f, 0.f, 0.f);
@@ -312,7 +332,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 // @Temporary
                 constexpr Joint_Id joint_id = 50;
                 entity_attach(sword, soldier, joint_id);
+#endif
             }
+
+            for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
+                f32 x = 8.f;
+                f32 z = 5.f + 1.f*(i/num_soldiers);
+                Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
+            }
+
 
             { // @Temporary: Create a castle.
                 Entity* castle = entity_alloc();

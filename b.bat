@@ -70,7 +70,7 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Renderers
 if "%BuildGL%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
+    rem call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
 :: Game
@@ -80,7 +80,7 @@ if "%BuildGame%"=="1" (
 
 :: Platform
 if "%BuildWin%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
+    rem call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 )
 
 

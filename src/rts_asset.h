@@ -275,7 +275,7 @@ struct Sample
 
 struct Animation 
 {
-    char *name;
+    char* name;
 
     f32 duration;
 
@@ -287,7 +287,7 @@ struct Animation
 
 struct Animation_Channel 
 {
-    Animation *animation;
+    Animation* animation;
     f32 dt;
 };
 

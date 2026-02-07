@@ -1,12 +1,6 @@
-#ifndef RTS_BASE_MATH_H
-#define RTS_BASE_MATH_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 #define pi32                3.141592f
 #define epsilon_f32         1.19209e-07f
@@ -126,6 +120,9 @@ internal v2 hadamard(v2 a, v2 b);
 internal v3 hadamard(v3 a, v3 b);
 internal v4 hadamard(v4 a, v4 b);
 
+internal f64 fmod_cycling(f64 x, f64 y);
+internal f32 fmod_cycling(f32 x, f32 y);
+
 internal f32 sqlen(v2 v);
 internal f32 sqlen(v3 v);
 
@@ -208,5 +205,3 @@ internal b32 intersects(AABB2 box, v2 point);
 internal b32 intersects(AABB2 a, AABB2 b);
 internal AABB2 intersection(AABB2 a, AABB2 b);
 internal AABB2 aabb2_infinite(void);
-
-#endif // RTS_BASE_MATH_H
