@@ -58,7 +58,11 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 {
     Entity* soldier            = entity_alloc();
     soldier->type              = ENTITY_TYPE_SOLDIER;
-    soldier->flags             = ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_COLLIDEABLE;
+    soldier->flags             = (ENTITY_FLAG_IS_UNIT |
+                                  ENTITY_FLAG_CHUNK_PARTITIONED |
+                                  ENTITY_FLAG_COLLIDEABLE |
+                                  ENTITY_FLAG_SHOWS_ON_MINIMAP);
+
     soldier->team              = team;
 
     soldier->radius            = 0.5f;
@@ -94,7 +98,7 @@ debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets)
 {
     Entity* castle = entity_alloc();
     castle->type   = ENTITY_TYPE_CASTLE;
-    castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED;
+    castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_SHOWS_ON_MINIMAP;
 
     castle->position    = V3(x,0.f,z);
     castle->orientation = Quaternion{1,0,0,0};
@@ -159,6 +163,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->entity_table_size    = 1024; // FIX: Memory bug in arena when set size to 4096
         game_state->entity_table         = push_array(game_state->entity_arena, Entity, game_state->entity_table_size);
         game_state->next_generational_id = 1;
+
+        game_state->minimap_size         = 300.f;
         
         { // Temporary
             Temporary_Arena scratch = scratch_begin();
@@ -333,7 +339,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            constexpr int num_soldiers = 8;
+            constexpr int num_soldiers = 2;
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
                 f32 z = 0.f + 1.f*(i/num_soldiers);
@@ -359,11 +365,13 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 #endif
             }
 
+#if 0
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 8.f;
                 f32 z = 0.f + 1.f*(i/num_soldiers);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
             }
+#endif
 
             debug_spawn_castle( 0.f,  0.f, TEAM_PLAYER, assets);
             debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
@@ -410,9 +418,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     {
         ui_platform(utf8lit("⚙"))
         {
-            ui_labelf("mspf: %.2f", dt*1000.f);
-            Entity* entity = entity_from_id(3);
-            ui_labelf("%u, %u", entity->chunk_x, entity->chunk_y);
+            ui_labelf("mspf: %.2f | %ux%u", dt*1000.f, game_state->draw_width, game_state->draw_height);
             ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
             if (ui_button(utf8lit("Chunk Partitions")).pressed_left) {
                 draw_chunk_partitions = !draw_chunk_partitions;
@@ -423,7 +429,9 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             if (ui_button(utf8lit("Navmesh")).pressed_left) {
                 render_commands->draw_navmesh = !render_commands->draw_navmesh; 
             }
-            
+
+            ui_slider_f32(&game_state->minimap_size, 1.f, 1000.f, utf8lit("Minimap Size"));
+
             if (ui_expander(utf8lit("Shadow"))) {
                 ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("x"));
                 ui_slider_f32(&light_y,  0.1f, 1.0f, utf8lit("y"));
@@ -623,6 +631,44 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             draw_line(render_group, V3(a.y, 0.f, a.x), V3(b.y, 0.f, b.x), color);
         }
     }
+
+    //
+    // Draw minimap.
+    // @Todo: aspect ratio adjustment..
+    //
+    {
+        auto g = game_state;
+
+        f32 dim         = g->minimap_size;
+        v2 offset       = v2(100.f, 100.f);
+        v2 bottom_left  = v2(offset.x, g->window_height - offset.y);
+        v2 top_left     = v2(bottom_left.x, bottom_left.y - dim);
+        v2 bottom_right = v2(bottom_left.x + dim, bottom_left.y);
+        v2 border       = v2(2.f, 2.f);
+        render_quad_c(top_left - border, bottom_right + border, v4{0.0f, 0.0f, 0.0f, 1.f});
+        render_quad_c(top_left, bottom_right, v4{0.2f, 0.2f, 0.2f, 1.f});
+
+        for (u32 i = 0; i < g->entity_table_size; ++i) {
+            Entity* bucket = g->entity_table + i;
+            for (Entity* entity = bucket->first; entity; entity = entity->next_in_table) {
+                if (entity->flags & ENTITY_FLAG_SHOWS_ON_MINIMAP) {
+                    v3 position = entity->position;
+                    f32 nx = map(position.x, -0.5f*g->map_size.x, 0.5f*g->map_size.x);
+                    f32 ny = map(position.z, -0.5f*g->map_size.y, 0.5f*g->map_size.y);
+
+                    f32 x  = top_left.x + dim*nx;
+                    f32 y  = top_left.y + dim*ny;
+                    f32 hd = 2.f;
+
+                    v4 color = v4{0.3f, 1.f, 0.3f, 1.f};
+
+                    render_quad_c(v2(x - hd, y - hd) - v2(1.f,1.f), v2(x + hd, y + hd) + v2(1.f,1.f), v4{0.f, 0.f, 0.f, 1.f});
+                    render_quad_c(v2(x - hd, y - hd), v2(x + hd, y + hd), color);
+                }
+            }
+        }
+    }
+
 
     { // NOTE: Render Commands
         Entity* game_camera = entity_from_id(game_state->game_camera_id);

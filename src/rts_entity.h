@@ -31,6 +31,8 @@ enum {
 
     ENTITY_FLAG_GAME_CAMERA       = (1<<5),
     ENTITY_FLAG_FREE_CAMERA       = (1<<7),
+
+    ENTITY_FLAG_SHOWS_ON_MINIMAP  = (1<<8),
 };
 
 typedef u8 Team;

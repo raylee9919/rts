@@ -84,4 +84,6 @@ struct Game_State {
     List <u64>  selected_entities;
 
     f32         max_radius;
+
+    f32         minimap_size;
 };
