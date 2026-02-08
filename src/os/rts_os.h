@@ -201,8 +201,8 @@ enum
 
 struct Os_Event
 {
-    Os_Event        *next;
-    Os_Event        *prev;
+    Os_Event*       next;
+    Os_Event*       prev;
 
     Os_Event_Type   type;
     Os_Key          key;

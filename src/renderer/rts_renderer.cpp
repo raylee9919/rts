@@ -136,6 +136,10 @@ render_init(void)
     renderer->num_meshes = 0;
     renderer->max_meshes = 2048;
     renderer->meshes     = push_array(renderer->arena, Render_Mesh, renderer->max_meshes);
+
+    renderer->num_lines = 0;
+    renderer->max_lines = 1024;
+    renderer->lines     = push_array(renderer->arena, Render_Line_2D, renderer->max_lines);
 }
 
 // # Note: Sort Cmp Functions
@@ -163,11 +167,10 @@ render_begin(void)
         buffer->instance_count = 0;
     }
 
-    // Clear command buffer.
-    //
+    // Clear.
     renderer->command_count = 0;
-
-    renderer->num_meshes = 0;
+    renderer->num_meshes    = 0;
+    renderer->num_lines     = 0;
 }
 
 internal int
@@ -474,7 +477,7 @@ render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
     for (u32 i = 0; i < 4; ++i)
     {
         // # alloc
-        Render_Vertex *v = render_vertex_push(type);
+        Render_Vertex* v = render_vertex_push(type);
         {
             // # init
             v->type             = type;

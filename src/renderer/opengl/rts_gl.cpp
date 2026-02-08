@@ -1028,9 +1028,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
 
 
-    // ------------------------------------------------------------------------
-
-    // NOTE: Process render commands
+    //
+    // Process render commands
     //
     for (u32 i = 0; i < renderer->command_count; ++i)
     {
@@ -1187,6 +1186,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             } break;
         }
     }
+
 
 
 

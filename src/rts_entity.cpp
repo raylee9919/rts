@@ -30,7 +30,26 @@ entity_clear_path_data(Entity* entity)
     entity->debug_waypoint_queue.clear();
 }
 
-internal List<Entity*>
+internal List <Entity*>
+entities_from_min_max_chunk(Arena* arena, u16 min_chunk_x, u16 min_chunk_y, u16 max_chunk_x, u16 max_chunk_y)
+{
+    List<Entity*> result = {};
+    for (u16 chunk_y = min_chunk_y; chunk_y <= max_chunk_y; ++chunk_y) {
+        for (u16 chunk_x = min_chunk_x; chunk_x <= max_chunk_x; ++chunk_x) {
+            Chunk* chunk = chunk_from_chunk_position(chunk_x, chunk_y);
+            for (Entity* entity = chunk->first_entity, *next; entity != nullptr; entity = next) {
+                next = entity->next_in_chunk;
+
+                Link <Entity*> *node = (Link <Entity*> *)push_size(arena, sizeof(Link<Entity*>));
+                node->data = entity;
+                dll_push_back(result.first, result.last, node);
+            }
+        }
+    }
+    return result;
+}
+
+internal List <Entity*>
 entites_from_position_and_radius(v3 position, f32 radius, Arena* arena)
 {
     List<Entity*> result = {};
@@ -48,18 +67,7 @@ entites_from_position_and_radius(v3 position, f32 radius, Arena* arena)
     chunk_position_from_world_position(min_x, min_y, &min_cx, &min_cy);
     chunk_position_from_world_position(max_x, max_y, &max_cx, &max_cy);
 
-    for (u16 chunk_y = min_cy; chunk_y <= max_cy; ++chunk_y) {
-        for (u16 chunk_x = min_cx; chunk_x <= max_cx; ++chunk_x) {
-            Chunk* chunk = chunk_from_chunk_position(chunk_x, chunk_y);
-            for (Entity* entity = chunk->first_entity, *next; entity != nullptr; entity = next) {
-                next = entity->next_in_chunk;
-
-                Link<Entity*> *node = (Link<Entity*> *)push_size(arena, sizeof(Link<Entity*>));
-                node->data = entity;
-                dll_push_back(result.first, result.last, node);
-            }
-        }
-    }
+    result = entities_from_min_max_chunk(arena, min_cx, min_cy, max_cx, max_cy);
 
     return result;
 }
@@ -122,7 +130,7 @@ entity_orient_to(Entity* entity, v3 target, f32 dt)
     const v3 forward = normalize((quaternion_to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
     const f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
     if (c < 1.0f) {
-        f32 radian = dt*10.0f;
+        f32 radian = dt*8.0f;
         if (cross(forward, dir).y < 0.0f) {
             radian = -radian;
         }
@@ -153,6 +161,38 @@ entity_is_pushable(Entity* me, Entity* other)
     if (other->command == ENTITY_CMD_ATTACK) return false;
     if (me->team != other->team) return false;
     return true;
+}
+
+internal void
+entity_find_target(Entity* entity, f32 radius, Arena* arena)
+{
+    auto entities = entites_from_position_and_radius(entity->position, radius, arena);
+    f32 min_dist = F32_MAX;
+
+    for (Link<Entity*> *node = entities.first; node != nullptr; node = node->next) {
+        Entity* other = node->data;
+
+        if (other->team == entity->team) {
+            continue;
+        }
+
+        if (other->id == entity->id) {
+            continue;
+        }
+
+        if (!entity_is_targetable(other)) {
+            continue;
+        }
+
+        f32 dist = distance(entity->position, other->position);
+        if (dist < radius) {
+            if (dist < min_dist) {
+                min_dist = dist;
+                entity->command   = ENTITY_CMD_ATTACK;
+                entity->target_id = other->id;
+            }
+        }
+    }
 }
 
 // Modifies 'l_points', 'r_points' and 'waypoint_queue'.
@@ -453,11 +493,17 @@ chunk_from_chunk_position(u16 x, u16 y)
 internal void 
 chunk_position_from_world_position(f32 world_x, f32 world_y, u16* out_x, u16* out_y)
 {
-    u16 chx = min(max(world_x, 0.f), game_state->map_size.x) / game_state->chunk_size.x;
-    u16 chy = min(max(world_y, 0.f), game_state->map_size.y) / game_state->chunk_size.y;
+    f32 half_world_x = 0.5f * game_state->map_size.x;
+    f32 half_world_y = 0.5f * game_state->map_size.y;
 
-    *out_x = chx;
-    *out_y = chy;
+    f32 x = world_x + half_world_x;
+    f32 y = world_y + half_world_y;
+
+    u16 chunk_x = (u16)(min(max(x, 0.f), game_state->map_size.x) / game_state->chunk_size.x);
+    u16 chunk_y = (u16)(min(max(y, 0.f), game_state->map_size.y) / game_state->chunk_size.y);
+
+    *out_x = chunk_x;
+    *out_y = chunk_y;
 }
 
 // @Todo: use id.
@@ -490,14 +536,22 @@ entity_init(Entity* entity, Entity* parent)
             entity->chunk_y = chunk_y;
         }
 
+        // @Todo: Doomed coordinate..
+        //
         if (entity->navmesh_scale > 0.f) {
             const int id = entity->id;
+            const f32 x = entity->position.z;
+            const f32 y = entity->position.x;
             const f32 f = entity->navmesh_scale;
-            cdt_insert(&game_state->navmesh.ctx, id, -f, f, -f, -f);
-            cdt_insert(&game_state->navmesh.ctx, id, -f,-f,  f, -f);
-            cdt_insert(&game_state->navmesh.ctx, id,  f,-f,  f,  f);
-            cdt_insert(&game_state->navmesh.ctx, id,  f, f, -f,  f);
+            cdt_insert(&game_state->navmesh.ctx, id, x-f,y+f,x-f,y-f);
+            cdt_insert(&game_state->navmesh.ctx, id, x-f,y-f,x+f,y-f);
+            cdt_insert(&game_state->navmesh.ctx, id, x+f,y-f,x+f,y+f);
+            cdt_insert(&game_state->navmesh.ctx, id, x+f,y+f,x-f,y+f);
         }
+
+
+        // Update max radius in game.
+        game_state->max_radius = max(game_state->max_radius, entity->radius);
     }
 }
 
@@ -546,17 +600,26 @@ entity_update(Entity* entity, const f32 dt)
                 v3 desired_dir     = {};
 
                 if (entity->flags & ENTITY_FLAG_GAME_CAMERA) {
+
                     desired_dir += os->key_is_down[OS_KEY_UP]    ? v3( 0, 0,-1) : v3{};
                     desired_dir += os->key_is_down[OS_KEY_LEFT]  ? v3(-1, 0, 0) : v3{};
                     desired_dir += os->key_is_down[OS_KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
                     desired_dir += os->key_is_down[OS_KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
+
+                    //if ((f32)p.x > game_state->window_width)  desired_dir += v3( 1, 0, 0);
+                    //if ((f32)p.x < 0.f)                       desired_dir += v3(-1, 0, 0);
+                    //if ((f32)p.y > game_state->window_height) desired_dir += v3( 0, 0,-1);
+                    //if ((f32)p.y < 0.f)                       desired_dir += v3( 0, 0, 1);
+
                 } else if (entity->flags & ENTITY_FLAG_FREE_CAMERA) {
+
                     desired_dir += os->key_is_down[OS_KEY_W] ? (rotation * V4( 0,  0, -1, 0)).xyz : v3{};
                     desired_dir += os->key_is_down[OS_KEY_A] ? (rotation * V4(-1,  0,  0, 0)).xyz : v3{};
                     desired_dir += os->key_is_down[OS_KEY_S] ? (rotation * V4( 0,  0,  1, 0)).xyz : v3{};
                     desired_dir += os->key_is_down[OS_KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
                     desired_dir += os->key_is_down[OS_KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
                     desired_dir += os->key_is_down[OS_KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
+                   
 
                     if (os->key_is_down[OS_KEY_SHIFT]) {
                         accel_strength *= 2.f;
@@ -642,7 +705,7 @@ entity_update(Entity* entity, const f32 dt)
         } break;
 
         case ENTITY_TYPE_SOLDIER: {
-            if (!entity_is_dead(entity) && entity->team == TEAM_PLAYER) {
+            if ( entity->team == TEAM_PLAYER && !entity_is_dead(entity) && (entity->flags & ENTITY_FLAG_SELECTED) ) {
                 for (Os_Event* event = os->event_first, *next; event != nullptr; event = next) {
                     next = event->next;
 
@@ -650,51 +713,21 @@ entity_update(Entity* entity, const f32 dt)
                         // @Hack
                         //os_event_consume(event);
 
-                        // Client space
+                        // Screen space
                         f32 mx = event->position.x;
                         f32 my = event->position.y;
 
-                        // @Todo: Graphics API-independent
-                        // To NDC
-                        f32 x = 2.f*( mx / (f32)game_state->window_width ) - 1.f;
-                        f32 y = 2.f*(-my / (f32)game_state->window_height) + 1.f;
+                        Entity* camera = entity_from_id(game_state->controlling_camera_id);
 
-                        Entity *camera = entity_from_id(game_state->controlling_camera_id);
-                        m4x4 inv_view_proj = inverse(camera->VP);
-
-                        // @Todo: Graphics API-independent
-                        v4 near_clip = v4{x, y, -1.f, 1.f};
-                        v4 far_clip  = v4{x, y,  1.f, 1.f};
-
-                        v4 near_p = inv_view_proj*near_clip;
-                        v4 far_p  = inv_view_proj*far_clip;
-
-                        near_p.xyz = near_p.xyz / near_p.w;
-                        far_p.xyz  = far_p.xyz  / far_p.w;
-
-                        // Define a ray.
-                        v3 o = near_p.xyz;
-                        v3 v = normalize(far_p.xyz - near_p.xyz);
-
-                        // Define a plane.
-                        v3 n = v3{0,1,0};
-                        f32 d = 0.f;
-
-                        // Ray-Plane intersection.
-                        f32 t = 0.f;
-                        f32 denom = dot(v, n);
-
-                        // If ray is not parallel to the plane, we can update the waypoint queue.
-                        if (absolute(denom) > 0.0001f) {
-                            t = -(dot(o, n) + d) / denom;
-                            v3 dstv3 = o + t*v;
-
+                        v3 dstv3;
+                        Ray3 ray = ray_from_screen_position(v2(mx,my), game_state->window_width, game_state->window_height, camera->VP);
+                        if (ray_plane_intersect(ray, v3{0,1,0}, 0.f, &dstv3)) {
                             // Clear old path data and find new path.
                             entity_clear_path_data(entity);
                             entity_find_path(entity, dstv3);
 
                             // @Robustness
-                            entity->command  = ENTITY_CMD_MOVE;
+                            entity->command = ENTITY_CMD_MOVE;
                         }
                     }
                 }
@@ -709,33 +742,7 @@ entity_update(Entity* entity, const f32 dt)
 
             if (entity->command == ENTITY_CMD_STOP) {
                 const f32 aggro_radius = 8.f;
-                auto entities = entites_from_position_and_radius(entity->position, aggro_radius, scratch.arena);
-                f32 min_dist = F32_MAX;
-
-                for (Link<Entity*> *node = entities.first; node != nullptr; node = node->next) {
-                    Entity* other = node->data;
-
-                    if (other->team == entity->team) {
-                        continue;
-                    }
-
-                    if (other->id == entity->id) {
-                        continue;
-                    }
-
-                    if (!entity_is_targetable(other)) {
-                        continue;
-                    }
-
-                    f32 dist = distance(entity->position, other->position);
-                    if (dist < aggro_radius) {
-                        if (dist < min_dist) {
-                            min_dist = dist;
-                            entity->command   = ENTITY_CMD_ATTACK;
-                            entity->target_id = other->id;
-                        }
-                    }
-                }
+                entity_find_target(entity, aggro_radius, scratch.arena);
             } else if (entity->command == ENTITY_CMD_MOVE) {
                 const f32 arrival_threshold = 1.0f;
                 if (entity->waypoint_queue.empty()) {
@@ -775,7 +782,11 @@ entity_update(Entity* entity, const f32 dt)
                                 other->hitpoints = max(other->hitpoints - total_damage, 0.f);
                             }
                         } else {
-                            if (dist < chase_dist) {
+                            if (entity->find_target_t > entity->find_target_max_t) {
+                                entity->find_target_t = 0;
+                                const f32 aggro_radius = 8.f;
+                                entity_find_target(entity, aggro_radius, scratch.arena);
+                            } else if (dist < chase_dist) {
                                 entity_clear_path_data(entity);
                                 // @Todo: Tick or something. It is ridiculous.
                                 entity_find_path(entity, other->position);
@@ -802,6 +813,8 @@ entity_update(Entity* entity, const f32 dt)
             } else {
                 entity->attack_t = 0.f;
             }
+
+            entity->find_target_t = fmod_cycling(entity->find_target_t + dt, entity->find_target_max_t);
             
 
             // Process waypoint queue.
@@ -956,7 +969,7 @@ entity_update(Entity* entity, const f32 dt)
     if (entity->flags & ENTITY_FLAG_COLLIDEABLE) {
         if (entity->radius > 0.f) {
             // @Temporary
-            const f32 margin_radius = 8.f;
+            const f32 margin_radius = game_state->max_radius;
             const f32 r = entity->radius + margin_radius;
             const f32 x = entity->position.x;
             const f32 y = entity->position.z;
@@ -1069,7 +1082,8 @@ lb_update_children:
 internal void 
 entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands* commands) 
 {
-    switch (entity->type) {
+    switch (entity->type) 
+    {
         default: {
             assert(!"Invalid defualt case");
         } break;
@@ -1078,8 +1092,14 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             m4x4 transform = trs_to_transform(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->mesh_count; ++mesh_idx) {
-                    Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f));
+                    Mesh* mesh = entity->model->meshes + mesh_idx;
+
+                    v4 tint = v4{1,1,1,1};
+                    if (entity->flags & ENTITY_FLAG_SELECTED) {
+                        tint = v4{1.0f, 0.5f, 1.0f, 1.0f};
+                    }
+
+                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f), tint);
                 }
             }
 
@@ -1095,19 +1115,26 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
                         int idx2 = ((entity->debug_waypoint_queue.front_idx + i + 1) % array_count(entity->debug_waypoint_queue.data));
                         v3 p1 = entity->debug_waypoint_queue.data[idx1];
                         v3 p2 = entity->debug_waypoint_queue.data[idx2];
-                        draw_line(render_group, p1, p2, v4{0,0,1,1});
+
+                        f32 alpha = 0.7f;
+                        if (entity->team == TEAM_PLAYER) {
+                            draw_line(render_group, p1, p2, v4{0.2f,0.2f,1.f,alpha});
+                        } else {
+                            draw_line(render_group, p1, p2, v4{1.0f,0.2f,0.2f,alpha});
+                        }
                     }
 
                     // Draw portal edges.
                     //
-                    for (int i = 0; i < entity->l_points.count; ++i) {
-                        v2 l = entity->l_points[i];
-                        v2 r = entity->r_points[i];
-                        draw_line(render_group, V3(l.y, 0.2f, l.x), V3(r.y, 0.2f, r.x), v4{1,1,0,1});
-                    }
+                    //for (int i = 0; i < entity->l_points.count; ++i) {
+                    //    v2 l = entity->l_points[i];
+                    //    v2 r = entity->r_points[i];
+                    //    draw_line(render_group, V3(l.y, 0.2f, l.x), V3(r.y, 0.2f, r.x), v4{1,1,0,1});
+                    //}
 
                 }
             }
+
         } break;
 
         case ENTITY_TYPE_CAMERA: {

@@ -1,19 +1,15 @@
-#ifndef RTS_GAME_H
-#define RTS_GAME_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
+
+
 
 struct Entity;
 
 #define MAX_ENTITY_COUNT 1024
 
 struct Game_Assets {
-    Arena *arena;
+    Arena* arena;
 
     Bitmap debug_bitmap;
 
@@ -66,7 +62,7 @@ struct Game_State {
     Random_Series random_series;
 
     Arena*      map_arena;
-    v2u         chunk_size;
+    v2          chunk_size;
     u16         chunk_count_x;
     u16         chunk_count_y;
     v2          map_size;
@@ -76,16 +72,16 @@ struct Game_State {
     Arena*      entity_arena;
     Entity*     first_free_entity;
     Entity*     last_free_entity;
-    u32         next_generational_id; // 0 is null.
+    u64         next_generational_id; // 0 is null.
     Entity*     root_entity;
     Entity*     entity_table;
     u32         entity_table_size;
 
-    u32         game_camera_id;
-    u32         debug_camera_id;
-    u32         controlling_camera_id;
+    u64         game_camera_id;
+    u64         debug_camera_id;
+    u64         controlling_camera_id;
 
-    List<Entity*> selected_entities;
+    List <u64>  selected_entities;
+
+    f32         max_radius;
 };
-
-#endif // RTS_GAME_H

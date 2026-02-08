@@ -224,16 +224,19 @@ struct Render_Command
     };
 };
 
-struct Render_Mesh 
-{
-    //Render_Entity_Header header;
-
+struct Render_Mesh {
     Mesh* mesh;
     m4x4  world_transform;
     u32   entity_id;
     m4x4* animation_transforms;
     v2    uv_scale;
     v4    tint;
+};
+
+struct Render_Line_2D {
+    v3 src;
+    v3 dst;
+    v4 color;
 };
 
 struct Renderer
@@ -260,6 +263,11 @@ struct Renderer
     Render_Mesh*    meshes;
     u32             num_meshes;
     u32             max_meshes;
+
+    // 2D Lines
+    Render_Line_2D*    lines;
+    u32                num_lines;
+    u32                max_lines;
 };
 
 typedef u8 Render_String_Flags;
@@ -297,7 +305,5 @@ internal void render_quad_tuv(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v
 internal void render_quad_tuvc(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c);
 internal void render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11);
 internal void render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11);
-
-
 
 internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags, AABB2 cull_aabb);

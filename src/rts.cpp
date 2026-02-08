@@ -26,6 +26,7 @@
 #include "rect_pack/rpk.h"
 #include "font_provider/fp_inc.h"
 #include "third_party/stb/stb_image.h"
+#include "third_party/meshoptimizer/meshoptimizer.h"
 
 
 global Game_State* game_state;
@@ -51,6 +52,7 @@ global Renderer* renderer;
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
 
+
 internal Entity*
 debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 {
@@ -69,6 +71,8 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 
     soldier->hitpoints         = 40.f;
 
+    soldier->find_target_max_t = 3.f;
+
     soldier->position          = v3(x, 0.f, z);
     soldier->orientation       = Quaternion{1,0,0,0};
     soldier->scaling           = v3(1.f);
@@ -84,6 +88,25 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     return soldier;
 }
 
+
+internal Entity*
+debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets)
+{
+    Entity* castle = entity_alloc();
+    castle->type   = ENTITY_TYPE_CASTLE;
+    castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED;
+
+    castle->position    = V3(x,0.f,z);
+    castle->orientation = Quaternion{1,0,0,0};
+    castle->scaling     = V3(1.f);
+    castle->model       = assets->castle_model;
+
+    castle->navmesh_scale = 3.f;
+
+    entity_init(castle, nullptr);
+
+    return castle;
+}
 
 extern "C" __declspec(dllexport)
 GAME_UPDATE_AND_RENDER(game_update_and_render)
@@ -137,7 +160,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->entity_table         = push_array(game_state->entity_arena, Entity, game_state->entity_table_size);
         game_state->next_generational_id = 1;
         
-        { // TEMPORARY
+        { // Temporary
             Temporary_Arena scratch = scratch_begin();
             defer(scratch_end(scratch));
             
@@ -255,12 +278,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             }
 
             game_state->map_arena     = arena_alloc();
-            game_state->chunk_size    = v2u{3,3};
+            game_state->chunk_size    = v2{3,3};
             game_state->chunk_count_x = 128;
             game_state->chunk_count_y = 128;
-            game_state->map_size.x    = game_state->chunk_size.x*game_state->chunk_count_x;
-            game_state->map_size.y    = game_state->chunk_size.y*game_state->chunk_count_y;
-            game_state->chunks        = push_array(game_state->map_arena, Chunk, game_state->chunk_count_x*game_state->chunk_count_y);
+            game_state->map_size.x    = game_state->chunk_size.x * game_state->chunk_count_x;
+            game_state->map_size.y    = game_state->chunk_size.y * game_state->chunk_count_y;
+            game_state->chunks        = push_array(game_state->map_arena, Chunk, game_state->chunk_count_x * game_state->chunk_count_y);
             
             {
                 Entity *game_camera       = entity_alloc();
@@ -310,7 +333,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            constexpr int num_soldiers = 10;
+            constexpr int num_soldiers = 8;
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
                 f32 z = 0.f + 1.f*(i/num_soldiers);
@@ -342,21 +365,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
             }
 
-
-            { // @Temporary: Create a castle.
-                Entity* castle = entity_alloc();
-                castle->type   = ENTITY_TYPE_CASTLE;
-                castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED;
-
-                castle->position    = V3(0.f,0.f,0.f);
-                castle->orientation = Quaternion{1,0,0,0};
-                castle->scaling     = V3(1.f);
-                castle->model       = assets->castle_model;
-
-                castle->navmesh_scale = 3.f;
-
-                entity_init(castle, nullptr);
-            }
+            debug_spawn_castle( 0.f,  0.f, TEAM_PLAYER, assets);
+            debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
         }
     }
     
@@ -395,12 +405,18 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     local_persist f32 light_x = 1.f;
     local_persist f32 light_y = 1.f;
     local_persist f32 light_z = 1.f;
+    local_persist b32 draw_chunk_partitions = false;
     ui_begin(dt, platform->window_width, platform->window_height);
     {
         ui_platform(utf8lit("⚙"))
         {
             ui_labelf("mspf: %.2f", dt*1000.f);
+            Entity* entity = entity_from_id(3);
+            ui_labelf("%u, %u", entity->chunk_x, entity->chunk_y);
             ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
+            if (ui_button(utf8lit("Chunk Partitions")).pressed_left) {
+                draw_chunk_partitions = !draw_chunk_partitions;
+            }
             if (ui_button(utf8lit("Wireframe")).pressed_left) {
                 render_commands->wireframe_mode = !render_commands->wireframe_mode; 
             }
@@ -432,6 +448,137 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
     ui_end();
+
+    // Entity selection.
+    //
+    if (game_state->controlling_camera_id == game_state->game_camera_id) {
+        Temporary_Arena scratch = scratch_begin();
+        defer(scratch_end(scratch));
+
+        local_persist bool dragging = false;
+        local_persist v2   drag_start = {};
+
+        for (Os_Event* event = os->event_first, *next; event; event = next)
+        {
+            next = event->next;
+
+            if (event->key == OS_KEY_MOUSE_LEFT) {
+
+                if (event->type == OS_EVENT_PRESS) {
+                    dragging = true;
+                    os_event_consume(event);
+                    drag_start = os->mouse_position_last;
+                }
+
+                if (dragging && event->type == OS_EVENT_RELEASE) {
+                    dragging = false;
+                    os_event_consume(event);
+
+                    // get entities
+                    Entity* camera = entity_from_id(game_state->game_camera_id);
+                    const m4x4 viewproj = camera->VP;
+                    const f32 w = game_state->window_width;
+                    const f32 h = game_state->window_height;
+
+                    const f32 min_screen_x = min(drag_start.x, os->mouse_position_last.x);
+                    const f32 min_screen_y = min(drag_start.y, os->mouse_position_last.y);
+                    const f32 max_screen_x = max(drag_start.x, os->mouse_position_last.x);
+                    const f32 max_screen_y = max(drag_start.y, os->mouse_position_last.y);
+
+                    Ray3 ray1 = ray_from_screen_position(drag_start, w, h, viewproj);
+                    Ray3 ray2 = ray_from_screen_position(os->mouse_position_last, w, h, viewproj);
+                    const  v3 n = v3{0,1,0};
+                    const f32 d = 0.f;
+                    v3 p1 = {};
+                    v3 p2 = {};
+                    const bool intersects = (ray_plane_intersect(ray1, n, d, &p1) && ray_plane_intersect(ray2, n, d, &p2));
+                    if (intersects) {
+                        const f32 min_x = min(p1.x, p2.x) - game_state->max_radius;
+                        const f32 min_z = min(p1.z, p2.z) - game_state->max_radius;
+                        const f32 max_x = max(p1.x, p2.x) + game_state->max_radius;
+                        const f32 max_z = max(p1.z, p2.z) + game_state->max_radius;
+                        u16 min_chunk_x, min_chunk_y, max_chunk_x, max_chunk_y;
+                        chunk_position_from_world_position(min_x, min_z, &min_chunk_x, &min_chunk_y); 
+                        chunk_position_from_world_position(max_x, max_z, &max_chunk_x, &max_chunk_y); 
+
+                        List <Entity*> entities = entities_from_min_max_chunk(scratch.arena, min_chunk_x, min_chunk_y, max_chunk_x, max_chunk_y);
+                        if (!entities.empty()) {
+
+                            // 'selected' flag from entities and clear the list.
+                            for (auto node = game_state->selected_entities.first; node; node = node->next) {
+                                u64 id = node->data;
+                                Entity* entity = entity_from_id(id);
+                                if (entity) {
+                                    entity->flags &= (~ENTITY_FLAG_SELECTED);
+                                }
+                            }
+                            game_state->selected_entities.clear();
+
+
+                            // Fill and set 'selected' flag.
+                            for (auto node = entities.first; node; node = node->next) {
+                                Entity* entity = node->data;
+
+                                if (!entity) {
+                                    continue;
+                                }
+
+                                if (entity->team != TEAM_PLAYER) {
+                                    continue;
+                                }
+
+                                const v3 ndc = project(entity->position, camera->VP);
+                                const f32 x = ( ndc.x * 0.5f + 0.5f) * w;
+                                const f32 y = (-ndc.y * 0.5f + 0.5f) * h;
+                                if (x >= min_screen_x && x <= max_screen_x && y >= min_screen_y && y <= max_screen_y) {
+                                    game_state->selected_entities.add(entity->id);
+                                    entity->flags |= ENTITY_FLAG_SELECTED;
+                                }
+                            }
+                        }
+                    } else {
+                        assert(!"something bad happened.");
+                    }
+                }
+            }
+        }
+
+        if (dragging) {
+            const f32 w = game_state->window_width;
+            const f32 h = game_state->window_height;
+
+            const v4 color = v4{1.0f, 1.0f, 1.0f, 0.2f};
+            const f32 thickness = 1.f;
+            const f32 min_x = min(drag_start.x, os->mouse_position_last.x);
+            const f32 min_y = min(drag_start.y, os->mouse_position_last.y);
+            const f32 max_x = max(drag_start.x, os->mouse_position_last.x);
+            const f32 max_y = max(drag_start.y, os->mouse_position_last.y);
+            render_quad_c(v2{min_x - thickness, min_y - thickness}, v2{max_x + thickness, min_y}, color);
+            render_quad_c(v2{max_x, min_y}, v2{max_x + thickness, max_y}, color);
+            render_quad_c(v2{min_x - thickness, min_y}, v2{min_x, max_y}, color);
+            render_quad_c(v2{min_x - thickness, max_y}, v2{max_x + thickness, max_y + thickness}, color);
+        }
+    }
+
+
+    // Draw chunks
+    //
+    if (draw_chunk_partitions) {
+        const f32 half_dim_x = 0.5f * game_state->chunk_count_x * game_state->chunk_size.x;
+        const f32 half_dim_y = 0.5f * game_state->chunk_count_y * game_state->chunk_size.y;
+
+        const f32 alpha = 0.7f;
+
+        for (int cy = 0; cy < game_state->chunk_count_y; ++cy) {
+            const f32 y = -half_dim_y + game_state->chunk_size.y * cy;
+            draw_line(render_group, v3{-half_dim_x,0.2f,y}, v3{half_dim_x,0.0f,y}, v4{1.f,0.3f,0.3f,alpha});
+        }
+
+        for (int cx = 0; cx < game_state->chunk_count_x; ++cx) {
+            const f32 x = -half_dim_x + game_state->chunk_size.x * cx;
+            draw_line(render_group, v3{x,0.2f,-half_dim_y}, v3{x,0.0f,half_dim_y}, v4{0.3f,0.3f,1.0f,alpha});
+        }
+    }
 
 
     // Update entities

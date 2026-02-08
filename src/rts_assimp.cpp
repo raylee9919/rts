@@ -1,11 +1,4 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
-
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 // Assimp includes.
 //
@@ -238,9 +231,11 @@ fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashma
     asset_model->root_bone_node_id = id_from_name(root->mName.data, hashmap);
 
 
-    // @Note: Debug purpose.
-    for (s32 i = 0; i < (s32)node_count; ++i) 
-    { assert(asset_model->nodes[i].id == i); }
+    // I want them to be in sequential order.
+    //
+    for (s32 i = 0; i < (s32)node_count; ++i) {
+        assert(asset_model->nodes[i].id == i);
+    }
 }
 
 internal Asset_Texture *
@@ -287,63 +282,64 @@ load_texture(aiMaterial *material, aiTextureType type)
 }
 
 internal void
-fill_asset_meshes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashmap)
+fill_asset_meshes(const aiScene* model, Asset_Model* asset_model, Hashmap* hashmap)
 {
     u32 mesh_count = model->mNumMeshes;
-    aiMesh **meshes = model->mMeshes;
+    aiMesh** meshes = model->mMeshes;
 
     asset_model->mesh_count = mesh_count;
     asset_model->meshes     = malloc_array(Asset_Mesh, asset_model->mesh_count);
 
-    for (u32 mesh_idx = 0;
-         mesh_idx < mesh_count;
-         ++mesh_idx)
+    for (u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx)
     {
-        Asset_Mesh *asset_mesh    = (asset_model->meshes + mesh_idx);
-        aiMesh *mesh              = meshes[mesh_idx];
+        Asset_Mesh* asset_mesh    = (asset_model->meshes + mesh_idx);
+        aiMesh* mesh              = meshes[mesh_idx];
+
+
+        u32 num_tri     = mesh->mNumFaces;
+        u32 num_indices = num_tri * 3;
+
 
         u32 vertex_count          = mesh->mNumVertices;
         asset_mesh->vertex_count  = vertex_count;
         asset_mesh->vertices      = malloc_array(Asset_Vertex, asset_mesh->vertex_count);
 
-        for (u32 vertex_idx = 0;
-             vertex_idx < vertex_count;
-             ++vertex_idx)
+        for (u32 vertex_idx = 0; vertex_idx < vertex_count; ++vertex_idx)
         {
-            Asset_Vertex *asset_vertex = asset_mesh->vertices + vertex_idx;
+            Asset_Vertex* out_vert = asset_mesh->vertices + vertex_idx;
 
-            asset_vertex->pos.x = mesh->mVertices[vertex_idx].x;
-            asset_vertex->pos.y = mesh->mVertices[vertex_idx].y;
-            asset_vertex->pos.z = mesh->mVertices[vertex_idx].z;
+            out_vert->pos.x = mesh->mVertices[vertex_idx].x;
+            out_vert->pos.y = mesh->mVertices[vertex_idx].y;
+            out_vert->pos.z = mesh->mVertices[vertex_idx].z;
 
             if (mesh->HasNormals()) {
-                asset_vertex->normal.x = mesh->mNormals[vertex_idx].x;
-                asset_vertex->normal.y = mesh->mNormals[vertex_idx].y;
-                asset_vertex->normal.z = mesh->mNormals[vertex_idx].z;
+                out_vert->normal.x = mesh->mNormals[vertex_idx].x;
+                out_vert->normal.y = mesh->mNormals[vertex_idx].y;
+                out_vert->normal.z = mesh->mNormals[vertex_idx].z;
             }
 
             if (mesh->HasTextureCoords(0)) {
-                asset_vertex->uv.x = mesh->mTextureCoords[0][vertex_idx].x;
-                asset_vertex->uv.y = mesh->mTextureCoords[0][vertex_idx].y;
+                out_vert->uv.x = mesh->mTextureCoords[0][vertex_idx].x;
+                out_vert->uv.y = mesh->mTextureCoords[0][vertex_idx].y;
             }
 
             if (mesh->HasVertexColors(0)) {
-                asset_vertex->color.r = mesh->mColors[0][vertex_idx].r;
-                asset_vertex->color.g = mesh->mColors[0][vertex_idx].g;
-                asset_vertex->color.b = mesh->mColors[0][vertex_idx].b;
-                asset_vertex->color.a = mesh->mColors[0][vertex_idx].a;
+                out_vert->color.r = mesh->mColors[0][vertex_idx].r;
+                out_vert->color.g = mesh->mColors[0][vertex_idx].g;
+                out_vert->color.b = mesh->mColors[0][vertex_idx].b;
+                out_vert->color.a = mesh->mColors[0][vertex_idx].a;
             } else {
-                asset_vertex->color = V4(1.0f);
+                out_vert->color = V4(1.0f);
             }
 
             assert(mesh->HasTangentsAndBitangents());
-            asset_vertex->tangent.x = mesh->mTangents[vertex_idx].x;
-            asset_vertex->tangent.y = mesh->mTangents[vertex_idx].y;
-            asset_vertex->tangent.z = mesh->mTangents[vertex_idx].z;
+            out_vert->tangent.x = mesh->mTangents[vertex_idx].x;
+            out_vert->tangent.y = mesh->mTangents[vertex_idx].y;
+            out_vert->tangent.z = mesh->mTangents[vertex_idx].z;
 
             for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
-                asset_vertex->node_ids[i] = -1; // @Spec: Renderer Api must agree it to be speced to -1 too.
-                asset_vertex->node_weights[i] = 0;
+                out_vert->node_ids[i] = -1; // @Spec: Renderer Api must agree it to be speced to -1 too.
+                out_vert->node_weights[i] = 0;
             }
         }
 
@@ -374,16 +370,12 @@ fill_asset_meshes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashm
             }
         }
 
-        u32 triangle_count      = mesh->mNumFaces;
-        u32 index_count         = triangle_count * 3;
-        asset_mesh->index_count = index_count;
+        asset_mesh->index_count = num_indices;
         asset_mesh->indices     = malloc_array(u32, asset_mesh->index_count);
 
-        for (u32 triangle_idx = 0;
-             triangle_idx < triangle_count;
-             ++triangle_idx)
+        for (u32 triangle_idx = 0; triangle_idx < num_tri; ++triangle_idx)
         {
-            aiFace *triangle = (mesh->mFaces + triangle_idx);
+            aiFace* triangle = (mesh->mFaces + triangle_idx);
             assert(triangle->mNumIndices == 3);
             for (u32 i = 0; i < 3; ++i) {
                 u64 idx_of_idx = (3 * triangle_idx + i);
@@ -415,11 +407,9 @@ fill_asset_materials(const aiScene *model, Asset_Model *asset_model)
         asset_model->material_count = model->mNumMaterials;
         asset_model->materials = malloc_array(Asset_Material, model->mNumMaterials);
 
-        for (u32 mat_idx = 0;
-             mat_idx < model->mNumMaterials;
-             ++mat_idx)
+        for (u32 mat_idx = 0; mat_idx < model->mNumMaterials; ++mat_idx)
         {
-            Asset_Material *asset_mat = asset_model->materials + mat_idx;
+            Asset_Material* asset_mat = asset_model->materials + mat_idx;
             aiMaterial *mat = model->mMaterials[mat_idx];
 
             aiColor3D c;
@@ -572,8 +562,7 @@ int main(void)
                                                                 aiProcess_JoinIdenticalVertices));
         g_node_count = 0;
 
-        if (! model) 
-        {
+        if (!model) {
             fprintf(stderr, "[ERROR]: Couldn't load file %s.\n", in_file_name);
             return -1;
         }
@@ -587,14 +576,14 @@ int main(void)
         hashmap.entries = malloc_array(Hash_Entry, hashmap.length);
         zero_array(hashmap.entries, hashmap.length);
 
+
         //
         // Model
         //
         Asset_Model asset_model = {};
-        char *out_file_name = create_output_model_filepath(in_file_name);
-        FILE *model_out = fopen(out_file_name, "wb");
-        if (! model_out) 
-        {
+        char* out_file_name = create_output_model_filepath(in_file_name);
+        FILE* model_out = fopen(out_file_name, "wb");
+        if (!model_out) {
             printf("[ERROR]: Couldn't open output file %s\n", out_file_name);
             return -1;
         }
@@ -617,9 +606,7 @@ int main(void)
         //
         // Animation
         //
-        for (u32 anim_idx = 0;
-             anim_idx < model->mNumAnimations;
-             ++anim_idx)
+        for (u32 anim_idx = 0; anim_idx < model->mNumAnimations; ++anim_idx)
         {
             Asset_Animation asset_animation = {};
             aiAnimation *anim = model->mAnimations[anim_idx];
@@ -690,8 +677,8 @@ int main(void)
     return 0;
 }
 
-// -------------------------------
-// @Note: Quick Sort Compare Function
+// Quick Sort Compare Function
+//
 internal b32
 asmp_cmp_ascending_node_id(void *a, void *b)
 {
@@ -701,8 +688,8 @@ asmp_cmp_ascending_node_id(void *a, void *b)
     return result;
 }
 
-// -------------------------------
-// @Note: Conversion
+// Conversion
+//
 internal v3
 v3_from_ai(aiVector3D ai_v) 
 {
@@ -752,4 +739,3 @@ m4x4_from_ai(aiMatrix4x4 ai_mat)
 
     return mat;
 }
-

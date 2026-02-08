@@ -27,10 +27,10 @@ enum {
     ENTITY_FLAG_IS_UNIT           = (1<<1),
     ENTITY_FLAG_CHUNK_PARTITIONED = (1<<2),
     ENTITY_FLAG_COLLIDEABLE       = (1<<3),
+    ENTITY_FLAG_SELECTED          = (1<<4),
 
-    ENTITY_FLAG_GAME_CAMERA       = (1<<4),
-    ENTITY_FLAG_FREE_CAMERA       = (1<<5),
-
+    ENTITY_FLAG_GAME_CAMERA       = (1<<5),
+    ENTITY_FLAG_FREE_CAMERA       = (1<<7),
 };
 
 typedef u8 Team;
@@ -40,7 +40,7 @@ enum {
 };
 
 struct Entity {
-    u32          id; // generational id
+    u64          id; // generational id
     Entity_Type  type;
     Entity_Flags flags;
 
@@ -88,6 +88,10 @@ struct Entity {
     f32         transition_t;
 
     u32         target_id;
+
+
+    f32         find_target_t;
+    f32         find_target_max_t;
 
 
     Model* model;

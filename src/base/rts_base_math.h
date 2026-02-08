@@ -5,6 +5,10 @@
 #define pi32                3.141592f
 #define epsilon_f32         1.19209e-07f
 
+// @Robustness
+#define FAR_Z  ( 1.f)
+#define NEAR_Z (-1.f)
+
 
 // # Note: Vectors
 //
@@ -84,6 +88,11 @@ struct Rect2 {
 struct AABB2 {
     v2 min;
     v2 max;
+};
+
+struct Ray3 {
+    v3 origin;
+    v3 direction;
 };
 
 #define absolute(x) ((x) > 0 ? (x) : -(x))
@@ -206,3 +215,7 @@ internal b32 intersects(AABB2 box, v2 point);
 internal b32 intersects(AABB2 a, AABB2 b);
 internal AABB2 intersection(AABB2 a, AABB2 b);
 internal AABB2 aabb2_infinite(void);
+
+internal v2 to_ndc(v2 p, f32 w, f32 h);
+internal v3 unproject(v3 position, m4x4 viewproj);
+internal Ray3 ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj);

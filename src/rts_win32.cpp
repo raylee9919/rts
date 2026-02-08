@@ -299,7 +299,7 @@ win32_get_client_size(HWND hwnd)
     v2u result = {};
     RECT rect = {};
     GetClientRect(hwnd, &rect);
-    result.x = rect.right - rect.left;
+    result.x = rect.right  - rect.left;
     result.y = rect.bottom - rect.top;
     return result;
 }

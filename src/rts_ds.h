@@ -1,16 +1,23 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#pragma once
+
 template<typename T>
 struct Link {
-    Link<T> *next;
-    Link<T> *prev;
-    T  data;
+    Link <T> *next;
+    Link <T> *prev;
+    T data;
 };
 
 template<typename T>
 struct List {
-    Link<T> *first;
-    Link<T> *last;
+    Link <T> *first;
+    Link <T> *last;
+
+
+    bool empty();
+    void add(T item);
+    void clear();
 };
 
 

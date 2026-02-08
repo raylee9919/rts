@@ -1,15 +1,37 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2025 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
-// @Todo: Enhance.
 
-// Array
 //
+// List
+//
+template <typename T>
+bool List <T> :: empty() {
+    if (first == nullptr || last == nullptr) return true;
+    return false;
+}
+
+template <typename T>
+void List <T> :: add(T item) {
+    auto* node = new Link <T>;
+    memset(node, 0, sizeof(*node));
+    
+    node->data = item;
+
+    dll_push_back(first, last, node);
+}
+
+template <typename T>
+void List <T> :: clear() {
+    for (Link <T> *node = first, *next; node; node = next) {
+        next = node->next;
+        
+        dll_remove(first, last, node);
+        delete node;
+    }
+}
+
+
+
 template<typename T>
 Array<T>::Array() {
 }

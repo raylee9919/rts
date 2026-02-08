@@ -524,8 +524,7 @@ ui_animate(void)
 }
 
 
-// ----------------------------------------------------------------------------
-// @Note: Signal
+// Note: Signal
 //
 internal Ui_Signal
 ui_signal_from_box(Ui_Box *box)
@@ -540,7 +539,7 @@ ui_signal_from_box(Ui_Box *box)
 
     if (! ui_box_is_nil(box))
     {
-        for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
+        for (Os_Event *event = os->event_first, *next; event; event = next)
         {
             next = event->next;
 
@@ -596,8 +595,8 @@ ui_signal_from_box(Ui_Box *box)
 
 
 
-// ----------------------------------------------------------------------------
-// @Note: Helper Functions.
+//
+// Helper Functions.
 //
 internal b32
 ui_key_match(Ui_Key a, Ui_Key b)

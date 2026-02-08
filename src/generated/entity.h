@@ -1,6 +1,0 @@
-#include "entity/entity_Entity.h"
-#include "entity/entity_Camera.h"
-#include "entity/entity_Crate.h"
-#include "entity/entity_Ground.h"
-#include "entity/entity_Rock.h"
-#include "entity/entity_Xbot.h"

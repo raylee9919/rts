@@ -37,7 +37,7 @@ if not defined BuildGame if not defined BuildWin if not defined BuildGL (
 )
 
 set compiler=cl
-set flags_common=/std:c++17 /nologo /FC /Zi /EHsc- /utf-8 /D__DEVELOPER=1 /I..\src /I..\src\vendor
+set flags_common=-std:c++17 -nologo -FC -Zi -EHsc- -utf-8 -D__DEVELOPER=1 -I..\src -I..\src\vendor
 set flags_debug=/Od /DBUILD_DEBUG=1
 set flags_release=/O2 /DBUILD_DEBUG=0
 set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS /wd4456 /wd4100 /wd4189 /wd4505 /wd4201 /wd4477 /wd4311 /wd4302 /wd4005 /wd4244 /wd4706
@@ -59,7 +59,7 @@ REM if exist *.pdb del *.pdb
 
 :: ---------------------------- Tools ---------------------------- ::
 :: Assimp
-rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp /Fe:assimp.exe /I../src/vendor /link %flags_linker% ..\lib\assimp-vc143-mt.lib
+REM call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mt.lib .ss.\lib\meshoptimizer.lib
 
 :: Metaprogramming
 REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
@@ -70,7 +70,7 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Renderers
 if "%BuildGL%"=="1" (
-    rem call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
+    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
 :: Game
@@ -80,7 +80,7 @@ if "%BuildGame%"=="1" (
 
 :: Platform
 if "%BuildWin%"=="1" (
-    rem call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
+    call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 )
 
 

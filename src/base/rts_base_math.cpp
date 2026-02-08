@@ -1256,3 +1256,68 @@ quaternion_from_m4x4(m4x4 m)
 
     return q;
 }
+
+internal v2
+to_ndc(v2 p, f32 w, f32 h)
+{
+    f32 x = 2.f*( p.x / w) - 1.f;
+    f32 y = 2.f*(-p.y / h) + 1.f;
+    v2 result = {x,y};
+    return result;
+}
+
+internal v3
+unproject(v3 position, m4x4 viewproj)
+{
+    m4x4 inv_viewproj = inverse(viewproj);
+    v4 h = inv_viewproj*V4(position, 1.f);
+    v3 result = h.xyz / h.w;
+    return result;
+}
+
+internal Ray3
+ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj)
+{
+    Ray3 result = {};
+
+    f32 x = 2.f*( position.x / screen_width ) - 1.f;
+    f32 y = 2.f*(-position.y / screen_height) + 1.f;
+
+    m4x4 inv_viewproj = inverse(viewproj);
+
+    v4 near_clip = v4{x, y, NEAR_Z, 1.f};
+    v4 far_clip  = v4{x, y,  FAR_Z, 1.f};
+
+    v4 near_p = inv_viewproj*near_clip;
+    v4 far_p  = inv_viewproj*far_clip;
+
+    near_p.xyz = near_p.xyz / near_p.w;
+    far_p.xyz  = far_p.xyz  / far_p.w;
+
+    result.origin   = near_p.xyz;
+    result.direction = normalize(far_p.xyz - near_p.xyz);
+
+    return result;
+}
+
+internal bool 
+ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out)
+{
+    v3  n = plane_normal;
+    f32 d = plane_height;
+
+    v3 o = ray.origin;
+    v3 v = ray.direction;
+
+    f32 t = 0.f;
+    f32 denom = dot(v, n);
+
+    if (absolute(denom) > 0.0001f) {
+        t = -(dot(o, n) + d) / denom;
+        *out = o + t*v;
+
+        return true;
+    } else {
+        return false;
+    }
+}

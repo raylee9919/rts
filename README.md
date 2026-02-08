@@ -7,13 +7,13 @@ The curiosity eventually became a challenge I set myself: to build a handmade RT
 
 ## Build
 #### Windows (MSVC cl x64)
-Within the root directory of the project, simply run <strong>build.bat</strong>
+Within the root directory of the project, simply run <strong>b.bat</strong>
 ``` console
 > build
 ```
 If you want release build, run with the following argument:
 ``` console
-> build release
+> b release
 ```
 
 #### Linux
