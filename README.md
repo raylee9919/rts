@@ -9,7 +9,7 @@ The curiosity eventually became a challenge I set myself: to build a handmade RT
 #### Windows (MSVC cl x64)
 Within the root directory of the project, simply run <strong>b.bat</strong>
 ``` console
-> build
+> b
 ```
 If you want release build, run with the following argument:
 ``` console
