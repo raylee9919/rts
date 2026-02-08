@@ -191,6 +191,15 @@ struct Gl_Program
     u32         attrib_count;
 };
 
+struct Gl_Mesh_Buffer {
+    // @Robustness
+    Mesh*  mesh;
+    GLuint vbo;
+    GLuint ibo;
+
+    Gl_Mesh_Buffer* next;
+};
+
 // # Note: OpenGL
 //
 struct Opengl
@@ -228,8 +237,6 @@ struct Opengl
     GLuint color_texture;
     GLuint id_texture;
 
-    GLuint instance_vbo;
-
     GLuint shadowmap_fbo;
     GLuint shadowmaps;
 
@@ -254,6 +261,12 @@ struct Opengl
     u32     octree_diffuse_texture;
 
     u32     entity_id_texture;
+
+
+    // VBO list.
+    Gl_Mesh_Buffer* first_mesh_buffer;
+    Gl_Mesh_Buffer* last_mesh_buffer;
+
 
 
 

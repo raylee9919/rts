@@ -338,6 +338,39 @@ opengl_id_from_render_id(Render_Id id)
     return id_table[id.e[0]];
 }
 
+internal Gl_Mesh_Buffer*
+opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
+{
+    // Does this mesh's vbo/ibo exist in the list?
+    Gl_Mesh_Buffer* node = gl->first_mesh_buffer;
+    while (node) {
+        if (node->mesh == mesh) {
+            break;
+        }
+        node = node->next;
+    }
+
+    // If not, make one and append to list.
+    if (!node) {
+        node = new Gl_Mesh_Buffer; // @Temporary
+        memset(node, 0, sizeof(*node));
+
+        node->mesh = mesh;
+
+        glGenBuffers(1, &node->vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, node->vbo);
+        glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(mesh->vertices[0]), mesh->vertices, GL_DYNAMIC_DRAW);
+
+        glGenBuffers(1, &node->ibo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, node->ibo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(mesh->indices[0]), mesh->indices, GL_DYNAMIC_DRAW);
+
+        sll_push_back(gl->first_mesh_buffer, gl->last_mesh_buffer, node);
+    }
+
+    return node;
+}
+
 internal void
 opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 {
@@ -552,35 +585,59 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
         glUniformMatrix4fv(shadowmap_program->light_view_projs, CSM_COUNT, true, (GLfloat *)light_view_projs);
 
+        //Render_Mesh* end = renderer->meshes + renderer->num_meshes;
+        //for (Render_Mesh* piece = renderer->meshes, *next = piece; piece < end; piece = next) {
+
         for (u32 i = 0; i < renderer->num_meshes; ++i) {
             Render_Mesh* piece = renderer->meshes + i;
 
-            Mesh *mesh = piece->mesh;
+            Mesh* mesh = piece->mesh;
+            auto mesh_buffer = opengl_get_mesh_buffer(gl, mesh);
 
-            glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
-            glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
-            glUniform1i(shadowmap_program->is_skeletal, piece->animation_transforms ? 1 : 0);
-            if (piece->animation_transforms) 
-            {
-                glUniformMatrix4fv(shadowmap_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
-            }
+            // Bind vbo.
+            glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer->vbo);
+            defer(glBindBuffer(GL_ARRAY_BUFFER, gl->vbo));
 
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(5);
-            glEnableVertexAttribArray(6);
+            // Bind ibo.
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_buffer->ibo);
+            defer(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio));
+
+
+            // March the 'next' ptr until the end or up until the mesh has changed.
+            //
+            //while (next < end) {
+            //    if (next->mesh != mesh) {
+            //        break;
+            //    }
+            //    next++;
+            //}
+
+            //u32 num_draw = (u32)( (next - piece) / sizeof(*piece) );
+
+            // Vertex attributes
+            //
+            glEnableVertexAttribArray(0); defer(glDisableVertexAttribArray(0));
+            glEnableVertexAttribArray(5); defer(glDisableVertexAttribArray(5));
+            glEnableVertexAttribArray(6); defer(glDisableVertexAttribArray(6));
 
             glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
             glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
             glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
 
-            glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
 
+            // Uniforms
+            //
+            glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
+            glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
+            glUniform1i(shadowmap_program->is_skeletal, piece->animation_transforms ? 1 : 0);
+            if (piece->animation_transforms) {
+                glUniformMatrix4fv(shadowmap_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
+            }
+
+
+            // Draw call
+            //
             glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
-
-            glDisableVertexAttribArray(0);
-            glDisableVertexAttribArray(5);
-            glDisableVertexAttribArray(6);
         }
     }
 
@@ -645,6 +702,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         // PBR
         //
         {
+            defer( glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) );
+
             Pbr_Program* pbr_program = &gl->pbr_program;
             glUseProgram(pbr_program->id);
 
@@ -652,6 +711,16 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 Render_Mesh* piece = renderer->meshes + i;
 
                 Mesh* mesh = piece->mesh;
+                auto mesh_buffer = opengl_get_mesh_buffer(gl, mesh);
+
+                // Bind vbo.
+                glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer->vbo);
+                defer(glBindBuffer(GL_ARRAY_BUFFER, gl->vbo));
+
+                // Bind ibo.
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_buffer->ibo);
+                defer(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio));
+
 
                 glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
                 glUniform1i(pbr_program->is_skeletal, piece->animation_transforms ? 1 : 0);
@@ -695,19 +764,17 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
                 glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
 
-                glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
 
                 if (piece->animation_transforms) {
                     glUniformMatrix4fv(pbr_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
                 }
+
 
                 glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
 
                 for (u32 i = 0; i < 7; ++i) {
                     glDisableVertexAttribArray(i);
                 }
-                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             }
         }
 
@@ -1699,7 +1766,6 @@ opengl_init(Opengl *gl)
         glBindVertexArray(gl->vao);
 
         glGenBuffers(1, &gl->vbo);
-        glGenBuffers(1, &gl->instance_vbo);
 
         glGenBuffers(1, &gl->vio);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio);

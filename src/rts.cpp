@@ -97,8 +97,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     if (!renderer) {
         renderer = platform->renderer;
         render_init();
-    } else {
-        renderer->num_meshes = 0;
     }
     
     game_state = (Game_State *)platform->game_state;
@@ -280,7 +278,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 debug_camera->focal_length = 0.5f;
                 debug_camera->N            = 0.5f;
                 debug_camera->F            = 100000.0f;
-                debug_camera->position     = v3{0.f,5.f,5.f};
+                debug_camera->position     = v3(0.f,5.f,5.f);
                 debug_camera->orientation  = euler_to_quaternion(radian_from_degree(-45.f), 0.f, 0.f);
                 debug_camera->flags |= ENTITY_FLAG_FREE_CAMERA;
                 entity_init(debug_camera, nullptr);
@@ -312,7 +310,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            constexpr int num_soldiers = 2;
+            constexpr int num_soldiers = 10;
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
                 f32 z = 0.f + 1.f*(i/num_soldiers);

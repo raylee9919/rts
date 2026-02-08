@@ -56,7 +56,7 @@ struct Asset_Mesh
     Asset_Vertex *vertices;
 
     u32 index_count;
-    u32 *indices;
+    u32* indices;
 
 #if 0
     u8 has_albedo;
@@ -199,11 +199,11 @@ enum Pbr_Texture_Type
 
 struct Mesh 
 {
-    u32 vertex_count;
-    Vertex *vertices;
+    u32     vertex_count;
+    Vertex* vertices;
 
-    u32 index_count;
-    u32 *indices;
+    u32     index_count;
+    u32*    indices;
 
     Bitmap textures[Pbr_Texture_Count];
 };
@@ -230,14 +230,14 @@ struct Node
 struct Model 
 {
     u32 mesh_count;
-    Mesh *meshes;
+    Mesh* meshes;
 
     u32 material_count;
-    Material *materials;
+    Material* materials;
 
     u32 node_count;
     s32 root_bone_node_id;
-    Node *nodes;
+    Node* nodes;
 };
 
 // Note: Animation

@@ -163,10 +163,23 @@ render_begin(void)
         buffer->instance_count = 0;
     }
 
-    // # Note: Clear command buffer.
+    // Clear command buffer.
     //
     renderer->command_count = 0;
+
+    renderer->num_meshes = 0;
 }
+
+internal int
+qsort_mesh_cmp(const void* a, const void* b)
+{
+    Render_Mesh* l = (Render_Mesh*)a;
+    Render_Mesh* r = (Render_Mesh*)b;
+
+    if (l->mesh < r->mesh) return -1;
+    if (l->mesh > r->mesh) return  1;
+    return 0;
+};
 
 internal void
 render_end(void)
@@ -183,15 +196,14 @@ render_end(void)
             } break;
 
             default: {
-                assert(! "not implemented yet?");
+                assert(!"not implemented yet.");
             } break;
         }
     }
 
-
     // Sort meshes by type so we can do instanced draw.
     //
-    qsort(renderer->meshes, renderer->num_meshes, sizeof(renderer->meshes[0]), COMPAREEEEE);
+    qsort(renderer->meshes, renderer->num_meshes, sizeof(renderer->meshes[0]), qsort_mesh_cmp);
 }
 
 internal void
