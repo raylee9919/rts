@@ -40,15 +40,18 @@ set compiler=cl
 set flags_common=-std:c++17 -nologo -FC -Zi -EHsc- -utf-8 -D__DEVELOPER=1 -I..\src -I..\src\vendor
 set flags_debug=/Od /DBUILD_DEBUG=1
 set flags_release=/O2 /DBUILD_DEBUG=0
-set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS /wd4456 /wd4100 /wd4189 /wd4505 /wd4201 /wd4477 /wd4311 /wd4302 /wd4005 /wd4244 /wd4706
+:: 4100: unreferenced formal parameter
+:: 4189: local variable is initialized but not referenced
+:: 4456: declaration hides previous local declaration
+set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS -wd4201 -wd4505 -wd4100 -wd4189 -wd4456
 set flags_linker=/incremental:no /opt:ref
 
 :: Choose Compile/Link Lines
                         set flags_compile=%flags_common% %flags_warning%
 if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
 if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
-if "%profile%"=="1"     set flags_compile=%flags_compile% /DBUILD_PROFILE=1    && echo [Profiler Enabled]
-if "%asan%"=="1"        set flags_compile=%flags_compile% /fsanitize=address && echo [ASAN Enabled]
+if "%profile%"=="1"     set flags_compile=%flags_compile% -DBUILD_PROFILE=1  && echo [Profiler Enabled]
+if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address && echo [ASAN Enabled]
 
 
 :: ---------------------------- Projects ---------------------------- ::
@@ -59,7 +62,7 @@ REM if exist *.pdb del *.pdb
 
 :: ---------------------------- Tools ---------------------------- ::
 :: Assimp
-REM call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mt.lib .ss.\lib\meshoptimizer.lib
+call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mt.lib ..\lib\meshoptimizer.lib
 
 :: Metaprogramming
 REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%

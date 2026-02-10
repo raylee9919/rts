@@ -506,7 +506,7 @@ ui_animate(void)
 {
     ProfileScope;
 
-    f32 rate = 1 - pow(2.f, -50.f * ui_state->dt*0.2f);
+    f32 rate = 1.f - powf(2.f, -50.f * ui_state->dt*0.2f);
 
     for (u64 slot = 0; slot < ui_state->box_table_size; ++slot)
     {

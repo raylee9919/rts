@@ -89,7 +89,7 @@ struct Entity {
     
     f32         transition_t;
 
-    u32         target_id;
+    u64         target_id;
 
 
     f32         find_target_t;

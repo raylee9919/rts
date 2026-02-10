@@ -1,12 +1,6 @@
-#ifndef EMBED_PROFILE_H
-#define EMBED_PROFILE_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 
 #if BUILD_PROFILE
@@ -23,8 +17,3 @@
 #  define ProfileScopeN
 #  define ProfileScopeNC
 #endif
-
-
-
-
-#endif // EMBED_PROFILE_H

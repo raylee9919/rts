@@ -212,8 +212,9 @@ invsqlen(v4 v)
 }
 
 internal f32
-length(v2 A) {
-    f32 result = sqrt(sqlen(A));
+length(v2 A) 
+{
+    f32 result = sqrtf(sqlen(A));
     return result;
 }
 
@@ -449,7 +450,7 @@ hadamard(v4 a, v4 b)
 internal f32
 length(v3 A) 
 {
-    f32 result = sqrt(sqlen(A));
+    f32 result = sqrtf(sqlen(A));
     return result;
 }
 
@@ -475,16 +476,15 @@ lerp(v3 a, f32 t, v3 b)
 internal f32
 distance(v3 a, v3 b) 
 {
-    return sqrt((a.x - b.x) * (a.x - b.x) + 
-                (a.y - b.y) * (a.y - b.y) + 
-                (a.z - b.z) * (a.z - b.z));
+    return sqrtf((a.x - b.x) * (a.x - b.x) + 
+                 (a.y - b.y) * (a.y - b.y) + 
+                 (a.z - b.z) * (a.z - b.z));
 }
 
 internal f32
 distance(v2 a, v2 b) 
 {
-    return sqrt((a.x - b.x) * (a.x - b.x) + 
-                (a.y - b.y) * (a.y - b.y));
+    return sqrtf((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
 internal f32
@@ -677,10 +677,10 @@ slerp(Quaternion q1, f32 t, Quaternion q2)
 
     if (1.0f - cosom > threshold) {
         f32 omega, sinom;
-        omega = acos(cosom);
-        sinom = sin(omega);
-        sclp  = sin((1.0f - t) * omega) / sinom;
-        sclq  = sin(t * omega) / sinom;
+        omega = acosf(cosom);
+        sinom = sinf(omega);
+        sclp  = sinf((1.0f - t) * omega) / sinom;
+        sclq  = sinf(t * omega) / sinom;
     } else {
         sclp = 1.0f - t;
         sclq = t;
@@ -697,7 +697,6 @@ slerp(Quaternion q1, f32 t, Quaternion q2)
 //
 // m4x4
 //
-
 internal m4x4
 operator * (m4x4 a, m4x4 b) 
 {
@@ -741,8 +740,8 @@ identity()
 internal m4x4
 x_rotation(f32 a) 
 {
-    f32 c = cos(a);
-    f32 s = sin(a);
+    f32 c = cosf(a);
+    f32 s = sinf(a);
     m4x4 r = {
         {{ 1,  0,  0,  0 },
          { 0,  c, -s,  0 },
@@ -756,8 +755,8 @@ x_rotation(f32 a)
 internal m4x4
 y_rotation(f32 a) 
 {
-    f32 c = cos(a);
-    f32 s = sin(a);
+    f32 c = cosf(a);
+    f32 s = sinf(a);
     m4x4 r = {
         {{ c,  0,  s,  0 },
          { 0,  1,  0,  0 },
@@ -771,8 +770,8 @@ y_rotation(f32 a)
 internal m4x4
 z_rotation(f32 a) 
 {
-    f32 c = cos(a);
-    f32 s = sin(a);
+    f32 c = cosf(a);
+    f32 s = sinf(a);
     m4x4 r = {
         {{ c, -s,  0,  0 },
          { s,  c,  0,  0 },
@@ -924,12 +923,12 @@ quaternion_to_m4x4(Quaternion q)
 internal Quaternion
 euler_to_quaternion(f32 roll, f32 pitch, f32 yaw)
 {
-    f32 cr = cos(roll * 0.5f);
-    f32 sr = sin(roll * 0.5f);
-    f32 cp = cos(pitch * 0.5f);
-    f32 sp = sin(pitch * 0.5f);
-    f32 cy = cos(yaw * 0.5f);
-    f32 sy = sin(yaw * 0.5f);
+    f32 cr = cosf(roll * 0.5f);
+    f32 sr = sinf(roll * 0.5f);
+    f32 cp = cosf(pitch * 0.5f);
+    f32 sp = sinf(pitch * 0.5f);
+    f32 cy = cosf(yaw * 0.5f);
+    f32 sy = sinf(yaw * 0.5f);
 
     Quaternion q;
     q.w = cr * cp * cy + sr * sp * sy;
@@ -1075,8 +1074,8 @@ trs_to_transform(v3 translation, Quaternion rotation, v3 scaling)
 internal Quaternion
 build_quaternion(v3 axis, f32 radian)
 {
-    f32 c = cos(radian*0.5f);
-    f32 s = sin(radian*0.5f);
+    f32 c = cosf(radian*0.5f);
+    f32 s = sinf(radian*0.5f);
     v3 n = s * normalize(axis);
     Quaternion result = Quaternion{c, n.x, n.y, n.z};
     return result;

@@ -70,14 +70,12 @@ struct Date_Time
     u8  hour;
     u8  minute;
     u8  second;
-    u8  milliseconds;
+    u16 milliseconds;
 };
 
 // NOTE: Event
 //
-typedef u16 Os_Event_Type;
-enum 
-{
+enum Os_Event_Type : u16 {
     OS_EVENT_NULL = 0,
 
     OS_EVENT_PRESS,
@@ -89,9 +87,7 @@ enum
     OS_EVENT_MOUSE_SCROLL,
 };
 
-typedef u16 Os_Key;
-enum
-{
+enum Os_Key {
     OS_KEY_NULL         = 0,
 
     OS_KEY_MOUSE_LEFT   = 1,

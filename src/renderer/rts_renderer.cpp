@@ -16,21 +16,8 @@ __push_render_entity(Render_Group* renderGroup, u32 size, Render_Type type)
     return header;
 }
 
-//internal void
-//push_mesh(Render_Group* group, Mesh* mesh,
-//          m4x4 world_transform, m4x4* animation_transforms, u32 entity_id, v2 uv_scale, v4 tint)
-//{
-//    Render_Mesh *piece          = push_render_entity(group, Render_Mesh);
-//    piece->mesh                 = mesh;
-//    piece->world_transform      = world_transform;
-//    piece->animation_transforms = animation_transforms;
-//    piece->entity_id            = entity_id;
-//    piece->uv_scale             = uv_scale;
-//    piece->tint                 = tint;
-//}
-
 internal void
-push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u32 entity_id, v2 uv_scale, v4 tint)
+push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u64 entity_id, v2 uv_scale, v4 tint)
 {
     assert(r->num_meshes < r->max_meshes);
 

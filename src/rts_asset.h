@@ -1,12 +1,7 @@
-#ifndef RTS_ASSET_H
-#define RTS_ASSET_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
+
 #pragma pack(push, 1)
 
 // # Todo: Clean those mangled gibberish.
@@ -128,7 +123,7 @@ struct Asset_Animation_Node
 
     u32 translation_count;
     u32 rotation_count;
-    u32 scaling_count;
+    u32 num_scales;
 
     dt_v3_Pair  *translations;
     dt_qt_Pair  *rotations;
@@ -266,11 +261,11 @@ struct Sample
 
     u32         translation_count;
     u32         rotation_count;
-    u32         scaling_count;
+    u32         num_scales;
 
     dt_v3_Pair* translations;
     dt_qt_Pair* rotations;
-    dt_v3_Pair* scalings;
+    dt_v3_Pair* scales;
 };
 
 struct Animation 
@@ -297,11 +292,10 @@ struct Node_Hash_Result
     u32 idx;
 };
 
-struct TRS 
-{
-    v3 translation;
+struct Xform {
+    v3         translation;
     Quaternion rotation;
-    v3 scaling;
+    v3         scale;
 };
 
 struct Eval_Stack_Frame
@@ -324,15 +318,15 @@ internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
 internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale = v3(1.f));
 internal void asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena);
 internal u32 get_triangle_count(Model *model);
-internal u32 animation_hash(u32 id, u32 length);
+internal u64 animation_hash(u32 id, u32 length);
 
 
 // # Note: Animation.
 //
 internal Node_Hash_Result get_sample_index(Animation *anim, u32 id);
 internal void anim_accumulate(Animation_Channel *channel, f32 dt);
-internal TRS interpolate_trs(TRS trs1, f32 t, TRS trs2);
-internal TRS interpolate_sample(Sample *sample, f32 dt);
+internal Xform interpolate_trs(Xform trs1, f32 t, Xform trs2);
+internal Xform interpolate_sample(Sample *sample, f32 dt);
 internal void eval_node(Animation *anim, f32 dt, Node *node);
 internal void eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_node);
 internal void interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f32 dt2);
@@ -340,11 +334,4 @@ internal void interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animat
 
 
 
-// # Note: New asset system.
-//
-
-
-
 #pragma pack(pop)
-
-#endif // RTS_ASSET_H

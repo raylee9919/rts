@@ -9,15 +9,8 @@
 
 #pragma comment(lib, "opengl32.lib")
 
-// # Note: Coordinate
 //
-//         Normalized Device Coordinate
-//                 ^
-//                 |
-//          -------|------->
-
-
-// # Note: Globals and Constants.
+// Globals and Constants.
 //
 global const char *g_shader_header = 
 #include "shader/header.glsl"
@@ -264,8 +257,8 @@ struct Opengl
 
 
     // VBO list.
-    Gl_Mesh_Buffer* first_mesh_buffer;
-    Gl_Mesh_Buffer* last_mesh_buffer;
+    Gl_Mesh_Buffer *first_mesh_buffer;
+    Gl_Mesh_Buffer *last_mesh_buffer;
 
 
 

@@ -1,15 +1,7 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
-// @Todo: Asset system is busted in file io/memory-wise.
 
-// @Todo: Not thrilled of this macro.
 #define READ(to, type)\
     memcpy(&to, at, sizeof(type)); \
     at += sizeof(to);
@@ -31,8 +23,8 @@ asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale)
     // Note: read entire file.
     //
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
-    u8* at  = entire_file.str;
-    u8* end = at + entire_file.len;
+    u8 *at  = entire_file.str;
+    u8 *end = at + entire_file.len;
 
     READ(model->mesh_count, u32);
 
@@ -105,18 +97,20 @@ get_triangle_count(Model *model)
     return result;
 }
 
-internal u32
+internal u64
 animation_hash(u32 id, u32 length) {
-    // @Todo: Better hash function!
-    u32 slot = ((id * 23 + id * 8) % length);
+    u64 x = ( ((u64)id << 32) | (u64)length );
+    u64 slot = XXH3_64bits_withSeed(&x, sizeof(x), 0) % length;
     return slot;
 }
 
 internal void
 asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
 {
+    assert(anim);
+
     Temporary_Arena scratch = scratch_begin();
-    Assert(anim);
+    defer(scratch_end(scratch));
 
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
 
@@ -139,14 +133,14 @@ asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
 
         READ(sample->translation_count, u32);
         READ(sample->rotation_count, u32);
-        READ(sample->scaling_count, u32);
+        READ(sample->num_scales, u32);
 
         READ_COUNT(sample->translations, dt_v3_Pair, sample->translation_count);
         READ_COUNT(sample->rotations, dt_qt_Pair, sample->rotation_count);
-        READ_COUNT(sample->scalings, dt_v3_Pair, sample->scaling_count);
+        READ_COUNT(sample->scales, dt_v3_Pair, sample->num_scales);
     }
 
-    Assert(at == end);
+    assert(at == end);
 
     //
     // Build hash-table (key: node_id, value: node_idx in Animation->nodes)
@@ -159,7 +153,7 @@ asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
          ++sample_idx)
     {
         Sample *sample = anim->samples + sample_idx;
-        u32 entry_idx = animation_hash(sample->id, ht->entry_count);
+        u64 entry_idx = animation_hash(sample->id, ht->entry_count);
         Animation_Hash_Entry *entry = ht->entries + entry_idx;
         Animation_Hash_Slot *slot = entry->first;
         if (slot)
@@ -173,9 +167,7 @@ asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
             new_slot->id = sample->id;
             new_slot->idx = sample_idx;
             new_slot->next = 0;
-        }
-        else
-        {
+        } else {
             slot = push_struct(arena, Animation_Hash_Slot);
             slot->id = sample->id;
             slot->idx = sample_idx;
@@ -184,7 +176,6 @@ asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
             entry->first = slot;
         }
     }
-    scratch_end(scratch);
 }
 
 internal void
@@ -225,7 +216,7 @@ asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 
     stbi_set_flip_vertically_on_load(true);
     int x, y, num_channels;
-    u8* data = stbi_load_from_memory(contents.str, contents.len, &x, &y, &num_channels, 0);
+    u8 *data = stbi_load_from_memory(contents.str, (int)contents.len, &x, &y, &num_channels, 0);
 
     bitmap->bits_per_channel = 8;
     bitmap->channel_count    = num_channels;
@@ -251,7 +242,7 @@ get_sample_index(Animation *anim, u32 id)
     Node_Hash_Result result = {};
 
     Animation_Hash_Table *ht = &anim->hash_table;
-    u32 entry_idx = animation_hash(id, ht->entry_count);
+    u64 entry_idx = animation_hash(id, ht->entry_count);
     Animation_Hash_Entry *entry = ht->entries + entry_idx;
     for (Animation_Hash_Slot *slot = entry->first;
          slot;
@@ -281,10 +272,10 @@ anim_accumulate(Animation_Channel *channel, f32 dt)
     }
 }
 
-internal TRS
-interpolate_trs(TRS trs1, f32 t, TRS trs2)
+internal Xform
+interpolate_trs(Xform trs1, f32 t, Xform trs2)
 {
-    TRS result = {};
+    Xform result = {};
     result.translation = lerp(trs1.translation, t, trs2.translation);
 
     Quaternion first  = trs1.rotation;
@@ -294,14 +285,14 @@ interpolate_trs(TRS trs1, f32 t, TRS trs2)
     }
     result.rotation = nlerp(first, t, second);
 
-    result.scaling     = lerp(trs1.scaling, t, trs2.scaling);
+    result.scale = lerp(trs1.scale, t, trs2.scale);
     return result;
 }
 
-internal TRS
+internal Xform
 interpolate_sample(Sample* sample, f32 dt)
 {
-    TRS result = {};
+    Xform result = {};
 
     // Translation
     result.translation = (sample->translations + (sample->translation_count - 1))->vec;
@@ -340,18 +331,18 @@ interpolate_sample(Sample* sample, f32 dt)
         }
     }
 
-    // Scaling
-    result.scaling = (sample->scalings + (sample->scaling_count - 1))->vec;
-    for (u32 scaling_idx = 0; scaling_idx < sample->scaling_count; ++scaling_idx) 
+    // scale
+    result.scale = (sample->scales + (sample->num_scales - 1))->vec;
+    for (u32 scale_idx = 0; scale_idx < sample->num_scales; ++scale_idx) 
     {
-        dt_v3_Pair *hi_key = sample->scalings + scaling_idx;
+        dt_v3_Pair *hi_key = sample->scales + scale_idx;
         if (hi_key->dt > dt) {
             dt_v3_Pair *lo_key = (hi_key - 1);
             f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
-            result.scaling = lerp(lo_key->vec, t, hi_key->vec);
+            result.scale = lerp(lo_key->vec, t, hi_key->vec);
             break;
         } else if (hi_key->dt == dt) {
-            result.scaling = hi_key->vec;
+            result.scale = hi_key->vec;
             break;
         }
     }
@@ -365,8 +356,8 @@ eval_node(Animation *anim, f32 dt, Node *node)
     Node_Hash_Result hash_result = get_sample_index(anim, node->id);
     if (hash_result.found) {
         Sample *sample = (anim->samples + hash_result.idx);
-        TRS trs = interpolate_sample(sample, dt);
-        node->current_transform = trs_to_transform(trs.translation, trs.rotation, trs.scaling);
+        Xform trs = interpolate_sample(sample, dt);
+        node->current_transform = trs_to_transform(trs.translation, trs.rotation, trs.scale);
     }
     else {
         node->current_transform = node->base_transform;
@@ -426,17 +417,13 @@ interpolate(Model* model, Animation* anim1, f32 dt1, f32 t, Animation* anim2, f3
 
             assert(sample1->id == id && sample1->id == sample2->id);
 
-            TRS trs1 = interpolate_sample(sample1, dt1);
-            TRS trs2 = interpolate_sample(sample2, dt2);
-            TRS r = interpolate_trs(trs1, t, trs2);
-            m4x4 transform = trs_to_transform(r.translation, r.rotation, r.scaling);
+            Xform trs1 = interpolate_sample(sample1, dt1);
+            Xform trs2 = interpolate_sample(sample2, dt2);
+            Xform r = interpolate_trs(trs1, t, trs2);
+            m4x4 transform = trs_to_transform(r.translation, r.rotation, r.scale);
             node->current_transform = transform;
         } else {
             node->current_transform = node->base_transform;
         }
     }
 }
-
-// # Note: New asset codes below here!
-//
-

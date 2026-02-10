@@ -1,14 +1,8 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
 
-internal Arena *arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
+internal Arena* arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
 {
     u64 page_size = os->query_page_size();
     u64 rsv_size  = align_pow2(rsv_size_in, page_size);
@@ -38,14 +32,14 @@ internal Arena *arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
 
 internal void arena_release(Arena *arena)
 {
-    for (Arena *n = arena->current, *prev = 0; n != 0; n = prev)
+    for (Arena* n = arena->current, *prev = 0; n != 0; n = prev)
     {
         prev = n->prev;
         os->memory_release(n, n->rsv);
     }
 }
 
-internal void *arena_push(Arena *arena, u64 size, u64 align)
+internal void* arena_push(Arena *arena, u64 size, u64 align)
 {
     Arena *current = arena->current;
     u64 pos_pre = align_pow2(current->pos, align);

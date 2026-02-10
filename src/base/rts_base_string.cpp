@@ -1,53 +1,13 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
 #define STB_SPRINTF_IMPLEMENTATION
 #define STB_SPRINTF_DECORATE(name) str_##name
 #include "base/vendor/stb_sprintf.h"
 
-
-internal b32
-is_hexdigit(int c) 
-{
-    return (((c >= '0') && (c <= '9')) || (((c & 0xdf) >= 'A') && ((c & 0xdf) <= 'Z')));
-}
-
-internal b32
-is_alnum(int c) 
-{
-    if (is_alpha(c)) return true;
-    if (is_digit(c)) return true;
-    return false;
-}
-
-internal b32
-is_whitespace(int c) 
-{
-    return ( (c == ' ')  || (c == '\t') || (c == '\v') ||
-             (c == '\n') || (c == '\f') || (c == '\r') );
-}
-
-internal int
-atoi(int c) 
-{
-    return c - '0';
-}
-
-internal u64
-atoh(int c) 
-{
-    if (is_digit(c)) 
-        return atoi(c);
-    else 
-        return 10 + ((c & 0xdf) - 'A');
-}
-
+//
+// c-string
+//
 internal u64
 string_length(const char *string)
 {
@@ -89,53 +49,7 @@ string_equal(char *str1, char *str2)
     return string_equal(str1, string_length(str1), str2, string_length(str2));
 }
 
-internal s32
-s32_from_z_internal(char **at_init)
-{
-    s32 result = 0;
 
-    char *at = *at_init;
-    while ((*at >= '0') && (*at <= '9'))
-    {
-        result *= 10;
-        result += (*at - '0');
-        ++at;
-    }
-
-    *at_init = at;
-
-    return result;
-}
-
-internal s32
-s32_from_z(char *at)
-{
-    char *ignored = at;
-    s32 result = s32_from_z_internal(&ignored);
-    return result;
-}
-
-internal void
-copyz(char *src, char *dst) 
-{
-    u64 len = string_length(src);
-    memory_copy(dst, src, len);
-    src[len] = 0;
-}
-
-
-
-
-
-// # Note: C-String
-//
-internal u64
-cstr_length(char *cstr)
-{
-    u64 result = 0;
-    for(;cstr[result]; result++);
-    return result;
-}
 
 internal Utf8
 utf8_copy(Arena *arena, Utf8 utf)
@@ -148,48 +62,59 @@ utf8_copy(Arena *arena, Utf8 utf)
     return result;
 }
 
-// # Note: Helper Functions.
 //
-internal b32
-is_alpha(u8 c)
-{
+// Helper Functions.
+//
+bool is_alpha(int c) {
     c &= 0xdf;
-    b32 result = ((c >= 'A') && (c <= 'Z'));
+    bool result = ((c >= 'A') && (c <= 'Z'));
     return result;
 }
 
-internal b32
-is_digit(u8 c)
-{
-    b32 result = (c >= 48 && c <= 57);
+bool is_digit(int c) {
+    bool result = (c >= 48 && c <= 57);
     return result;
 }
 
-internal b32
-is_whitespace(u8 c)
-{
-    b32 result = (c == ' '  || c == '\t' || c == '\r' ||
-                  c == '\n' || c == '\f' || c == '\v');
-    return result;
+bool is_hexdigit(int c) {
+    return (((c >= '0') && (c <= '9')) || (((c & 0xdf) >= 'A') && ((c & 0xdf) <= 'Z')));
 }
 
-internal u8
-to_uppercase(u8 c)
-{
+bool is_alnum(int c) {
+    if (is_alpha(c)) return true;
+    if (is_digit(c)) return true;
+    return false;
+}
+
+bool is_whitespace(int c) {
+    return ( (c == ' ')  || (c == '\t') || (c == '\v') ||
+             (c == '\n') || (c == '\f') || (c == '\r') );
+}
+
+int atoi(int c) {
+    return c - '0';
+}
+
+int atoh(int c) {
+    if (is_digit(c)) 
+        return atoi(c);
+    else 
+        return 10 + ((c & 0xdf) - 'A');
+}
+
+u8 to_uppercase(u8 c) {
     return (c >= 'a' && c <= 'z') ? ('A' + (c - 'a')) : c;
 }
 
-internal u8
-to_lowercase(u8 c)
-{
+u8 to_lowercase(u8 c) {
     return (c >= 'A' && c <= 'Z') ? ('a' + (c - 'A')) : c;
 }
 
-internal u8
-to_forward_slash(u8 c)
-{
+u8 to_forward_slash(u8 c) {
     return (c == '\\' ? '/' : c);
 }
+
+
 
 
 // # Note: String Constructors
@@ -525,7 +450,7 @@ utf8fv(Arena *arena, char *fmt, va_list args)
 }
 
 internal Utf8
-utf8f(Arena *arena, char *fmt, ...)
+utf8f(Arena* arena, char* fmt, ...)
 {
     Utf8 result = {};
     va_list args;
@@ -536,8 +461,9 @@ utf8f(Arena *arena, char *fmt, ...)
 }
 
 
-// --------------------------------------------
-// @Note: Chop/Slash Helpers.
+// 
+// Chop/Slash Helpers.
+//
 internal Utf8
 utf8_skip_whitespace(Utf8 str)
 {

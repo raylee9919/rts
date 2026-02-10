@@ -88,7 +88,7 @@ internal void
 fp_add_font_from_memory(void *data, u64 size)
 {
     IDWriteFontFile *font_file;
-    if (FAILED(fp_state->in_memory_font_file_loader->CreateInMemoryFontFileReference(fp_state->factory, data, size, NULL, &font_file)))
+    if (FAILED(fp_state->in_memory_font_file_loader->CreateInMemoryFontFileReference(fp_state->factory, data, (UINT32)size, NULL, &font_file)))
     {
         assert(! "IDWriteInMemoryFontFileLoader::CreateInMemoryFontFileReference() Failed."); 
     }
@@ -210,7 +210,7 @@ dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
     while (offset < string16.len)
     {
         Dwrite_Font_Fallback_Result ff = dwrite_font_fallback(fp_state->system_font_fallback1, fp_state->system_font_collection, base_family,
-                                                              (WCHAR *)string16.str + offset, string16.len - offset);
+                                                              (WCHAR *)string16.str + offset, (u32)(string16.len - offset));
         u32 run_length = ff.length;
         IDWriteFontFace5 *run_face = ff.face;
         assert(run_face);
@@ -637,10 +637,10 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
                 glyph->index    = glyph_index;
                 glyph->uv_min   = {(f32)(x1 + margin) / (f32)atlas->width, (f32)(y1 + margin) / (f32)atlas->height};
                 glyph->uv_max   = {(f32)(x2 - margin) / (f32)atlas->width, (f32)(y2 - margin) / (f32)atlas->height};
-                glyph->lsb      = bounds.left;
-                glyph->rsb      = bounds.right;
-                glyph->tsb      = bounds.top;
-                glyph->bsb      = bounds.bottom;
+                glyph->lsb      = (f32)bounds.left;
+                glyph->rsb      = (f32)bounds.right;
+                glyph->tsb      = (f32)bounds.top;
+                glyph->bsb      = (f32)bounds.bottom;
                 
                 font_entry->atlas.dirty = 1;
             }

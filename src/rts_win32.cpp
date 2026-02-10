@@ -119,7 +119,7 @@ win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         case WM_CHAR: 
         case WM_SYSCHAR:
         {
-            u32 c = wparam;
+            int c = (int)wparam;
             if (c == '\r') { c = '\n'; }
 
             if ((c >= 32 && c != 127/*DEL*/) || c == '\t' || c == '\n')

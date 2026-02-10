@@ -1,13 +1,8 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
-// # Note: Face alloc
+//
+//  Face alloc
 //
 internal Face *
 face_alloc(void)
@@ -36,7 +31,8 @@ face_alloc(void)
 }
 
 
-// # Note: Glyph metrics.
+//
+// Glyph metrics.
 //
 internal u64
 glyph_metrics_slot_from_index(Face *face, u16 glyph_index)
@@ -92,7 +88,8 @@ glyph_metrics_put(Face *face, Glyph_Metrics metrics)
 
 
 
-// # Note: CMAP
+//
+// CMAP
 //
 internal u64
 face_cmap_slot_from_codepoint(Face *face, u32 codepoint)

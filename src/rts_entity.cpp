@@ -1,5 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+//
 // Functionalities
 //
 internal void
@@ -200,6 +201,8 @@ entity_find_target(Entity* entity, f32 radius, Arena* arena)
 internal void
 entity_find_path(Entity* entity, v3 destination)
 {
+    ProfileScope;
+
     // Alias
     cdt_triangle* triangles = game_state->navmesh.triangles;
     Cdt_Context* ctx = &game_state->navmesh.ctx;
@@ -539,7 +542,7 @@ entity_init(Entity* entity, Entity* parent)
         // @Todo: Doomed coordinate..
         //
         if (entity->navmesh_scale > 0.f) {
-            const int id = entity->id;
+            const u64 id = entity->id;
             const f32 x = entity->position.z;
             const f32 y = entity->position.x;
             const f32 f = entity->navmesh_scale;
@@ -577,10 +580,12 @@ entity_release(u64 id)
 internal void 
 entity_update(Entity* entity, const f32 dt) 
 {
+    ProfileScopeNC("entity_update", 0x5F96F7);
+    
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    u32 id = entity->id;
+    u64 id = entity->id;
 
     switch (entity->type) {
         default: {
@@ -597,14 +602,14 @@ entity_update(Entity* entity, const f32 dt)
                 f32 friction       = 7.0f;
                 f32 max_speed      = 20.0f;
                 m4x4 rotation      = quaternion_to_m4x4(entity->orientation);
-                v3 desired_dir     = {};
+                v3 dir = {};
 
                 if (entity->flags & ENTITY_FLAG_GAME_CAMERA) {
 
-                    desired_dir += os->key_is_down[OS_KEY_UP]    ? v3( 0, 0,-1) : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_LEFT]  ? v3(-1, 0, 0) : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
+                    dir += os->key_is_down[OS_KEY_UP]    ? v3( 0, 0,-1) : v3{};
+                    dir += os->key_is_down[OS_KEY_LEFT]  ? v3(-1, 0, 0) : v3{};
+                    dir += os->key_is_down[OS_KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
+                    dir += os->key_is_down[OS_KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
 
                     //if ((f32)p.x > game_state->window_width)  desired_dir += v3( 1, 0, 0);
                     //if ((f32)p.x < 0.f)                       desired_dir += v3(-1, 0, 0);
@@ -613,12 +618,12 @@ entity_update(Entity* entity, const f32 dt)
 
                 } else if (entity->flags & ENTITY_FLAG_FREE_CAMERA) {
 
-                    desired_dir += os->key_is_down[OS_KEY_W] ? (rotation * V4( 0,  0, -1, 0)).xyz : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_A] ? (rotation * V4(-1,  0,  0, 0)).xyz : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_S] ? (rotation * V4( 0,  0,  1, 0)).xyz : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
-                    desired_dir += os->key_is_down[OS_KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[OS_KEY_W] ? (rotation * V4( 0,  0, -1, 0)).xyz : v3{};
+                    dir += os->key_is_down[OS_KEY_A] ? (rotation * V4(-1,  0,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[OS_KEY_S] ? (rotation * V4( 0,  0,  1, 0)).xyz : v3{};
+                    dir += os->key_is_down[OS_KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[OS_KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[OS_KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
                    
 
                     if (os->key_is_down[OS_KEY_SHIFT]) {
@@ -641,8 +646,7 @@ entity_update(Entity* entity, const f32 dt)
                             dragging = true;
                         }
 
-                        if (event->type == OS_EVENT_MOUSE_MOVE && dragging)
-                        {
+                        if (event->type == OS_EVENT_MOUSE_MOVE && dragging) {
                             os_event_consume(event);
 
                             v2 d = 0.5f * dt * (os->mouse_position_last - mouse_position_last);
@@ -660,14 +664,14 @@ entity_update(Entity* entity, const f32 dt)
                     assert(!"Invalid camera flag");
                 }
 
-                if (sqlen(desired_dir) > 0.0f) {
-                    desired_dir = normalize(desired_dir); 
+                if (sqlen(dir) > 0.0f) {
+                    dir = normalize(dir); 
                 }
 
-                v3 target_accel = desired_dir * accel_strength;
+                v3 target_accel = dir * accel_strength;
                 entity->velocity += (dt*target_accel);
 
-                if (sqlen(desired_dir) == 0.0f) {
+                if (sqlen(dir) == 0.0f) {
                     entity->velocity -= entity->velocity * friction * dt; 
                 }
 
@@ -705,6 +709,7 @@ entity_update(Entity* entity, const f32 dt)
         } break;
 
         case ENTITY_TYPE_SOLDIER: {
+
             if ( entity->team == TEAM_PLAYER && !entity_is_dead(entity) && (entity->flags & ENTITY_FLAG_SELECTED) ) {
                 for (Os_Event* event = os->event_first, *next; event != nullptr; event = next) {
                     next = event->next;
@@ -720,7 +725,7 @@ entity_update(Entity* entity, const f32 dt)
                         Entity* camera = entity_from_id(game_state->controlling_camera_id);
 
                         v3 dstv3;
-                        Ray3 ray = ray_from_screen_position(v2(mx,my), game_state->window_width, game_state->window_height, camera->VP);
+                        Ray3 ray = ray_from_screen_position(v2(mx,my), (f32)game_state->window_width, (f32)game_state->window_height, camera->VP);
                         if (ray_plane_intersect(ray, v3{0,1,0}, 0.f, &dstv3)) {
                             // Clear old path data and find new path.
                             entity_clear_path_data(entity);
@@ -734,10 +739,22 @@ entity_update(Entity* entity, const f32 dt)
             }
 
 
-            static int count = 0;
             if (entity->hitpoints <= 0.f && entity->command != ENTITY_CMD_DIEING) {
                 entity->command = ENTITY_CMD_DIEING;
-                count += 1;
+
+                if (entity->flags & ENTITY_FLAG_SELECTED) {
+                    entity->flags &= (~ENTITY_FLAG_SELECTED);
+
+                    // @Todo: :(
+                    auto *gs = game_state;
+                    for (Link <u64> *node = gs->selected_entities.first, *next; node; node = next) {
+                        next = node->next;
+
+                        if (node->data == entity->id) {
+                            dll_remove(gs->selected_entities.first, gs->selected_entities.last, node);
+                        }
+                    }
+                }
             }
 
             if (entity->command == ENTITY_CMD_STOP) {
@@ -860,6 +877,8 @@ entity_update(Entity* entity, const f32 dt)
             // @Todo: Hideous... NEED PROPER ANIMATION BLENDING!!
             //
             if (entity->model) {
+                ProfileScopeN("EntityUpdateAnimation"); // @Todo: This is bottleneck!
+
                 if (!entity_is_dead(entity)) {
                     if (entity->attack_t > 0.f) {
                         Animation_Channel* channel = &entity->animation_channels[0];
@@ -1069,8 +1088,7 @@ entity_update(Entity* entity, const f32 dt)
         }
     }
 
-    // Update children.
-    //
+
 lb_update_children:
     // DFS
     for (Entity* child = entity->first, *next; child != nullptr; child = next) {
@@ -1082,10 +1100,16 @@ lb_update_children:
 internal void 
 entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands* commands) 
 {
+    ProfileScopeNC("entity_draw", 0xFDFBD4);
+
     switch (entity->type) 
     {
         default: {
             assert(!"Invalid defualt case");
+        } break;
+
+        case ENTITY_TYPE_ROOT: {
+            goto lb_update_children;
         } break;
 
         case ENTITY_TYPE_SOLDIER: {
@@ -1135,6 +1159,14 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
                 }
             }
 
+
+            if ((game_state->display_chunk_position) && (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED)) {
+                Entity* camera = entity_from_id(game_state->game_camera_id);
+                v3 p = project(entity->position, camera->VP);
+                p.x = ( p.x*0.5f + 0.5f)*game_state->window_width;
+                p.y = (-p.y*0.5f + 0.5f)*game_state->window_height;
+                fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
+            }
         } break;
 
         case ENTITY_TYPE_CAMERA: {
@@ -1150,5 +1182,13 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
                 }
             }
         } break;
+    }
+
+
+lb_update_children:
+    // DFS
+    for (Entity* child = entity->first, *next; child != nullptr; child = next) {
+        next = child->next_sibling;
+        entity_draw(child, dt, render_group, commands);
     }
 }

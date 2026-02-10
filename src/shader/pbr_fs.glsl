@@ -15,11 +15,6 @@ in vec4 fC;
 in m3x3 TBN;
 
 layout(location=0) out vec4 result_color;
-layout(location=1) out u32 result_id;
-
-uniform u32 entity_id;
-uniform u32 hot_entity_id;
-uniform u32 active_entity_id;
 
 uniform u32 flags;
 uniform vec4 wireframe_color;
@@ -189,7 +184,6 @@ void main()
         };
         result_color.rgb = colors[layer % 3];
 #endif
-        result_id = entity_id;
     } else {
         result_color = wireframe_color;
     }

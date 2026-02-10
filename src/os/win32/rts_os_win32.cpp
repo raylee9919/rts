@@ -516,7 +516,7 @@ OS_INIT(os_win32_init)
             Temporary_Arena tmp = temporary_arena_begin(os->arena);
 
             {
-                u64 size = KB(32);
+                DWORD size = KB(32);
                 u16 *buffer = push_array_noz(tmp.arena, u16, size);
                 DWORD length = GetModuleFileNameW(0, (WCHAR *)buffer, size);
                 binary_path = to_utf8(tmp.arena, utf16(buffer, length));
@@ -524,7 +524,7 @@ OS_INIT(os_win32_init)
             }
 
             {
-                u64 size = KB(32);
+                DWORD size = KB(32);
                 u16 *buffer = push_array_noz(tmp.arena, u16, size);
                 if (SUCCEEDED(SHGetFolderPathW(0, CSIDL_APPDATA, 0, 0, (WCHAR *)buffer)))
                 {

@@ -1,15 +1,9 @@
-#ifndef RTS_CDT_H
-#define RTS_CDT_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 
-typedef unsigned int  cdt_id;
+typedef u64 cdt_id;
 
 typedef struct cdt_vertex cdt_vertex;
 typedef struct cdt_quad_edge cdt_quad_edge;
@@ -114,5 +108,3 @@ static void           cdt_get_all_triangles(Cdt_Context *ctx, cdt_triangle *out_
 static cdt_triangle   cdt_get_triangle_containing_point(Cdt_Context *ctx, f32 x, f32 y);
 static cdt_triangles  cdt_get_adjacent_triangles(cdt_triangle triangle);
 static cdt_quad_edge *cdt_get_portal_edge(cdt_triangle src, cdt_triangle dst);
-
-#endif // RTS_CDT_H

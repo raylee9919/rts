@@ -251,9 +251,6 @@ opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(pbr_program, VP);
     GET_UNIFORM_LOCATION(pbr_program, is_skeletal);
     GET_UNIFORM_LOCATION(pbr_program, uv_scale);
-    GET_UNIFORM_LOCATION(pbr_program, entity_id);
-    GET_UNIFORM_LOCATION(pbr_program, hot_entity_id);
-    GET_UNIFORM_LOCATION(pbr_program, active_entity_id);
     GET_UNIFORM_LOCATION(pbr_program, bone_transforms);
     GET_UNIFORM_LOCATION(pbr_program, eye_position);
     GET_UNIFORM_LOCATION(pbr_program, flags);
@@ -276,9 +273,6 @@ opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(ground_program, to_light);
     GET_UNIFORM_LOCATION(ground_program, csm_view);
     GET_UNIFORM_LOCATION(ground_program, csm_z_spans);
-    GET_UNIFORM_LOCATION(ground_program, entity_id);
-    GET_UNIFORM_LOCATION(ground_program, hot_entity_id);
-    GET_UNIFORM_LOCATION(ground_program, active_entity_id);
 
     glDeleteShader(gl->skybox_program.id);
     gl->skybox_program.id = opengl_program_create_vf(gl, skybox_vs, skybox_fs);
@@ -359,11 +353,11 @@ opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
 
         glGenBuffers(1, &node->vbo);
         glBindBuffer(GL_ARRAY_BUFFER, node->vbo);
-        glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(mesh->vertices[0]), mesh->vertices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(mesh->vertices[0]), mesh->vertices, GL_STREAM_DRAW);
 
         glGenBuffers(1, &node->ibo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, node->ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(mesh->indices[0]), mesh->indices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(mesh->indices[0]), mesh->indices, GL_STREAM_DRAW);
 
         sll_push_back(gl->first_mesh_buffer, gl->last_mesh_buffer, node);
     }
@@ -537,7 +531,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
             f32 depth = max.z - min.z; // TODO: Fit z?
 
-            m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.0, depth*2.0);
+            m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.f, depth*2.f);
             light_view_projs[level] = light_proj * light_view;
         } else {
             v3 A = frustum_positions[level*4 + 0];
@@ -551,7 +545,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             v3 CD = (C+D)*0.5f;
             f32 h = distance(AB, CD);
             f32 k = (4*h*h + b*b - a*a) / (8*h);
-            f32 r = sqrt(k*k + a*a*0.25f);
+            f32 r = sqrtf(k*k + a*a*0.25f);
             f32 t = map(k, 0, h);
             v3 c = lerp(AB, t, CD);
 
@@ -640,7 +634,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
         }
     }
-
+    
 
     // Skybox
     //
@@ -699,10 +693,11 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
+        //
         // PBR
         //
         {
-            defer( glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) );
+            defer(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 
             Pbr_Program* pbr_program = &gl->pbr_program;
             glUseProgram(pbr_program->id);
@@ -728,9 +723,6 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 glUniform2f(pbr_program->uv_scale, piece->uv_scale.x, piece->uv_scale.y);
                 glUniform3fv(pbr_program->eye_position, 1, (GLfloat *)&frame->main_eye_position);
                 glUniformMatrix4fv(pbr_program->csm_view, 1, true, &frame->csm_view.e[0][0]);
-                glUniform1ui(pbr_program->entity_id, piece->entity_id);
-                glUniform1ui(pbr_program->hot_entity_id, frame->hot_entity_id);
-                glUniform1ui(pbr_program->active_entity_id, frame->active_entity_id);
                 glUniform4fv(pbr_program->wireframe_color, 1, (GLfloat *)&frame->wireframe_color);
                 glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
                 glUniformMatrix4fv(pbr_program->shadowmap_view_projs, CSM_COUNT, true, &light_view_projs[0].e[0][0]);
@@ -912,40 +904,6 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             glEnable(GL_DEPTH_TEST);
         }
-
-        // NOTE: Mouse Picking
-        //
-#if 0
-        {
-            // @Temporary:
-            if (! frame->input.interacted_ui) 
-            {
-                glBindTexture(GL_TEXTURE_2D, gl->id_texture);
-
-                u32 entity_id;
-                s32 mousex = s32(frame->input.mouse.position.x);
-                s32 mousey = s32(frame->input.mouse.position.y);
-                glReadBuffer(GL_COLOR_ATTACHMENT1);
-                glReadPixels(mousex, mousey, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT, &entity_id);
-                
-                if (frame->input.mouse.is_down[Mouse_Left] && frame->input.mouse.toggle[Mouse_Left]) 
-                {
-                    frame->toggled_down_mouse_position = frame->input.mouse.position;
-                    frame->toggled_down_entity_id = entity_id;
-                }
-                else if (!frame->input.mouse.is_down[Mouse_Left] && frame->input.mouse.toggle[Mouse_Left]) 
-                {
-                    if (frame->toggled_down_entity_id == entity_id &&
-                        distance(frame->toggled_down_mouse_position, frame->input.mouse.position) < 1.0f) 
-                    {
-                        frame->active_entity_id = entity_id;
-                    }
-                }
-
-                glBindTexture(GL_TEXTURE_2D, 0);
-            }
-        }
-#endif
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, window_width, window_height);
@@ -1152,20 +1110,17 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
                         // NOTE: We are drawing quads independent to the ratio.
                         //         We don't want glyphs to be ugly when we resize the window.
-                        glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_w"), window_width);
-                        glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_h"), window_height);
+                        glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_w"), (f32)window_width);
+                        glUniform1f(glGetUniformLocation(gl->quad_program.id, "viewport_h"), (f32)window_height);
 
                         for (u32 i = 0; i < instance_count; i += 1)
                         {
                             // TODO: We are being lazy and binding the texture according to the vertex's texture id.
                             //         This seems like a lunacy and at some point, it should to be fixed.
                             Render_Id texture_id = buffer->vertices[4*i].texture_id;
-                            if (texture_id.e[0] == 0)
-                            {
+                            if (texture_id.e[0] == 0) {
                                 glBindTexture(GL_TEXTURE_2D, gl->white_bitmap.handle);
-                            }
-                            else
-                            {
+                            } else { 
                                 GLuint gl_id = opengl_id_from_render_id(texture_id);
                                 glBindTextureUnit(0, gl_id);
                             }
@@ -1597,6 +1552,7 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
     return program;
 }
 
+//
 // Inits
 //
 internal void
@@ -1630,28 +1586,25 @@ opengl_get_info(Opengl *gl, b32 modern_context)
         result.version        = (char *)glGetString(GL_VERSION);
     }
     
-    if (result.modern_context) 
-    {
+    if (result.modern_context) {
         result.shading_language_version = (char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
-    }
-    else 
-    {
+    } else {
         result.shading_language_version = "(none)";
     }
     
-    if (glGetStringi)
-    {
+    if (glGetStringi) {
+
         GLint extension_count = 0;
         glGetIntegerv(GL_NUM_EXTENSIONS, &extension_count);
-        for (GLint i = 0; i < extension_count; ++i)
-        {
+
+        for (GLint i = 0; i < extension_count; ++i) {
             char *ext_name = (char *)glGetStringi(GL_EXTENSIONS, i);
             
             if (0) {}
-            else if(string_equal(ext_name, "GL_EXT_texture_sRGB")) { result.opengl_ext_texture_sgb=true; }
-            else if(string_equal(ext_name, "GL_EXT_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
-            else if(string_equal(ext_name, "GL_ARB_framebuffer_sRGB")) { result.opengl_ext_framebuffer_srgb=true; }
-            else if(string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object=true; }
+            else if (string_equal(ext_name, "GL_EXT_texture_sRGB"))       { result.opengl_ext_texture_sgb = true; }
+            else if (string_equal(ext_name, "GL_EXT_framebuffer_sRGB"))   { result.opengl_ext_framebuffer_srgb = true; }
+            else if (string_equal(ext_name, "GL_ARB_framebuffer_sRGB"))   { result.opengl_ext_framebuffer_srgb = true; }
+            else if (string_equal(ext_name, "GL_ARB_framebuffer_object")) { result.opengl_arb_framebuffer_object = true; }
             // TODO: Is there some kind of ARB string to look for that indicates GL_EXT_texture_sRGB?
         }
     }
@@ -1669,20 +1622,17 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     
     s32 major = 1;
     s32 minor = 0;
-    if (minor_at) 
-    {
-        major = s32_from_z(major_at);
-        minor = s32_from_z(minor_at);
+    if (minor_at) {
+        major = atoi(major_at);
+        minor = atoi(minor_at);
     }
     
-    if ((major > 2) || ((major == 2) && (minor >= 1))) 
-    {
+    if ((major > 2) || ((major == 2) && (minor >= 1))) {
         // NOTE: We _believe_ we have sRGB textures in 2.1 and above automatically.
         result.opengl_ext_texture_sgb = true;
     }
     
-    if (major >= 3) 
-    {
+    if (major >= 3) {
         // NOTE: We _believe_ we have framebuffer objects in 3.0 and above automatically.
         result.opengl_arb_framebuffer_object=true;
     }
@@ -1690,9 +1640,9 @@ opengl_get_info(Opengl *gl, b32 modern_context)
     return result;
 }
 
-internal void
-opengl_init(Opengl *gl)
+internal void opengl_init(Opengl *gl)
 {
+
 #if BUILD_DEBUG
     if (glDebugMessageCallbackARB) {
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -1702,7 +1652,8 @@ opengl_init(Opengl *gl)
     }
 #endif
 
-    // NOTE: Textured Quad Shader
+    //
+    // Textured Quad Shader
     //
     char *quad_vs = 
     #include "shader/quad_vs.glsl"
@@ -1713,7 +1664,7 @@ opengl_init(Opengl *gl)
 
 
 
-    // TODO: Clean this
+    // @Todo: Clean this
     opengl_compile_shaders(gl);
 
     { // NOTE: White Texture.
@@ -1754,9 +1705,9 @@ opengl_init(Opengl *gl)
     }
 
     {
-        s32 maxattachment;
-        glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &maxattachment);
-        assert(maxattachment >= 4);
+        s32 max_attachment;
+        glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &max_attachment);
+        assert(max_attachment >= 4);
     }
 
     {

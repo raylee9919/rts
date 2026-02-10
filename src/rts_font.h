@@ -1,12 +1,6 @@
-#ifndef RTS_FONT_H
-#define RTS_FONT_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 
 struct Glyph_Metrics
@@ -16,7 +10,7 @@ struct Glyph_Metrics
     Glyph_Metrics *first;
     Glyph_Metrics *last;
 
-    u32 glyph_index;
+    u16 glyph_index;
 
     f32 uv_min_x;
     f32 uv_min_y;
@@ -46,6 +40,10 @@ struct Face_Cmap
 
     u16 *indices;
     u64 index_count;
+};
+
+struct Face_Id {
+    u64 e[1];
 };
 
 struct Face
@@ -89,6 +87,3 @@ internal Face_Cmap *face_cmap_get(Face *face, u32 codepoint);
 internal void face_cmap_put(Face *face, u32 codepoint, u16 *indices, u64 index_count);
 internal u64 face_cmap_glyph_count_from_codepoint(Face *face, u32 codepoint);
 internal u16 *face_cmap_glyph_indices_from_codepoint(Face *face, u32 codepoint);
-
-
-#endif // RTS_FONT_H

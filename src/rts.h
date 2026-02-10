@@ -2,8 +2,6 @@
 
 #pragma once
 
-
-
 struct Entity;
 
 #define MAX_ENTITY_COUNT 1024
@@ -86,4 +84,8 @@ struct Game_State {
     f32         max_radius;
 
     f32         minimap_size;
+    
+
+    // Debugging
+    b32         display_chunk_position;
 };

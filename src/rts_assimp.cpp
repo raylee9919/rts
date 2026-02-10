@@ -623,7 +623,7 @@ int main(void)
             f32 anim_duration = (f32)(anim->mDuration / anim->mTicksPerSecond);
             u32 node_count    = anim->mNumChannels;
 
-            fwrite(anim->mName.data, sizeof(char) * cstr_length(anim->mName.data) + 1, 1, anim_out);
+            fwrite(anim->mName.data, sizeof(char) * strlen(anim->mName.data) + 1, 1, anim_out);
             fwrite_item(anim_duration, anim_out);
             fwrite_item(node_count, anim_out);
             for (u32 node_idx = 0;

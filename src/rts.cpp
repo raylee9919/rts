@@ -1,12 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-
-// @Todo: We are testing our metaprogramming currently. Those defines are kind of 
-//        API for serializing data types of entity known to serialization module.
-//#define BEGIN_ENTITY
-//#define END_ENTITY
-
-// [.h]
+//
+// .h
 //
 #include "embed_profiler.h"
 
@@ -29,11 +24,12 @@
 #include "third_party/meshoptimizer/meshoptimizer.h"
 
 
-global Game_State* game_state;
-global Renderer* renderer;
+global Game_State *game_state;
+global Renderer *renderer;
 
 
-// [.cpp]
+//
+// .cpp
 //
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.cpp"
@@ -53,7 +49,7 @@ global Renderer* renderer;
 #include "third_party/stb/stb_image.h"
 
 
-internal Entity*
+internal Entity *
 debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 {
     Entity* soldier            = entity_alloc();
@@ -92,8 +88,7 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     return soldier;
 }
 
-
-internal Entity*
+internal Entity *
 debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets)
 {
     Entity* castle = entity_alloc();
@@ -116,6 +111,7 @@ extern "C" __declspec(dllexport)
 GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
     ProfileFrameMark;
+    ProfileScope;
 
     if (!os) {
         os = platform->os;
@@ -276,11 +272,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             asset_load_image(&game_state->assets->debug_bitmap, utf8f(scratch.arena, "%S/textures/doggo.sbmp", platform->data_path), asset_arena);
             
             char *skybox_filenames[6] = {"right", "left", "top", "bottom", "front", "back"};
-            for (u32 i = 0; i < 6; ++i) 
-            {
-                asset_load_image(assets->skybox_textures + i,
-                                 utf8f(scratch.arena, "%S/textures/%s.sbmp", platform->data_path, skybox_filenames[i]),
-                                 asset_arena);
+            for (u32 i = 0; i < 6; ++i) {
+                asset_load_image(assets->skybox_textures + i, utf8f(scratch.arena, "%S/textures/%s.sbmp", platform->data_path, skybox_filenames[i]), asset_arena);
             }
 
             game_state->map_arena     = arena_alloc();
@@ -339,7 +332,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            constexpr int num_soldiers = 2;
+            constexpr int num_soldiers = 8;
             for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
                 f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
                 f32 z = 0.f + 1.f*(i/num_soldiers);
@@ -365,8 +358,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 #endif
             }
 
-#if 0
-            for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
+#if 1
+            for (int i = 0; i < num_soldiers * num_soldiers; ++i) {
                 f32 x = 8.f;
                 f32 z = 0.f + 1.f*(i/num_soldiers);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
@@ -416,12 +409,19 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     local_persist b32 draw_chunk_partitions = false;
     ui_begin(dt, platform->window_width, platform->window_height);
     {
-        ui_platform(utf8lit("⚙"))
+#if BUILD_DEBUG
+        ui_platform(utf8lit("Debug Build"))
+#else
+        ui_platform(utf8lit("Release Build"))
+#endif
         {
             ui_labelf("mspf: %.2f | %ux%u", dt*1000.f, game_state->draw_width, game_state->draw_height);
             ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
             if (ui_button(utf8lit("Chunk Partitions")).pressed_left) {
                 draw_chunk_partitions = !draw_chunk_partitions;
+            }
+            if (ui_button(utf8lit("Display Chunk Position")).pressed_left) {
+                game_state->display_chunk_position = !game_state->display_chunk_position;
             }
             if (ui_button(utf8lit("Wireframe")).pressed_left) {
                 render_commands->wireframe_mode = !render_commands->wireframe_mode; 
@@ -485,8 +485,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                     // get entities
                     Entity* camera = entity_from_id(game_state->game_camera_id);
                     const m4x4 viewproj = camera->VP;
-                    const f32 w = game_state->window_width;
-                    const f32 h = game_state->window_height;
+                    const f32 w = (f32)game_state->window_width;
+                    const f32 h = (f32)game_state->window_height;
 
                     const f32 min_screen_x = min(drag_start.x, os->mouse_position_last.x);
                     const f32 min_screen_y = min(drag_start.y, os->mouse_position_last.y);
@@ -531,6 +531,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                                     continue;
                                 }
 
+                                if (entity_is_dead(entity)) {
+                                    continue;
+                                }
+
                                 if (entity->team != TEAM_PLAYER) {
                                     continue;
                                 }
@@ -545,15 +549,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                             }
                         }
                     } else {
-                        assert(!"something bad happened.");
+                        assert(!"No intersection? Seems weird.");
                     }
                 }
             }
         }
 
         if (dragging) {
-            const f32 w = game_state->window_width;
-            const f32 h = game_state->window_height;
+            const f32 w = (f32)game_state->window_width;
+            const f32 h = (f32)game_state->window_height;
 
             const v4 color = v4{1.0f, 1.0f, 1.0f, 0.2f};
             const f32 thickness = 1.f;
@@ -596,12 +600,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     // Draw entities
     //
-    for (u32 i = 0; i < game_state->entity_table_size; ++i) {
-        Entity* bucket = game_state->entity_table + i;
-        for (Entity* entity = bucket->first; entity; entity = entity->next_in_table) {
-            entity_draw(entity, dt, render_group, render_commands);
-        }
-    }
+    entity_draw(game_state->root_entity, dt, render_group, render_commands);
 
     // Draw ground
     //
@@ -614,7 +613,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         {0, 0,gy, 0},
         {0, 0, 0, 1},
     }};
-    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, v2{gx,gy});
+    v2 uv_scale = v2(gx, gy)*0.1f;
+    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, uv_scale);
 
     
     // Draw navmesh
@@ -662,7 +662,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
                     v4 color = v4{0.3f, 1.f, 0.3f, 1.f};
 
-                    render_quad_c(v2(x - hd, y - hd) - v2(1.f,1.f), v2(x + hd, y + hd) + v2(1.f,1.f), v4{0.f, 0.f, 0.f, 1.f});
+                    v2 unit_border = v2(1.f,1.f);
+                    render_quad_c(v2(x - hd, y - hd) - unit_border, v2(x + hd, y + hd) + unit_border, v4{0.1f, 0.1f, 0.1f, 1.f});
                     render_quad_c(v2(x - hd, y - hd), v2(x + hd, y + hd), color);
                 }
             }
@@ -693,7 +694,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         // NOTE: CSM
         //
         render_commands->csm_to_light = normalize(v3{light_x, light_y, light_z});
-        f32 csm_frustum_edge_length = 50.0f;
+        f32 csm_frustum_edge_length = 200.0f;
         m4x4 inv = inverse(game_camera->VP);
         // TODO: Renderer independent calculation!
         v4 ndcs[4] = {

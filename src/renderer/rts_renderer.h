@@ -3,7 +3,7 @@
 // @Todo: This value must be shared by graphics APIs.
 //
 #define MAX_LIGHTS              10
-#define SHADOWMAP_RESOLUTION    1024
+#define SHADOWMAP_RESOLUTION    2048 // @Todo: If you want to be understaned by all machines...use 1024...?
 #define CSM_COUNT               4
 static_assert(CSM_COUNT > 0, "CSM_COUNT must be bigger than 0!");
 
@@ -34,7 +34,6 @@ typedef RENDERER_END_FRAME(Renderer_End_Frame);
 enum Render_Type {
     RENDER_TYPE_NULL = 0,
 
-    //eRender_Mesh,
     eRender_Bitmap,
     eRender_Triangles,
     eRender_Line,
@@ -134,7 +133,7 @@ struct Render_Commands
     f32         debug_radius;
 };
 
-internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u32 entity_id, v2 uv_scale, v4 tint = v4{1,1,1,1});
+internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u64 entity_id, v2 uv_scale, v4 tint = v4{1,1,1,1});
 
 internal void draw_line(Render_Group *group, v3 a, v3 b, v4 color);
 
@@ -227,7 +226,7 @@ struct Render_Command
 struct Render_Mesh {
     Mesh* mesh;
     m4x4  world_transform;
-    u32   entity_id;
+    u64   entity_id;
     m4x4* animation_transforms;
     v2    uv_scale;
     v4    tint;
