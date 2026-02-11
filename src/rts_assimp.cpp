@@ -8,6 +8,7 @@
 
 // [.h]
 //
+#include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_font.h"
@@ -24,494 +25,445 @@
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
 
+#include <vector>
+#include <queue>
+#include <string>
+#include <set>
+#include <unordered_map>
 
-#define ASSIMP_PRINT_NODES              1
-#define ASSIMP_PRINT_NODE_TRASNFORM     0
-global s32 g_node_count;
 
 
-internal void
-debug_print_nodes(aiNode *node, u32 depth) 
-{
-    g_node_count++;
-    m4x4 transform = m4x4_from_ai(node->mTransformation);
+struct Asset_Joint {
+    u16 length;
+    u8 *name;
 
-#if ASSIMP_PRINT_NODES
-    printf("%*s", depth << 1, "");
-    printf("(%u)%s\n", depth, node->mName.data);
-#endif
+    s32 parent;
+    m4x4 local_transform;
+    m4x4 inverse_rest_pose;
+};
 
-#if ASSIMP_PRINT_NODE_TRASNFORM
-    for (s32 r = 0; r < 4; ++r) {
-        printf("%*s", depth << 1, "");
-        for (s32 c = 0; c < 4; ++c) {
-            printf("%.2f ", transform.e[r][c]);
-        }
-        printf("\n");
+struct Asset_Skeleton {
+    u32 num;
+    Asset_Joint *joints;
+};
+
+struct State {
+    aiScene *scene;
+    u32 num_nodes;
+
+    bool has_skeleton;
+
+    std::unordered_map <std::string, s32> bone_map;
+};
+
+
+// Custom hash function for aiString. Fucking C++ idiocracy :(
+template <>
+struct std::hash<aiString> {
+    std::size_t operator()(const aiString& str) const {
+        return XXH3_64bits_withSeed(str.data, strlen(str.data), 0);
     }
-#endif
+};
+
+
+//
+// Skeleton
+//
+static void fill_table_recursively(std::unordered_map<aiString, aiNode*>& table, aiNode *node) {
+    if (table.find(node->mName) == table.end()) {
+        table[node->mName] = node;
+    }
 
     for (u32 i = 0; i < node->mNumChildren; ++i) {
-        debug_print_nodes(node->mChildren[i], depth + 1);
+        aiNode *child = node->mChildren[i];
+        fill_table_recursively(table, child);
     }
 }
 
-internal char *
-create_output_model_filepath(char *in_filepath)
-{
-    char *begin = in_filepath;
-    char *end   = in_filepath;
-    for (char *at = in_filepath; *at; ++at) 
+static std::vector<Asset_Joint> make_joint_array(State *state) {
+    using namespace std;
+
+    aiScene *scene = state->scene;
+    aiNode *root = scene->mRootNode;
+
+
+    // Build a bone's name to node ptr map.
+    // This'll not contain the root bone!
+    //
+    unordered_map <aiString, pair<aiNode*, aiBone*>> bone_map;
+
+    for (u32 mi = 0; mi < scene->mNumMeshes; ++mi) {
+        aiMesh *mesh = scene->mMeshes[mi];
+        for (u32 bi = 0; bi < mesh->mNumBones; ++bi) {
+            aiBone *bone   = mesh->mBones[bi];
+            aiString name  = bone->mName;
+            aiNode* node   = root->FindNode(name);
+            bone_map[name] = {node, bone};
+        }
+    }
+
+
+
+    // Find the root bone by iterating over every node in the scene.
+    // If the node is in the bone-map, and its parent isn't in the bone-map, 
+    // that parent must be the root node.
+    //
+    aiNode *root_bone = nullptr;
     {
-        if (*at == '/') 
-        {
-            begin = at + 1;
-        }
-        else if (*at == '.') 
-        {
-            end = at;
-        }
-    }
-    int filename_length = end - begin;
+        queue <aiNode*> q;
+        q.push(root);
 
-    u64 directory_length = string_length(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_MESH_DIRECTORY) + 1;
-    char *directory = malloc_array(char, directory_length);
-    str_snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_MESH_DIRECTORY);
+        while (!q.empty()) {
+            aiNode *node = q.front();
+            q.pop();
 
-    u64 filepath_length = directory_length + filename_length + string_length(ASSET_MESH_FILE_FORMAT) + 1;
-
-    char *result = malloc_array(char, filepath_length);
-    str_snprintf(result, filepath_length, "%s%.*s%s", directory, filename_length, begin, ASSET_MESH_FILE_FORMAT);
-
-    return result;
-}
-
-internal void
-print_scene_abstract(const aiScene *scene)
-{
-    debug_print_nodes(scene->mRootNode, 0);
-    printf("node count: %d\n", g_node_count);
-    printf("  mesh count      : %d\n", scene->mNumMeshes);
-    printf("  texture count   : %d\n", scene->mNumTextures);
-    printf("  material count  : %d\n", scene->mNumMaterials);
-    printf("  animation count : %d\n", scene->mNumAnimations);
-}
-
-internal u32
-get_next_unfilled_bone_index(Asset_Vertex *asset_vertex)
-{
-    for (u32 idx = 0; idx < MAX_BONE_PER_VERTEX; ++idx) {
-        if (asset_vertex->node_ids[idx] == -1) {
-            return idx;
-        }
-    }
-    return 2222;
-}
-
-internal u32
-hash(char *key, u32 length) 
-{
-    u32 result = 0;
-    for (char *c = key; *c; ++c) 
-    {
-        result += *c;
-    }
-    result %= length;
-    return result;
-}
-
-internal s32
-id_from_name(char *name, Hashmap *hashmap)
-{
-    s32 id;
-    u32 slot_idx = hash(name, hashmap->length);
-    Hash_Entry *entry = hashmap->entries + slot_idx;
-    Hash_Slot *slot = entry->first;
-
-    if (slot) {
-        for (;;) {
-            if (string_equal(name, slot->name)) {
-                id = slot->node_id;
-                break;
-            } else if (slot->next) {
-                slot = slot->next;
-            } else {
-                Hash_Slot *new_slot = malloc_type(Hash_Slot);
-                new_slot->node_id = hashmap->next_id++;
-                new_slot->next = 0;
-                new_slot->name = name;
-
-                slot->next = new_slot;
-
-                id = new_slot->node_id;
-                break;
-            }
-        }
-    } else {
-        entry->first = malloc_type(Hash_Slot);
-        entry->first->node_id = hashmap->next_id++;
-        entry->first->next = 0;
-        entry->first->name = name;
-
-        id = entry->first->node_id;
-    }
-
-    return id;
-}
-
-internal void
-fill_asset_nodes(const aiScene *model, Asset_Model *asset_model, Hashmap *hashmap)
-{
-    // @Note: Traverse through hierarchy. If certain name was in the hash-table,
-    //        that slot will give us the index of that node in node array.
-    //        If it wasn't, insert to the hash-table. Collision handling isn't much of
-    //        a big deal. Then, that slot will contain a 'next_to_write' number of 
-    //        the node array. Then increment 'next_to_write" by one.
-
-    aiNode *root = model->mRootNode;
-
-    u32 debug_count = 0;
-    u32 expected_node_count = asset_model->node_count;
-
-    Asset_Node *asset_nodes = asset_model->nodes;
-
-    aiNode *nodes[500];
-    nodes[0] = root;
-    u32 next_to_visit = 0;
-    u32 next_to_write = 1;
-
-    while (next_to_visit != next_to_write) {
-        aiNode *node = nodes[next_to_visit];
-        for (u32 i = 0; i < node->mNumChildren; ++i) {
-            nodes[next_to_write++] = node->mChildren[i];
-        }
-        ++next_to_visit;
-    }
-
-    u32 node_count = next_to_write;
-    assert(node_count == expected_node_count);
-    next_to_write = 0;
-    for (u32 i = 0; i < node_count; ++i) {
-        aiNode *node = nodes[i];
-        Asset_Node *asset_node = asset_nodes + next_to_write++;
-
-
-        asset_node->id = id_from_name(node->mName.data, hashmap);
-#if 0
-        printf("index:%d, id:%d, name:%s\n", i, asset_node->id, node->mName.data);
-#endif
-        asset_node->offset = identity();
-        asset_node->transform = m4x4_from_ai(node->mTransformation);
-        asset_node->child_count = node->mNumChildren;
-        asset_node->child_ids = malloc_array(s32, node->mNumChildren);
-
-        for (u32 j = 0; j < node->mNumChildren; ++j) {
-            asset_node->child_ids[j] = id_from_name(node->mChildren[j]->mName.data, hashmap);
-        }
-    }
-    assert(next_to_write == expected_node_count);
-
-    quick_sort(asset_nodes, Asset_Node, node_count, asmp_cmp_ascending_node_id);
-
-    for (u32 mesh_idx = 0; mesh_idx < model->mNumMeshes; ++mesh_idx) {
-        aiMesh *mesh = model->mMeshes[mesh_idx];
-        for (u32 bone_idx = 0; bone_idx < mesh->mNumBones; ++bone_idx) {
-            aiBone *bone = mesh->mBones[bone_idx];
-            for (u32 idx = 0; idx < node_count; ++idx) {
-                Asset_Node *asset_node = asset_nodes + idx;
-                if (id_from_name(bone->mName.data, hashmap) == asset_node->id) {
-                    asset_node->offset = m4x4_from_ai(bone->mOffsetMatrix);
-                    ++debug_count;
+            if (bone_map.find(node->mName) != bone_map.end()) {
+                if (bone_map.find(node->mParent->mName) == bone_map.end()) {
+                    root_bone = node->mParent;
                     break;
                 }
             }
+
+            for (u32 i = 0; i < node->mNumChildren; ++i) {
+                q.push(node->mChildren[i]);
+            }
+        }
+
+    }
+    assert( root_bone );
+    printf("Root bone name: %s\n", root_bone->mName.data);
+
+
+
+    struct Node_Parent {
+        aiNode *node;
+        s32 parent;
+    };
+
+    vector <Asset_Joint> joints;
+    {
+        s32 idx = 0;
+
+        queue <Node_Parent> q;
+        q.push({root_bone, -1});
+
+        while (!q.empty()) {
+            auto item = q.front();
+            q.pop();
+
+            aiNode *node = item.node;
+            s32 parent   = item.parent;
+
+            for (u32 i = 0; i < node->mNumChildren; ++i) {
+                // We only care about bone nodes. The root bone node we retrieved may represent more than just a bone, 
+                // and its children can include non-bone nodes, which are not relevant here.
+                //
+                // BUT ONLY FOR THE ROOT NODE!!
+                //
+                aiNode *child = node->mChildren[i];
+
+                if ((idx == 0) && (bone_map.find(child->mName) == bone_map.end())) {
+                    continue;
+                }
+
+                q.push({child, idx});
+            }
+
+
+            joints.push_back({});
+            auto* joint = &joints[joints.size() - 1];
+            {
+                aiString name = node->mName; 
+                u16 len = (u16)strlen(name.data);
+
+                joint->length = len;
+                joint->name   = new u8[len];
+                memcpy(joint->name, name.data, len * sizeof(joint->name[0]));
+
+                joint->parent = parent;
+                joint->local_transform = to_m4x4(node->mTransformation);
+
+                // @Todo: mOffsetMatrix is fucking insane. How can I derive this motherfucker?
+                // It's so annoying. Before I figure that out, it is fragile.
+                //
+                if (bone_map.find(name) != bone_map.end()) {
+                    joint->inverse_rest_pose = to_m4x4(bone_map[name].second->mOffsetMatrix);
+                } else {
+                    joint->inverse_rest_pose = inverse(to_m4x4(node->mTransformation));
+                }
+            }
+
+            idx++;
         }
     }
+    // MAX_BONE_PER_MESH is a wrong name.
+    assert( joints.size() <= MAX_BONE_PER_MESH );
 
-    asset_model->root_bone_node_id = id_from_name(root->mName.data, hashmap);
-
-
-    // I want them to be in sequential order.
-    //
-    for (s32 i = 0; i < (s32)node_count; ++i) {
-        assert(asset_model->nodes[i].id == i);
-    }
+    return joints;
 }
 
-internal Asset_Texture *
-load_texture(aiMaterial *material, aiTextureType type) 
-{
-    Asset_Texture *result = 0;
+static std::unordered_map<std::string, s32>
+make_bone_name_to_index_map(std::vector<Asset_Joint>& joints) {
+    using namespace std;
 
-    if (material->GetTextureCount(type) > 0) {
-        aiString filepath;
-        material->GetTexture(type, 0, &filepath);
-        const char *filename = get_filename_from_filepath(filepath.C_Str());
-        assert(filename);
+    unordered_map<string, s32> result;
 
-        result = malloc_type(Asset_Texture);
-
-        int x, y, n;
-
-        void *loaded_data;
-        if (stbi_is_16_bit(filename)) {
-            u16 *data = stbi_load_16(filename, &x, &y, &n, 0);
-            Assert(data);
-            loaded_data = data;
-            result->bits_per_channel = 16;
-            result->size = x*y*2*n;
-            result->data = malloc_array(u8, result->size);
-        } else {
-            u8 *data = stbi_load(filename, &x, &y, &n, 0);
-            Assert(data);
-            loaded_data = data;
-            result->bits_per_channel = 8;
-            result->size = x*y*n;
-            result->data = malloc_array(u8, result->size);
-        }
-        result->channel_count = n;
-        result->width  = x;
-        result->height = y;
-        result->pitch  = x*n;
-        memory_copy(result->data, loaded_data, result->size);
-
-        stbi_image_free(loaded_data);
+    u32 idx = 0;
+    for (auto j : joints) {
+        result[string((char *)j.name, (size_t)j.length)] = idx++;
     }
 
     return result;
 }
 
-internal void
-fill_asset_meshes(const aiScene* model, Asset_Model* asset_model, Hashmap* hashmap)
-{
-    u32 mesh_count = model->mNumMeshes;
-    aiMesh** meshes = model->mMeshes;
+//
+// Model
+//
+static void make_model(State *state, Asset_Model *model_out) {
+    aiScene *scene = state->scene;
 
-    asset_model->mesh_count = mesh_count;
-    asset_model->meshes     = malloc_array(Asset_Mesh, asset_model->mesh_count);
+    u32 num_meshes = scene->mNumMeshes;
 
-    for (u32 mesh_idx = 0; mesh_idx < mesh_count; ++mesh_idx)
-    {
-        Asset_Mesh* asset_mesh    = (asset_model->meshes + mesh_idx);
-        aiMesh* mesh              = meshes[mesh_idx];
+    model_out->meshes = new Asset_Mesh[num_meshes];
+    model_out->mesh_count = num_meshes;
 
+    for (u32 mi = 0; mi < num_meshes; ++mi) {
+        Asset_Mesh *mesh_out = &model_out->meshes[mi];
+        aiMesh *mesh = scene->mMeshes[mi];
 
+        u32 num_vert    = mesh->mNumVertices;
         u32 num_tri     = mesh->mNumFaces;
         u32 num_indices = num_tri * 3;
 
+        mesh_out->length = (u32)strlen(mesh->mName.data);
+        mesh_out->name = new u8[mesh_out->length];
+        memcpy(mesh_out->name, mesh->mName.data, mesh_out->length);
 
-        u32 vertex_count          = mesh->mNumVertices;
-        asset_mesh->vertex_count  = vertex_count;
-        asset_mesh->vertices      = malloc_array(Asset_Vertex, asset_mesh->vertex_count);
+        mesh_out->vertices = new Asset_Vertex[num_vert];
+        mesh_out->vertex_count = num_vert;
+        mesh_out->vertices     = new Asset_Vertex[num_vert];
 
-        for (u32 vertex_idx = 0; vertex_idx < vertex_count; ++vertex_idx)
-        {
-            Asset_Vertex* out_vert = asset_mesh->vertices + vertex_idx;
 
-            out_vert->pos.x = mesh->mVertices[vertex_idx].x;
-            out_vert->pos.y = mesh->mVertices[vertex_idx].y;
-            out_vert->pos.z = mesh->mVertices[vertex_idx].z;
+        for (u32 vi = 0; vi < num_vert; ++vi) {
+            auto vert_out = &mesh_out->vertices[vi];
+            auto vert     = mesh->mVertices[vi];
 
+            // Write positions.
+            vert_out->pos.x = vert.x;
+            vert_out->pos.y = vert.y;
+            vert_out->pos.z = vert.z;
+
+            // Write normals.
             if (mesh->HasNormals()) {
-                out_vert->normal.x = mesh->mNormals[vertex_idx].x;
-                out_vert->normal.y = mesh->mNormals[vertex_idx].y;
-                out_vert->normal.z = mesh->mNormals[vertex_idx].z;
+                vert_out->normal.x = mesh->mNormals[vi].x;
+                vert_out->normal.y = mesh->mNormals[vi].y;
+                vert_out->normal.z = mesh->mNormals[vi].z;
             }
 
+            // Write UVs.
             if (mesh->HasTextureCoords(0)) {
-                out_vert->uv.x = mesh->mTextureCoords[0][vertex_idx].x;
-                out_vert->uv.y = mesh->mTextureCoords[0][vertex_idx].y;
+                vert_out->uv.x = mesh->mTextureCoords[0][vi].x;
+                vert_out->uv.y = mesh->mTextureCoords[0][vi].y;
             }
 
+            // Write vert colors.
             if (mesh->HasVertexColors(0)) {
-                out_vert->color.r = mesh->mColors[0][vertex_idx].r;
-                out_vert->color.g = mesh->mColors[0][vertex_idx].g;
-                out_vert->color.b = mesh->mColors[0][vertex_idx].b;
-                out_vert->color.a = mesh->mColors[0][vertex_idx].a;
+                vert_out->color.r = mesh->mColors[0][vi].r;
+                vert_out->color.g = mesh->mColors[0][vi].g;
+                vert_out->color.b = mesh->mColors[0][vi].b;
+                vert_out->color.a = mesh->mColors[0][vi].a;
             } else {
-                out_vert->color = V4(1.0f);
+                vert_out->color = v4{1,1,1,1};
             }
 
-            assert(mesh->HasTangentsAndBitangents());
-            out_vert->tangent.x = mesh->mTangents[vertex_idx].x;
-            out_vert->tangent.y = mesh->mTangents[vertex_idx].y;
-            out_vert->tangent.z = mesh->mTangents[vertex_idx].z;
+            // Write tangents.
+            assert( mesh->HasTangentsAndBitangents() ); // We forced the API to create one.
+            vert_out->tangent.x = mesh->mTangents[vi].x;
+            vert_out->tangent.y = mesh->mTangents[vi].y;
+            vert_out->tangent.z = mesh->mTangents[vi].z;
 
+            // Initialize joint data.
             for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
-                out_vert->node_ids[i] = -1; // @Spec: Renderer Api must agree it to be speced to -1 too.
-                out_vert->node_weights[i] = 0;
+                vert_out->node_ids[i]     = -1; // @Robustness: Hard coded -1.
+                vert_out->node_weights[i] = 0.f;
             }
         }
 
-        assert(mesh->mNumBones <= MAX_BONE_PER_MESH);
-        for (u32 bone_idx = 0; bone_idx < mesh->mNumBones; ++bone_idx)
-        {
-            aiBone *bone = mesh->mBones[bone_idx];
-            for (u32 vw_idx = 0;
-                 vw_idx < bone->mNumWeights;
-                 ++vw_idx)
-            {
-                aiVertexWeight *vw = bone->mWeights + vw_idx;
-                u32 vertex_idx = vw->mVertexId;
-                f32 weight = vw->mWeight;
-                //assert(weight != 0.0f);
 
-                Asset_Vertex *asset_vertex = asset_mesh->vertices + vertex_idx;
-                u32 next = get_next_unfilled_bone_index(asset_vertex);
-                // assert(next < MAX_BONE_PER_VERTEX);
-                s32 bone_id = id_from_name(bone->mName.data, hashmap);
-                for (u32 i = 0; i < next; ++i) {
-                    if (asset_vertex->node_ids[i] == bone_id) {
-                        assert("Duplicate bone!");
+        for (u32 bi = 0; bi < mesh->mNumBones; ++bi) {
+            aiBone *bone = mesh->mBones[bi];
+            std::string name(bone->mName.data);
+            s32 bone_idx = state->bone_map[name];
+
+            for (u32 i = 0; i < bone->mNumWeights; ++i) {
+                aiVertexWeight *vw = &bone->mWeights[i];
+                u32 vert_idx = vw->mVertexId;
+                f32 weight   = vw->mWeight;
+
+                Asset_Vertex *vert_out = &mesh_out->vertices[vert_idx];
+
+                // @Todo: Sort the weights and us ethe topmost 4 of them..
+                bool duplicated = false;
+                u32 next = 0xBEEF;
+                for (u32 j = 0; j < MAX_BONE_PER_VERTEX; ++j) {
+                    if (vert_out->node_ids[j] == -1) {
+                        next = j;
+                        break;
+                    } else if (vert_out->node_ids[j] == bone_idx) {
+                        duplicated = true;
+                        break;
                     }
                 }
-                asset_vertex->node_ids[next] = bone_id;
-                asset_vertex->node_weights[next] = weight;
+
+                if (!duplicated) {
+                    assert( next != 0xBEEF );
+                    vert_out->node_ids[next]     = bone_idx;
+                    vert_out->node_weights[next] = weight;
+                }
             }
         }
 
-        asset_mesh->index_count = num_indices;
-        asset_mesh->indices     = malloc_array(u32, asset_mesh->index_count);
 
-        for (u32 triangle_idx = 0; triangle_idx < num_tri; ++triangle_idx)
-        {
-            aiFace* triangle = (mesh->mFaces + triangle_idx);
-            assert(triangle->mNumIndices == 3);
+
+        // Write indices.
+        mesh_out->indices     = new u32[num_indices];
+        mesh_out->index_count = num_indices;
+        mesh_out->indices     = new u32[num_indices];
+
+        for (u32 ti = 0; ti < num_tri; ++ti) {
+            aiFace *tri = &mesh->mFaces[ti];
+
+            assert( tri->mNumIndices == 3 ); // We forced triangulation.
+
             for (u32 i = 0; i < 3; ++i) {
-                u64 idx_of_idx = (3 * triangle_idx + i);
-                asset_mesh->indices[idx_of_idx] = triangle->mIndices[i];
+                mesh_out->indices[ti * 3 + i] = tri->mIndices[i];
             }
         }
-
-
-#if 0
-        if (mesh->mMaterialIndex >= 0) {
-            aiMaterial *material = model->mMaterials[mesh->mMaterialIndex];
-
-            asset_mesh->albedo    = load_texture(material, aiTextureType_BASE_COLOR);
-            asset_mesh->normal    = load_texture(material, aiTextureType_NORMALS);
-            asset_mesh->metalic   = load_texture(material, aiTextureType_METALNESS);
-            asset_mesh->roughness = load_texture(material, aiTextureType_DIFFUSE_ROUGHNESS);
-            asset_mesh->emission  = load_texture(material, aiTextureType_EMISSION_COLOR);
-            asset_mesh->ao        = load_texture(material, aiTextureType_AMBIENT_OCCLUSION);
-        }
-#endif
     }
 }
 
-internal void
-fill_asset_materials(const aiScene *model, Asset_Model *asset_model)
-{
-    if (model->HasMaterials())
-    {
-        asset_model->material_count = model->mNumMaterials;
-        asset_model->materials = malloc_array(Asset_Material, model->mNumMaterials);
+//
+// Animations
+//
+int cmp_bone_id(const void *a, const void *b) {
+    Asset_Animation_Node *l = (Asset_Animation_Node *)a;
+    Asset_Animation_Node *r = (Asset_Animation_Node *)b;
 
-        for (u32 mat_idx = 0; mat_idx < model->mNumMaterials; ++mat_idx)
-        {
-            Asset_Material* asset_mat = asset_model->materials + mat_idx;
-            aiMaterial *mat = model->mMaterials[mat_idx];
+    if (l->id < r->id) return -1;
+    if (l->id > r->id) return  1;
+    return 0;
+}
 
-            aiColor3D c;
+static void make_animation(State *state, Asset_Animation *anim_out) {
+    aiScene *scene = state->scene;
 
-            mat->Get(AI_MATKEY_COLOR_AMBIENT, c);
-            asset_mat->color_ambient = V3(c.r, c.g, c.b);
+    // If we want more, gonna revamp the function.
+    assert( scene->mNumAnimations == 1 );
 
-            mat->Get(AI_MATKEY_COLOR_DIFFUSE, c);
-            asset_mat->color_diffuse = V3(c.r, c.g, c.b);
+    for (u32 ai = 0; ai < scene->mNumAnimations; ++ai) {
+        aiAnimation *anim = scene->mAnimations[ai];
 
-            mat->Get(AI_MATKEY_COLOR_SPECULAR, c);
-            asset_mat->color_specular = V3(c.r, c.g, c.b);
+        // f32 anim_duration = (f32)(anim->mDuration / anim->mTicksPerSecond);
+        f32 fps = (f32)anim->mTicksPerSecond;
+        u32 num_nodes = anim->mNumChannels;
+
+        anim_out->length = (u32)strlen(anim->mName.data);
+        anim_out->name = new u8[anim_out->length];
+        memcpy(anim_out->name, anim->mName.data, anim_out->length);
+        anim_out->fps = fps;
+        anim_out->num_nodes = num_nodes;
+        anim_out->nodes = new Asset_Animation_Node[num_nodes];
+
+        u32 num = 0;
+        for (u32 ni = 0; ni < num_nodes; ++ni) {
+            aiNodeAnim *node = anim->mChannels[ni];
+            u32 num_translations = node->mNumPositionKeys;
+            u32 num_rotations    = node->mNumRotationKeys;
+            u32 num_scales       = node->mNumScalingKeys;
+            num = max(num, max(max(num_translations, num_rotations), num_scales));
         }
+        assert( num != 0);
+        anim_out->num_samples = num;
+
+        for (u32 ni = 0; ni < num_nodes; ++ni) {
+
+            aiNodeAnim *node = anim->mChannels[ni];
+            auto* node_out = &anim_out->nodes[ni];
+
+            s32 bone_id = state->bone_map[std::string(node->mNodeName.data)];
+            node_out->id = bone_id;
+
+            node_out->translations = new v3[num];
+            node_out->rotations    = new Quaternion[num];
+            node_out->scales       = new v3[num];
+
+            u32 num_translations = node->mNumPositionKeys;
+            u32 num_rotations    = node->mNumRotationKeys;
+            u32 num_scales       = node->mNumScalingKeys;
+
+            for (u32 i = 0; i < num; ++i) {
+                u32 idx = min(i, num_translations - 1);
+                aiVectorKey key = node->mPositionKeys[idx];
+                node_out->translations[i] = to_v3(key.mValue);
+            }
+
+            for (u32 i = 0; i < num; ++i) {
+                u32 idx = min(i, num_rotations - 1);
+                aiQuatKey key = node->mRotationKeys[idx];
+                node_out->rotations[i] = to_quaternion(key.mValue);
+            }
+
+            for (u32 i = 0; i < num; ++i) {
+                u32 idx = min(i, num_scales - 1);
+                aiVectorKey key = node->mScalingKeys[idx];
+                node_out->scales[i] = to_v3(key.mValue);
+            }
+
+
+        }
+    }
+
+    qsort(anim_out->nodes, anim_out->num_nodes, sizeof(anim_out->nodes[0]), cmp_bone_id);
+}
+
+//
+// Scene
+//
+static u32 get_node_count(aiNode *node) {
+    u32 num = 1;
+    for (u32 i = 0; i < node->mNumChildren; ++i) {
+        num += get_node_count(node->mChildren[i]);
+    }
+    return num;
+}
+
+static void print_scene_hierarchy_recursively(aiNode *node, int depth = 0) {
+    for (int i = 0; i < depth; ++i) printf("  ");
+    printf("%s\n", node->mName.data);
+
+    m4x4 transform = to_m4x4(node->mTransformation);
+    for (s32 r = 0; r < 4; ++r) {
+        printf("%*s", depth << 1, "");
+        for (s32 c = 0; c < 4; ++c) {
+            printf("%.6ff, ", transform.e[r][c]);
+        }
+        printf("\n");
+    }
+
+    for (u32 i = 0; i < node->mNumChildren; ++i) {
+        aiNode *child = node->mChildren[i];
+        print_scene_hierarchy_recursively(child, depth + 1);
     }
 }
 
-internal void
-write_asset_meshes(FILE *model_out, Asset_Model *asset_model)
-{
-    fwrite_item(asset_model->mesh_count, model_out);
-
-    for (u32 mesh_idx = 0;
-         mesh_idx < asset_model->mesh_count;
-         ++mesh_idx)
-    {
-        Asset_Mesh *asset_mesh = (asset_model->meshes + mesh_idx);
-
-        fwrite_item(asset_mesh->vertex_count, model_out);
-        for (u32 vertex_idx = 0;
-             vertex_idx < asset_mesh->vertex_count;
-             ++vertex_idx)
-        {
-            Asset_Vertex *vertex = asset_mesh->vertices + vertex_idx;
-            fwrite_item(vertex->pos, model_out);
-            fwrite_item(vertex->normal, model_out);
-            fwrite_item(vertex->uv, model_out);
-            fwrite_item(vertex->color, model_out);
-            fwrite_item(vertex->tangent, model_out);
-
-            fwrite_array(vertex->node_ids, MAX_BONE_PER_VERTEX, model_out);
-            fwrite_array(vertex->node_weights, MAX_BONE_PER_VERTEX, model_out);
-        }
-
-        fwrite_item(asset_mesh->index_count, model_out);
-        fwrite_array(asset_mesh->indices, asset_mesh->index_count, model_out);
-    }
-}
-
-internal void
-write_asset_materials(FILE *model_out, Asset_Model *asset_model)
-{
-    fwrite_item(asset_model->material_count, model_out);
-    if (asset_model->material_count) {
-        fwrite_array(asset_model->materials, asset_model->material_count, model_out);
-    }
-}
-
-internal void
-write_asset_nodes(FILE *model_out, Asset_Model *asset_model)
-{
-    fwrite_item(asset_model->node_count, model_out);
-    if (asset_model->node_count)
-    {
-        fwrite_item(asset_model->root_bone_node_id, model_out);
-        for (u32 node_idx = 0;
-             node_idx < asset_model->node_count;
-             ++node_idx)
-        {
-            Asset_Node *asset_node = asset_model->nodes + node_idx;
-            fwrite_item(asset_node->id, model_out);
-            fwrite_item(asset_node->offset, model_out);
-            fwrite_item(asset_node->transform, model_out);
-            fwrite_item(asset_node->child_count, model_out);
-            fwrite_array(asset_node->child_ids, asset_node->child_count, model_out);
+static bool scene_has_skeleton(aiScene *scene) {
+    for (u32 mi = 0; mi < scene->mNumMeshes; ++mi) {
+        aiMesh *mesh = scene->mMeshes[mi];
+        if (mesh->HasBones()) {
+            return true;
         }
     }
-}
-
-internal char *
-create_output_animation_filepath(char *in_filepath, char *anim_name)
-{
-    char *begin = in_filepath;
-    char *end   = in_filepath;
-    for (char *at = in_filepath; *at; ++at) {
-        if (*at == '/') {
-            begin = at + 1;
-        } else if (*at == '.') {
-            end = at;
-        }
-    }
-    int filename_length = end - begin;
-
-    u64 directory_length = array_count(PATH_TO_DATA_FROM_BUILD) + string_length(ASSET_ANIMATION_DIRECTORY) + 1;
-    char *directory = malloc_array(char, directory_length);
-    str_snprintf(directory, directory_length, "%s%s", PATH_TO_DATA_FROM_BUILD, ASSET_ANIMATION_DIRECTORY);
-
-    u64 filepath_length = directory_length + filename_length + string_length(ASSET_ANIMATION_FILE_FORMAT) + 1;
-
-    char *result = malloc_array(char, filepath_length);
-    str_snprintf(result, filepath_length, "%s%.*s%s", directory, filename_length, begin, ASSET_ANIMATION_FILE_FORMAT);
-
-    return result;
+    return false;
 }
 
 int main(void)
@@ -522,21 +474,16 @@ int main(void)
     thread_init();
 
 
+    State *state = new State;
+
+
     char *input_file_names[] = {
-        // "../data/xbot_idle.fbx",
-        // "../data/xbot_run.fbx",
-        //"../data/skeleton_lord_idle.fbx",
-        //"../data/skeleton_lord_run.fbx",
+        //"../data/input/model/skeleton_lord_rest_pose.dae",
         //"../data/input/model/skeleton_lord_idle.dae",
-        "../data/input/model/skeleton_lord_run.dae",
-        //"../data/input/model/skeleton_lord_die.dae",
+        //"../data/input/model/skeleton_lord_run.dae",
+        "../data/input/model/skeleton_lord_die.dae",
         //"../data/input/model/skeleton_lord_attack.dae",
-        //"../data/input/model/crate.dae",
-        //"../data/input/model/sphere.fbx",
         //"../data/input/model/plane.fbx",
-        //"../data/input/model/rock.dae",
-        //"../data/input/model/troll_idle.dae",
-        //"../data/input/model/troll_walk.dae",
         //"../data/input/model/castle.fbx",
     };
 
@@ -545,54 +492,185 @@ int main(void)
     Assimp::Importer importer;
     importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
-    for (u32 file_idx = 0; file_idx < array_count(input_file_names); ++file_idx) 
-    {
+    for (u32 file_idx = 0; file_idx < array_count(input_file_names); ++file_idx) {
+
         char *in_file_name = input_file_names[file_idx];
-        const aiScene *model = importer.ReadFile(in_file_name, (aiProcess_Triangulate |
-                                                                aiProcess_ImproveCacheLocality |
-                                                                aiProcess_CalcTangentSpace |
-                                                                aiProcess_OptimizeMeshes |
-                                                                aiProcess_RemoveRedundantMaterials |
-                                                                aiProcess_LimitBoneWeights |
-                                                                aiProcess_GenUVCoords |
-                                                                aiProcess_FindDegenerates |
-                                                                aiProcess_FindInvalidData |
-                                                                aiProcess_FindInstances |
-                                                                aiProcess_ValidateDataStructure |
-                                                                aiProcess_JoinIdenticalVertices));
-        g_node_count = 0;
+        state->scene = (aiScene *)importer.ReadFile(in_file_name, (aiProcess_Triangulate |
+                                                                   aiProcess_ImproveCacheLocality |
+                                                                   aiProcess_CalcTangentSpace |
+                                                                   aiProcess_OptimizeMeshes |
+                                                                   aiProcess_RemoveRedundantMaterials |
+                                                                   aiProcess_LimitBoneWeights |
+                                                                   aiProcess_GenUVCoords |
+                                                                   aiProcess_FindDegenerates |
+                                                                   aiProcess_FindInvalidData |
+                                                                   aiProcess_FindInstances |
+                                                                   aiProcess_ValidateDataStructure |
+                                                                   aiProcess_JoinIdenticalVertices));
 
-        if (!model) {
-            fprintf(stderr, "[ERROR]: Couldn't load file %s.\n", in_file_name);
-            return -1;
+        // Load scene.
+        //
+        {
+            if (!state->scene) {
+                fprintf(stderr, "[ERROR]: Couldn't load file %s.\n", in_file_name);
+                return -1;
+            }
+
+            printf("\nLoaded scene '%s'.\n", in_file_name);
+
+            state->num_nodes = get_node_count(state->scene->mRootNode);
+            printf("# of aiNode: %d\n", state->num_nodes);
+
+            //print_scene_hierarchy_recursively(state->scene->mRootNode);
         }
 
-        printf("\n[OK]: Load scene '%s'.\n", in_file_name);
-        print_scene_abstract(model);
 
-        Hashmap hashmap = {};
-        hashmap.length = 500;
-        hashmap.next_id = 0;
-        hashmap.entries = malloc_array(Hash_Entry, hashmap.length);
-        zero_array(hashmap.entries, hashmap.length);
-
-
+        // Make skeleton asset if there's one.
         //
-        // Model
+        state->has_skeleton = scene_has_skeleton(state->scene);
+        if (state->has_skeleton) {
+            using namespace std;
+
+            // Index = ID.
+            vector <Asset_Joint> joints = make_joint_array(state);
+
+            // Since assimp vertices reference bones by name, we build a mapping from bone names to joint indices.
+            state->bone_map = make_bone_name_to_index_map(joints);
+            printf("# of bones: %u\n", (u32)joints.size());
+
+
+
+            // @Temporary
+            FILE *f = fopen("C:/dev/rts/data/skeleton_lord.skeleton", "wb");
+            assert(f);
+            {
+                fprintf(f, "%u\n", (u32)joints.size());
+                fprintf(f, "\n");
+
+                int idx = 0;
+                for (auto joint : joints) {
+                    fprintf(f, "%u %.*s\n", joint.length, joint.length, joint.name);
+                    fprintf(f, "%d\n", joint.parent);
+                    m4x4 m = joint.local_transform;
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", m._11, m._12, m._13, m._14);
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", m._21, m._22, m._23, m._24);
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", m._31, m._32, m._33, m._34);
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", m._41, m._42, m._43, m._44);
+                    fprintf(f, "\n");
+                    m4x4 inv = joint.inverse_rest_pose;
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", inv._11, inv._12, inv._13, inv._14);
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", inv._21, inv._22, inv._23, inv._24);
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", inv._31, inv._32, inv._33, inv._34);
+                    fprintf(f, "%.6f %.6f %.6f %.6f\n", inv._41, inv._42, inv._43, inv._44);
+                    fprintf(f, "\n");
+                }
+            }
+            fclose(f);
+        }
+
+
+
+
+        // Make model asset.
         //
+        {
+            Asset_Model *model = new Asset_Model;
+            make_model(state, model);
+
+            // @Temporary
+            FILE *f = fopen("C:/dev/rts/data/skeleton_lord.triangle_mesh", "wb");
+            assert(f);
+            {
+                fprintf(f, "%u\n\n", model->mesh_count);
+
+                for (u32 mi = 0; mi < model->mesh_count; ++mi) {
+                    Asset_Mesh *mesh = &model->meshes[mi];
+
+                    fprintf(f, "%u %.*s\n", mesh->length, mesh->length, mesh->name);
+
+                    fprintf(f, "%u\n", mesh->vertex_count);
+                    for (u32 vi = 0; vi < mesh->vertex_count; ++vi) {
+                        Asset_Vertex *vert = &mesh->vertices[vi];
+                        fprintf(f, "%.6f %.6f %.6f\n", vert->pos.x, vert->pos.y, vert->pos.z);
+                        fprintf(f, "%.6f %.6f %.6f\n", vert->normal.x, vert->normal.y, vert->normal.z);
+                        fprintf(f, "%.6f %.6f\n", vert->uv.x, vert->uv.y);
+                        fprintf(f, "%.6f %.6f %.6f %.6f\n", vert->color.r, vert->color.g, vert->color.b, vert->color.a);
+                        fprintf(f, "%.6f %.6f %.6f\n", vert->tangent.x, vert->tangent.y, vert->tangent.z);
+                        for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
+                            fprintf(f, "%d ", vert->node_ids[i]);
+                        }
+                        fprintf(f, "\n");
+
+                        for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
+                            fprintf(f, "%.6f ", vert->node_weights[i]);
+                        }
+                        fprintf(f, "\n");
+
+                        fprintf(f, "\n");
+                    }
+
+                    fprintf(f, "%u\n", mesh->index_count);
+                    for (u32 i = 0; i < mesh->index_count; ++i) {
+                        fprintf(f, "%u ", mesh->indices[i]);
+
+                        if ((i+1) % 10 == 0) {
+                            fprintf(f, "\n");
+                        }
+                    }
+                    fprintf(f, "\n");
+                }
+            }
+            fclose(f);
+        }
+
+
+        // Make animation asset if there's any.
+        //
+        if (state->scene->HasAnimations()) {
+            Asset_Animation *anim = new Asset_Animation;
+            make_animation(state, anim);
+
+            // @Temporary
+            FILE *f = fopen("C:/dev/rts/data/skeleton_lord.keyframed_animation", "wb");
+            assert(f);
+            {
+                fprintf(f, "%u %.*s\n", anim->length, anim->length, anim->name);
+                fprintf(f, "%.6f\n", anim->fps);
+                fprintf(f, "%u\n", anim->num_samples);
+                fprintf(f, "%u\n\n", anim->num_nodes);
+
+                for (u32 ni = 0; ni < anim->num_nodes; ++ni) {
+                    auto* node = &anim->nodes[ni];
+
+                    fprintf(f, "%d\n", node->id);
+
+                    for (u32 i = 0; i < anim->num_samples; ++i) {
+                        fprintf(f, "%.6f %.6f %.6f\n", node->translations[i].x, node->translations[i].y, node->translations[i].z);
+                        fprintf(f, "%.6f %.6f %.6f %.6f\n", node->rotations[i].w, node->rotations[i].x, node->rotations[i].y, node->rotations[i].z);
+                        fprintf(f, "%.6f %.6f %.6f\n\n", node->scales[i].x, node->scales[i].y, node->scales[i].z);
+                    }
+                }
+            }
+            fclose(f);
+        }
+    }
+
+
+
+
+#if 0
         Asset_Model asset_model = {};
-        char* out_file_name = create_output_model_filepath(in_file_name);
-        FILE* model_out = fopen(out_file_name, "wb");
-        if (!model_out) {
-            printf("[ERROR]: Couldn't open output file %s\n", out_file_name);
-            return -1;
+        {
+            asset_model.node_count = get_unique_joint_count(scene); 
+            asset_model.nodes      = new Asset_Node[asset_model.node_count];
+
+            printf("joint count: %u\n", asset_model.node_count);
         }
 
-        asset_model.node_count = g_node_count; 
-        asset_model.nodes = malloc_array(Asset_Node, asset_model.node_count);
-        fill_asset_nodes(model, &asset_model, &hashmap);
-        fill_asset_meshes(model, &asset_model, &hashmap);
-        fill_asset_materials(model, &asset_model);
+
+        fill_asset_nodes(scene, &asset_model, &hashmap);
+        fill_asset_meshes(scene, &asset_model, &hashmap);
+        fill_asset_materials(scene, &asset_model);
 
         write_asset_meshes(model_out, &asset_model);
         write_asset_materials(model_out, &asset_model);
@@ -606,10 +684,10 @@ int main(void)
         //
         // Animation
         //
-        for (u32 anim_idx = 0; anim_idx < model->mNumAnimations; ++anim_idx)
-        {
+        for (u32 anim_idx = 0; anim_idx < scene->mNumAnimations; ++anim_idx) {
+
             Asset_Animation asset_animation = {};
-            aiAnimation *anim = model->mAnimations[anim_idx];
+            aiAnimation *anim = scene->mAnimations[anim_idx];
 
             char *anim_out_file_name = create_output_animation_filepath(in_file_name, anim->mName.data);
             FILE *anim_out = fopen(anim_out_file_name, "wb");
@@ -626,10 +704,9 @@ int main(void)
             fwrite(anim->mName.data, sizeof(char) * strlen(anim->mName.data) + 1, 1, anim_out);
             fwrite_item(anim_duration, anim_out);
             fwrite_item(node_count, anim_out);
-            for (u32 node_idx = 0;
-                 node_idx < node_count;
-                 ++node_idx)
-            {
+
+            for (u32 node_idx = 0; node_idx < node_count; ++node_idx) {
+
                 aiNodeAnim *node = anim->mChannels[node_idx];
 
                 s32 node_id = id_from_name(node->mNodeName.data, &hashmap);
@@ -646,7 +723,7 @@ int main(void)
                 for (u32 idx = 0; idx < translation_count; ++idx) {
                     aiVectorKey key = node->mPositionKeys[idx];
                     f32 dt = (f32)key.mTime * spt;
-                    v3 vec = v3_from_ai(key.mValue);
+                    v3 vec = to_v3(key.mValue);
                     dt_v3_Pair dt_v3 = dt_v3_Pair{dt, vec};
                     fwrite_item(dt_v3, anim_out);
                 }
@@ -654,7 +731,7 @@ int main(void)
                 for (u32 idx = 0; idx < rotation_count; ++idx) {
                     aiQuatKey key = node->mRotationKeys[idx];
                     f32 dt = (f32)key.mTime * spt;
-                    Quaternion q = quaternion_from_ai(key.mValue);
+                    Quaternion q = to_quaternion(key.mValue);
                     dt_qt_Pair dt_qt = dt_qt_Pair{dt, q};
                     fwrite_item(dt_qt, anim_out);
                 }
@@ -662,7 +739,7 @@ int main(void)
                 for (u32 idx = 0; idx < scaling_count; ++idx) {
                     aiVectorKey key = node->mScalingKeys[idx];
                     f32 dt = (f32)key.mTime * spt;
-                    v3 vec = v3_from_ai(key.mValue);
+                    v3 vec = to_v3(key.mValue);
                     dt_v3_Pair dt_v3 = dt_v3_Pair{dt, vec};
                     fwrite_item(dt_v3, anim_out);
                 }
@@ -673,69 +750,55 @@ int main(void)
         }
     }
 
+#endif
+
     printf("*** SUCCESSFUL! ***\n");
     return 0;
 }
 
-// Quick Sort Compare Function
 //
-internal b32
-asmp_cmp_ascending_node_id(void *a, void *b)
-{
-    Asset_Node *x = (Asset_Node *)a;
-    Asset_Node *y = (Asset_Node *)b;
-    b32 result = (x->id > y->id);
-    return result;
-}
-
 // Conversion
 //
-internal v3
-v3_from_ai(aiVector3D ai_v) 
-{
-    v3 v = {};
-    v.x = ai_v.x;
-    v.y = ai_v.y;
-    v.z = ai_v.z;
+v3 to_v3(aiVector3D ai) {
+    v3 v;
+    v.x = ai.x;
+    v.y = ai.y;
+    v.z = ai.z;
     return v;
 }
 
-internal Quaternion
-quaternion_from_ai(aiQuaternion ai_q) 
+Quaternion to_quaternion(aiQuaternion ai) 
 {
-    Quaternion q = {};
-    q.w = ai_q.w;
-    q.x = ai_q.x;
-    q.y = ai_q.y;
-    q.z = ai_q.z;
+    Quaternion q;
+    q.w = ai.w;
+    q.x = ai.x;
+    q.y = ai.y;
+    q.z = ai.z;
     return q;
 }
 
-internal m4x4
-m4x4_from_ai(aiMatrix4x4 ai_mat) 
+m4x4 to_m4x4(aiMatrix4x4 ai_mat) 
 {
-    m4x4 mat = {};
-    {
-        mat.e[0][0] = ai_mat.a1;
-        mat.e[0][1] = ai_mat.a2;
-        mat.e[0][2] = ai_mat.a3;
-        mat.e[0][3] = ai_mat.a4;
+    m4x4 mat;
+    mat._11 = ai_mat.a1;
+    mat._12 = ai_mat.a2;
+    mat._13 = ai_mat.a3;
+    mat._14 = ai_mat.a4;
 
-        mat.e[1][0] = ai_mat.b1;
-        mat.e[1][1] = ai_mat.b2;
-        mat.e[1][2] = ai_mat.b3;
-        mat.e[1][3] = ai_mat.b4;
+    mat._21 = ai_mat.b1;
+    mat._22 = ai_mat.b2;
+    mat._23 = ai_mat.b3;
+    mat._24 = ai_mat.b4;
 
-        mat.e[2][0] = ai_mat.c1;
-        mat.e[2][1] = ai_mat.c2;
-        mat.e[2][2] = ai_mat.c3;
-        mat.e[2][3] = ai_mat.c4;
+    mat._31 = ai_mat.c1;
+    mat._32 = ai_mat.c2;
+    mat._33 = ai_mat.c3;
+    mat._34 = ai_mat.c4;
 
-        mat.e[3][0] = ai_mat.d1;
-        mat.e[3][1] = ai_mat.d2;
-        mat.e[3][2] = ai_mat.d3;
-        mat.e[3][3] = ai_mat.d4;
-    }
+    mat._41 = ai_mat.d1;
+    mat._42 = ai_mat.d2;
+    mat._43 = ai_mat.d3;
+    mat._44 = ai_mat.d4;
 
     return mat;
 }

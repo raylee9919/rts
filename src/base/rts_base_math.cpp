@@ -32,15 +32,11 @@ binormal_to_normal(f32 x)
     return x * 0.5f + 0.5f;
 }
 
-internal f32
-lerp(f32 a, f32 t, f32 b) 
-{
-    return b*t + (1.f - t)*a;
+f32 lerp(f32 a, f32 t, f32 b) {
+    return a + (b - a) * t;
 }
 
-internal f32
-hermite(f32 a, f32 t, f32 b)
-{
+f32 hermite(f32 a, f32 t, f32 b) {
     f32 t2 = t*t;
     f32 t3 = t2*t;
     return lerp(a, t3*(6*t2 - 15*t + 10), b);
@@ -60,8 +56,7 @@ safe_ratio(f32 a, f32 b) {
     return 0.0f;
 }
 
-v2::v2(f32 x_, f32 y_)
-{
+v2::v2(f32 x_, f32 y_) {
     e[0] = x_;
     e[1] = y_;
 }
@@ -164,17 +159,13 @@ internal f32 triarea2(v2 a, v2 b, v2 c) {
     return p.x*q.y - p.y*q.x;
 }
 
-internal f64
-fmod_cycling(f64 x, f64 y)
-{
+internal f64 fmod_cycling(f64 x, f64 y) {
     assert( y != 0 );
     f64 remainder = x - (floor(x/y) * y);
     return remainder;
 }
 
-internal f32
-fmod_cycling(f32 x, f32 y)
-{
+internal f32 fmod_cycling(f32 x, f32 y) {
     return (f32)fmod_cycling((f64)x, (f64)y);
 }
 

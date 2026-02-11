@@ -46,8 +46,9 @@ struct Hashmap
 // @Note: Quick Sort Compare Function
 internal b32 asmp_cmp_ascending_node_id(void *a, void *b);
 
-// ----------------------------------------------------------
-// @Note: Conversion
-internal v3 v3_from_ai(aiVector3D ai_v);
-internal Quaternion quaternion_from_ai(aiQuaternion ai_q);
-internal m4x4 m4x4_from_ai(aiMatrix4x4 ai_mat);
+//
+// Conversion
+// 
+v3 to_v3(aiVector3D ai);
+Quaternion to_quaternion(aiQuaternion ai);
+m4x4 to_m4x4(aiMatrix4x4 ai);

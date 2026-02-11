@@ -8,7 +8,6 @@ enum Entity_Type {
 
     ENTITY_TYPE_CAMERA,
     ENTITY_TYPE_SOLDIER,
-    ENTITY_TYPE_SWORD,
     ENTITY_TYPE_CASTLE,
 };
 
@@ -72,6 +71,9 @@ struct Entity {
     v3          scaling;
 
 
+    f32         playback_t;
+
+
     // @Todo: Unsafe
     Entity*     parent;
     Joint_Id    parent_joint_id;
@@ -97,8 +99,8 @@ struct Entity {
 
 
     Model* model;
+    Skeleton* skeleton;
 
-    Animation_Channel    animation_channels[1];
     m4x4*                animation_transform;
     Animation*           idle_animation;
     Animation*           running_animation;

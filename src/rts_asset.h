@@ -22,8 +22,18 @@
 typedef s32 Joint_Id;
 
 
-struct Asset_Vertex 
-{
+
+struct Asset_Texture {
+    s32 bits_per_channel;
+    s32 channel_count;
+    s32 width;
+    s32 height;
+    s32 pitch;
+    u32 size;
+    void *data;
+};
+
+struct Asset_Vertex {
     v3  pos;
     v3  normal;
     v2  uv;
@@ -34,114 +44,43 @@ struct Asset_Vertex
     f32 node_weights[MAX_BONE_PER_VERTEX];
 };
 
-struct Asset_Texture 
-{
-    s32 bits_per_channel;
-    s32 channel_count;
-    s32 width;
-    s32 height;
-    s32 pitch;
-    u32 size;
-    void *data;
-};
+struct Asset_Mesh {
+    u32 length;
+    u8 *name;
 
-struct Asset_Mesh 
-{
     u32 vertex_count;
     Asset_Vertex *vertices;
 
     u32 index_count;
-    u32* indices;
-
-#if 0
-    u8 has_albedo;
-    Asset_Texture *albedo;
-
-    u8 has_normal;
-    Asset_Texture *normal;
-
-    u8 has_metalic;
-    Asset_Texture *metalic;
-
-    u8 has_roughness;
-    Asset_Texture *roughness;
-
-    u8 has_emission;
-    Asset_Texture *emission;
-
-    u8 has_ao;
-    Asset_Texture *ao;
-#endif
+    u32 *indices;
 };
 
-struct Asset_Material 
-{
-    v3 color_ambient;
-    v3 color_diffuse;
-    v3 color_specular;
-};
-
-struct Asset_Node 
-{
-    s32 id;
-
-    m4x4 offset;     // mesh-space to bone-space. aiBone... if unavailable, set to no-op matrix...?
-    m4x4 transform;  // transform in parent's bone-space. aiNode
-
-    u32  child_count;
-    s32* child_ids;
-};
-
-struct Asset_Model 
-{
+struct Asset_Model {
     u32 mesh_count;
     Asset_Mesh *meshes;
-
-    u32 material_count;
-    Asset_Material *materials;
-
-    u32 node_count;
-    s32 root_bone_node_id;
-    Asset_Node* nodes;
 };
 
-struct dt_v3_Pair 
-{
-    f32 dt;
-    v3 vec;
+struct Asset_Animation_Node {
+    s32 id; // index in a joint array in skeleton.
+
+    v3         *translations;
+    Quaternion *rotations;
+    v3         *scales;
 };
 
-struct dt_qt_Pair 
-{
-    f32 dt;
-    Quaternion q;
-};
+struct Asset_Animation {
+    u32 length;
+    u8 *name;
 
-struct Asset_Animation_Node 
-{
-    s32 id;
+    u32 num_samples;
+    f32 fps;
 
-    u32 translation_count;
-    u32 rotation_count;
-    u32 num_scales;
-
-    dt_v3_Pair  *translations;
-    dt_qt_Pair  *rotations;
-    dt_v3_Pair  *scalings;
-};
-
-struct Asset_Animation 
-{
-    char *name;
-
-    f32  duration;
-    u32  node_count;
-
+    u32 num_nodes;
     Asset_Animation_Node *nodes;
 };
 
-// # Note: 
-//
+
+
 struct Bitmap 
 {
     s32 bits_per_channel;
@@ -166,10 +105,10 @@ enum Asset_State
     Asset_State_Loaded
 };
 
-// --------------------------------
-// @Note: Model
-struct Vertex 
-{
+//
+// Mesh
+//
+struct Vertex {
     v3 position;
     v3 normal;
     v2 uv;
@@ -222,116 +161,79 @@ struct Node
     s32 *child_ids;
 };
 
-struct Model 
-{
-    u32 mesh_count;
+struct Model {
+    u32 num_meshes;
     Mesh* meshes;
-
-    u32 material_count;
-    Material* materials;
-
-    u32 node_count;
-    s32 root_bone_node_id;
-    Node* nodes;
 };
 
-// Note: Animation
+
 //
-struct Animation_Hash_Slot 
-{
-    u32 id;
-    u32 idx;
-    Animation_Hash_Slot* next;
+// Skeleton
+//
+struct Joint {
+    Utf8 name;
+    s32  parent;
+    m4x4 local_transform;
+    m4x4 inverse_bind_pose;
 };
 
-struct Animation_Hash_Entry 
-{
-    Animation_Hash_Slot* first;
+struct Skeleton {
+    u32 num_joints;
+    Joint *joints;
 };
 
-struct Animation_Hash_Table 
-{
-    u32 entry_count;
-    Animation_Hash_Entry* entries;
-};
 
-struct Sample 
-{
-    s32         id;
-
-    u32         translation_count;
-    u32         rotation_count;
-    u32         num_scales;
-
-    dt_v3_Pair* translations;
-    dt_qt_Pair* rotations;
-    dt_v3_Pair* scales;
-};
-
-struct Animation 
-{
-    char* name;
-
-    f32 duration;
-
-    u32 sample_count;
-    Sample* samples;
-
-    Animation_Hash_Table hash_table;
-};
-
-struct Animation_Channel 
-{
-    Animation* animation;
-    f32 dt;
-};
-
-struct Node_Hash_Result 
-{
-    b32 found;
-    u32 idx;
-};
-
+//
+// Animation
+//
 struct Xform {
     v3         translation;
     Quaternion rotation;
     v3         scale;
 };
 
-struct Eval_Stack_Frame
-{
-    s32 node_id;
-    b32 global_transform_done;
-    u32 next_child_idx;
-
-    m4x4 global_transform;
+struct Animation_Joint {
+    s32 id;
+    Xform *keyframes;
 };
 
-struct Eval_Stack
-{
-    Eval_Stack_Frame frames[256];
-    u32 top;
+struct Animation_Joint_Entry {
+    union {
+        Animation_Joint_Entry *first;
+        Animation_Joint_Entry *next;
+    };
+    Animation_Joint_Entry *last;
+    Animation_Joint *joint;
 };
+
+struct Animation {
+    Utf8 name;
+
+    f32 fps;
+    u32 num_keyframes;
+
+    u32 num_joints;
+    Animation_Joint *joints;
+
     
+    // (s32 id) -> (Animation_Joint *joint) hash-table.
+    Animation_Joint_Entry *joint_table;
+    u32 table_size;
+};
+
+
+
+
 
 internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
 internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale = v3(1.f));
-internal void asset_load_animation(Animation *anim, Utf8 file_path, Arena *arena);
 internal u32 get_triangle_count(Model *model);
 internal u64 animation_hash(u32 id, u32 length);
 
 
-// # Note: Animation.
-//
-internal Node_Hash_Result get_sample_index(Animation *anim, u32 id);
-internal void anim_accumulate(Animation_Channel *channel, f32 dt);
-internal Xform interpolate_trs(Xform trs1, f32 t, Xform trs2);
-internal Xform interpolate_sample(Sample *sample, f32 dt);
-internal void eval_node(Animation *anim, f32 dt, Node *node);
-internal void eval(Model *model, Animation *anim, f32 dt, m4x4 *final_transforms, b32 do_eval_node);
-internal void interpolate(Model *model, Animation *anim1, f32 dt1, f32 t, Animation *anim2, f32 dt2);
-
-
+internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scalea = v3{1.f,1.f,1.f});
+internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path);
+internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path);
 
 
 #pragma pack(pop)

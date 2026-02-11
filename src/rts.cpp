@@ -3,8 +3,7 @@
 //
 // .h
 //
-#include "embed_profiler.h"
-
+#include "rts_profiler.h"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_random.h"
@@ -21,7 +20,6 @@
 #include "rect_pack/rpk.h"
 #include "font_provider/fp_inc.h"
 #include "third_party/stb/stb_image.h"
-#include "third_party/meshoptimizer/meshoptimizer.h"
 
 
 global Game_State *game_state;
@@ -54,10 +52,8 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 {
     Entity* soldier            = entity_alloc();
     soldier->type              = ENTITY_TYPE_SOLDIER;
-    soldier->flags             = (ENTITY_FLAG_IS_UNIT |
-                                  ENTITY_FLAG_CHUNK_PARTITIONED |
-                                  ENTITY_FLAG_COLLIDEABLE |
-                                  ENTITY_FLAG_SHOWS_ON_MINIMAP);
+    soldier->flags             = (ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED |
+                                  ENTITY_FLAG_COLLIDEABLE | ENTITY_FLAG_SHOWS_ON_MINIMAP);
 
     soldier->team              = team;
 
@@ -77,12 +73,20 @@ debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     soldier->orientation       = Quaternion{1,0,0,0};
     soldier->scaling           = v3(1.f);
     soldier->model             = assets->skeleton_model;
-    soldier->idle_animation    = assets->xbot_idle;
-    soldier->running_animation = assets->xbot_run;
-    soldier->die_animation     = assets->xbot_die;
-    soldier->attack_animation  = assets->xbot_attack;
+    soldier->skeleton          = assets->skeleton_skeleton;
+    soldier->idle_animation    = assets->skeleton_idle;
+    soldier->running_animation = assets->skeleton_run;
+    soldier->die_animation     = assets->skeleton_die;
+    soldier->attack_animation  = assets->skeleton_attack;
+
     // @Hack:
-    soldier->animation_transform = push_array(game_state->entity_arena, m4x4, soldier->model->node_count);
+    u32 num_joints = soldier->skeleton->num_joints;
+    soldier->animation_transform = push_array(game_state->entity_arena, m4x4, num_joints);
+    
+    for (u32 i = 0; i < num_joints; ++i) {
+        soldier->animation_transform[i] = identity();
+    }
+
     entity_init(soldier, nullptr);
 
     return soldier;
@@ -169,41 +173,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             Game_Assets *assets = game_state->assets;
             Arena *asset_arena = game_state->assets->arena;
             
-            assets->sphere_model = push_struct(asset_arena, Model);
-            asset_load_model(assets->sphere_model, utf8f(scratch.arena, "%S/mesh/sphere.smsh", platform->data_path), asset_arena);
-            
-            assets->plane_model = push_struct(asset_arena, Model);
-            {
-                asset_load_model(assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane.smsh", platform->data_path), asset_arena);
-                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.sbmp", platform->data_path), asset_arena);
-            }
-            
-            assets->rock_model = push_struct(asset_arena, Model);
-            {
-                asset_load_model(assets->rock_model, utf8f(scratch.arena, "%S/mesh/rock.smsh", platform->data_path), asset_arena);
-                asset_load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/RockAlbedo.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/RockMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/RockNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->rock_model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/RockRoughness.sbmp", platform->data_path), asset_arena);
-            }
-
-            assets->sword_model = push_struct(asset_arena, Model);
-            {
-                auto* model = assets->sword_model;
-                asset_load_model(model, utf8f(scratch.arena, "%S/mesh/sword.smsh", platform->data_path), asset_arena, v3(0.005f));
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/sword_albedo.png", platform->data_path), asset_arena);
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/sword_normal.png", platform->data_path), asset_arena);
-                // @Fix
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/sword_mr.png", platform->data_path), asset_arena);
-            }
-            
             assets->skeleton_model = push_struct(asset_arena, Model);
             {
                 auto* model = assets->skeleton_model;
-                asset_load_model(model, utf8f(scratch.arena, "%S/mesh/skeleton_lord.smsh", platform->data_path), asset_arena);
+                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/skeleton_lord.triangle_mesh", platform->data_path));
                 asset_load_image(&model->meshes[7].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/bodyColor.sbmp", platform->data_path), asset_arena);
                 asset_load_image(&model->meshes[7].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/bodyMetalic.sbmp", platform->data_path), asset_arena);
                 asset_load_image(&model->meshes[7].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/bodyNormal.sbmp", platform->data_path), asset_arena);
@@ -223,50 +196,52 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 asset_load_image(&model->meshes[1].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/swordMetalic.sbmp", platform->data_path), asset_arena);
                 asset_load_image(&model->meshes[1].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/swordRoughness.sbmp", platform->data_path), asset_arena);
                 
-                assets->xbot_idle = push_struct(asset_arena, Animation);
-                asset_load_animation(assets->xbot_idle, utf8f(scratch.arena, "%S/animation/skeleton_lord_idle.sanm", platform->data_path), asset_arena);
-                
-                assets->xbot_run = push_struct(asset_arena, Animation);
-                asset_load_animation(assets->xbot_run, utf8f(scratch.arena, "%S/animation/skeleton_lord_run.sanm", platform->data_path), asset_arena);
-                
-                assets->xbot_die = push_struct(asset_arena, Animation);
-                asset_load_animation(assets->xbot_die, utf8f(scratch.arena, "%S/animation/skeleton_lord_die.sanm", platform->data_path), asset_arena);
-                
-                assets->xbot_attack = push_struct(asset_arena, Animation);
-                asset_load_animation(assets->xbot_attack, utf8f(scratch.arena, "%S/animation/skeleton_lord_attack.sanm", platform->data_path), asset_arena);
+                assets->skeleton_idle = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->skeleton_idle, utf8f(scratch.arena, "%S/animation/skeleton_lord_idle.keyframed_animation", platform->data_path));
+
+                assets->skeleton_run = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->skeleton_run, utf8f(scratch.arena, "%S/animation/skeleton_lord_run.keyframed_animation", platform->data_path));
+
+                assets->skeleton_attack = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->skeleton_attack, utf8f(scratch.arena, "%S/animation/skeleton_lord_attack.keyframed_animation", platform->data_path));
+
+                assets->skeleton_die = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->skeleton_die, utf8f(scratch.arena, "%S/animation/skeleton_lord_die.keyframed_animation", platform->data_path));
+
+
+
             }
 
-            assets->warrior_model = push_struct(asset_arena, Model);
+            assets->skeleton_skeleton = push_struct(asset_arena, Skeleton);
+            load_skeleton(asset_arena, assets->skeleton_skeleton, utf8f(scratch.arena, "%S/skeleton/skeleton_lord.skeleton", platform->data_path));  
+
+            assets->plane_model = push_struct(asset_arena, Model);
             {
-                auto* model = assets->warrior_model;
-                asset_load_model(model, utf8f(scratch.arena, "%S/mesh/warrior.smsh", platform->data_path), asset_arena);
-
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/warrior_albedo.png", platform->data_path), asset_arena);
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/warrior_normal.png", platform->data_path), asset_arena);
-                // @Todo: Those two have 4 channels each which aren't compatible with our roughness/metalic renderer.
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/warrior_metalic.png", platform->data_path), asset_arena);
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/warrior_roughness.png", platform->data_path), asset_arena);
-                
-                assets->warrior_idle = push_struct(asset_arena, Animation);
-                asset_load_animation(assets->warrior_idle, utf8f(scratch.arena, "%S/animation/warrior_idle.sanm", platform->data_path), asset_arena);
+                load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane.triangle_mesh", platform->data_path));
+                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.sbmp", platform->data_path), asset_arena);
             }
+            
+            //assets->sword_model = push_struct(asset_arena, Model);
+            //{
+            //    auto* model = assets->sword_model;
+            //    asset_load_model(model, utf8f(scratch.arena, "%S/mesh/sword.smsh", platform->data_path), asset_arena, v3(0.005f));
+            //    asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/sword_albedo.png", platform->data_path), asset_arena);
+            //    asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/sword_normal.png", platform->data_path), asset_arena);
+            //    // @Fix
+            //    asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/sword_mr.png", platform->data_path), asset_arena);
+            //}
+            
 
             assets->castle_model = push_struct(asset_arena, Model);
             {
                 auto* model = assets->castle_model;
-                asset_load_model(model, utf8f(scratch.arena, "%S/mesh/castle.smsh", platform->data_path), asset_arena, v3(8.f));
+                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/castle.triangle_mesh", platform->data_path), v3(8.f));
 
                 asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/castle_albedo.png", platform->data_path), asset_arena);
                 asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/castle_normal.png", platform->data_path), asset_arena);
-            }
-            
-            assets->crate_model = push_struct(asset_arena, Model);
-            {
-                asset_load_model(assets->crate_model, utf8f(scratch.arena, "%S/mesh/crate.smsh", platform->data_path), asset_arena);
-                asset_load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/crate_albedo.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/crate_normal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/crate_metalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->crate_model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/crate_roughness.sbmp", platform->data_path), asset_arena);
             }
             
             asset_load_image(&game_state->assets->debug_bitmap, utf8f(scratch.arena, "%S/textures/doggo.sbmp", platform->data_path), asset_arena);

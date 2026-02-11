@@ -585,8 +585,6 @@ entity_update(Entity* entity, const f32 dt)
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    u64 id = entity->id;
-
     switch (entity->type) {
         default: {
             assert(!"INVALID DEFUALT CASE");
@@ -597,7 +595,7 @@ entity_update(Entity* entity, const f32 dt)
         } break;
 
         case ENTITY_TYPE_CAMERA: {
-            if (game_state->controlling_camera_id == id) {
+            if (game_state->controlling_camera_id == entity->id) {
                 f32 accel_strength = 50.0f;
                 f32 friction       = 7.0f;
                 f32 max_speed      = 20.0f;
@@ -877,8 +875,83 @@ entity_update(Entity* entity, const f32 dt)
             // @Todo: Hideous... NEED PROPER ANIMATION BLENDING!!
             //
             if (entity->model) {
-                ProfileScopeN("EntityUpdateAnimation"); // @Todo: This is bottleneck!
+                ProfileScopeNC("EntityUpdateAnimation", 0xffc5d3); // @Todo: This is bottleneck!
 
+
+                {
+                    u32 num_joints  = entity->skeleton->num_joints;
+                    Animation *anim = entity->attack_animation;
+                    u32 num_nodes   = anim->num_joints;
+
+                    const f32 fps = 60.f;
+                    const f32 duration = anim->num_keyframes / fps;
+
+                    entity->playback_t = fmod_cycling(entity->playback_t + dt, duration);
+
+                    u32 idx1 = (u32)(entity->playback_t * fps) % anim->num_keyframes;
+                    u32 idx2 = (idx1 + 1) % anim->num_keyframes;
+
+                    f32 t = entity->playback_t * fps - idx1;
+
+                    m4x4 *global_transform = push_array(scratch.arena, m4x4, num_joints);
+
+
+                    for (u32 ji = 0; ji < num_joints; ++ji) {
+                        Joint *joint = &entity->skeleton->joints[ji];
+                        s32 parent = joint->parent;
+
+                        Animation_Joint *node = nullptr;
+
+                        s32 id = (s32)ji;
+
+                        {
+                            ProfileScopeN("Animation: Search In Table");
+
+                            u64 slot = hash_joint_id(id) % anim->table_size;
+                            auto *entry = anim->joint_table + slot;
+                            for (auto *link = entry->first; link; link = link->next) {
+                                if (link->joint->id == id) {
+                                    node = link->joint;
+                                    break;
+                                }
+                            }
+                        }
+
+                        m4x4 local_transform = joint->local_transform;
+
+                        if (node) {
+                            ProfileScopeN("Animation: Lerp");
+
+                            Xform *sample1 = &node->keyframes[idx1];
+                            Xform *sample2 = &node->keyframes[idx2];
+
+                            Quaternion rot1 = sample1->rotation;
+                            Quaternion rot2 = sample2->rotation;
+                            if (dot(rot1, rot2) < 0.f) {
+                                rot2 = -rot2;
+                            }
+                            Quaternion rotation = nlerp(rot1, t, rot2);
+                            v3 translation      = lerp(sample1->translation, t, sample2->translation);
+                            v3 scale            = lerp(sample1->scale, t, sample2->scale);
+
+                            local_transform = trs_to_transform(translation, rotation, scale);
+                        }
+
+                        {
+                            ProfileScopeN("Animation: Global Transform and Pose");
+
+                            if (parent >= 0) {
+                                global_transform[ji] = global_transform[parent] * local_transform;
+                            } else {
+                                global_transform[ji] = local_transform;
+                            }
+
+                            entity->animation_transform[ji] = global_transform[ji] * joint->inverse_bind_pose;
+                        }
+                    }
+                }
+
+#if 0
                 if (!entity_is_dead(entity)) {
                     if (entity->attack_t > 0.f) {
                         Animation_Channel* channel = &entity->animation_channels[0];
@@ -943,41 +1016,7 @@ entity_update(Entity* entity, const f32 dt)
                 } else {
                     INVALID_CODE_PATH;
                 }
-            }
-        } break;
-
-        case ENTITY_TYPE_SWORD: {
-            // @Todo: Dangling pointer! Use id instead.
-            Entity* parent = entity->parent;
-            if (parent) {
-                Joint_Id joint_id = entity->parent_joint_id;
-                if (joint_id != -1) {
-                    auto* model = parent->model;
-                    if (model && model->nodes) {
-
-                        assert(joint_id < (s32)model->node_count);
-                        Node* joint = model->nodes + joint_id;
-
-                        if (parent->animation_transform) { // animated?
-                            m4x4 joint_local_animated  = parent->animation_transform[joint_id];
-                            m4x4 world_transform  = trs_to_transform(parent->position, parent->orientation, parent->scaling);
-                            m4x4 socket_transform = trs_to_transform(entity->local_position, entity->local_orientation, v3(1.f));
-
-                            m4x4 m = world_transform * joint_local_animated * socket_transform;
-
-                            entity->position = v3(m.e[0][3], m.e[1][3], m.e[2][3]);
-                            // @Temporary
-                            entity->orientation = quaternion_from_m4x4(m);
-                        } else {
-                            assert(!"Please be animated.");
-                        }
-                    }
-                } else {
-                    entity->position    = parent->position + entity->local_position;
-                    entity->orientation = parent->orientation * entity->local_orientation;
-                }
-            } else {
-                assert(!"No momma");
+#endif
             }
         } break;
 
@@ -1115,7 +1154,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         case ENTITY_TYPE_SOLDIER: {
             m4x4 transform = trs_to_transform(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
-                for (u32 mesh_idx = 0; mesh_idx < entity->model->mesh_count; ++mesh_idx) {
+                for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh* mesh = entity->model->meshes + mesh_idx;
 
                     v4 tint = v4{1,1,1,1};
@@ -1125,6 +1164,33 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
 
                     push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f), tint);
                 }
+
+
+#if 0
+                u32 num_joints = entity->skeleton->num_joints;
+                m4x4 *global_transform = push_array(game_state->frame_arena, m4x4, num_joints);
+                for (u32 ji = 0; ji < num_joints; ++ji) {
+                    Joint *joint = &entity->skeleton->joints[ji];
+                    s32 parent = joint->parent;
+                    if (parent >= 0) {
+                        global_transform[ji] = global_transform[joint->parent] * joint->local_transform;
+                    } else {
+                        global_transform[ji] = joint->local_transform;
+                    }
+                }
+
+                for (u32 ji = 0; ji < num_joints; ++ji) {
+                    Joint *joint = &entity->skeleton->joints[ji];
+                    s32 parent = joint->parent;
+                    if (parent >= 0) {
+                        v3 p1 = (global_transform[ji] * v4{0,0,0,1}).xyz;
+                        v3 p2 = (global_transform[parent] * v4{0,0,0,1}).xyz;
+                        draw_line(render_group, p1, p2, v4{1.0f,1.0f,1.0f,1.0f});
+                    }
+                }
+#endif
+
+
             }
 
             commands->debug_transform = transform;
@@ -1172,11 +1238,10 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         case ENTITY_TYPE_CAMERA: {
         } break;
 
-        case ENTITY_TYPE_SWORD:
         case ENTITY_TYPE_CASTLE: {
             m4x4 transform = trs_to_transform(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
-                for (u32 mesh_idx = 0; mesh_idx < entity->model->mesh_count; ++mesh_idx) {
+                for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
                     push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2{1,1});
                 }

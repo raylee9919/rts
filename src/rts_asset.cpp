@@ -10,176 +10,329 @@
     memcpy(to, at, sizeof(type)*count); \
     at += (sizeof(type)*count);
 
+struct Asset_Loader {
+    u8 *cursor;
+    u8 *end;
 
+    void eat_whitespace() {
+        while (cursor < end) {
+            u8 c = *cursor;
+            if (!is_whitespace(c)) break;
+            cursor++;
+        }
+    }
 
-internal void
-asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale)
+    u8 peek() {
+        assert( cursor && cursor < end );
+        return *cursor;
+    }
+
+    u8 eat() {
+        assert( cursor && cursor < end );
+        u8 c = *cursor++;
+        return c;
+    }
+
+    u32 parse_u32() {
+        assert( cursor && cursor < end );
+        eat_whitespace();
+
+        u32 result = 0;
+
+        while (cursor < end) {
+            u8 c = peek();
+            if (is_digit(c)) {
+                u32 num = atoi(c);
+                result *= 10;
+                result += num;
+                cursor++;
+            } else {
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    s32 parse_s32() {
+        assert( cursor && cursor < end );
+        eat_whitespace();
+
+        bool sign = false;
+        u8 sign_char = peek();
+        if (sign_char == '+') {
+            eat();
+        } else if (sign_char == '-') {
+            sign = true;
+            eat();
+        }
+
+        u32 integer = parse_u32();
+        assert( integer <= 0x0fffffff );
+        s32 result = (u32)integer;
+
+        if (sign) {
+            result = -result;
+        }
+
+        return result;
+    }
+
+    f32 parse_f32() {
+        assert( cursor && cursor < end );
+        eat_whitespace();
+
+        bool sign = false;
+        u8 sign_char = peek();
+        if (sign_char == '+') {
+            eat();
+        } else if (sign_char == '-') {
+            sign = true;
+            eat();
+        }
+
+        s32 integer = 0;
+        while (cursor < end) {
+            u8 c = peek();
+            if (is_digit(c)) {
+                s32 num = c - '0';
+                integer *= 10;
+                integer += num;
+                cursor++;
+            } else {
+                break;
+            }
+        }
+
+        f32 fraction = 0.f;
+        f32 weight = 0.1f;
+        if (peek() == '.') {
+            cursor++;
+
+            while (cursor < end) {
+                char c = peek();
+                if (is_digit(c)) {
+                    f32 num = (f32)(c - '0');
+                    fraction += (num*weight);
+                    weight *= 0.1f;
+                    cursor++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        f32 result = (f32)integer + fraction;
+        if (sign) {
+            result = -result;
+        }
+        return result;
+    }
+
+    v2 parse_v2() {
+        v2 result;
+        result.x = parse_f32();
+        result.y = parse_f32();
+        return result;
+    }
+
+    v3 parse_v3() {
+        v3 result;
+        result.x = parse_f32();
+        result.y = parse_f32();
+        result.z = parse_f32();
+        return result;
+    }
+
+    v4 parse_v4() {
+        v4 result;
+        result.r = parse_f32();
+        result.g = parse_f32();
+        result.b = parse_f32();
+        result.a = parse_f32();
+        return result;
+    }
+
+    m4x4 parse_m4x4() {
+        m4x4 result;
+        result.rows[0] = parse_v4();
+        result.rows[1] = parse_v4();
+        result.rows[2] = parse_v4();
+        result.rows[3] = parse_v4();
+        return result;
+    }
+
+    Quaternion parse_quaternion() {
+        Quaternion result;
+        result.w = parse_f32();
+        result.x = parse_f32();
+        result.y = parse_f32();
+        result.z = parse_f32();
+        return result;
+    }
+
+    void parse_string(u32 length) {
+        assert( cursor && cursor < end );
+        eat_whitespace();
+
+        // @Temporary
+        cursor += length;
+    }
+};
+
+internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
 {
+    assert(model_out);
+
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    assert(model);
-
-    // Note: read entire file.
-    //
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
-    u8 *at  = entire_file.str;
-    u8 *end = at + entire_file.len;
+    Asset_Loader l = {};
+    l.cursor = entire_file.str;
+    l.end = entire_file.str + entire_file.len;
 
-    READ(model->mesh_count, u32);
+    u32 num_meshes = l.parse_u32();
+    model_out->num_meshes = num_meshes;
+    model_out->meshes = push_array(arena, Mesh, num_meshes);
 
-    model->meshes = push_array(arena, Mesh, model->mesh_count);
-    for (u32 mesh_idx = 0; mesh_idx < model->mesh_count; ++mesh_idx)
-    {
-        Mesh *mesh = model->meshes + mesh_idx;
+    for (u32 mi = 0; mi < num_meshes; ++mi) {
+        Mesh *mesh = &model_out->meshes[mi];
 
-        READ(mesh->vertex_count, u32);
-        mesh->vertices = push_array(arena, Vertex, mesh->vertex_count);
-        for (u32 vertex_idx = 0; vertex_idx < mesh->vertex_count; ++vertex_idx)
-        {
-            Vertex *vertex = mesh->vertices + vertex_idx;
-            READ(vertex->position, v3);
-            vertex->position = hadamard(vertex->position, scale);
-            READ(vertex->normal, v3);
-            READ(vertex->uv, v2);
-            READ(vertex->color, v4);
-            READ(vertex->tangent, v3);
+        u32 str_len = l.parse_u32();
+        l.parse_string(str_len);
 
-            for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
-                READ(vertex->node_ids[i], s32); 
-            }
-            for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
-                READ(vertex->node_weights[i], f32); 
-            }
+        // Parse vertices.
+        //
+        u32 num_vertices = l.parse_u32();
+        mesh->vertex_count = num_vertices;
+        mesh->vertices = push_array(arena, Vertex, num_vertices);
+
+        for (u32 vi = 0; vi < num_vertices; ++vi) {
+            Vertex *vert = &mesh->vertices[vi];
+            vert->position = hadamard(l.parse_v3(), scale);
+            vert->normal   = l.parse_v3();
+            vert->uv       = l.parse_v2();
+            vert->color    = l.parse_v4();
+            vert->tangent  = l.parse_v3();
+
+            for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) vert->node_ids[i] = l.parse_s32();
+            for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) vert->node_weights[i] = l.parse_f32();
         }
 
-        READ(mesh->index_count, u32);
-        READ_COUNT(mesh->indices, u32, mesh->index_count);
-    }
+        // Parse indices.
+        //
+        u32 num_indices = l.parse_u32();
+        mesh->index_count = num_indices;
+        mesh->indices = push_array(arena, u32, num_indices);
 
-    // Material
-    //
-    READ(model->material_count, u32);
-    READ_COUNT(model->materials, Material, model->material_count);
-
-    // Nodes
-    //
-    READ(model->node_count, u32);
-    if (model->node_count)
-    {
-        READ(model->root_bone_node_id, s32);
-        model->nodes = push_array(arena, Node, model->node_count);
-
-        for (u32 node_idx = 0; node_idx < model->node_count; ++node_idx)
-        {
-            Node* node = model->nodes + node_idx;
-
-            READ(node->id, s32);
-            READ(node->offset, m4x4);
-            READ(node->base_transform, m4x4);
-            READ(node->child_count, u32);
-            READ_COUNT(node->child_ids, s32, node->child_count);
+        for (u32 ii = 0; ii < num_indices; ++ii) {
+            mesh->indices[ii] = l.parse_u32();
         }
     }
 
-    assert(at == end);
+
+    l.eat_whitespace();
+    assert( l.cursor == l.end );
 }
 
-internal u32
-get_triangle_count(Model *model)
+internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
 {
-    u32 result = 0;
-    for (u32 i = 0; i < model->mesh_count; ++i) {
-        Mesh *mesh = model->meshes + i;
-        result += mesh->index_count;
+    assert(skel_out);
+
+    Temporary_Arena scratch = scratch_begin();
+    defer(scratch_end(scratch));
+
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
+    Asset_Loader l = {};
+    l.cursor = entire_file.str;
+    l.end = entire_file.str + entire_file.len;
+
+    u32 num_joints = l.parse_u32();
+    skel_out->num_joints = num_joints;
+    skel_out->joints = push_array(arena, Joint, num_joints);
+
+    for (u32 ji = 0; ji < num_joints; ++ji) {
+        Joint *joint = &skel_out->joints[ji];
+
+        u32 name_len = l.parse_u32();
+        l.parse_string(name_len);
+
+        s32 parent = l.parse_s32();
+        joint->parent = parent;
+        joint->local_transform = l.parse_m4x4();
+        joint->inverse_bind_pose = l.parse_m4x4();
     }
-    result /= 3;
+
+    l.eat_whitespace();
+    assert( l.cursor == l.end );
+}
+
+internal u64 hash_joint_id(s32 id)
+{
+    u64 result = XXH3_64bits_withSeed(&id, sizeof(id), 0);
     return result;
 }
 
-internal u64
-animation_hash(u32 id, u32 length) {
-    u64 x = ( ((u64)id << 32) | (u64)length );
-    u64 slot = XXH3_64bits_withSeed(&x, sizeof(x), 0) % length;
-    return slot;
-}
-
-internal void
-asset_load_animation(Animation* anim, Utf8 file_path, Arena *arena)
+internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
 {
-    assert(anim);
+    assert(anim_out);
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
+    Asset_Loader l = {};
+    l.cursor = entire_file.str;
+    l.end = entire_file.str + entire_file.len;
 
-    u8* at  = entire_file.str;
-    u8* end = at + entire_file.len;
+    u32 name_len = l.parse_u32();
+    l.parse_string(name_len);
 
-    READ_COUNT(anim->name, char, string_length((char *)at) + 1);
+    f32 fps           = l.parse_f32();
+    u32 num_keyframes = l.parse_u32();
+    u32 num_joints    = l.parse_u32();
 
-    READ(anim->duration, f32);
-    READ(anim->sample_count, u32);
+    anim_out->fps = fps;
+    anim_out->num_keyframes = num_keyframes;
+    anim_out->num_joints = num_joints;
+    anim_out->joints = push_array(arena, Animation_Joint, num_joints);
 
-    anim->samples = push_array(arena, Sample, anim->sample_count);
-    for (u32 sample_idx = 0;
-         sample_idx < anim->sample_count;
-         ++sample_idx)
-    {
-        Sample *sample = anim->samples + sample_idx;
-
-        READ(sample->id, s32);
-
-        READ(sample->translation_count, u32);
-        READ(sample->rotation_count, u32);
-        READ(sample->num_scales, u32);
-
-        READ_COUNT(sample->translations, dt_v3_Pair, sample->translation_count);
-        READ_COUNT(sample->rotations, dt_qt_Pair, sample->rotation_count);
-        READ_COUNT(sample->scales, dt_v3_Pair, sample->num_scales);
-    }
-
-    assert(at == end);
-
-    //
-    // Build hash-table (key: node_id, value: node_idx in Animation->nodes)
-    //
-    Animation_Hash_Table *ht = &anim->hash_table;
-    ht->entry_count = anim->sample_count;
-    ht->entries = push_array(arena, Animation_Hash_Entry, ht->entry_count);
-    for (u32 sample_idx = 0;
-         sample_idx < anim->sample_count;
-         ++sample_idx)
-    {
-        Sample *sample = anim->samples + sample_idx;
-        u64 entry_idx = animation_hash(sample->id, ht->entry_count);
-        Animation_Hash_Entry *entry = ht->entries + entry_idx;
-        Animation_Hash_Slot *slot = entry->first;
-        if (slot)
-        {
-            while (slot->next)
-            {
-                slot = slot->next;
-            }
-            slot->next = push_struct(arena, Animation_Hash_Slot);
-            Animation_Hash_Slot *new_slot = slot->next;
-            new_slot->id = sample->id;
-            new_slot->idx = sample_idx;
-            new_slot->next = 0;
-        } else {
-            slot = push_struct(arena, Animation_Hash_Slot);
-            slot->id = sample->id;
-            slot->idx = sample_idx;
-            slot->next = 0;
-
-            entry->first = slot;
+    for (u32 ji = 0; ji < anim_out->num_joints; ++ji) {
+        Animation_Joint *joint = &anim_out->joints[ji];
+        joint->id = l.parse_s32();
+        joint->keyframes = push_array(arena, Xform, anim_out->num_keyframes);
+        for (u32 ki = 0; ki < anim_out->num_keyframes; ++ki) {
+            Xform *keyframe = &joint->keyframes[ki];
+            keyframe->translation = l.parse_v3();
+            keyframe->rotation    = l.parse_quaternion();
+            keyframe->scale       = l.parse_v3();
         }
     }
+
+    
+    u32 table_size = 256;
+    anim_out->table_size = table_size;
+    anim_out->joint_table = push_array(arena, Animation_Joint_Entry, table_size);
+
+    for (u32 ji = 0; ji < anim_out->num_joints; ++ji) {
+        Animation_Joint *joint = &anim_out->joints[ji];
+        s32 id = joint->id;
+        u64 slot = hash_joint_id(id) % table_size;
+
+        Animation_Joint_Entry *new_node = push_struct(arena, Animation_Joint_Entry);
+        new_node->joint = joint;
+
+        Animation_Joint_Entry *entry = anim_out->joint_table + slot;
+        sll_push_back(entry->first, entry->last, new_node);
+    }
+
+
+    l.eat_whitespace();
+    assert( l.cursor == l.end );
 }
 
-internal void
-asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
+internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
@@ -204,8 +357,7 @@ asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
     assert(at == end);
 }
 
-internal void
-asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
+internal void asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
@@ -232,198 +384,3 @@ asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 
 #undef READ
 #undef READ_COUNT
-
-// Note: Animation
-//
-
-internal Node_Hash_Result
-get_sample_index(Animation *anim, u32 id) 
-{
-    Node_Hash_Result result = {};
-
-    Animation_Hash_Table *ht = &anim->hash_table;
-    u64 entry_idx = animation_hash(id, ht->entry_count);
-    Animation_Hash_Entry *entry = ht->entries + entry_idx;
-    for (Animation_Hash_Slot *slot = entry->first;
-         slot;
-         slot = slot->next)
-    {
-        if (slot->id == id)
-        {
-            result.found = true;
-            result.idx = slot->idx;
-            break;
-        }
-    }
-
-    return result;
-}
-
-internal void
-anim_accumulate(Animation_Channel *channel, f32 dt)
-{
-    if (channel->animation) 
-    {
-        channel->dt += dt;
-        if (channel->dt > channel->animation->duration) 
-        {
-            channel->dt = 0.0f;
-        }
-    }
-}
-
-internal Xform
-interpolate_trs(Xform trs1, f32 t, Xform trs2)
-{
-    Xform result = {};
-    result.translation = lerp(trs1.translation, t, trs2.translation);
-
-    Quaternion first  = trs1.rotation;
-    Quaternion second = trs2.rotation;
-    if (dot(first, second) < 0.f) {
-        second = -second;
-    }
-    result.rotation = nlerp(first, t, second);
-
-    result.scale = lerp(trs1.scale, t, trs2.scale);
-    return result;
-}
-
-internal Xform
-interpolate_sample(Sample* sample, f32 dt)
-{
-    Xform result = {};
-
-    // Translation
-    result.translation = (sample->translations + (sample->translation_count - 1))->vec;
-    for (u32 translation_idx = 0; translation_idx < sample->translation_count; ++translation_idx)
-    {
-        dt_v3_Pair *hi_key = sample->translations + translation_idx;
-        if (hi_key->dt > dt) {
-            dt_v3_Pair *lo_key = (hi_key - 1);
-            f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
-            result.translation = lerp(lo_key->vec, t, hi_key->vec);
-            break;
-        } else if (hi_key->dt == dt) {
-            result.translation = hi_key->vec;
-            break;
-        }
-    }
-
-    // Rotation
-    result.rotation = (sample->rotations + (sample->rotation_count - 1))->q;
-    for (u32 rotation_idx = 0; rotation_idx < sample->rotation_count; ++rotation_idx) 
-    {
-        dt_qt_Pair* hi_key = sample->rotations + rotation_idx;
-        if (hi_key->dt > dt) {
-            dt_qt_Pair* lo_key = (hi_key - 1);
-            f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
-            Quaternion first  = lo_key->q;
-            Quaternion second = hi_key->q;
-            if (dot(first, second) < 0.f) {
-                second = -second;
-            }
-            result.rotation = nlerp(first, t, second);
-            break;
-        } else if (hi_key->dt == dt) {
-            result.rotation = hi_key->q;
-            break;
-        }
-    }
-
-    // scale
-    result.scale = (sample->scales + (sample->num_scales - 1))->vec;
-    for (u32 scale_idx = 0; scale_idx < sample->num_scales; ++scale_idx) 
-    {
-        dt_v3_Pair *hi_key = sample->scales + scale_idx;
-        if (hi_key->dt > dt) {
-            dt_v3_Pair *lo_key = (hi_key - 1);
-            f32 t = (dt - lo_key->dt) / (hi_key->dt - lo_key->dt);
-            result.scale = lerp(lo_key->vec, t, hi_key->vec);
-            break;
-        } else if (hi_key->dt == dt) {
-            result.scale = hi_key->vec;
-            break;
-        }
-    }
-
-    return result;
-}
-
-internal void
-eval_node(Animation *anim, f32 dt, Node *node)
-{
-    Node_Hash_Result hash_result = get_sample_index(anim, node->id);
-    if (hash_result.found) {
-        Sample *sample = (anim->samples + hash_result.idx);
-        Xform trs = interpolate_sample(sample, dt);
-        node->current_transform = trs_to_transform(trs.translation, trs.rotation, trs.scale);
-    }
-    else {
-        node->current_transform = node->base_transform;
-    }
-}
-
-internal void
-eval(Model* model, Animation* anim, f32 dt, m4x4* out_transforms, b32 do_eval_node)
-{
-    Eval_Stack stack = {};
-
-    Eval_Stack_Frame *frame = stack.frames;
-    for (;;) {
-        Node* node = model->nodes + frame->node_id;
-
-        if (frame->next_child_idx == node->child_count) {
-            if (stack.top == 0) {
-                break;
-            } else {
-                stack.frames[stack.top--] = {};
-            }
-        } else {
-            if (!frame->global_transform_done) {
-                if (do_eval_node) {
-                    eval_node(anim, dt, node);
-                }
-                m4x4 parent_transform = (stack.top != 0) ? stack.frames[stack.top - 1].global_transform : identity();
-                m4x4 global_transform = parent_transform * node->current_transform;
-                m4x4 final_transform = global_transform * node->offset;
-
-                frame->global_transform = global_transform;
-                out_transforms[node->id] = final_transform;
-
-                frame->global_transform_done = true;
-            }
-
-            ++stack.top;
-            stack.frames[stack.top].node_id = node->child_ids[frame->next_child_idx++];
-        }
-
-        frame = stack.frames + stack.top;
-    }
-}
-
-internal void
-interpolate(Model* model, Animation* anim1, f32 dt1, f32 t, Animation* anim2, f32 dt2)
-{
-    for (s32 id = 0; id < (s32)model->node_count; ++id) {
-        Node* node = model->nodes + id;
-
-        Node_Hash_Result res1 = get_sample_index(anim1, id);
-        Node_Hash_Result res2 = get_sample_index(anim2, id);
-
-        if (res1.found && res2.found) {
-            Sample* sample1 = anim1->samples + res1.idx;
-            Sample* sample2 = anim2->samples + res2.idx;
-
-            assert(sample1->id == id && sample1->id == sample2->id);
-
-            Xform trs1 = interpolate_sample(sample1, dt1);
-            Xform trs2 = interpolate_sample(sample2, dt2);
-            Xform r = interpolate_trs(trs1, t, trs2);
-            m4x4 transform = trs_to_transform(r.translation, r.rotation, r.scale);
-            node->current_transform = transform;
-        } else {
-            node->current_transform = node->base_transform;
-        }
-    }
-}
