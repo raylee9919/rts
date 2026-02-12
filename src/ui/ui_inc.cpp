@@ -1,10 +1,4 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "ui/ui_core.cpp"
 #include "ui/ui_widgets.cpp"

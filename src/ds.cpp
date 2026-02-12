@@ -5,8 +5,11 @@
 // List
 //
 template <typename T>
-bool List <T> :: empty() {
-    if (first == nullptr || last == nullptr) return true;
+bool List <T> :: is_empty() {
+    if (first == nullptr || last == nullptr) {
+        assert(first == last);
+        return true;
+    }
     return false;
 }
 
@@ -22,7 +25,7 @@ void List <T> :: add(T item) {
 
 template <typename T>
 void List <T> :: clear() {
-    for (Link <T> *node = first, *next; node; node = next) {
+    for (Link <T>* node = first, *next; node; node = next) {
         next = node->next;
         
         dll_remove(first, last, node);
@@ -31,64 +34,72 @@ void List <T> :: clear() {
 }
 
 
-
-template<typename T>
-Array<T>::Array() {
-}
-
-template<typename T>
-Array<T>::~Array() {
-    free(data);
-}
-
-template<typename T>
+//
+// Array
+//
+template <typename T>
 void Array<T>::push(T val) {
-    if (count == cap) {
+    if (num == cap) {
+
         int new_cap = 4;
+
         if (cap == 0) {
-            data = (T *)malloc(new_cap*sizeof(T));
+            data = new T[new_cap];
         } else {
-            new_cap = cap + (cap>>1);
-            T *new_data = (T *)realloc(data, new_cap*sizeof(T));
-            data = new_data;
+            new_cap = cap + (cap >> 1); // x1.5
+            T* ptr = new T[new_cap];
+            memcpy(ptr, data, sizeof(T) * cap);
+            delete data;
+            data = ptr;
         }
+
         cap = new_cap;
     }
 
-    data[count++] = val;
+    data[num++] = val;
+}
+
+template <typename T>
+bool Array <T>::is_empty() {
+    return num == 0;
+}
+
+template <typename T>
+void Array <T>::clear() {
+    num = 0;
+}
+
+template <typename T>
+void Array <T>::release() {
+    delete data;
+    num = 0;
+    cap = 0;
 }
 
 template<typename T>
-bool Array<T>::empty() {
-    return count == 0;
-}
-
-template<typename T>
-void Array<T>::clear() {
-    count = 0;
-}
-
-template<typename T>
-T& Array<T>::operator[](u64 idx) {
+T& Array <T>::operator[](u64 idx) {
     return data[idx];
 }
 
 template<typename T>
-const T& Array<T>::operator[](u64 idx) const {
+const T& Array <T>::operator[](u64 idx) const {
     return data[idx];
 }
 
 
+//
+// Table
+//
+template <typename K, typename V>
+bool Table <K, V> :: find(K key) {
+    // @Todo
+    return false;
+}
+
+
+//
 // Stack
 //
-template<typename T>
-Stack<T>::Stack() {
-}
-
-template<typename T>
-Stack<T>::~Stack() {
-}
-
 template<typename T>
 T Stack<T>::pop() {
     assert(top > 0);
@@ -118,16 +129,10 @@ void Stack<T>::clear() {
     top = 0;
 }
 
+
+//
 // Queue
 //
-template<typename T>
-Queue<T>::Queue() {
-}
-
-template<typename T>
-Queue<T>::~Queue() {
-}
-
 template<typename T>
 void Queue<T>::push(T val) {
     int next = (back_idx + 1)%array_count(data);
@@ -171,6 +176,7 @@ void Queue<T>::clear() {
 }
 
 
+//
 // Priority_Queue
 //
 template<typename T>

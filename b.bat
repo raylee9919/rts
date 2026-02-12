@@ -63,7 +63,7 @@ REM if exist *.pdb del *.pdb
 
 :: ---------------------------- Tools ---------------------------- ::
 :: Assimp
-REM call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib ..\lib\meshoptimizer.lib
+rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib ..\lib\meshoptimizer.lib
 
 :: Metaprogramming
 REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
@@ -79,7 +79,7 @@ if "%BuildGL%"=="1" (
 
 :: Game
 if "%BuildGame%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb
+    call %compiler% %flags_compile% ..\src\game.cpp       /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb
 )
 
 :: Platform

@@ -1,10 +1,4 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
 internal Ui_State *
@@ -248,7 +242,7 @@ ui_equip_text(Ui_Box *box, Utf8 text)
 
     box->text = push_struct(ui_build_arena(), Ui_Text);
     {
-        Fp_Draw_String_Result dsr = fp_draw_string(text, ui_state->base_family, ui_state->font_size, V2(0.f), RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
+        Fp_Draw_String_Result dsr = fp_draw_string(text, ui_state->base_family, ui_state->font_size, v2(0.f), RENDER_STRING_FLAG_NO_DRAW|RENDER_STRING_FLAG_COMPUTE_SIZE);
 
         box->text->string      = text;
         box->text->aabb        = dsr.aabb;
@@ -486,7 +480,7 @@ ui_draw(Ui_Box *root, v2 root_position)
     {
         assert(root->text != NULL);
 
-        v2 pen = min + V2(root->text->padding) + v2{-root->text->aabb.min.x, root->text->max_ascent};
+        v2 pen = min + v2(root->text->padding) + v2{-root->text->aabb.min.x, root->text->max_ascent};
         AABB2 cull_aabb = {};
         cull_aabb.min = min;
         cull_aabb.max = max;

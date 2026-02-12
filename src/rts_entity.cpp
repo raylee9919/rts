@@ -248,8 +248,8 @@ entity_find_path(Entity* entity, v3 destination)
     // Preprocess
     f32 unreachable_dist = F32_MAX;
     // @Temporary:
-    f32* f_costs = push_array(game_state->frame_arena, f32, num_tri);
-    int* parent = push_array(game_state->frame_arena, int, num_tri);
+    f32 *f_costs = push_array(game_state->frame_arena, f32, num_tri);
+    int *parent = push_array(game_state->frame_arena, int, num_tri);
     for (int i = 0; i < num_tri; ++i) {
         f_costs[i] = unreachable_dist; 
         parent[i] = i;
@@ -260,7 +260,7 @@ entity_find_path(Entity* entity, v3 destination)
     Priority_Queue<Pair<f32, int>> open_list = {};
     open_list.push({0.f, src_idx});
 
-    v2 dst_center = V2((dst_tri.x[0] + dst_tri.x[1] + dst_tri.x[2]) * 0.333333333f, 
+    v2 dst_center = v2((dst_tri.x[0] + dst_tri.x[1] + dst_tri.x[2]) * 0.333333333f, 
                        (dst_tri.y[0] + dst_tri.y[1] + dst_tri.y[2]) * 0.333333333f);
 
 
@@ -282,7 +282,7 @@ entity_find_path(Entity* entity, v3 destination)
         }
 
         cdt_triangle tri = triangles[idx_cur];
-        v2 tri_center = V2((tri.x[0] + tri.x[1] + tri.x[2]) * 0.333333f,
+        v2 tri_center = v2((tri.x[0] + tri.x[1] + tri.x[2]) * 0.333333f,
                            (tri.y[0] + tri.y[1] + tri.y[2]) * 0.333333f);
 
         cdt_triangles adj = cdt_get_adjacent_triangles(tri);
@@ -297,7 +297,7 @@ entity_find_path(Entity* entity, v3 destination)
             }
 
             // One cannot pass through a narrow pass.
-            v2 p = V2(portal_edge->e[2].org->pos.x, portal_edge->e[2].org->pos.y);
+            v2 p = v2(portal_edge->e[2].org->pos.x, portal_edge->e[2].org->pos.y);
             v2 q = v2(portal_edge->e[0].org->pos.x, portal_edge->e[0].org->pos.y);
             f32 margin = 0.01f;
             if (distance(p,q) < entity->radius*2.f + margin) {
@@ -316,7 +316,7 @@ entity_find_path(Entity* entity, v3 destination)
             }
             assert(adj_idx != -1);
 
-            v2 adj_center = V2((adj_tri.x[0] + adj_tri.x[1] + adj_tri.x[2]) * 0.333333f,
+            v2 adj_center = v2((adj_tri.x[0] + adj_tri.x[1] + adj_tri.x[2]) * 0.333333f,
                                (adj_tri.y[0] + adj_tri.y[1] + adj_tri.y[2]) * 0.333333f);
 
             f32 h_cost_cur   = distance(tri_center, dst_center);
@@ -347,8 +347,8 @@ entity_find_path(Entity* entity, v3 destination)
                 cdt_triangle tri = triangles[t];
                 cdt_quad_edge *portal = cdt_get_portal_edge(tri, triangles[parent[t]]);
 
-                v2 r = V2(portal->org->pos.x, portal->org->pos.y);
-                v2 l = V2(cdt_sym(portal)->org->pos.x, cdt_sym(portal)->org->pos.y);
+                v2 r = v2(portal->org->pos.x, portal->org->pos.y);
+                v2 l = v2(cdt_sym(portal)->org->pos.x, cdt_sym(portal)->org->pos.y);
 
                 // Deflate the edge widths by the entity's diameter.
                 v2 lr = normalize(r-l);
@@ -370,7 +370,7 @@ entity_find_path(Entity* entity, v3 destination)
         // @Todo: Can I do better?
         //
 
-        int portal_count = entity->l_points.count;
+        int portal_count = entity->l_points.num;
         int apex_idx = portal_count - 1;
         int l_idx    = portal_count - 1;
         int r_idx    = portal_count - 1;
@@ -545,7 +545,7 @@ entity_init(Entity* entity, Entity* parent)
             const u64 id = entity->id;
             const f32 x = entity->position.z;
             const f32 y = entity->position.x;
-            const f32 f = entity->navmesh_scale;
+            const f32 f = entity->navmesh_scale * 0.5f;
             cdt_insert(&game_state->navmesh.ctx, id, x-f,y+f,x-f,y-f);
             cdt_insert(&game_state->navmesh.ctx, id, x-f,y-f,x+f,y-f);
             cdt_insert(&game_state->navmesh.ctx, id, x+f,y-f,x+f,y+f);
@@ -1080,6 +1080,7 @@ entity_update(Entity* entity, const f32 dt)
                             }
                         } else if (other->navmesh_scale > 0.f) {
                             // nearest position on navmesh's rectangle to unit's circle.
+                            // @Fix: WRONG WRONG WRONG
                             const f32 nx = clamp(pos.x, other_pos.x - other->navmesh_scale, other_pos.x + other->navmesh_scale);
                             const f32 ny = clamp(pos.y, other_pos.y - other->navmesh_scale, other_pos.y + other->navmesh_scale);
 
@@ -1166,30 +1167,6 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
                 }
 
 
-#if 0
-                u32 num_joints = entity->skeleton->num_joints;
-                m4x4 *global_transform = push_array(game_state->frame_arena, m4x4, num_joints);
-                for (u32 ji = 0; ji < num_joints; ++ji) {
-                    Joint *joint = &entity->skeleton->joints[ji];
-                    s32 parent = joint->parent;
-                    if (parent >= 0) {
-                        global_transform[ji] = global_transform[joint->parent] * joint->local_transform;
-                    } else {
-                        global_transform[ji] = joint->local_transform;
-                    }
-                }
-
-                for (u32 ji = 0; ji < num_joints; ++ji) {
-                    Joint *joint = &entity->skeleton->joints[ji];
-                    s32 parent = joint->parent;
-                    if (parent >= 0) {
-                        v3 p1 = (global_transform[ji] * v4{0,0,0,1}).xyz;
-                        v3 p2 = (global_transform[parent] * v4{0,0,0,1}).xyz;
-                        draw_line(render_group, p1, p2, v4{1.0f,1.0f,1.0f,1.0f});
-                    }
-                }
-#endif
-
 
             }
 
@@ -1226,11 +1203,20 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             }
 
 
+            // Show chunk position of this entity.
+            //
             if ((game_state->display_chunk_position) && (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED)) {
-                Entity* camera = entity_from_id(game_state->game_camera_id);
+                Entity* camera = entity_from_id(game_state->controlling_camera_id);
                 v3 p = project(entity->position, camera->VP);
                 p.x = ( p.x*0.5f + 0.5f)*game_state->window_width;
                 p.y = (-p.y*0.5f + 0.5f)*game_state->window_height;
+
+                auto aabb = fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_NO_DRAW | RENDER_STRING_FLAG_COMPUTE_SIZE).aabb;
+                aabb.min -= v2(4.f, 4.f);
+                aabb.max += v2(4.f, 4.f);
+                v4 c = v4{0.12f, 0.12f, 0.12f, 1.f};
+                f32 r = 6.f;
+                render_quad_c4r4(aabb.min, aabb.max, c,c,c,c, r,r,r,r);
                 fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
             }
         } break;

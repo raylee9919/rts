@@ -171,12 +171,20 @@ struct Asset_Loader {
         return result;
     }
 
-    void parse_string(u32 length) {
+    Asset_Name parse_name(u8 length) {
+        Asset_Name result = {};
+        assert(length + 1 <= array_count(result.text));
+
         assert( cursor && cursor < end );
         eat_whitespace();
 
-        // @Temporary
+        result.length = length;
+        memcpy(result.text, cursor, length);
+        result.text[length] = 0;
+
         cursor += length;
+
+        return result;
     }
 };
 
@@ -199,13 +207,13 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
     for (u32 mi = 0; mi < num_meshes; ++mi) {
         Mesh *mesh = &model_out->meshes[mi];
 
-        u32 str_len = l.parse_u32();
-        l.parse_string(str_len);
+        u8 str_len = (u8)l.parse_u32();
+        mesh->name = l.parse_name(str_len);
 
         // Parse vertices.
         //
         u32 num_vertices = l.parse_u32();
-        mesh->vertex_count = num_vertices;
+        mesh->num_vertices = num_vertices;
         mesh->vertices = push_array(arena, Vertex, num_vertices);
 
         for (u32 vi = 0; vi < num_vertices; ++vi) {
@@ -223,7 +231,7 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
         // Parse indices.
         //
         u32 num_indices = l.parse_u32();
-        mesh->index_count = num_indices;
+        mesh->num_indices = num_indices;
         mesh->indices = push_array(arena, u32, num_indices);
 
         for (u32 ii = 0; ii < num_indices; ++ii) {
@@ -255,8 +263,8 @@ internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
     for (u32 ji = 0; ji < num_joints; ++ji) {
         Joint *joint = &skel_out->joints[ji];
 
-        u32 name_len = l.parse_u32();
-        l.parse_string(name_len);
+        u8 name_len = (u8)l.parse_u32();
+        joint->name = l.parse_name(name_len);
 
         s32 parent = l.parse_s32();
         joint->parent = parent;
@@ -286,8 +294,8 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
 
-    u32 name_len = l.parse_u32();
-    l.parse_string(name_len);
+    u8 name_len = (u8)l.parse_u32();
+    anim_out->name = l.parse_name(name_len);
 
     f32 fps           = l.parse_f32();
     u32 num_keyframes = l.parse_u32();

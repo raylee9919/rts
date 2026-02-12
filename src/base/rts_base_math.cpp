@@ -1,9 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
-internal f32
-map(f32 x, f32 min, f32 max) 
-{
+f32 map(f32 x, f32 min, f32 max) {
     f32 t;
     f32 range = max - min;
     if (range != 0.0f) {
@@ -14,21 +12,15 @@ map(f32 x, f32 min, f32 max)
     return t;
 }
 
-internal f32
-map01(f32 x, f32 min, f32 max) 
-{
+f32 map01(f32 x, f32 min, f32 max) {
     return clamp01(map(x, min, max));
 }
 
-internal f32
-map01_binormal(f32 x, f32 min, f32 max) 
-{
+f32 map01_binormal(f32 x, f32 min, f32 max) {
     return 2.0f * map01(x, min, max) - 1.0f;
 }
 
-internal f32
-binormal_to_normal(f32 x) 
-{
+f32 binormal_to_normal(f32 x) {
     return x * 0.5f + 0.5f;
 }
 
@@ -42,35 +34,25 @@ f32 hermite(f32 a, f32 t, f32 b) {
     return lerp(a, t3*(6*t2 - 15*t + 10), b);
 }
 
-internal f32
-smoothstep(f32 x, f32 min, f32 max) 
-{
+f32 smoothstep(f32 x, f32 min, f32 max) {
     f32 p = map01(x, min, max);
     f32 v = p*p*(3.f - 2.f*p);
     return v;
 }
 
-internal f32
-safe_ratio(f32 a, f32 b) {
+f32 safe_ratio(f32 a, f32 b) {
     if (b != 0) return a / b;
     return 0.0f;
+}
+
+v2::v2(f32 f) {
+    e[0] = f;
+    e[1] = f;
 }
 
 v2::v2(f32 x_, f32 y_) {
     e[0] = x_;
     e[1] = y_;
-}
-
-internal v2
-V2(f32 x, f32 y) 
-{
-    return {x,y};
-}
-
-internal v2
-V2(f32 x) 
-{
-    return v2{x, x};
 }
 
 internal v2
@@ -209,33 +191,27 @@ length(v2 A)
     return result;
 }
 
-internal v2
-lerp(v2 a, f32 t, v2 b)
-{
+v2 lerp(v2 a, f32 t, v2 b) {
     v2 result = {};
     result.x = lerp(a.x, t, b.x);
     result.y = lerp(a.y, t, b.y);
     return result;
 }
 
-internal v2
-normalize(v2 a) 
-{
+v2 normalize(v2 a) {
     v2 r = a;
     f32 inv_len = (1.0f / length(r));
     r *= inv_len;
     return r;
 }
 
-v3::v3(f32 f)
-{
+v3::v3(f32 f) {
     e[0] = f;
     e[1] = f;
     e[2] = f;
 }
 
-v3::v3(f32 x_, f32 y_, f32 z_)
-{
+v3::v3(f32 x_, f32 y_, f32 z_) {
     e[0] = x_;
     e[1] = y_;
     e[2] = z_;
@@ -394,11 +370,26 @@ dot(v3 a, v3 b)
     return result;
 }
 
-internal f32
-dot(v4 a, v4 b) 
-{
-    f32 result = (a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w);
+#if SSE_ENABLED
+f32 dot(__m128 a, __m128 b) {
+    f32 result;
+    __m128 p = _mm_mul_ps(a, b);
+    __m128 q = _mm_shuffle_ps(p, p, _MM_SHUFFLE(2, 3, 0, 1));
+    p = _mm_add_ps(p, q);
+    q = _mm_shuffle_ps(p, p, _MM_SHUFFLE(0, 1, 2, 3));
+    p = _mm_add_ps(p, q);
+    _mm_store_ss(&result, p);
     return result;
+}
+#endif
+
+f32 dot(v4 a, v4 b) {
+#if SSE_ENABLED
+    return dot(a.sse, b.sse);
+#else
+    f32 result = (a.r * b.r) + (a.g * b.g) + (a.b * b.b) + (a.a * b.a);
+    return result;
+#endif
 }
 
 internal v3
@@ -464,18 +455,17 @@ lerp(v3 a, f32 t, v3 b)
     return result;
 }
 
-internal f32
-distance(v3 a, v3 b) 
-{
-    return sqrtf((a.x - b.x) * (a.x - b.x) + 
-                 (a.y - b.y) * (a.y - b.y) + 
-                 (a.z - b.z) * (a.z - b.z));
+f32 distance(v3 a, v3 b) {
+    f32 dx = a.x - b.x;
+    f32 dy = a.y - b.y;
+    f32 dz = a.z - b.z;
+    return sqrtf(dx*dx + dy*dy + dz*dz);
 }
 
-internal f32
-distance(v2 a, v2 b) 
-{
-    return sqrtf((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+f32 distance(v2 a, v2 b) {
+    f32 dx = a.x - b.x;
+    f32 dy = a.y - b.y;
+    return sqrtf(dx*dx + dy*dy);
 }
 
 internal f32
@@ -488,7 +478,8 @@ point_line_distance(v2 p, v2 a, v2 b)
     return result;
 }
 
-// # Note: Vector4 
+//
+// Vector4 
 //
 internal v4
 V4(f32 x) 
@@ -553,31 +544,62 @@ lerp(v4 a, f32 t, v4 b)
 }
 
 
+//
 // Quaternion
 //
-Quaternion::Quaternion(f32 w_, f32 x_, f32 y_, f32 z_)
-{
+Quaternion::Quaternion() {
+#if SSE_ENABLED
+    sse = _mm_setr_ps(1.f, 0.f, 0.f, 0.f);
+#else
+    w = 1.f;
+    x = 0.f;
+    y = 0.f;
+    z = 0.f;
+#endif
+}
+
+Quaternion::Quaternion(f32 w_, f32 x_, f32 y_, f32 z_) {
+#if SSE_ENABLED
+    sse = _mm_setr_ps(w_, x_, y_, z_);
+#else
     w = w_;
     x = x_;
     y = y_;
     z = z_;
+#endif
 }
 
-internal Quaternion
-operator + (Quaternion a, Quaternion b)
-{
-    Quaternion q = {};
-    {
-        q.w = a.w + b.w;
-        q.x = a.x + b.x;
-        q.y = a.y + b.y;
-        q.z = a.z + b.z;
-    }
-
-    return q;
+Quaternion operator + (Quaternion a, Quaternion b) {
+#if SSE_ENABLED
+    Quaternion quat = {};
+    quat.sse = _mm_add_ps(a.sse, b.sse);
+    return quat;
+#else
+    Quaternion quat = {};
+    quat.w = a.w + b.w;
+    quat.x = a.x + b.x;
+    quat.y = a.y + b.y;
+    quat.z = a.z + b.z;
+    return quat;
+#endif
 }
 
-internal Quaternion
+Quaternion operator - (Quaternion l, Quaternion r) {
+#if SSE_ENABLED
+    Quaternion quat = {};
+    quat.sse = _mm_sub_ps(l.sse, r.sse);
+    return quat;
+#else
+    Quaternion quat = {};
+    quat.w = l.w - r.w;
+    quat.x = l.x - r.x;
+    quat.y = l.y - r.y;
+    quat.z = l.z - r.z;
+    return quat;
+#endif
+}
+
+Quaternion
 operator * (Quaternion a, Quaternion b)
 {
     Quaternion q = {};
@@ -591,66 +613,85 @@ operator * (Quaternion a, Quaternion b)
     return q;
 }
 
-internal Quaternion
-operator * (Quaternion a, f32 b)
-{
-    Quaternion q = {};
-    q.w = a.w * b;
-    q.x = a.x * b;
-    q.y = a.y * b;
-    q.z = a.z * b;
-
-    return q;
+Quaternion operator * (Quaternion q, f32 f) {
+#if SSE_ENABLED
+    __m128 q_ = q.sse;
+    __m128 f_ = _mm_set1_ps(f);
+    __m128 qf = _mm_mul_ps(q_, f_);
+    Quaternion quat;
+    quat.sse = qf;
+    return quat;
+#else
+    Quaternion quat = {};
+    quat.w = q.w * f;
+    quat.x = q.x * f;
+    quat.y = q.y * f;
+    quat.z = q.z * f;
+    return quat;
+#endif
 }
 
-internal Quaternion
-operator * (f32 b, Quaternion a)
-{
-    Quaternion q = {};
-    q.w = a.w * b;
-    q.x = a.x * b;
-    q.y = a.y * b;
-    q.z = a.z * b;
-
-    return q;
+Quaternion operator * (f32 f, Quaternion q) {
+#if SSE_ENABLED
+    __m128 q_ = q.sse;
+    __m128 f_ = _mm_set1_ps(f);
+    __m128 qf = _mm_mul_ps(q_, f_);
+    Quaternion quat;
+    quat.sse = qf;
+    return quat;
+#else
+    Quaternion quat = {};
+    quat.w = q.w * f;
+    quat.x = q.x * f;
+    quat.y = q.y * f;
+    quat.z = q.z * f;
+    return quat;
+#endif
 }
 
-internal Quaternion
-operator - (Quaternion in)
-{
-    Quaternion q = {};
-    q.w = -in.w;
-    q.x = -in.x;
-    q.y = -in.y;
-    q.z = -in.z;
-
+Quaternion operator - (Quaternion q) {
+#if SSE_ENABLED
+    __m128 f = _mm_set1_ps(-1.f);
+    q.sse = _mm_mul_ps(q.sse, f);
     return q;
+#else
+    q.w *= -1.f;
+    q.x *= -1.f;
+    q.y *= -1.f;
+    q.z *= -1.f;
+    return q;
+#endif
 }
 
-internal f32
-dot(Quaternion a, Quaternion b)
-{
-    f32 result = ( (a.w * b.w) +
-                   (a.x * b.x) +
-                   (a.y * b.y) +
-                   (a.z * b.z) );
+f32 dot(Quaternion a, Quaternion b) {
+#if SSE_ENABLED
+    return dot(a.sse, b.sse);
+#else
+    f32 result = (a.w * b.w) + (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
     return result;
+#endif
 }
 
-internal Quaternion
-nlerp(Quaternion a, f32 t, Quaternion b)
-{
+Quaternion nlerp(Quaternion a, f32 t, Quaternion b) {
+#if SSE_ENABLED
+    __m128 ax4 = a.sse;
+    __m128 bx4 = b.sse;
+    __m128 tx4 = _mm_set1_ps(t);
+    __m128 dx4 = _mm_sub_ps(bx4, ax4);
     Quaternion result;
-    result.w = lerp(a.w, t, b.w);
-    result.x = lerp(a.x, t, b.x);
-    result.y = lerp(a.y, t, b.y);
-    result.z = lerp(a.z, t, b.z);
+    result.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
     return result;
+#else
+    Quaternion quat;
+    quat.w = lerp(a.w, t, b.w);
+    quat.x = lerp(a.x, t, b.x);
+    quat.y = lerp(a.y, t, b.y);
+    quat.z = lerp(a.z, t, b.z);
+    return quat;
+#endif
 }
 
-internal Quaternion
-slerp(Quaternion q1, f32 t, Quaternion q2)
-{
+Quaternion slerp(Quaternion q1, f32 t, Quaternion q2) {
     Quaternion result;
 
     f32 cosom = q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
@@ -688,25 +729,43 @@ slerp(Quaternion q1, f32 t, Quaternion q2)
 //
 // m4x4
 //
-internal m4x4
-operator * (m4x4 a, m4x4 b) 
-{
-    m4x4 R = {};
+m4x4 operator * (m4x4 a, m4x4 b) {
+#if SSE_ENABLED
+    auto linear_combine = [](__m128 a, m4x4 b) {
+        __m128 result;
+        result = _mm_mul_ps(_mm_shuffle_ps(a, a, 0x00), b.rows[0].sse);
+        result = _mm_add_ps(result, _mm_mul_ps(_mm_shuffle_ps(a, a, 0x55), b.rows[1].sse));
+        result = _mm_add_ps(result, _mm_mul_ps(_mm_shuffle_ps(a, a, 0xaa), b.rows[2].sse));
+        result = _mm_add_ps(result, _mm_mul_ps(_mm_shuffle_ps(a, a, 0xff), b.rows[3].sse));
+        return result;
+    };
 
+    m4x4 result;
+    __m128 out1x = linear_combine(a.rows[0].sse, b);
+    __m128 out2x = linear_combine(a.rows[1].sse, b);
+    __m128 out3x = linear_combine(a.rows[2].sse, b);
+    __m128 out4x = linear_combine(a.rows[3].sse, b);
+
+    result.rows[0].sse = out1x;
+    result.rows[1].sse = out2x;
+    result.rows[2].sse = out3x;
+    result.rows[3].sse = out4x;
+
+    return result;
+#else
+    m4x4 m = {};
     for (int r = 0; r < 4; ++r) {
         for (int c = 0; c < 4; ++c) {
             for (int i = 0; i < 4; ++i) {
-                R.e[r][c] += a.e[r][i] * b.e[i][c];
+                m.e[r][c] += a.e[r][i] * b.e[i][c];
             }
         }
     }
-
-    return R;
+    return m;
+#endif
 }
 
-internal v4
-operator * (m4x4 m, v4 p)
-{
+v4 operator * (m4x4 m, v4 p) {
     v4 res = v4{};
     for (int i = 0 ; i < 4; ++i) {
         for (int j = 0 ; j < 4; ++j) { 
@@ -716,95 +775,86 @@ operator * (m4x4 m, v4 p)
     return res;
 }
 
-internal m4x4
-identity() 
-{
-    m4x4 r = {
-        {{ 1,  0,  0,  0 },
-            { 0,  1,  0,  0 },
-            { 0,  0,  1,  0 },
-            { 0,  0,  0,  1 }},
+m4x4 identity() {
+#if SSE_ENABLED
+    m4x4 m;
+    m.rows[0].sse = _mm_setr_ps(1.f, 0.f, 0.f, 0.f);
+    m.rows[1].sse = _mm_setr_ps(0.f, 1.f, 0.f, 0.f);
+    m.rows[2].sse = _mm_setr_ps(0.f, 0.f, 1.f, 0.f);
+    m.rows[3].sse = _mm_setr_ps(0.f, 0.f, 0.f, 1.f);
+    return m;
+#else
+    m4x4 m;
+    m = {
+        1.f, 0.f, 0.f, 0.f,
+        0.f, 1.f, 0.f, 0.f,
+        0.f, 0.f, 1.f, 0.f,
+        0.f, 0.f, 0.f, 1.f
     };
-    return r;
+    return m;
+#endif
 }
 
-internal m4x4
-x_rotation(f32 a) 
-{
+m4x4 x_rotation(f32 a) {
     f32 c = cosf(a);
     f32 s = sinf(a);
     m4x4 r = {
-        {{ 1,  0,  0,  0 },
-         { 0,  c, -s,  0 },
-         { 0,  s,  c,  0 },
-         { 0,  0,  0,  1 }},
+        1,  0,  0,  0,
+        0,  c, -s,  0,
+        0,  s,  c,  0,
+        0,  0,  0,  1
     };
 
     return r;
 }
 
-internal m4x4
-y_rotation(f32 a) 
-{
+m4x4 y_rotation(f32 a) {
     f32 c = cosf(a);
     f32 s = sinf(a);
     m4x4 r = {
-        {{ c,  0,  s,  0 },
-         { 0,  1,  0,  0 },
-         {-s,  0,  c,  0 },
-         { 0,  0,  0,  1 }},
+        c,  0,  s,  0,
+        0,  1,  0,  0,
+       -s,  0,  c,  0,
+        0,  0,  0,  1
     };
 
     return r;
 }
 
-internal m4x4
-z_rotation(f32 a) 
-{
+m4x4 z_rotation(f32 a) {
     f32 c = cosf(a);
     f32 s = sinf(a);
     m4x4 r = {
-        {{ c, -s,  0,  0 },
-         { s,  c,  0,  0 },
-         { 0,  0,  1,  0 },
-         { 0,  0,  0,  1 }}
+        c, -s,  0,  0,
+        s,  c,  0,  0,
+        0,  0,  1,  0,
+        0,  0,  0,  1
     };
 
     return r;
 }
 
-internal m4x4
-transpose(m4x4 m) 
-{
-    // NOTE: Commented-out code is compiled to slower code while it looks "clean".
-    // for (int i = 0; i < 4; ++i) {
-    //     for (int j = 0; j < 4; ++j) {
-    //         m.e[j][i] = m.e[i][j];
-    //     }
-    // }
+m4x4 transpose(m4x4 m) {
+    m._12 = m._21;
+    m._13 = m._31;
+    m._14 = m._41;
 
-    m.e[0][1] = m.e[1][0];
-    m.e[0][2] = m.e[2][0];
-    m.e[0][3] = m.e[3][0];
+    m._21 = m._12;
+    m._23 = m._32;
+    m._24 = m._42;
 
-    m.e[1][0] = m.e[0][1];
-    m.e[1][2] = m.e[2][1];
-    m.e[1][3] = m.e[3][1];
+    m._31 = m._13;
+    m._32 = m._23;
+    m._34 = m._43;
 
-    m.e[2][0] = m.e[0][2];
-    m.e[2][1] = m.e[1][2];
-    m.e[2][3] = m.e[3][2];
-
-    m.e[3][0] = m.e[0][3];
-    m.e[3][1] = m.e[1][3];
-    m.e[3][2] = m.e[2][3];
+    m._41 = m._14;
+    m._42 = m._24;
+    m._43 = m._34;
 
     return m;
 }
 
-internal m4x4
-inverse(m4x4 m) 
-{
+m4x4 inverse(m4x4 m) {
     f32 A2323 = m.e[2][2] * m.e[3][3] - m.e[2][3] * m.e[3][2];
     f32 A1323 = m.e[2][1] * m.e[3][3] - m.e[2][3] * m.e[3][1];
     f32 A1223 = m.e[2][1] * m.e[3][2] - m.e[2][2] * m.e[3][1];
@@ -852,44 +902,34 @@ inverse(m4x4 m)
     return result;
 }
 
-internal m4x4
-rows(v3 x, v3 y, v3 z) 
-{
+m4x4 rows(v3 x, v3 y, v3 z) {
     m4x4 r = {
-        {{ x.x, x.y, x.z,  0 },
-         { y.x, y.y, y.z,  0 },
-         { z.x, z.y, z.z,  0 },
-         {   0,   0,   0,  1 }}
+        x.x, x.y, x.z, 0,
+        y.x, y.y, y.z, 0,
+        z.x, z.y, z.z, 0,
+        0, 0, 0, 1
     };
     return r;
 }
 
-internal m4x4
-columns(v3 x, v3 y, v3 z) 
-{
+m4x4 columns(v3 x, v3 y, v3 z) {
     m4x4 r = {
-        {{ x.x, y.x, z.x,  0 },
-            { x.y, y.y, z.y,  0 },
-            { x.z, y.z, z.z,  0 },
-            {   0,   0,   0,  1 }}
+        x.x, y.x, z.x, 0,
+        x.y, y.y, z.y, 0,
+        x.z, y.z, z.z, 0,
+        0, 0, 0, 1
     };
     return r;
 }
 
-internal m4x4
-translate(m4x4 m, v3 t) 
-{
-    m4x4 result = m;
-    result.e[0][3] += t.x;
-    result.e[1][3] += t.y;
-    result.e[2][3] += t.z;
-
-    return result;
+m4x4 translate(m4x4 m, v3 t) {
+    m._14 = t.x;
+    m._24 = t.y;
+    m._34 = t.z;
+    return m;
 }
 
-internal m4x4
-quaternion_to_m4x4(Quaternion q) 
-{
+m4x4 quaternion_to_m4x4(Quaternion q) {
     m4x4 result = identity();
     f32 w = q.w;
     f32 x = q.x;
@@ -911,9 +951,7 @@ quaternion_to_m4x4(Quaternion q)
     return result;
 }
 
-internal Quaternion
-euler_to_quaternion(f32 roll, f32 pitch, f32 yaw)
-{
+Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
     f32 cr = cosf(roll * 0.5f);
     f32 sr = sinf(roll * 0.5f);
     f32 cp = cosf(pitch * 0.5f);
@@ -950,16 +988,13 @@ scale(m4x4 transform, f32 factor)
     return result;
 }
 
-internal m4x4
-scale(f32 s) 
-{
-    m4x4 result = m4x4{{
-        s, 0, 0, 0,
-            0, s, 0, 0,
-            0, 0, s, 0,
-            0, 0, 0, 1,
-    }};
-    return result;
+m4x4 scale(f32 f) {
+    m4x4 m = {};
+    m._11 = f;
+    m._22 = f;
+    m._33 = f;
+    m._44 = 1.f;
+    return m;
 }
 
 internal m4x4

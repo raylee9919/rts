@@ -1,12 +1,6 @@
-#ifndef RTS_UI_CORE_H
-#define RTS_UI_CORE_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 enum Ui_Size_Type 
 {
@@ -265,5 +259,3 @@ internal v4         ui_active_bg_top(void);
 internal void       ui_text_padding_push(f32 padding);
 internal void       ui_text_padding_pop(void);
 internal f32        ui_text_padding_top(void);
-
-#endif // RTS_UI_CORE_H

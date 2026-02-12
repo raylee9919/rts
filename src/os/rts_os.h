@@ -1,12 +1,6 @@
-#ifndef RTS_OS_H
-#define RTS_OS_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 
 struct Bitmap;
@@ -424,7 +418,3 @@ os_event_list_clear(void)
         os_event_consume(event);
     }
 }
-
-
-
-#endif // RTS_OS_H

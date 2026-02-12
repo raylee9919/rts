@@ -10,14 +10,13 @@
 #define NEAR_Z (-1.f)
 
 
-// # Note: Vectors
-//
 union v2 {
     struct { f32 x, y; };
     f32 e[2];
 
     v2() = default;
     v2(f32 x_, f32 y_);
+    v2(f32 f);
 };
 
 union v2s { 
@@ -29,6 +28,7 @@ union v2u {
     struct {u32 x, y;};
     struct {u32 w, h;};
     u32 e[2];
+
 };
 
 struct v3 {
@@ -80,10 +80,13 @@ union m4x4 {
     v4 rows[4];
 };
 
-struct Quaternion {
-    f32 w, x, y, z;
-
-    Quaternion() = default;
+union Quaternion {
+    struct { f32 w, x, y, z; };
+#if SSE_ENABLED
+    __m128 sse;
+#endif
+    
+    Quaternion();
     Quaternion(f32 w_, f32 x_, f32 y_, f32 z_);
 };
 
@@ -112,8 +115,6 @@ internal f32 lerp(f32 a, f32 t, f32 b);
 
 internal f32 smoothstep(f32 x, f32 min, f32 max);
 internal f32 safe_ratio(f32 a, f32 b);
-internal v2 V2(f32 x, f32 y);
-internal v2 V2(f32 x);
 internal v2 operator-(const v2 &in);
 internal v2 operator*(f32 A, v2 B);
 internal v2 operator*(v2 B, f32 A);
@@ -124,6 +125,10 @@ internal v2& operator-=(v2& a, v2 b);
 internal v2& operator*=(v2& a, f32 b);
 internal v2 binormal_to_normal(v2 x);
 
+
+#if SSE_ENABLED
+internal f32 dot(__m128 a, __m128 b);
+#endif
 internal f32 dot(v2 a, v2 b);
 internal f32 dot(v3 a, v3 b);
 internal f32 dot(v4 a, v4 b);
@@ -175,6 +180,7 @@ internal v4 V4(v3 rgb, f32 a);
 internal v4 operator * (v4 a, f32 b);
 internal v4 lerp(v4 a, f32 t, v4 b);
 internal Quaternion operator + (Quaternion a, Quaternion b);
+internal Quaternion operator - (Quaternion l, Quaternion r);
 internal Quaternion operator * (Quaternion a, Quaternion b);
 internal Quaternion operator * (Quaternion a, f32 b);
 internal Quaternion operator * (f32 b, Quaternion a);
@@ -210,7 +216,6 @@ internal m4x4 trs_to_transform(v3 translation, Quaternion rotation, v3 scaling);
 internal Quaternion build_quaternion(v3 axis, f32 radian);
 internal Quaternion rotate(Quaternion q0, v3 axis, f32 radian);
 internal v3 project(v3 p, m4x4 view_proj);
-internal v2 V2(v2u v);
 internal m4x4 lookat(v3 eye, v3 center, v3 up_);
 internal m4x4 view_transform(v3 position, Quaternion orientation);
 internal m4x4 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);

@@ -2,48 +2,59 @@
 
 #pragma once
 
-template<typename T>
+// @Todo: Item is appended to list via arena/CRT. It is a mess.
+//        They won't agree on things, and things are brittle. Adding 'num' as a member 
+//        to the list isn't fun. Sad.
+//
+template <typename T>
 struct Link {
-    Link <T> *next;
-    Link <T> *prev;
+    Link <T>* next;
+    Link <T>* prev;
     T data;
 };
 
-template<typename T>
+template <typename T>
 struct List {
-    Link <T> *first;
-    Link <T> *last;
 
-
-    bool empty();
+    bool is_empty();
     void add(T item);
     void clear();
+
+    Link <T>* first = nullptr;
+    Link <T>* last  = nullptr;
 };
 
 
 
-template<typename T>
+template <typename T>
 struct Array {
-    Array();
-    ~Array();
 
     void push(T val);
+    bool is_empty();
     void clear();
-    bool empty();
+    void release();
 
-    T &operator[](u64 idx);
+    T& operator[](u64 idx);
     const T& operator[](u64 idx) const;
 
-    T *data = 0;
-    int count = 0;
+
+    T* data = NULL;
+    int num = 0;
     int cap = 0;
 };
 
-template<typename T>
-struct Stack {
-    Stack();
-    ~Stack();
+template <typename K, typename V>
+struct Table {
 
+    bool find(K key);
+
+    V* data = NULL;
+    int num = 0;
+    int cap = 0;
+};
+
+template <typename T>
+struct Stack {
     void push(T val);
     T    pop();
     int  count();
@@ -56,9 +67,6 @@ struct Stack {
 
 template<typename T>
 struct Queue {
-    Queue();
-    ~Queue();
-
     void push(T val);
     T    pop();
     int  count();

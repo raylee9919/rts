@@ -22,6 +22,11 @@
 typedef s32 Joint_Id;
 
 
+struct Asset_Name {
+    u8 length;
+    u8 text[64];
+};
+
 
 struct Asset_Texture {
     s32 bits_per_channel;
@@ -131,12 +136,13 @@ enum Pbr_Texture_Type
     Pbr_Texture_Count,
 };
 
-struct Mesh 
-{
-    u32     vertex_count;
+struct Mesh  {
+    Asset_Name name;
+
+    u32     num_vertices;
     Vertex* vertices;
 
-    u32     index_count;
+    u32     num_indices;
     u32*    indices;
 
     Bitmap textures[Pbr_Texture_Count];
@@ -171,7 +177,7 @@ struct Model {
 // Skeleton
 //
 struct Joint {
-    Utf8 name;
+    Asset_Name name;
     s32  parent;
     m4x4 local_transform;
     m4x4 inverse_bind_pose;
@@ -207,7 +213,7 @@ struct Animation_Joint_Entry {
 };
 
 struct Animation {
-    Utf8 name;
+    Asset_Name name;
 
     f32 fps;
     u32 num_keyframes;
@@ -231,7 +237,7 @@ internal u32 get_triangle_count(Model *model);
 internal u64 animation_hash(u32 id, u32 length);
 
 
-internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scalea = v3{1.f,1.f,1.f});
+internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale = v3{1.f,1.f,1.f});
 internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path);
 internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path);
 

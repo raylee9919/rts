@@ -241,7 +241,6 @@ static void make_model(State *state, Asset_Model *model_out) {
 
         mesh_out->vertices = new Asset_Vertex[num_vert];
         mesh_out->vertex_count = num_vert;
-        mesh_out->vertices     = new Asset_Vertex[num_vert];
 
 
         for (u32 vi = 0; vi < num_vert; ++vi) {
@@ -476,12 +475,45 @@ int main(void)
 
     State *state = new State;
 
+    // @Temporary
+    // @Temporary
+    // @Temporary
+    m4x4 root = {
+        0.010000f, 0.000000f, 0.000000f, 0.000000f,
+        0.000000f, 0.010000f, 0.000000f, 0.000000f,
+        0.000000f, 0.000000f, 0.010000f, 0.000000f,
+        0.000000f, 0.000000f, 0.000000f, 1.000000f,
+    };
+    m4x4 hip = {
+        -0.581853f, 0.800314f, 0.144723f, -0.694497f,
+        0.018189f, 0.190707f, -0.981478f, 83.361526f,
+        -0.813091f, -0.568444f, -0.125520f, 0.886050f,
+        0.000000f, 0.000000f, 0.000000f, 1.000000f,
+    };
+    m4x4 scabbard = {
+        -0.078485f, -0.614300f, 0.785159f, -16.189623f,
+        0.649227f, 0.566186f, 0.507875f, -13.446239f,
+        -0.756534f, 0.549607f, 0.354384f, 2.368096f,
+        0.000000f, 0.000000f, 0.000000f, 1.000000f,
+    };
+    m4x4 scabbard2 = {
+        1.000000f, 0.000000f, 0.000000f, 0.000000f,
+        0.000000f, 1.000000f, 0.000000f, 0.000000f,
+        0.000000f, 0.000000f, 1.000000f, 0.000000f,
+        0.000000f, 0.000000f, 0.000000f, 1.000000f,
+    };
+
+    m4x4 res1 = hip * scabbard * scabbard2;
+    m4x4 inv1 = inverse(res1);
+    // @Temporary
+    // @Temporary
+    // @Temporary
 
     char *input_file_names[] = {
-        //"../data/input/model/skeleton_lord_rest_pose.dae",
+        "../data/input/model/skeleton_lord_rest_pose.dae",
         //"../data/input/model/skeleton_lord_idle.dae",
         //"../data/input/model/skeleton_lord_run.dae",
-        "../data/input/model/skeleton_lord_die.dae",
+        //"../data/input/model/skeleton_lord_die.dae",
         //"../data/input/model/skeleton_lord_attack.dae",
         //"../data/input/model/plane.fbx",
         //"../data/input/model/castle.fbx",
@@ -498,7 +530,9 @@ int main(void)
         state->scene = (aiScene *)importer.ReadFile(in_file_name, (aiProcess_Triangulate |
                                                                    aiProcess_ImproveCacheLocality |
                                                                    aiProcess_CalcTangentSpace |
+                                                                   aiProcess_GlobalScale |
                                                                    aiProcess_OptimizeMeshes |
+                                                                   aiProcess_OptimizeGraph |
                                                                    aiProcess_RemoveRedundantMaterials |
                                                                    aiProcess_LimitBoneWeights |
                                                                    aiProcess_GenUVCoords |
@@ -521,7 +555,7 @@ int main(void)
             state->num_nodes = get_node_count(state->scene->mRootNode);
             printf("# of aiNode: %d\n", state->num_nodes);
 
-            //print_scene_hierarchy_recursively(state->scene->mRootNode);
+            print_scene_hierarchy_recursively(state->scene->mRootNode);
         }
 
 

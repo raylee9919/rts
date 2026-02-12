@@ -1,15 +1,6 @@
-#ifndef RTS_UI_BUILDER_H
-#define RTS_UI_BUILDER_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright 2024 by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
-
-
+#pragma once
 
 
 
@@ -28,5 +19,3 @@ internal void ui_row_push(void);
 
 #define ui_col() defer_loop(ui_col_push(), ui_parent_pop())
 internal void ui_col_push(void);
-
-#endif // RTS_UI_BUILDER_H

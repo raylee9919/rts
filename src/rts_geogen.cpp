@@ -15,9 +15,9 @@ geogen_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
     {
         f32 sublength = length / (f32)subdivision;
         u32 patch_count = subdivision*subdivision;
-        u32 vertex_count = 4*patch_count;
-        mesh->vertex_count = vertex_count;
-        mesh->vertices = push_array(arena, Vertex, vertex_count);
+        u32 num_vertices = 4*patch_count;
+        mesh->num_vertices = num_vertices;
+        mesh->vertices = push_array(arena, Vertex, num_vertices);
 
         f32 min = -length * 0.5f;
 
@@ -86,13 +86,13 @@ geogen_backfaced_cube(Mesh *mesh, Arena *arena, f32 scale)
         20,22,23,20,23,21
     };
 
-    u32 vertex_count = array_count(vertices);
-    mesh->vertex_count = vertex_count;
-    mesh->vertices = push_array(arena, Vertex, vertex_count);
-    memory_copy(mesh->vertices, vertices, sizeof(*vertices)*vertex_count);
+    u32 num_vertices = array_count(vertices);
+    mesh->num_vertices = num_vertices;
+    mesh->vertices = push_array(arena, Vertex, num_vertices);
+    memory_copy(mesh->vertices, vertices, sizeof(*vertices)*num_vertices);
 
-    u32 index_count = array_count(indices);
-    mesh->index_count = index_count;
-    mesh->indices  = push_array(arena, u32, index_count);
-    memory_copy(mesh->indices, indices, sizeof(*indices)*index_count);
+    u32 num_indices = array_count(indices);
+    mesh->num_indices = num_indices;
+    mesh->indices  = push_array(arena, u32, num_indices);
+    memory_copy(mesh->indices, indices, sizeof(*indices)*num_indices);
 }

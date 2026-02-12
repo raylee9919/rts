@@ -353,11 +353,11 @@ opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
 
         glGenBuffers(1, &node->vbo);
         glBindBuffer(GL_ARRAY_BUFFER, node->vbo);
-        glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(mesh->vertices[0]), mesh->vertices, GL_STREAM_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, mesh->num_vertices * sizeof(mesh->vertices[0]), mesh->vertices, GL_STREAM_DRAW);
 
         glGenBuffers(1, &node->ibo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, node->ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(mesh->indices[0]), mesh->indices, GL_STREAM_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->num_indices * sizeof(mesh->indices[0]), mesh->indices, GL_STREAM_DRAW);
 
         sll_push_back(gl->first_mesh_buffer, gl->last_mesh_buffer, node);
     }
@@ -631,7 +631,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
             // Draw call
             //
-            glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
+            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)0);
         }
     }
     
@@ -668,10 +668,10 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         glUniformMatrix4fv(skybox_program->view_proj, 1, GL_TRUE, &frame->skybox_eye_view_proj.e[0][0]);
 
         Mesh *mesh = frame->skybox_mesh;
-        glBufferData(GL_ARRAY_BUFFER, mesh->vertex_count * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->index_count * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, mesh->num_vertices * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->num_indices * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
 
-        glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
+        glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)0);
 
         glDisableVertexAttribArray(0);
         glEnable(GL_CULL_FACE);
@@ -762,7 +762,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 }
 
 
-                glDrawElements(GL_TRIANGLES, mesh->index_count, GL_UNSIGNED_INT, (void *)0);
+                glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)0);
 
                 for (u32 i = 0; i < 7; ++i) {
                     glDisableVertexAttribArray(i);
