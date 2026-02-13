@@ -10,7 +10,7 @@
 #include "ds.h"
 #include "rts_platform.h"
 #include "rts_font.h"
-#include "rts_asset.h"
+#include "asset.h"
 #include "animation.h"
 #include "cdt.h"
 #include "game.h"
@@ -34,7 +34,7 @@ global Renderer* renderer;
 #include "rts_random.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
-#include "rts_asset.cpp"
+#include "asset.cpp"
 #include "animation.cpp"
 #include "cdt.cpp"
 #include "rts_entity.cpp"
@@ -47,6 +47,17 @@ global Renderer* renderer;
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
 
+
+void debug_print_entity_hierarchy(Entity* entity, int depth = 0) {
+    for (int i = 0; i < depth*2; ++i) {
+        printf(" ");
+    }
+    printf("ID: %llu\n", entity->id);
+    for (Entity* child = entity->first, *next; child; child = next) {
+        next = child->next_sibling;
+        debug_print_entity_hierarchy(child, depth + 1);
+    }
+}
 
 Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
     Entity* soldier            = entity_alloc();
@@ -86,9 +97,9 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
 
     // @Hack:
     u32 num_joints = soldier->skeleton->num_joints;
-    soldier->animation_transform = push_array(game_state->entity_arena, m4x4, num_joints);
+    soldier->skinning_matrices = push_array(game_state->entity_arena, m4x4, num_joints);
     for (u32 i = 0; i < num_joints; ++i) {
-        soldier->animation_transform[i] = identity();
+        soldier->skinning_matrices[i] = identity();
     }
 
     Entity* parent = nullptr;
@@ -324,7 +335,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 30;
+            const int num_soldiers = 40;
             const int num_rows = 15;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);
@@ -576,10 +587,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     //
     entity_update(game_state->root_entity, dt);
 
-
     // Draw entities
     //
     entity_draw(game_state->root_entity, dt, render_group, render_commands);
+
+
 
     // Draw ground
     //
@@ -593,7 +605,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         0, 0, 0, 1,
     };
     v2 uv_scale = v2(gx, gy) * 0.1f;
-    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, uv_scale);
+    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, 0, uv_scale);
 
     
     // Draw navmesh
@@ -621,7 +633,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         // Draw bordered quad.
         //
         f32 dim         = g->minimap_size;
-        v2 offset       = v2(100.f, 100.f);
+        v2 offset       = v2(30.f, 30.f);
         v2 bottom_left  = v2(offset.x, g->window_height - offset.y);
         v2 top_left     = v2(bottom_left.x, bottom_left.y - dim);
         v2 bottom_right = v2(bottom_left.x + dim, bottom_left.y);

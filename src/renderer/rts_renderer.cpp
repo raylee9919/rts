@@ -17,18 +17,19 @@ __push_render_entity(Render_Group* renderGroup, u32 size, Render_Type type)
 }
 
 internal void
-push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u64 entity_id, v2 uv_scale, v4 tint)
+push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* skinning_matrices, u32 num_skinning_matrices, u64 entity_id, v2 uv_scale, v4 tint)
 {
     assert(r->num_meshes < r->max_meshes);
 
     Render_Mesh* piece = r->meshes + r->num_meshes;
     {
-        piece->mesh                 = mesh;
-        piece->world_transform      = world_transform;
-        piece->animation_transforms = animation_transforms;
-        piece->entity_id            = entity_id;
-        piece->uv_scale             = uv_scale;
-        piece->tint                 = tint;
+        piece->mesh                  = mesh;
+        piece->world_transform       = world_transform;
+        piece->skinning_matrices     = skinning_matrices;
+        piece->num_skinning_matrices = num_skinning_matrices;
+        piece->entity_id             = entity_id;
+        piece->uv_scale              = uv_scale;
+        piece->tint                  = tint;
     }
     ++r->num_meshes;
 }
@@ -121,7 +122,7 @@ render_init(void)
 
 
     renderer->num_meshes = 0;
-    renderer->max_meshes = 2048;
+    renderer->max_meshes = 4196;
     renderer->meshes     = push_array(renderer->arena, Render_Mesh, renderer->max_meshes);
 
     renderer->num_lines = 0;

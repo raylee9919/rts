@@ -1,10 +1,4 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
 uniform m4x4  world_transform;
@@ -15,9 +9,9 @@ layout (location = 0) in v3 vP;
 
 out smooth v3 fP;
 
-uniform m4x4                  bone_transforms[MAX_BONE_PER_MESH];
-layout (location = 5) in s32  bone_ids[MAX_BONE_PER_VERTEX];
-layout (location = 6) in f32  bone_weights[MAX_BONE_PER_VERTEX];
+uniform mat4                    bone_transforms[MAX_BONE_PER_MESH];
+layout (location = 5) in int    bone_ids[MAX_BONE_PER_VERTEX];
+layout (location = 6) in float  bone_weights[MAX_BONE_PER_VERTEX];
 
 void main()
 {

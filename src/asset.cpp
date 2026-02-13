@@ -192,6 +192,9 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
 {
     assert(model_out);
 
+    f32 counter = os->perf_counter();
+    defer(printf("Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
@@ -200,7 +203,7 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
 
-    printf("Loading model '%s'\n", file_path.str);
+    printf("\nLoading model '%s'\n", file_path.str);
 
     u32 num_meshes = l.parse_u32();
     model_out->num_meshes = num_meshes;
@@ -250,7 +253,7 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
         }
     }
 
-    printf("Number of total vertices: '%u'\n\n", num_total_vertices);
+    printf("Total number of vertices: %u\n", num_total_vertices);
 
     l.eat_whitespace();
     assert( l.cursor == l.end );
@@ -260,6 +263,9 @@ internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
 {
     assert(skel_out);
 
+    f32 counter = os->perf_counter();
+    defer(printf("Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
@@ -267,6 +273,8 @@ internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
+
+    printf("\nLoading skeleton '%s'\n", file_path.str);
 
     u32 num_joints = l.parse_u32();
     skel_out->num_joints = num_joints;
@@ -298,6 +306,9 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
 {
     assert(anim_out);
 
+    f32 counter = os->perf_counter();
+    defer(printf("Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
@@ -305,6 +316,8 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
+
+    printf("\nLoading animation '%s'\n", file_path.str);
 
     u8 name_len = (u8)l.parse_u32();
     anim_out->name = l.parse_name(name_len);
@@ -354,15 +367,19 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
 
 internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
+    assert(bitmap);
+
+    f32 counter = os->perf_counter();
+    defer(printf("Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    assert(bitmap);
-
     Utf8 entire_file = read_entire_file(scratch.arena, file_path);
-
     u8 *at  = entire_file.str;
     u8 *end = at + entire_file.len;
+
+    printf("\nLoading image '%s'\n", file_path.str);
 
     READ(bitmap->bits_per_channel, s32);
     READ(bitmap->channel_count, s32);
@@ -379,12 +396,17 @@ internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 
 internal void asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
+    assert(bitmap);
+
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    assert(bitmap);
+    f32 counter = os->perf_counter();
+    defer(printf("Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
 
     Utf8 contents = read_entire_file(scratch.arena, file_path);
+
+    printf("\nLoading image '%s'\n", file_path.str);
 
     stbi_set_flip_vertically_on_load(true);
     int x, y, num_channels;

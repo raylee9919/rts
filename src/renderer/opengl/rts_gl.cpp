@@ -583,6 +583,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
         //for (Render_Mesh* piece = renderer->meshes, *next = piece; piece < end; piece = next) {
 
         for (u32 i = 0; i < renderer->num_meshes; ++i) {
+
             Render_Mesh* piece = renderer->meshes + i;
 
             Mesh* mesh = piece->mesh;
@@ -623,9 +624,9 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             //
             glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
             glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
-            glUniform1i(shadowmap_program->is_skeletal, piece->animation_transforms ? 1 : 0);
-            if (piece->animation_transforms) {
-                glUniformMatrix4fv(shadowmap_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
+            glUniform1i(shadowmap_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
+            if (piece->skinning_matrices && piece->num_skinning_matrices) {
+                glUniformMatrix4fv(shadowmap_program->bone_transforms, piece->num_skinning_matrices, true, (GLfloat *)piece->skinning_matrices);
             }
 
 
@@ -718,7 +719,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 
 
                 glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
-                glUniform1i(pbr_program->is_skeletal, piece->animation_transforms ? 1 : 0);
+                glUniform1i(pbr_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
                 glUniformMatrix4fv(pbr_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
                 glUniform2f(pbr_program->uv_scale, piece->uv_scale.x, piece->uv_scale.y);
                 glUniform3fv(pbr_program->eye_position, 1, (GLfloat *)&frame->main_eye_position);
@@ -757,8 +758,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
 
 
-                if (piece->animation_transforms) {
-                    glUniformMatrix4fv(pbr_program->bone_transforms, MAX_BONE_PER_MESH, true, (GLfloat *)piece->animation_transforms);
+                if (piece->skinning_matrices && piece->num_skinning_matrices) {
+                    glUniformMatrix4fv(pbr_program->bone_transforms, piece->num_skinning_matrices, true, (GLfloat *)piece->skinning_matrices);
                 }
 
 

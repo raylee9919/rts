@@ -12,7 +12,7 @@
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_font.h"
-#include "rts_asset.h"
+#include "asset.h"
 
 #define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION
@@ -80,7 +80,7 @@ static void fill_table_recursively(std::unordered_map<aiString, aiNode*>& table,
     }
 }
 
-static std::vector<Asset_Joint> make_joint_array(State *state) {
+static std::vector <Asset_Joint> make_joint_array(State *state) {
     using namespace std;
 
     aiScene *scene = state->scene;

@@ -1,10 +1,4 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
 
@@ -68,7 +62,7 @@ void main()
 {
     if ((flags & Pbr_No_Lighting) == 0) 
     {
-        vec3 DEBUG_light_radiance = vec3(3.0);
+        vec3 DEBUG_light_radiance = vec3(4.f, 3.f, 3.f);
 
         vec3 to_eye = normalize(eye_position - fP);
 
@@ -148,7 +142,7 @@ void main()
             vec4 frag = shadowmap_view_projs[layer] * vec4(fP, 1);
             frag /= frag.w;
             frag.xyz = frag.xyz * 0.5 + 0.5;
-            v2 shadowmap_uv = frag.xy;
+            vec2 shadowmap_uv = frag.xy;
             float bias = max(0.0005, 0.005*(1.0 - ndoti));; // TODO: Study
             const v2 poisson_disk[16] = { // [-1,1]
                 v2(-0.942016, -0.399062),  v2( 0.945586, -0.768907),

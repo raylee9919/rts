@@ -184,11 +184,12 @@ v2 lerp(v2 a, f32 t, v2 b) {
     return result;
 }
 
-v2 normalize(v2 a) {
-    v2 r = a;
-    f32 inv_len = (1.0f / length(r));
-    r *= inv_len;
-    return r;
+v2 normalize(v2 v) {
+    f32 d = (v.x*v.x + v.y*v.y);
+    assert(d != 0.f);
+    v.x /= d;
+    v.y /= d;
+    return v;
 }
 
 v3::v3(f32 f) {
@@ -378,10 +379,8 @@ f32 dot(v4 a, v4 b) {
 #endif
 }
 
-internal v3
-cross(v3 a, v3 b) 
-{
-    v3 v = {};
+v3 cross(v3 a, v3 b) {
+    v3 v;
     v.x = (a.y*b.z) - (b.y*a.z);
     v.y = (a.z*b.x) - (b.z*a.x);
     v.z = (a.x*b.y) - (b.x*a.y);
@@ -402,9 +401,7 @@ hadamard(v3 a, v3 b)
     return v;
 }
 
-internal v4
-hadamard(v4 a, v4 b) 
-{
+v4 hadamard(v4 a, v4 b) {
     v4 v;
 #if SSE_ENABLED
     __m128 w = _mm_mul_ps(a.sse, b.sse);
@@ -521,7 +518,7 @@ v4 operator * (v4 v, f32 f)
     v.sse = _mm_mul_ps(f_, v.sse);
     return v;
 #else
-    return v4{a.x*b, a.y*b, a.z*b, a.w*b};
+    return v4{v.r*f, v.g*f, v.b*f, v.a*f};
 #endif
 }
 
@@ -529,17 +526,23 @@ v4 operator * (f32 f, v4 v) {
     return v * f;
 }
 
-internal v4
-lerp(v4 a, f32 t, v4 b)
-{
-    v4 result = {};
-    {
-        result.r = lerp(a.r, t, b.r);
-        result.g = lerp(a.g, t, b.g);
-        result.b = lerp(a.b, t, b.b);
-        result.a = lerp(a.a, t, b.a);
-    }
-    return result;
+v4 lerp(v4 a, f32 t, v4 b) {
+#if SSE_ENABLED
+    __m128 ax4 = a.sse;
+    __m128 bx4 = b.sse;
+    __m128 tx4 = _mm_set1_ps(t);
+    __m128 dx4 = _mm_sub_ps(bx4, ax4);
+    v4 v;
+    v.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
+    return v;
+#else
+    v4 v;
+    v.r = lerp(a.r, t, b.r);
+    v.g = lerp(a.g, t, b.g);
+    v.b = lerp(a.b, t, b.b);
+    v.a = lerp(a.a, t, b.a);
+    return v; 
+#endif
 }
 
 
@@ -1278,49 +1281,6 @@ aabb2_infinite(void)
 }
 
 
-// @Temporary
-//
-internal Quaternion
-quaternion_from_m4x4(m4x4 m)
-{
-    Quaternion q;
-    f32 t = m.e[0][0] + m.e[1][1] + m.e[2][2];
-
-    if (t > 0.0f)
-    {
-        f32 s = sqrtf(t + 1.0f) * 2.0f;
-        q.w = 0.5f;
-        q.x = (m.e[2][1] - m.e[1][2]) / s;
-        q.y = (m.e[0][2] - m.e[2][0]) / s;
-        q.z = (m.e[1][0] - m.e[0][1]) / s;
-    }
-    else if ((m.e[0][0] >= m.e[1][1]) && (m.e[0][0] >= m.e[2][2]))
-    {
-        f32 s = sqrtf(1.0f + m.e[0][0] - m.e[1][1] - m.e[2][2]) * 2.0f;
-        q.w = (m.e[2][1] - m.e[1][2]) / s;
-        q.x = 0.5f;
-        q.y = (m.e[0][1] + m.e[1][0]) / s;
-        q.z = (m.e[0][2] + m.e[2][0]) / s;
-    }
-    else if (m.e[1][1] > m.e[2][2])
-    {
-        f32 s = sqrtf(1.0f + m.e[1][1] - m.e[0][0] - m.e[2][2]) * 2.0f;
-        q.w = (m.e[0][2] - m.e[2][0]) / s;
-        q.x = (m.e[0][1] + m.e[1][0]) / s;
-        q.y = 0.5f;
-        q.z = (m.e[1][2] + m.e[2][1]) / s;
-    }
-    else
-    {
-        f32 s = sqrtf(1.0f + m.e[2][2] - m.e[0][0] - m.e[1][1]) * 2.0f;
-        q.w = (m.e[1][0] - m.e[0][1]) / s;
-        q.x = (m.e[0][2] + m.e[2][0]) / s;
-        q.y = (m.e[1][2] + m.e[2][1]) / s;
-        q.z = 0.5f;
-    }
-
-    return q;
-}
 
 internal v2
 to_ndc(v2 p, f32 w, f32 h)
@@ -1365,9 +1325,7 @@ ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 
     return result;
 }
 
-internal bool 
-ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out)
-{
+bool ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out) {
     v3  n = plane_normal;
     f32 d = plane_height;
 

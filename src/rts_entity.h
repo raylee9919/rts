@@ -107,7 +107,7 @@ struct Entity {
 
     Animation_Player* animation_player;
 
-    m4x4*                animation_transform;
+    m4x4*                skinning_matrices;
     Animation*           idle_animation;
     Animation*           running_animation;
     Animation*           die_animation;

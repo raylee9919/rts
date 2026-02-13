@@ -133,7 +133,7 @@ struct Render_Commands
     f32         debug_radius;
 };
 
-internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* animation_transforms, u64 entity_id, v2 uv_scale, v4 tint = v4{1,1,1,1});
+internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* skinning_matrices, u32 num_skinning_matrices, u64 entity_id, v2 uv_scale, v4 tint = v4{1,1,1,1});
 
 internal void draw_line(Render_Group *group, v3 a, v3 b, v4 color);
 
@@ -227,7 +227,8 @@ struct Render_Mesh {
     Mesh* mesh;
     m4x4  world_transform;
     u64   entity_id;
-    m4x4* animation_transforms;
+    m4x4* skinning_matrices;
+    u32   num_skinning_matrices;
     v2    uv_scale;
     v4    tint;
 };

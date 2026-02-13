@@ -766,6 +766,7 @@ entity_update(Entity* entity, const f32 dt)
                 const f32 arrival_threshold = 1.0f;
                 if (entity->waypoint_queue.empty()) {
                     entity->command = ENTITY_CMD_STOP;
+                    // @Todo: Not working properly?
                     entity_propagate_arrival(entity);
                 }
             } else if (entity->command == ENTITY_CMD_ATTACK) {
@@ -917,7 +918,7 @@ entity_update(Entity* entity, const f32 dt)
                     }
 
                     ap->eval();
-                    memcpy(entity->animation_transform, ap->skinning_matrices.data, sk->num_joints * sizeof(m4x4));
+                    memcpy(entity->skinning_matrices, ap->skinning_matrices.data, sk->num_joints * sizeof(m4x4));
                 }
             }
         } break;
@@ -927,7 +928,7 @@ entity_update(Entity* entity, const f32 dt)
             Entity *parent = entity->parent;
             s32 joint_id = entity->parent_joint_id;
             Joint *joint = &parent->skeleton->joints[joint_id];
-            m4x4 local_transform = parent->animation_transform[joint_id] * inverse(joint->inverse_bind_pose);
+            m4x4 local_transform = parent->skinning_matrices[joint_id] * inverse(joint->inverse_bind_pose);
             m4x4 world_transform = trs_to_transform(parent->position, parent->orientation, parent->scaling) * local_transform;
             entity->transform = world_transform * trs_to_transform(entity->position, entity->orientation, entity->scaling);
         } break;
@@ -1069,7 +1070,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh* mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f));
+                    push_mesh(renderer, mesh, transform, entity->skinning_matrices, entity->skeleton->num_joints, entity->id, v2(1.f, 1.f));
                 }
 
 
@@ -1151,7 +1152,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 i = 0; i < entity->model->num_meshes; ++i) {
                     Mesh *mesh = &entity->model->meshes[i];
-                    push_mesh(renderer, mesh, transform, nullptr, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, nullptr, 0, entity->id, v2{1,1});
                 }
             }
         } break;
@@ -1164,7 +1165,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, nullptr, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, nullptr, 0, entity->id, v2{1,1});
                 }
             }
         } break;
