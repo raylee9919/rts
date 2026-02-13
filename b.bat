@@ -25,11 +25,12 @@ if not "%release%"=="1" set debug=1
 if "%debug%"=="1" set release=0 && echo [Debug Build]
 if "%release%"=="1" set debug=0 && echo [Release Build]
 
+if "%assimp%"=="1" set build_assimp=1
 if "%game%"=="1" set BuildGame=1
 if "%win%"=="1"  set BuildWin=1
 if "%gl%"=="1"   set BuildGL=1
 
-if not defined BuildGame if not defined BuildWin if not defined BuildGL (
+if not defined build_assimp if not defined BuildGame if not defined BuildWin if not defined BuildGL (
     set "BuildGame=1"
     set "BuildWin=1"
     set "BuildGL=1"
@@ -63,7 +64,9 @@ REM if exist *.pdb del *.pdb
 
 :: ---------------------------- Tools ---------------------------- ::
 :: Assimp
-rem call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib ..\lib\meshoptimizer.lib
+if "%assimp%" == "1" (
+    call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib ..\lib\meshoptimizer.lib
+)
 
 :: Metaprogramming
 REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
@@ -74,7 +77,7 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Renderers
 if "%BuildGL%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
+    rem call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
 :: Game
@@ -84,7 +87,7 @@ if "%BuildGame%"=="1" (
 
 :: Platform
 if "%BuildWin%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
+    rem call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts          /link %flags_linker% logo.res
 )
 
 

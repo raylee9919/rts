@@ -200,9 +200,15 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
 
+    printf("Loading model '%s'\n", file_path.str);
+
     u32 num_meshes = l.parse_u32();
     model_out->num_meshes = num_meshes;
     model_out->meshes = push_array(arena, Mesh, num_meshes);
+
+    printf("Number of meshes: '%u'\n", num_meshes);
+
+    u32 num_total_vertices = 0;
 
     for (u32 mi = 0; mi < num_meshes; ++mi) {
         Mesh *mesh = &model_out->meshes[mi];
@@ -210,11 +216,16 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
         u8 str_len = (u8)l.parse_u32();
         mesh->name = l.parse_name(str_len);
 
+
         // Parse vertices.
         //
         u32 num_vertices = l.parse_u32();
         mesh->num_vertices = num_vertices;
         mesh->vertices = push_array(arena, Vertex, num_vertices);
+
+        num_total_vertices += num_vertices;
+
+        printf("Mesh #%u '%s' has %u vertices.\n", mi, mesh->name.text, num_vertices);
 
         for (u32 vi = 0; vi < num_vertices; ++vi) {
             Vertex *vert = &mesh->vertices[vi];
@@ -239,6 +250,7 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
         }
     }
 
+    printf("Number of total vertices: '%u'\n\n", num_total_vertices);
 
     l.eat_whitespace();
     assert( l.cursor == l.end );

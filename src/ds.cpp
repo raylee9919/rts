@@ -38,6 +38,17 @@ void List <T> :: clear() {
 // Array
 //
 template <typename T>
+Array <T> :: Array() {
+}
+
+template <typename T>
+Array <T> :: ~Array() {
+    if (data) {
+        delete data;
+    }
+}
+
+template <typename T>
 void Array<T>::push(T val) {
     if (num == cap) {
 
@@ -71,9 +82,28 @@ void Array <T>::clear() {
 
 template <typename T>
 void Array <T>::release() {
-    delete data;
+    if (data) {
+        delete data;
+    }
     num = 0;
     cap = 0;
+}
+
+template <typename T>
+void Array <T> :: reserve_to(int new_cap) {
+    if (cap >= new_cap) {
+        return;
+    }
+
+    T* ptr = new T[new_cap];
+    if (data) {
+        memcpy(ptr, data, sizeof(T) * cap);
+        delete ptr;
+    }
+    data = ptr;
+    cap = new_cap;
+
+    memset(data + num, 0, sizeof(T) * (cap - num));
 }
 
 template<typename T>

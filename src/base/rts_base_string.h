@@ -80,3 +80,8 @@ internal Utf8 utf8f(Arena *arena, char *fmt, ...);
 internal Utf8 utf8_skip_whitespace(Utf8 str);
 internal Utf8 utf8_chop_whitespace(Utf8 str);
 internal Utf8 utf8_skip_chop_whitespace(Utf8 str);
+
+//
+// Operators
+//
+bool operator == (Utf8 l, Utf8 r);

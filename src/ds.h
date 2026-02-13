@@ -29,19 +29,25 @@ struct List {
 template <typename T>
 struct Array {
 
+    Array();
+    ~Array();
+
     void push(T val);
     bool is_empty();
     void clear();
     void release();
+    void reserve_to(int cap_);
 
     T& operator[](u64 idx);
     const T& operator[](u64 idx) const;
 
 
-    T* data = NULL;
+    T* data = nullptr;
     int num = 0;
     int cap = 0;
 };
+
+
 
 template <typename K, typename V>
 struct Table {

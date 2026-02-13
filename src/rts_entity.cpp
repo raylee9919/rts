@@ -4,7 +4,7 @@
 // Functionalities
 //
 internal void
-entity_attach(Entity* child, Entity* parent, Joint_Id joint_id = -1)
+entity_attach(Entity* child, Entity* parent, s32 joint_id = -1)
 {
     if (!child || !parent) {
         return;
@@ -564,7 +564,10 @@ entity_release(u64 id)
     Entity* entity = entity_from_id(id);
 
     if (entity) {
-        Entity* bucket = entity_bucket_from_id(entity->id);
+
+        if (entity->animation_player) {
+            delete entity->animation_player;
+        }
 
         // Remove from the parent's children list.
         if (entity->parent) {
@@ -572,6 +575,7 @@ entity_release(u64 id)
         }
 
         // Remove from the table and append to free list.
+        Entity* bucket = entity_bucket_from_id(entity->id);
         dll_remove_np(bucket->first, bucket->last, entity, next_in_table, prev_in_table);
         sll_push_front_n(game_state->first_free_entity, game_state->last_free_entity, entity, next_in_table);
     }
@@ -863,161 +867,69 @@ entity_update(Entity* entity, const f32 dt)
 
 
             // Update speed.
-            const f32 min_speed = 0.0f;
-            const f32 max_speed = 3.0f;
-            f32 norm_t          = map(entity->speed_t, entity->min_t, entity->max_t);
-            entity->speed       = hermite(min_speed, norm_t, max_speed);
+            f32 norm_t          = map01(entity->speed_t, entity->min_t, entity->max_t);
+            entity->speed       = hermite(0.f, norm_t, entity->max_speed);
 
 
 
-            // Animation
-            // 
-            // @Todo: Hideous... NEED PROPER ANIMATION BLENDING!!
             //
-            if (entity->model) {
-                ProfileScopeNC("EntityUpdateAnimation", 0xffc5d3); // @Todo: This is bottleneck!
+            // Animation
+            //
+            if (entity->model && entity->skeleton) {
+                ProfileScopeNC("entity_update_animation", 0xffc5d3);
 
-
-                {
-                    u32 num_joints  = entity->skeleton->num_joints;
-                    Animation *anim = entity->attack_animation;
-                    u32 num_nodes   = anim->num_joints;
-
-                    const f32 fps = 60.f;
-                    const f32 duration = anim->num_keyframes / fps;
-
-                    entity->playback_t = fmod_cycling(entity->playback_t + dt, duration);
-
-                    u32 idx1 = (u32)(entity->playback_t * fps) % anim->num_keyframes;
-                    u32 idx2 = (idx1 + 1) % anim->num_keyframes;
-
-                    f32 t = entity->playback_t * fps - idx1;
-
-                    m4x4 *global_transform = push_array(scratch.arena, m4x4, num_joints);
-
-
-                    for (u32 ji = 0; ji < num_joints; ++ji) {
-                        Joint *joint = &entity->skeleton->joints[ji];
-                        s32 parent = joint->parent;
-
-                        Animation_Joint *node = nullptr;
-
-                        s32 id = (s32)ji;
-
-                        {
-                            ProfileScopeN("Animation: Search In Table");
-
-                            u64 slot = hash_joint_id(id) % anim->table_size;
-                            auto *entry = anim->joint_table + slot;
-                            for (auto *link = entry->first; link; link = link->next) {
-                                if (link->joint->id == id) {
-                                    node = link->joint;
-                                    break;
-                                }
-                            }
-                        }
-
-                        m4x4 local_transform = joint->local_transform;
-
-                        if (node) {
-                            ProfileScopeN("Animation: Lerp");
-
-                            Xform *sample1 = &node->keyframes[idx1];
-                            Xform *sample2 = &node->keyframes[idx2];
-
-                            Quaternion rot1 = sample1->rotation;
-                            Quaternion rot2 = sample2->rotation;
-                            if (dot(rot1, rot2) < 0.f) {
-                                rot2 = -rot2;
-                            }
-                            Quaternion rotation = nlerp(rot1, t, rot2);
-                            v3 translation      = lerp(sample1->translation, t, sample2->translation);
-                            v3 scale            = lerp(sample1->scale, t, sample2->scale);
-
-                            local_transform = trs_to_transform(translation, rotation, scale);
-                        }
-
-                        {
-                            ProfileScopeN("Animation: Global Transform and Pose");
-
-                            if (parent >= 0) {
-                                global_transform[ji] = global_transform[parent] * local_transform;
-                            } else {
-                                global_transform[ji] = local_transform;
-                            }
-
-                            entity->animation_transform[ji] = global_transform[ji] * joint->inverse_bind_pose;
-                        }
-                    }
-                }
-
-#if 0
-                if (!entity_is_dead(entity)) {
-                    if (entity->attack_t > 0.f) {
-                        Animation_Channel* channel = &entity->animation_channels[0];
-                        channel->animation = entity->attack_animation;
-
-                        const f32 t = map01(entity->attack_t, 0.f, entity->attack_max_t); // [0,1]
-                        const f32 anim_t = t * channel->animation->duration;
-
-                        eval(entity->model, channel->animation, anim_t, entity->animation_transform, true);
-                    } else {
-                        f32 v  = entity->speed;
-                        f32 lo = 0.0001f;
-                        f32 hi = 0.7f;
-                        Animation_Channel* channel = &entity->animation_channels[0];
-
-                        if (v <= lo) {
-                            Animation* new_anim = entity->idle_animation;
-                            if (channel->animation != new_anim) {
-                                channel->animation = new_anim;
-                                channel->dt = 0.0f;
-                            }
-                            eval(entity->model, channel->animation, channel->dt, entity->animation_transform, true);
-                            anim_accumulate(channel, dt);
-                        } else if (v > hi) {
-                            Animation *new_anim = entity->running_animation;
-                            if (channel->animation != new_anim) {
-                                channel->animation = new_anim;
-                                channel->dt = 0.0f;
-                            }
-                            eval(entity->model, channel->animation, channel->dt, entity->animation_transform, true);
-                            anim_accumulate(channel, dt);
+                Skeleton *sk = entity->skeleton;
+                Animation_Player *ap = entity->animation_player;
+                if (ap) {
+                    if (!entity_is_dead(entity)) {
+                        if (entity->attack_t > 0.f) {
+                            Pose_Channel *ch = &ap->channels[2];
+                            ch->set_animation(entity->attack_animation, true);
+                            ch->active = true;
+                            ch->accumulate(dt);
                         } else {
-                            f32 t = map01(v, lo, hi);
-                            if (channel->animation == entity->idle_animation) {
-                                interpolate(entity->model, channel->animation, channel->dt, t, entity->running_animation, 0.0f);
-                            } else {
-                                interpolate(entity->model, entity->idle_animation, 0.0f, t, channel->animation, channel->dt);
-                            }
-                            eval(entity->model, 0, 0, entity->animation_transform, false);
+                            ap->channels[2].active = false;
+
+
+                            f32 t = map01(entity->speed, 0.f, entity->max_speed);
+                            ap->blend_weights[0] = 1.f - t;
+                            ap->blend_weights[1] = t;
+
+                            Pose_Channel *ch0 = &ap->channels[0];
+                            ch0->set_animation(entity->idle_animation, true);
+                            ch0->active = true;
+                            ch0->accumulate(dt);
+
+                            Pose_Channel *ch1 = &ap->channels[1];
+                            ch1->set_animation(entity->running_animation, true);
+                            ch1->active = true;
+                            ch1->accumulate(dt);
                         }
-                    }
-                } else if (entity->command == ENTITY_CMD_DIEING) {
-                    Animation_Channel *channel = &entity->animation_channels[0];
-
-                    // @Temporary
-                    f32 lo = 0.0f;
-                    f32 hi = 0.1f;
-                    f32 t = map(entity->transition_t, lo, hi);
-
-                    if (t < 1.0f) {
-                        interpolate(entity->model, channel->animation, channel->dt, t, entity->die_animation, 0.0f);
-                        eval(entity->model, 0, 0, entity->animation_transform, false);
                     } else {
-                        eval(entity->model, entity->die_animation, entity->transition_t - hi, entity->animation_transform, true);
-                        if (entity->transition_t >= entity->die_animation->duration) {
-                            entity->flags |= ENTITY_FLAG_DEAD;
-                        }
+                        ap->channels[0].active = false;
+                        ap->channels[1].active = false;
+                        ap->channels[2].active = false;
+
+                        Pose_Channel *ch3 = &ap->channels[3];
+                        ch3->set_animation(entity->die_animation, false);
+                        ch3->active = true;
+                        ch3->accumulate(dt);
                     }
-                    entity->transition_t += dt*1.5f;
-                } else if (entity->flags & ENTITY_FLAG_DEAD) {
-                    eval(entity->model, entity->die_animation, entity->die_animation->duration, entity->animation_transform, true);
-                } else {
-                    INVALID_CODE_PATH;
+
+                    ap->eval();
+                    memcpy(entity->animation_transform, ap->skinning_matrices.data, sk->num_joints * sizeof(m4x4));
                 }
-#endif
             }
+        } break;
+
+        case ENTITY_TYPE_SWORD: {
+            // @Todo: Unsafe
+            Entity *parent = entity->parent;
+            s32 joint_id = entity->parent_joint_id;
+            Joint *joint = &parent->skeleton->joints[joint_id];
+            m4x4 local_transform = parent->animation_transform[joint_id] * inverse(joint->inverse_bind_pose);
+            m4x4 world_transform = trs_to_transform(parent->position, parent->orientation, parent->scaling) * local_transform;
+            entity->transform = world_transform * trs_to_transform(entity->position, entity->orientation, entity->scaling);
         } break;
 
         case ENTITY_TYPE_CASTLE: {
@@ -1064,7 +976,7 @@ entity_update(Entity* entity, const f32 dt)
 
                             // colliding
                             if (dist < radii) {
-                                const v2 normal = normalize(other_pos - pos);
+                                const v2 normal = normalize(other_pos - pos); // @Fix: This can give a bogus number!
                                 const f32 depth = radii - dist;
 
                                 if (entity_is_pushable(entity, other)) {
@@ -1157,13 +1069,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh* mesh = entity->model->meshes + mesh_idx;
-
-                    v4 tint = v4{1,1,1,1};
-                    if (entity->flags & ENTITY_FLAG_SELECTED) {
-                        tint = v4{1.0f, 0.5f, 1.0f, 1.0f};
-                    }
-
-                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f), tint);
+                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2(1.f, 1.f));
                 }
 
 
@@ -1203,13 +1109,14 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             }
 
 
+            Entity* camera = entity_from_id(game_state->controlling_camera_id);
+            v3 p = project(entity->position, camera->VP);
+            p.x = ( p.x*0.5f + 0.5f)*game_state->window_width;
+            p.y = (-p.y*0.5f + 0.5f)*game_state->window_height;
+
             // Show chunk position of this entity.
             //
             if ((game_state->display_chunk_position) && (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED)) {
-                Entity* camera = entity_from_id(game_state->controlling_camera_id);
-                v3 p = project(entity->position, camera->VP);
-                p.x = ( p.x*0.5f + 0.5f)*game_state->window_width;
-                p.y = (-p.y*0.5f + 0.5f)*game_state->window_height;
 
                 auto aabb = fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_NO_DRAW | RENDER_STRING_FLAG_COMPUTE_SIZE).aabb;
                 aabb.min -= v2(4.f, 4.f);
@@ -1218,6 +1125,34 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
                 f32 r = 6.f;
                 render_quad_c4r4(aabb.min, aabb.max, c,c,c,c, r,r,r,r);
                 fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
+            }
+
+
+            // Draw hitpoints.
+            //
+            if ( (entity->flags & ENTITY_FLAG_SELECTED) && (entity->hitpoints > 0.f) ) {
+                v2 cen = v2(p.x, p.y);
+                v2 dim = v2(18.f, 2.f);
+                v2 border = v2(1.f);
+
+                v2 min = cen - dim;
+                v2 max = cen + dim;
+                render_quad_c(min - border, max + border, v4{0.2f, 0.2f, 0.2f, 0.2f});
+
+                f32 t = map01(entity->hitpoints, 0.f, entity->max_hitpoints);
+                v2 max2 = min + v2(2.f * dim.x * t, 2.f * dim.y);
+                render_quad_c(min, max2, v4{1.0f, 0.2f, 0.2f, 1.0f});
+            }
+        } break;
+
+        case ENTITY_TYPE_SWORD: {
+            // @Robustness: Most of the entities don't use this 'transform' member.
+            m4x4 transform = entity->transform;
+            if (entity->model) {
+                for (u32 i = 0; i < entity->model->num_meshes; ++i) {
+                    Mesh *mesh = &entity->model->meshes[i];
+                    push_mesh(renderer, mesh, transform, nullptr, entity->id, v2{1,1});
+                }
             }
         } break;
 
@@ -1229,7 +1164,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, entity->animation_transform, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, nullptr, entity->id, v2{1,1});
                 }
             }
         } break;

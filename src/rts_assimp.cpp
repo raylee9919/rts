@@ -131,7 +131,6 @@ static std::vector<Asset_Joint> make_joint_array(State *state) {
 
     }
     assert( root_bone );
-    printf("Root bone name: %s\n", root_bone->mName.data);
 
 
 
@@ -288,7 +287,6 @@ static void make_model(State *state, Asset_Model *model_out) {
             }
         }
 
-
         for (u32 bi = 0; bi < mesh->mNumBones; ++bi) {
             aiBone *bone = mesh->mBones[bi];
             std::string name(bone->mName.data);
@@ -301,7 +299,7 @@ static void make_model(State *state, Asset_Model *model_out) {
 
                 Asset_Vertex *vert_out = &mesh_out->vertices[vert_idx];
 
-                // @Todo: Sort the weights and us ethe topmost 4 of them..
+                // @Todo: Sort the weights and use the topmost 4 of them..
                 bool duplicated = false;
                 u32 next = 0xBEEF;
                 for (u32 j = 0; j < MAX_BONE_PER_VERTEX; ++j) {
@@ -510,11 +508,12 @@ int main(void)
     // @Temporary
 
     char *input_file_names[] = {
-        "../data/input/model/skeleton_lord_rest_pose.dae",
-        //"../data/input/model/skeleton_lord_idle.dae",
+        //"../data/input/model/skeleton_lord_rest_pose.dae",
+        "../data/input/model/skeleton_lord_idle.dae",
         //"../data/input/model/skeleton_lord_run.dae",
         //"../data/input/model/skeleton_lord_die.dae",
         //"../data/input/model/skeleton_lord_attack.dae",
+        //"../data/input/model/sword.dae",
         //"../data/input/model/plane.fbx",
         //"../data/input/model/castle.fbx",
     };
@@ -555,7 +554,7 @@ int main(void)
             state->num_nodes = get_node_count(state->scene->mRootNode);
             printf("# of aiNode: %d\n", state->num_nodes);
 
-            print_scene_hierarchy_recursively(state->scene->mRootNode);
+            //print_scene_hierarchy_recursively(state->scene->mRootNode);
         }
 
 

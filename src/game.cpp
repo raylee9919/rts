@@ -11,7 +11,8 @@
 #include "rts_platform.h"
 #include "rts_font.h"
 #include "rts_asset.h"
-#include "rts_cdt.h"
+#include "animation.h"
+#include "cdt.h"
 #include "game.h"
 #include "rts_entity.h"
 #include "rts_geogen.h"
@@ -25,7 +26,6 @@
 global Game_State* game_state;
 global Renderer* renderer;
 
-
 //
 // .cpp
 //
@@ -35,7 +35,8 @@ global Renderer* renderer;
 #include "ds.cpp"
 #include "rts_font.cpp"
 #include "rts_asset.cpp"
-#include "rts_cdt.cpp"
+#include "animation.cpp"
+#include "cdt.cpp"
 #include "rts_entity.cpp"
 #include "renderer/rts_renderer.cpp"
 #include "rts_geogen.cpp"
@@ -56,38 +57,66 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
     soldier->team              = team;
 
     soldier->radius            = 0.5f;
-    soldier->speed             = 5.0f;
+    soldier->max_speed         = 3.0f;
 
     soldier->min_t             = 0.0f;
     soldier->max_t             = 0.5f;
 
     soldier->attack_max_t      = 1.0f;
 
-    soldier->hitpoints         = 40.f;
+    soldier->max_hitpoints     = 40.f;
+    soldier->hitpoints         = soldier->max_hitpoints;
 
     soldier->find_target_max_t = 3.f;
 
     soldier->position          = v3(x, 0.f, z);
     soldier->orientation       = {};
     soldier->scaling           = v3(1.f);
+
     soldier->model             = assets->skeleton_model;
     soldier->skeleton          = assets->skeleton_skeleton;
+
     soldier->idle_animation    = assets->skeleton_idle;
     soldier->running_animation = assets->skeleton_run;
     soldier->die_animation     = assets->skeleton_die;
     soldier->attack_animation  = assets->skeleton_attack;
 
+    soldier->animation_player = new Animation_Player;
+    soldier->animation_player->init(soldier->skeleton);
+
     // @Hack:
     u32 num_joints = soldier->skeleton->num_joints;
     soldier->animation_transform = push_array(game_state->entity_arena, m4x4, num_joints);
-    
     for (u32 i = 0; i < num_joints; ++i) {
         soldier->animation_transform[i] = identity();
     }
 
-    entity_init(soldier, nullptr);
+    Entity* parent = nullptr;
+    entity_init(soldier, parent);
 
     return soldier;
+}
+
+Entity* debug_attach_sword(Entity* entity, Game_Assets* assets) {
+    // Create a sword and attach it to soldier.
+    //
+    Entity* sword = entity_alloc();
+    sword->type              = ENTITY_TYPE_SWORD;
+    sword->position          = v3(0.0f, 0.0f, -50.0f);
+    sword->orientation       = normalize(Quaternion(0.44f, 0.51f, -0.57f, 0.46f));
+
+    // @Todo: Since the current socket's scale is also transformed along the skeleton hierarhcy, the scaling is amplified, hard-coded here.
+    sword->scaling           = v3(70.f);
+    sword->local_position    = v3(0.f, 0.f, 0.f);
+    sword->local_orientation = euler_to_quaternion(radian_from_degree(180.f), 0.f, 0.f);
+    sword->model             = game_state->assets->sword_model;
+    entity_init(sword, entity);
+
+    // @Temporary
+    const s32 joint_id = 47;
+    entity_attach(sword, entity, joint_id);
+
+    return sword;
 }
 
 Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets) {
@@ -136,7 +165,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     // @Todo: We'll deal with timestep later.
     const f32 dt = platform->dt;
-    //constexpr f32 dt = 1.f / 60.f;
     
     if (!game_state->initted) {
         game_state->initted = true;
@@ -173,29 +201,19 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             {
                 auto *model = assets->skeleton_model;
                 load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/skeleton_lord.triangle_mesh", platform->data_path));
-                asset_load_image(&model->meshes[5].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/helmetColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[5].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/helmetNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[5].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/helmetMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[5].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/helmetRoughness.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/helmetColor.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/helmetNormal.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/helmetMetalic.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/helmetRoughness.sbmp", platform->data_path), asset_arena);
 
-                asset_load_image(&model->meshes[3].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/bodyColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[3].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/bodyMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[3].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/bodyNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[3].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/bodyRoughness.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/bodyColor.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/bodyMetalic.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/bodyNormal.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/bodyRoughness.sbmp", platform->data_path), asset_arena);
 
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/clothColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/clothNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/clothRoughness.sbmp", platform->data_path), asset_arena);
-
-                asset_load_image(&model->meshes[7].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/swordColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[7].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/swordNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[7].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/swordMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[7].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/swordRoughness.sbmp", platform->data_path), asset_arena);
-
-                asset_load_image(&model->meshes[9].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/swordColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[9].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/swordNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[9].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/swordMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[9].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/swordRoughness.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[2].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/clothColor.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[2].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/clothNormal.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&model->meshes[2].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/clothRoughness.sbmp", platform->data_path), asset_arena);
                 
                 assets->skeleton_idle = push_struct(asset_arena, Animation);
                 load_animation(asset_arena, assets->skeleton_idle, utf8f(scratch.arena, "%S/animation/skeleton_lord_idle.keyframed_animation", platform->data_path));
@@ -222,15 +240,15 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.sbmp", platform->data_path), asset_arena);
             }
             
-            //assets->sword_model = push_struct(asset_arena, Model);
-            //{
-            //    auto* model = assets->sword_model;
-            //    asset_load_model(model, utf8f(scratch.arena, "%S/mesh/sword.smsh", platform->data_path), asset_arena, v3(0.005f));
-            //    asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/sword_albedo.png", platform->data_path), asset_arena);
-            //    asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/sword_normal.png", platform->data_path), asset_arena);
-            //    // @Fix
-            //    asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/sword_mr.png", platform->data_path), asset_arena);
-            //}
+            assets->sword_model = push_struct(asset_arena, Model);
+            {
+                auto* model = assets->sword_model;
+                load_model(asset_arena, assets->sword_model, utf8f(scratch.arena, "%S/mesh/sword.triangle_mesh", platform->data_path));
+                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/sword_albedo.jpg", platform->data_path), asset_arena);
+                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/sword_normal.jpg", platform->data_path), asset_arena);
+                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/sword_metalic.jpg", platform->data_path), asset_arena);
+                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/sword_roughness.jpg", platform->data_path), asset_arena);
+            }
             
 
             assets->castle_model = push_struct(asset_arena, Model);
@@ -260,10 +278,10 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             {
                 Entity *game_camera       = entity_alloc();
                 game_camera->type         = ENTITY_TYPE_CAMERA;
-                game_camera->focal_length = 0.5f;
+                game_camera->focal_length = 1.5f;
                 game_camera->N            = 0.5f;
                 game_camera->F            = 100000.0f;
-                game_camera->position     = v3(0.f, 10.f, 8.f);
+                game_camera->position     = v3(0.f, 20.f, 20.f);
                 game_camera->orientation  = euler_to_quaternion(radian_from_degree(-55.f), 0.f, 0.f);
                 game_camera->flags |= ENTITY_FLAG_GAME_CAMERA;
                 entity_init(game_camera, nullptr);
@@ -303,39 +321,26 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             cdt_insert(&game_state->navmesh.ctx, 0,  hx,-hy,  hx,  hy);
             cdt_insert(&game_state->navmesh.ctx, 0,  hx, hy, -hx,  hy);
 
+
             // @Temporary: Create soldier entity.
             //
-            constexpr int num_soldiers = 10;
-            for (int i = 0; i < num_soldiers*num_soldiers; ++i) {
-                f32 x = 6.f /*+ 1.f*(i%num_soldiers)*/;
-                f32 z = 0.f + 1.f*(i/num_soldiers);
+            const int num_soldiers = 30;
+            const int num_rows = 15;
+            for (int i = 0; i < num_soldiers; ++i) {
+                f32 x = 6.f + 1.f*(i / num_rows);
+                f32 z = 0.f + 1.f*(i % num_rows);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_PLAYER, assets);
 
-
-                // Create a sword and attach it to soldier.
-                //
-#if 0
-                Entity* sword = entity_alloc();
-                sword->type              = ENTITY_TYPE_SWORD;
-                sword->position          = v3(0.f, 0.f, 0.f);
-                sword->orientation       = Quaternion(1.f, 0.f, 0.f, 0.f);
-                sword->scaling           = v3(1.f, 1.f, 1.f);
-                sword->local_position    = v3(0.f, 0.f, 0.f);
-                sword->local_orientation = euler_to_quaternion(radian_from_degree(180.f), 0.f, 0.f);
-                sword->model             = game_state->assets->sword_model;
-                entity_init(sword, soldier);
-
-                // @Temporary
-                constexpr Joint_Id joint_id = 50;
-                entity_attach(sword, soldier, joint_id);
-#endif
+                debug_attach_sword(soldier, assets);
             }
 
 #if 1
-            for (int i = 0; i < num_soldiers * num_soldiers; ++i) {
-                f32 x = 8.f;
-                f32 z = 0.f + 1.f*(i/num_soldiers);
+            for (int i = 0; i < num_soldiers; ++i) {
+                f32 x = 40.f + 1.f*(i / num_rows);
+                f32 z =  0.f + 1.f*(i % num_rows);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
+
+                debug_attach_sword(soldier, assets);
             }
 #endif
 
@@ -357,7 +362,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         ui_init(ui_state);
     }
 
-    // NOTE: Alias
+    // Alias
+    //
     Game_Assets *assets = game_state->assets;
     
     Render_Group* render_group = begin_render_group(render_commands, MB(16));
@@ -577,16 +583,16 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     // Draw ground
     //
-    Mesh *ground_mesh = assets->plane_model->meshes;
+    Mesh* ground_mesh = assets->plane_model->meshes;
     f32 gx = game_state->map_size.x;
     f32 gy = game_state->map_size.y;
-    m4x4 ground_transform = {{
-        {gx,0, 0, 0},
-        {0, 1, 0, 0},
-        {0, 0,gy, 0},
-        {0, 0, 0, 1},
-    }};
-    v2 uv_scale = v2(gx, gy)*0.1f;
+    m4x4 ground_transform = {
+        gx,0, 0, 0,
+        0, 1, 0, 0,
+        0, 0,gy, 0,
+        0, 0, 0, 1,
+    };
+    v2 uv_scale = v2(gx, gy) * 0.1f;
     push_mesh(renderer, ground_mesh, ground_transform, 0, 0, uv_scale);
 
     
@@ -601,7 +607,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             v2 a = qe->org->pos;
             v2 b = cdt_sym(qe)->org->pos;
             v4 color = cdt_is_constrained(edge) ? V4(1.f, 0.f, 1.f, 1.f) : V4(1.f, 1.f, 1.f, 1.f);
-            draw_line(render_group, V3(a.y, 0.f, a.x), V3(b.y, 0.f, b.x), color);
+            draw_line(render_group, v3(a.y, 0.f, a.x), v3(b.y, 0.f, b.x), color);
         }
     }
 
@@ -612,6 +618,8 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     {
         auto g = game_state;
 
+        // Draw bordered quad.
+        //
         f32 dim         = g->minimap_size;
         v2 offset       = v2(100.f, 100.f);
         v2 bottom_left  = v2(offset.x, g->window_height - offset.y);
@@ -621,6 +629,11 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         render_quad_c(top_left - border, bottom_right + border, v4{0.0f, 0.0f, 0.0f, 1.f});
         render_quad_c(top_left, bottom_right, v4{0.2f, 0.2f, 0.2f, 1.f});
 
+        // Draw camera.
+        //
+
+        // Draw entities on the minimap.
+        //
         for (u32 i = 0; i < g->entity_table_size; ++i) {
             Entity* bucket = g->entity_table + i;
             for (Entity* entity = bucket->first; entity; entity = entity->next_in_table) {
@@ -652,7 +665,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
 
 
-    { // NOTE: Render Commands
+    { // Render Commands
         Entity* game_camera = entity_from_id(game_state->game_camera_id);
         Entity* controlling_camera = entity_from_id(game_state->controlling_camera_id);
 
@@ -661,7 +674,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         
         render_commands->wireframe_color = V4(0.9f, 0.9f, 0.9f, 1.0f);
         
-        // NOTE: Skybox
+        // Skybox
         //
         render_commands->skybox_on = true;
         render_commands->skybox_mesh = &assets->skybox_mesh;
@@ -671,12 +684,12 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
         
         
-        // NOTE: CSM
+        // CSM
         //
         render_commands->csm_to_light = normalize(v3(light_x, light_y, light_z));
         f32 csm_frustum_edge_length = 200.0f;
         m4x4 inv = inverse(game_camera->VP);
-        // TODO: Renderer independent calculation!
+        // @Todo: Renderer independent calculation!
         v4 ndcs[4] = {
             v4{-1,-1,-1, 1},
             v4{ 1,-1,-1, 1},

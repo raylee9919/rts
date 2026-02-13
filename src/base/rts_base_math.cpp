@@ -55,51 +55,37 @@ v2::v2(f32 x_, f32 y_) {
     e[1] = y_;
 }
 
-internal v2
-operator-(const v2 &in) {
+v2 operator-(const v2 &in) {
     v2 V;
     V.x = -in.x;
     V.y = -in.y;
     return V;
 }
 
-internal v2
-operator*(f32 A, v2 B) {
-    v2 result;
-    result.x = A * B.x;
-    result.y = A * B.y;
-
-    return result;
+v2 operator*(f32 f, v2 v) {
+    v.x *= f;
+    v.y *= f;
+    return v;
 }
 
-internal v2
-operator*(v2 B, f32 A) 
-{
-    v2 result;
-    result.x = A * B.x;
-    result.y = A * B.y;
-
-    return result;
+v2 operator*(v2 v, f32 f) {
+    v.x *= f;
+    v.y *= f;
+    return v;
 }
 
-internal v2
-operator+(v2 A, v2 B) 
-{
-    v2 result;
-    result.x = A.x + B.x;
-    result.y = A.y + B.y;
-
-    return result;
+v2 operator+(v2 a, v2 b) {
+    v2 v;
+    v.x = a.x + b.x;
+    v.y = a.y + b.y;
+    return v;
 }
 
-internal v2
-operator-(v2 A, v2 B) 
-{
-    v2 result;
-    result.x = A.x - B.x;
-    result.y = A.y - B.y;
-
-    return result;
+v2 operator-(v2 a, v2 b) {
+    v2 v;
+    v.x = a.x - b.x;
+    v.y = a.y - b.y;
+    return v;
 }
 
 internal v2&
@@ -518,16 +504,29 @@ V4(v3 rgb, f32 a)
     return v;
 }
 
-internal v4
-operator +(v4 a, v4 b) 
-{
+v4 operator + (v4 a, v4 b) {
+#if SSE_ENABLED
+    v4 v;
+    v.sse = _mm_add_ps(a.sse, b.sse);
+    return v;
+#else
     return v4{a.x+b.x, a.y+b.y, a.z+b.z, a.w+b.w};
+#endif
 }
 
-internal v4
-operator * (v4 a, f32 b) 
+v4 operator * (v4 v, f32 f) 
 {
+#if SSE_ENABLED
+    __m128 f_ = _mm_set1_ps(f);
+    v.sse = _mm_mul_ps(f_, v.sse);
+    return v;
+#else
     return v4{a.x*b, a.y*b, a.z*b, a.w*b};
+#endif
+}
+
+v4 operator * (f32 f, v4 v) {
+    return v * f;
 }
 
 internal v4
@@ -663,6 +662,22 @@ Quaternion operator - (Quaternion q) {
 #endif
 }
 
+Quaternion normalize(Quaternion q) {
+    f32 d = 1.f / sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+#if SSE_ENABLED
+    __m128 d_ = _mm_set1_ps(d);
+    q.sse = _mm_mul_ps(q.sse, d_);
+    return q;
+#else
+    q.w *= d;
+    q.x *= d;
+    q.y *= d;
+    q.z *= d;
+    return q;
+#endif
+}
+
+
 f32 dot(Quaternion a, Quaternion b) {
 #if SSE_ENABLED
     return dot(a.sse, b.sse);
@@ -765,6 +780,23 @@ m4x4 operator * (m4x4 a, m4x4 b) {
 #endif
 }
 
+m4x4& operator *= (m4x4& m, f32 f) {
+    m = m * f;
+    return m;
+}
+
+m4x4 operator * (m4x4 m, f32 f) {
+    m.rows[0] = f * m.rows[0];
+    m.rows[1] = f * m.rows[1];
+    m.rows[2] = f * m.rows[2];
+    m.rows[3] = f * m.rows[3];
+    return m;
+}
+
+m4x4 operator * (f32 f, m4x4 m) {
+    return m * f;
+}
+
 v4 operator * (m4x4 m, v4 p) {
     v4 res = v4{};
     for (int i = 0 ; i < 4; ++i) {
@@ -773,6 +805,14 @@ v4 operator * (m4x4 m, v4 p) {
         }
     }
     return res;
+}
+
+m4x4& operator += (m4x4& l, m4x4 r) {
+    l.rows[0] = l.rows[0] + r.rows[0];
+    l.rows[1] = l.rows[1] + r.rows[1];
+    l.rows[2] = l.rows[2] + r.rows[2];
+    l.rows[3] = l.rows[3] + r.rows[3];
+    return l;
 }
 
 m4x4 identity() {

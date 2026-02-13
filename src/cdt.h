@@ -3,6 +3,8 @@
 #pragma once
 
 
+// @Fix: x: 0x40e1493d, y: 0x4112b416 Infinite loop in locate_point
+
 typedef u64 cdt_id;
 
 typedef struct cdt_vertex cdt_vertex;

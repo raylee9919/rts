@@ -9,6 +9,7 @@ enum Entity_Type {
     ENTITY_TYPE_CAMERA,
     ENTITY_TYPE_SOLDIER,
     ENTITY_TYPE_CASTLE,
+    ENTITY_TYPE_SWORD,
 };
 
 typedef u16 Entity_Command;
@@ -76,7 +77,9 @@ struct Entity {
 
     // @Todo: Unsafe
     Entity*     parent;
-    Joint_Id    parent_joint_id;
+    s32         parent_joint_id;
+    m4x4        transform;
+
     v3          local_position;
     Quaternion  local_orientation;
 
@@ -88,6 +91,7 @@ struct Entity {
     v3          velocity;
     v3          destination;
     f32         speed;
+    f32         max_speed;
     
     f32         transition_t;
 
@@ -100,6 +104,8 @@ struct Entity {
 
     Model* model;
     Skeleton* skeleton;
+
+    Animation_Player* animation_player;
 
     m4x4*                animation_transform;
     Animation*           idle_animation;
@@ -124,6 +130,7 @@ struct Entity {
     f32 attack_max_t;
 
 
+    f32 max_hitpoints;
     f32 hitpoints;
     
 
@@ -146,6 +153,9 @@ struct Entity {
 
     // Navmesh
     f32 navmesh_scale;
+
+
+
 };
 
 

@@ -27,7 +27,6 @@ struct Asset_Name {
     u8 text[64];
 };
 
-
 struct Asset_Texture {
     s32 bits_per_channel;
     s32 channel_count;
@@ -232,7 +231,6 @@ struct Animation {
 
 
 internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
-internal void asset_load_model(Model *model, Utf8 file_path, Arena *arena, v3 scale = v3(1.f));
 internal u32 get_triangle_count(Model *model);
 internal u64 animation_hash(u32 id, u32 length);
 

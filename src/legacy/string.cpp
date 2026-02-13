@@ -122,5 +122,3 @@
 //    for(;cstr[result]; result++);
 //    return result;
 //}
-
-

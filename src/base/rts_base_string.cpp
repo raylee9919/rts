@@ -503,3 +503,18 @@ utf8_skip_chop_whitespace(Utf8 str)
 {
     return utf8_skip_whitespace(utf8_chop_whitespace(str));
 }
+
+
+
+bool operator == (Utf8 l, Utf8 r) {
+    if (l.len != r.len) {
+        return false;
+    }
+
+    for (u32 i = 0; i < l.len; ++i) {
+        if (l.str[i] != r.str[i]) {
+            return false;
+        }
+    }
+    return true;
+}
