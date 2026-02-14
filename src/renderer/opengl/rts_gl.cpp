@@ -517,8 +517,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             center *= 0.125f;
             m4x4 light_view = lookat(center + frame->csm_to_light, center, v3{0,1,0}); // TODO: Fit z?
 
-            v3 min = V3(F32_MAX);
-            v3 max = V3(-F32_MAX);
+            v3 min = v3(F32_MAX);
+            v3 max = v3(-F32_MAX);
             for (u32 i = 0; i < 8; ++i) {
                 v3 lp = (light_view * V4(frustum_positions[level*4 + i], 1)).xyz;
                 min.x = min(min.x, lp.x);
@@ -549,7 +549,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             f32 t = map(k, 0, h);
             v3 c = lerp(AB, t, CD);
 
-            m4x4 light_view = lookat(c + frame->csm_to_light * r, c, V3(0,1,0));
+            m4x4 light_view = lookat(c + frame->csm_to_light * r, c, v3(0,1,0));
             m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // TODO: Constant min and max depths
             light_view_projs[level] = light_proj * light_view;
         }
@@ -975,7 +975,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
             glDrawElements(GL_TRIANGLES, csm_frustum_index_count, GL_UNSIGNED_INT, (void *)0);
         }
 
-        v4 solid_black = V4(V3(0),1);
+        v4 solid_black = V4(v3(0.f), 1.f);
         glUniform4fv(gl->simple_program.color, 1, (GLfloat *)&solid_black);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, array_count(csm_outline_indices) * sizeof(u32), csm_outline_indices, GL_DYNAMIC_DRAW);
         glDrawElements(GL_LINES, array_count(csm_outline_indices), GL_UNSIGNED_INT, (void *)0);

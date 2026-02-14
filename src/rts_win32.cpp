@@ -447,6 +447,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     thread_init();
 
 
+
+
     //
     // NOTE: init platform.
     //

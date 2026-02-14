@@ -139,9 +139,9 @@ Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets) {
     castle->type   = ENTITY_TYPE_CASTLE;
     castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_SHOWS_ON_MINIMAP;
 
-    castle->position    = V3(x,0.f,z);
-    castle->orientation = Quaternion{1,0,0,0};
-    castle->scaling     = V3(1.f);
+    castle->position    = v3(x ,0.f, z);
+    castle->orientation = Quaternion(1,0,0,0);
+    castle->scaling     = v3(1.f);
     castle->model       = assets->castle_model;
 
     castle->navmesh_scale = 6.f;
@@ -340,7 +340,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 100;
+            const int num_soldiers = 30;
             const int num_rows = 15;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);
@@ -734,7 +734,6 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
         render_commands->csm_view = game_camera->V;
     }
-    
-    
+
     render_end();
 }

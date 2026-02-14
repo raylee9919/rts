@@ -40,6 +40,7 @@ struct v3 {
     v3() = default;
     v3(f32 f);
     v3(f32 x_, f32 y_, f32 z_);
+    v3(v2 xy, f32 z_);
 };
 
 union v4 {
@@ -110,6 +111,8 @@ internal f32 map(f32 x, f32 min, f32 max);
 internal f32 map01(f32 x, f32 min, f32 max);
 internal f32 map01_binormal(f32 x, f32 min, f32 max);
 internal f32 binormal_to_normal(f32 x);
+internal f32 sqrt(f32 f);
+internal f32 rsqrt(f32 f);
 
 internal f32 lerp(f32 a, f32 t, f32 b);
 
@@ -153,9 +156,6 @@ internal f32 invsqlen(v4 v);
 internal f32 length(v2 A);
 internal v2 normalize(v2 a);
 internal v2 lerp(v2 a, f32 t, v2 b);
-internal v3 V3(f32 x, f32 y, f32 z);
-internal v3 V3(v2 xy, f32 z);
-internal v3 V3(f32 a);
 internal b32 operator == (v3 a, v3 b);
 internal v3  operator - (const v3 &in);
 internal v3  operator * (f32 A, v3 B);
@@ -172,7 +172,6 @@ internal v3 normalize(v3 a);
 internal v3 lerp(v3 a, f32 t, v3 b);
 internal f32 distance(v3 a, v3 b);
 internal f32 distance(v2 a, v2 b);
-internal f32 point_line_distance(v2 p, v2 a, v2 b);
 internal v4 V4(f32 x);
 internal v4 V4(f32 r, f32 g, f32 b, f32 a);
 internal v4 V4(v2 rg, f32 b, f32 a);

@@ -149,9 +149,7 @@ entity_orient_to(Entity* entity, v3 target, f32 dt)
     }
 }
 
-internal bool
-entity_is_dead(Entity* entity)
-{
+bool entity_is_dead(Entity* entity) {
     if ((entity->command == ENTITY_CMD_DIEING) || (entity->flags & ENTITY_FLAG_DEAD)) {
         return true;
     }
@@ -181,7 +179,7 @@ entity_find_target(Entity* entity, f32 radius, Arena* arena)
     f32 min_dist = F32_MAX;
 
     Entity *attacker = entity_from_id(entity->recent_attacker_id);
-    if (attacker) {
+    if (attacker && entity_is_targetable(attacker)) {
         min_dist = distance(attacker->position, entity->position);
         entity->command   = ENTITY_CMD_ATTACK;
         entity->target_id = attacker->id;
@@ -405,7 +403,7 @@ entity_find_path(Entity* entity, v3 destination)
                     l_end = l;
                     l_idx = i;
                 } else {
-                    entity->waypoint_queue.push(V3(r_end.y, 0.f, r_end.x)); // @Hack
+                    entity->waypoint_queue.push(v3(r_end.y, 0.f, r_end.x)); // @Hack
 
                     apex = r_end;
                     apex_idx = r_idx;
@@ -426,7 +424,7 @@ entity_find_path(Entity* entity, v3 destination)
                     r_end = r;
                     r_idx = i;
                 } else {
-                    entity->waypoint_queue.push(V3(l_end.y, 0.f, l_end.x)); // @Hack
+                    entity->waypoint_queue.push(v3(l_end.y, 0.f, l_end.x)); // @Hack
 
                     apex = l_end;
                     apex_idx = l_idx;
@@ -924,6 +922,7 @@ entity_update(Entity* entity, const f32 dt)
                     } else {
                         ap->channels[3].set_animation(entity->die_animation, false);
 
+                        // @Fix: Proper blend...
                         ap->blend_weights[0] = clamp_lo(ap->blend_weights[0] - dt * 10.f, 0.f);
                         ap->blend_weights[1] = clamp_lo(ap->blend_weights[1] - dt * 10.f, 0.f);
                         ap->blend_weights[2] = clamp_lo(ap->blend_weights[2] - dt * 10.f, 0.f);

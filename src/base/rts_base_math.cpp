@@ -1,5 +1,11 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+//
+// @Note: sin/cos usually have high precision, but they still differ across CRT implementations.
+//        So it is better for me to roll my own to guarantee consistency across platforms.
+//        sqrt nowadays is a single CPU instruction, there's nothing else to implement.
+//        You just use correct builtin/intrinsic from compiler.
+//
 
 f32 map(f32 x, f32 min, f32 max) {
     f32 t;
@@ -22,6 +28,19 @@ f32 map01_binormal(f32 x, f32 min, f32 max) {
 
 f32 binormal_to_normal(f32 x) {
     return x * 0.5f + 0.5f;
+}
+
+f32 sqrt(f32 f) {
+    // Not much of a perf gain, but it is what it is.
+    // Don't do '_mm_store_ss' to get out float. Use '_mm_cvtss_f32'.
+    return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(f)));
+}
+
+// @Study:
+//         1. 16.17 FSQRT SQRTSS (https://www.agner.org/optimize/optimizing_assembly.pdf)
+//         2. Newtonian Iteration (https://stackoverflow.com/questions/14752399/newton-raphson-with-sse2-can-someone-explain-me-these-3-lines)
+f32 rsqrt(f32 f) {
+    return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(f)));
 }
 
 f32 lerp(f32 a, f32 t, f32 b) {
@@ -55,141 +74,124 @@ v2::v2(f32 x_, f32 y_) {
     e[1] = y_;
 }
 
-v2 operator-(const v2 &in) {
+v2 operator - (const v2 &in) {
     v2 V;
     V.x = -in.x;
     V.y = -in.y;
     return V;
 }
 
-v2 operator*(f32 f, v2 v) {
+v2 operator * (f32 f, v2 v) {
     v.x *= f;
     v.y *= f;
     return v;
 }
 
-v2 operator*(v2 v, f32 f) {
+v2 operator * (v2 v, f32 f) {
     v.x *= f;
     v.y *= f;
     return v;
 }
 
-v2 operator+(v2 a, v2 b) {
+v2 operator + (v2 a, v2 b) {
     v2 v;
     v.x = a.x + b.x;
     v.y = a.y + b.y;
     return v;
 }
 
-v2 operator-(v2 a, v2 b) {
+v2 operator - (v2 a, v2 b) {
     v2 v;
     v.x = a.x - b.x;
     v.y = a.y - b.y;
     return v;
 }
 
-internal v2&
-operator+=(v2& a, v2 b) 
-{
+v2& operator += (v2& a, v2 b) {
     a.x += b.x;
     a.y += b.y;
-
     return a;
 }
 
-internal v2&
-operator-=(v2& a, v2 b) 
-{
+v2& operator-=(v2& a, v2 b) {
     a.x -= b.x;
     a.y -= b.y;
-
     return a;
 }
 
-internal v2&
-operator*=(v2& a, f32 b) 
-{
+v2& operator *= (v2& a, f32 b) {
     a.x *= b;
     a.y *= b;
-
     return a;
 }
 
-internal v2
-binormal_to_normal(v2 x)
-{
+v2 binormal_to_normal(v2 x) {
     return (0.5f*x) + v2{0.5f, 0.5f};
 }
 
-internal f32 triarea2(v2 a, v2 b, v2 c) {
+f32 triarea2(v2 a, v2 b, v2 c) {
     v2 p = c - b;
     v2 q = a - b;
     return p.x*q.y - p.y*q.x;
 }
 
-internal f64 fmod_cycling(f64 x, f64 y) {
+f64 fmod_cycling(f64 x, f64 y) {
     assert( y != 0 );
     f64 remainder = x - (floor(x/y) * y);
     return remainder;
 }
 
-internal f32 fmod_cycling(f32 x, f32 y) {
+f32 fmod_cycling(f32 x, f32 y) {
     return (f32)fmod_cycling((f64)x, (f64)y);
 }
 
-internal f32
-sqlen(v2 v) 
-{
+f32 sqlen(v2 v) {
     return dot(v,v);
 }
 
-internal f32
-sqlen(v3 v) 
-{
+f32 sqlen(v3 v) {
     return dot(v,v);
 }
 
-internal f32
-invsqlen(v2 v) 
-{
+f32 invsqlen(v2 v) {
     f32 result = 1.f / dot(v, v);
     return result;
 }
 
-internal f32
-invsqlen(v3 v) 
-{
+f32 invsqlen(v3 v) {
     f32 result = 1.f / dot(v, v);
     return result;
 }
 
-internal f32
-invsqlen(v4 v) 
-{
+f32 invsqlen(v4 v) {
     f32 result = 1.f / dot(v, v);
     return result;
 }
 
-internal f32
-length(v2 A) 
-{
-    f32 result = sqrtf(sqlen(A));
-    return result;
+f32 length(v2 v) {
+    f32 len = sqrt(sqlen(v));
+    return len;
 }
 
 v2 lerp(v2 a, f32 t, v2 b) {
-    v2 result = {};
-    result.x = lerp(a.x, t, b.x);
-    result.y = lerp(a.y, t, b.y);
-    return result;
+    v2 v;
+    v.x = lerp(a.x, t, b.x);
+    v.y = lerp(a.y, t, b.y);
+    return v;
 }
 
 v2 normalize(v2 v) {
-    f32 d = (v.x*v.x + v.y*v.y);
-    assert(d != 0.f);
-    v.x /= d;
-    v.y /= d;
+    f32 d = rsqrt(v.x * v.x + v.y * v.y);
+    v.x *= d;
+    v.y *= d;
     return v;
+}
+
+
+v3::v3(f32 x_, f32 y_, f32 z_) {
+    e[0] = x_;
+    e[1] = y_;
+    e[2] = z_;
 }
 
 v3::v3(f32 f) {
@@ -198,36 +200,10 @@ v3::v3(f32 f) {
     e[2] = f;
 }
 
-v3::v3(f32 x_, f32 y_, f32 z_) {
-    e[0] = x_;
-    e[1] = y_;
+v3::v3(v2 xy, f32 z_) {
+    e[0] = xy.x;
+    e[1] = xy.y;
     e[2] = z_;
-}
-
-internal v3
-V3(f32 x, f32 y, f32 z)
-{
-    v3 v = {};
-    v.x = x;
-    v.y = y;
-    v.z = z;
-    return v;
-}
-
-internal v3
-V3(v2 xy, f32 z)
-{
-    v3 v = {};
-    v.x = xy.x;
-    v.y = xy.y;
-    v.z = z;
-    return v;
-}
-
-internal v3
-V3(f32 a)
-{
-    return v3{a,a,a};
 }
 
 internal b32
@@ -239,9 +215,7 @@ operator == (v3 a, v3 b)
     return false;
 }
 
-internal v3
-operator - (const v3 &in) 
-{
+v3 operator - (const v3 &in) {
     v3 V;
     V.x = -in.x;
     V.y = -in.y;
@@ -249,36 +223,23 @@ operator - (const v3 &in)
     return V;
 }
 
-internal v3
-operator * (f32 A, v3 B) 
-{
-    v3 result;
-    result.x = A * B.x;
-    result.y = A * B.y;
-    result.z = A * B.z;
-
-    return result;
+v3 operator * (f32 f, v3 v) {
+    v.x = f * v.x;
+    v.y = f * v.y;
+    v.z = f * v.z;
+    return v;
 }
 
-internal v3
-operator * (v3 B, f32 A) 
-{
-    v3 result;
-    result.x = A * B.x;
-    result.y = A * B.y;
-    result.z = A * B.z;
-
-    return result;
+v3 operator * (v3 v, f32 f) {
+    return f * v;
 }
 
-internal v3
-operator / (v3 a, f32 b) 
-{
-    v3 result;
-    result.x = a.x/b;
-    result.y = a.y/b;
-    result.z = a.z/b;
-    return result;
+v3 operator / (v3 v, f32 f) {
+    f32 r = 1.f / f;
+    v.x *= r;
+    v.y *= r;
+    v.z *= r;
+    return v;
 }
 
 internal v3&
@@ -291,26 +252,20 @@ operator /= (v3& a, f32 b)
     return a;
 }
 
-internal v3
-operator + (v3 A, v3 B) 
-{
-    v3 result;
-    result.x = A.x + B.x;
-    result.y = A.y + B.y;
-    result.z = A.z + B.z;
-
-    return result;
+v3 operator + (v3 l, v3 r) {
+    v3 v;
+    v.x = l.x + r.x;
+    v.y = l.y + r.y;
+    v.z = l.z + r.z;
+    return v;
 }
 
-internal v3
-operator - (v3 A, v3 B) 
-{
-    v3 result;
-    result.x = A.x - B.x;
-    result.y = A.y - B.y;
-    result.z = A.z - B.z;
-
-    return result;
+v3 operator - (v3 l, v3 r) {
+    v3 v;
+    v.x = l.x - r.x;
+    v.y = l.y - r.y;
+    v.z = l.z - r.z;
+    return v;
 }
 
 internal v3&
@@ -343,18 +298,14 @@ operator *= (v3& a, f32 b)
     return a;
 }
 
-internal f32
-dot(v2 a, v2 b) 
-{
-    f32 result = a.x*b.x + a.y*b.y;
-    return result;
+f32 dot(v2 l, v2 r) {
+    f32 f = l.x*r.x + l.y*r.y;
+    return f;
 }
 
-internal f32
-dot(v3 a, v3 b) 
-{
-    f32 result = (a.x*b.x + a.y*b.y + a.z*b.z);
-    return result;
+f32 dot(v3 l, v3 r) {
+    f32 f = l.x*r.x + l.y*r.y + l.z*r.z;
+    return f;
 }
 
 #if SSE_ENABLED
@@ -387,16 +338,12 @@ v3 cross(v3 a, v3 b) {
     return v;
 }
 
-internal v2
-hadamard(v2 a, v2 b) 
-{
+v2 hadamard(v2 a, v2 b) {
     v2 v = { a.x*b.x, a.y*b.y };
     return v;
 }
 
-internal v3
-hadamard(v3 a, v3 b) 
-{
+v3 hadamard(v3 a, v3 b) {
     v3 v = { a.x*b.x, a.y*b.y, a.z*b.z };
     return v;
 }
@@ -412,53 +359,38 @@ v4 hadamard(v4 a, v4 b) {
     return v;
 }
 
-internal f32
-length(v3 A) 
-{
-    f32 result = sqrtf(sqlen(A));
-    return result;
+f32 length(v3 v) {
+    f32 len = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    return len;
 }
 
-internal v3
-normalize(v3 a) 
-{
-    v3 r = a;
-    f32 inv_len = (1.0f / length(r));
-    r *= inv_len;
-    return r;
+v3 normalize(v3 v) {
+    f32 d = rsqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    v.x *= d;
+    v.y *= d;
+    v.z *= d;
+    return v;
 }
 
-internal v3
-lerp(v3 a, f32 t, v3 b)
-{
-    v3 result = {};
-    result.x = lerp(a.x, t, b.x);
-    result.y = lerp(a.y, t, b.y);
-    result.z = lerp(a.z, t, b.z);
-    return result;
+v3 lerp(v3 a, f32 t, v3 b) {
+    v3 v;
+    v.x = lerp(a.x, t, b.x);
+    v.y = lerp(a.y, t, b.y);
+    v.z = lerp(a.z, t, b.z);
+    return v;
 }
 
 f32 distance(v3 a, v3 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
     f32 dz = a.z - b.z;
-    return sqrtf(dx*dx + dy*dy + dz*dz);
+    return sqrt(dx*dx + dy*dy + dz*dz);
 }
 
 f32 distance(v2 a, v2 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
-    return sqrtf(dx*dx + dy*dy);
-}
-
-internal f32
-point_line_distance(v2 p, v2 a, v2 b)
-{
-    v2 u = p-a;
-    v2 v = b-a;
-    f32 div = 1.f / length(v);
-    f32 result = absolute(u.x*v.y - u.y*v.x) * div;
-    return result;
+    return sqrt(dx*dx + dy*dy);
 }
 
 //
@@ -513,8 +445,8 @@ v4 operator + (v4 a, v4 b) {
 
 v4 operator * (v4 v, f32 f) {
 #if SSE_ENABLED
-    __m128 f_ = _mm_set1_ps(f);
-    v.sse = _mm_mul_ps(f_, v.sse);
+    __m128 fv = _mm_set1_ps(f);
+    v.sse = _mm_mul_ps(fv, v.sse);
     return v;
 #else
     return v4{v.r*f, v.g*f, v.b*f, v.a*f};
@@ -603,14 +535,11 @@ Quaternion operator - (Quaternion l, Quaternion r) {
 Quaternion
 operator * (Quaternion a, Quaternion b)
 {
-    Quaternion q = {};
-    {
-        q.w = (a.w * b.w) - (a.x * b.x) - (a.y * b.y) - (a.z * b.z); 
-        q.x = (a.w * b.x) + (a.x * b.w) + (a.y * b.z) - (a.z * b.y); 
-        q.y = (a.w * b.y) + (a.y * b.w) + (a.z * b.x) - (a.x * b.z); 
-        q.z = (a.w * b.z) + (a.z * b.w) + (a.x * b.y) - (a.y * b.x); 
-    }
-
+    Quaternion q;
+    q.w = (a.w * b.w) - (a.x * b.x) - (a.y * b.y) - (a.z * b.z); 
+    q.x = (a.w * b.x) + (a.x * b.w) + (a.y * b.z) - (a.z * b.y); 
+    q.y = (a.w * b.y) + (a.y * b.w) + (a.z * b.x) - (a.x * b.z); 
+    q.z = (a.w * b.z) + (a.z * b.w) + (a.x * b.y) - (a.y * b.x); 
     return q;
 }
 
@@ -623,12 +552,11 @@ Quaternion operator * (Quaternion q, f32 f) {
     quat.sse = qf;
     return quat;
 #else
-    Quaternion quat = {};
-    quat.w = q.w * f;
-    quat.x = q.x * f;
-    quat.y = q.y * f;
-    quat.z = q.z * f;
-    return quat;
+    q.w = q.w * f;
+    q.x = q.x * f;
+    q.y = q.y * f;
+    q.z = q.z * f;
+    return q;
 #endif
 }
 
@@ -641,12 +569,11 @@ Quaternion operator * (f32 f, Quaternion q) {
     quat.sse = qf;
     return quat;
 #else
-    Quaternion quat = {};
-    quat.w = q.w * f;
-    quat.x = q.x * f;
-    quat.y = q.y * f;
-    quat.z = q.z * f;
-    return quat;
+    q.w = q.w * f;
+    q.x = q.x * f;
+    q.y = q.y * f;
+    q.z = q.z * f;
+    return q;
 #endif
 }
 
@@ -665,7 +592,7 @@ Quaternion operator - (Quaternion q) {
 }
 
 Quaternion normalize(Quaternion q) {
-    f32 d = 1.f / sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+    f32 d = rsqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
 #if SSE_ENABLED
     __m128 d_ = _mm_set1_ps(d);
     q.sse = _mm_mul_ps(q.sse, d_);
@@ -877,23 +804,13 @@ m4x4 z_rotation(f32 a) {
 }
 
 m4x4 transpose(m4x4 m) {
-    m._12 = m._21;
-    m._13 = m._31;
-    m._14 = m._41;
+    m4x4 r;
 
-    m._21 = m._12;
-    m._23 = m._32;
-    m._24 = m._42;
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            r.e[i][j] = m.e[j][i];
 
-    m._31 = m._13;
-    m._32 = m._23;
-    m._34 = m._43;
-
-    m._41 = m._14;
-    m._42 = m._24;
-    m._43 = m._34;
-
-    return m;
+    return r;
 }
 
 m4x4 inverse(m4x4 m) {
@@ -1279,26 +1196,21 @@ aabb2_infinite(void)
 
 
 
-internal v2
-to_ndc(v2 p, f32 w, f32 h)
-{
+v2 to_ndc(v2 p, f32 w, f32 h) {
     f32 x = 2.f*( p.x / w) - 1.f;
     f32 y = 2.f*(-p.y / h) + 1.f;
-    v2 result = {x,y};
+    v2 result = v2{x,y};
     return result;
 }
 
-internal v3
-unproject(v3 position, m4x4 viewproj)
-{
+v3 unproject(v3 position, m4x4 viewproj) {
     m4x4 inv_viewproj = inverse(viewproj);
     v4 h = inv_viewproj*V4(position, 1.f);
     v3 result = h.xyz / h.w;
     return result;
 }
 
-internal Ray3
-ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj)
+Ray3 ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj)
 {
     Ray3 result = {};
 
