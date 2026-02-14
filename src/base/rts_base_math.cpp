@@ -1129,9 +1129,7 @@ add_radius_to(Rect2 rect, v2 radius)
     return result;
 }
 
-internal m4x4
-trs_to_transform(v3 translation, Quaternion rotation, v3 scaling)
-{
+m4x4 m4x4_from_trs(v3 translation, Quaternion rotation, v3 scaling) {
     m4x4 T = translate(identity(), translation);
     m4x4 R = quaternion_to_m4x4(rotation);
     m4x4 S = scale(identity(), scaling);

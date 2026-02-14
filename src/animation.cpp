@@ -72,7 +72,7 @@ void Pose_Channel::eval() {
 
             if (node) {
                 Xform *sample = &node->keyframes[anim->num_keyframes - 1];
-                local_transform = trs_to_transform(sample->translation, sample->rotation, sample->scale);
+                local_transform = m4x4_from_trs(sample->translation, sample->rotation, sample->scale);
             }
 
             // Write
@@ -107,7 +107,7 @@ void Pose_Channel::eval() {
                 v3 translation      = lerp(sample1->translation, t, sample2->translation);
                 v3 scale            = lerp(sample1->scale, t, sample2->scale);
 
-                local_transform = trs_to_transform(translation, rotation, scale);
+                local_transform = m4x4_from_trs(translation, rotation, scale);
             }
 
             // Write

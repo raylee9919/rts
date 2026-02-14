@@ -950,8 +950,8 @@ entity_update(Entity* entity, const f32 dt)
             s32 joint_id = entity->parent_joint_id;
             Joint *joint = &parent->skeleton->joints[joint_id];
             m4x4 local_transform = parent->skinning_matrices[joint_id] * inverse(joint->inverse_bind_pose);
-            m4x4 world_transform = trs_to_transform(parent->position, parent->orientation, parent->scaling) * local_transform;
-            entity->transform = world_transform * trs_to_transform(entity->position, entity->orientation, entity->scaling);
+            m4x4 world_transform = m4x4_from_trs(parent->position, parent->orientation, parent->scaling) * local_transform;
+            entity->transform = world_transform * m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
         } break;
 
         case ENTITY_TYPE_CASTLE: {
@@ -1087,7 +1087,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         } break;
 
         case ENTITY_TYPE_SOLDIER: {
-            m4x4 transform = trs_to_transform(entity->position, entity->orientation, entity->scaling);
+            m4x4 transform = m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh* mesh = entity->model->meshes + mesh_idx;
@@ -1182,7 +1182,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         } break;
 
         case ENTITY_TYPE_CASTLE: {
-            m4x4 transform = trs_to_transform(entity->position, entity->orientation, entity->scaling);
+            m4x4 transform = m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;

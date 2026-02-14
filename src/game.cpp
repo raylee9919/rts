@@ -340,7 +340,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 30;
+            const int num_soldiers = 100;
             const int num_rows = 15;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);
