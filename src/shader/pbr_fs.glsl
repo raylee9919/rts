@@ -62,7 +62,7 @@ void main()
 {
     if ((flags & Pbr_No_Lighting) == 0) 
     {
-        vec3 DEBUG_light_radiance = vec3(4.f, 3.f, 3.f);
+        vec3 DEBUG_light_radiance = vec3(4.f, 4.f, 4.f);
 
         vec3 to_eye = normalize(eye_position - fP);
 

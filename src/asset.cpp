@@ -322,11 +322,12 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     u8 name_len = (u8)l.parse_u32();
     anim_out->name = l.parse_name(name_len);
 
-    f32 fps           = l.parse_f32();
+    f32 duration      = l.parse_f32();
     u32 num_keyframes = l.parse_u32();
     u32 num_joints    = l.parse_u32();
 
-    anim_out->fps = fps;
+    assert( duration != 0.f ); // It'll cause divide by zero.
+    anim_out->duration = duration;
     anim_out->num_keyframes = num_keyframes;
     anim_out->num_joints = num_joints;
     anim_out->joints = push_array(arena, Animation_Joint, num_joints);

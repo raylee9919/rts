@@ -29,9 +29,9 @@ f32 lerp(f32 a, f32 t, f32 b) {
 }
 
 f32 hermite(f32 a, f32 t, f32 b) {
-    f32 t2 = t*t;
-    f32 t3 = t2*t;
-    return lerp(a, t3*(6*t2 - 15*t + 10), b);
+    f32 t2 = t * t;
+    f32 t3 = t2 * t;
+    return lerp(a, t3 * (6 * t2 - 15 * t + 10), b);
 }
 
 f32 smoothstep(f32 x, f32 min, f32 max) {
@@ -511,8 +511,7 @@ v4 operator + (v4 a, v4 b) {
 #endif
 }
 
-v4 operator * (v4 v, f32 f) 
-{
+v4 operator * (v4 v, f32 f) {
 #if SSE_ENABLED
     __m128 f_ = _mm_set1_ps(f);
     v.sse = _mm_mul_ps(f_, v.sse);

@@ -12,9 +12,6 @@ struct Pose_Channel {
 
     Animation* animation = nullptr;
 
-    // @Temporary
-    f32 duration;
-
     f32 current_t  = 0.f;
     f32 current_dt = 0.f;
     f32 multiplier = 0.f;
@@ -48,5 +45,6 @@ struct Animation_Player {
 
 
     void init(Skeleton *skel);
+    void accumulate(f32 dt);
     void eval();
 };

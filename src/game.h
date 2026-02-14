@@ -41,6 +41,8 @@ struct Navmesh {
 struct Game_State {
     b32 initted;
 
+    Os_Handle window_handle;
+
     b32 editor_initted;
 
     Arena* frame_arena;

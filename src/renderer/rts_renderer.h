@@ -281,7 +281,7 @@ enum
 
 // # Note: Constants
 //
-#define render_max_vertex_count     16384
+#define render_max_vertex_count     32768
 #define render_max_command_count    4096
 
 

@@ -94,7 +94,7 @@ render_vertex_push(Render_Vertex_Type type)
     }
     else
     {
-        assert("! exceeded maximum # of render entity.");
+        assert(!"exceeded maximum # of render entity.");
     }
 
     return result;
@@ -355,7 +355,7 @@ render_texture_destroy(Render_Id id)
     }
     else
     {
-        assert(! "Texture not found in the table.");
+        assert(!"Texture not found in the table.");
     }
 }
 

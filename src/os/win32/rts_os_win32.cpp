@@ -1,22 +1,18 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
-internal HANDLE
-to_win32_handle(Os_Handle handle)
-{
+HANDLE to_win32_handle(Os_Handle handle) {
     static_assert(sizeof(HANDLE) == sizeof(handle.e[0]));
     HANDLE result = (HANDLE)handle.e[0];
     return result;
 }
 
-internal Os_Handle
-to_os_handle(HANDLE handle)
-{
+HWND to_hwnd(Os_Handle handle) {
+    static_assert(sizeof(HWND) == sizeof(handle.e[0]));
+    HWND result = (HWND)handle.e[0];
+    return result;
+}
+
+Os_Handle to_os_handle(HANDLE handle) {
     Os_Handle result = {};
     result.e[0] = (u64)handle;
     return result;
@@ -455,6 +451,14 @@ OS_GET_MODIFIERS(win32_get_modifiers)
     return modifiers;
 }
 
+OS_GET_MOUSE_POSITION(win32_get_mouse_position) {
+    HWND hwnd = to_hwnd(window_handle);
+    POINT p;
+    GetCursorPos(&p);
+    ScreenToClient(hwnd, &p);
+    return v2{(f32)p.x, (f32)p.y};
+}
+
 
 
 internal
@@ -491,6 +495,7 @@ OS_INIT(os_win32_init)
 
     os->event_poll                      = win32_event_poll;
     os->get_modifiers                   = win32_get_modifiers;
+    os->get_mouse_position              = win32_get_mouse_position;
 
     os->perf_counter                    = win32_perf_counter;
     os->perf_counter_freq               = win32_perf_counter_frequency();

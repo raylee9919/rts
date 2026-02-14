@@ -12,7 +12,6 @@ void Pose_Channel::set_animation(Animation* anim, bool do_loop) {
     }
 
     animation = anim;
-    duration = anim->num_keyframes / 45.f;
 
     current_t  = 0.f;
     current_dt = 0.f;
@@ -56,9 +55,9 @@ void Pose_Channel::eval() {
     Animation *anim = animation;
     u32 num_nodes   = anim->num_joints;
 
-    current_t = fmod_cycling(current_t, duration);
+    current_t = fmod_cycling(current_t, anim->duration);
 
-    const f32 fps = (f32)anim->num_keyframes / duration;
+    const f32 fps = (f32)anim->num_keyframes / anim->duration;
 
     u32 idx1 = (u32)(current_t * fps) % anim->num_keyframes;
     if ((idx1 == anim->num_keyframes - 1) && !loop) {
@@ -131,7 +130,7 @@ void Animation_Player::init(Skeleton *skel) {
         
         local_transforms[i].reserve_to(skeleton->num_joints);
 
-        blend_weights[i] = 1.f;
+        blend_weights[i] = 0.f;
     }
 }
 
@@ -140,25 +139,38 @@ void Animation_Player::eval() {
     int num_joints = skeleton->num_joints;
 
     // First, zero out the intermediate matrices which the weighted transforms will be piled upon.
+    //
     memset(blended_local_transforms.data, 0, sizeof(blended_local_transforms.data[0]) * num_joints);
 
     for (int i = 0; i < num_channels; ++i) {
         channels[i].eval();
     }
 
-    f32 weights_sum = 0.f;
 
+    // Gather blending weights sum.
+    //
+    f32 weights_sum = 0.f;
     for (int ch = 0; ch < num_channels; ++ch) {
         if (channels[ch].active) {
             weights_sum += blend_weights[ch];
+        }
+    }
+    if (weights_sum < 0.000001f) {
+        return;
+    }
+    f32 denom = 1.f / weights_sum; // normalize
+
+
+    // fmadd with blend weight
+    //
+    for (int ch = 0; ch < num_channels; ++ch) {
+        if (channels[ch].active) {
             for (int j = 0; j < num_joints; ++j) {
                 blended_local_transforms[j] += blend_weights[ch] * local_transforms[ch][j];
             }
         }
     }
 
-    // Normalize
-    f32 denom = 1.f / weights_sum;
     for (int j = 0; j < num_joints; ++j) {
         blended_local_transforms[j] *= denom;
     }
@@ -174,5 +186,11 @@ void Animation_Player::eval() {
         }
 
         skinning_matrices[ji] = blended_local_transforms[ji] * joint->inverse_bind_pose;
+    }
+}
+
+void Animation_Player::accumulate(f32 dt) {
+    for (int ch = 0; ch < array_count(channels); ++ch) {
+        channels[ch].accumulate(dt);
     }
 }

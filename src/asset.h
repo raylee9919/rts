@@ -77,7 +77,7 @@ struct Asset_Animation {
     u8 *name;
 
     u32 num_samples;
-    f32 fps;
+    f32 duration;
 
     u32 num_nodes;
     Asset_Animation_Node *nodes;
@@ -214,7 +214,7 @@ struct Animation_Joint_Entry {
 struct Animation {
     Asset_Name name;
 
-    f32 fps;
+    f32 duration;
     u32 num_keyframes;
 
     u32 num_joints;

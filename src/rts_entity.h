@@ -128,6 +128,8 @@ struct Entity {
     f32 attack_t;
     f32 prev_attack_t;
     f32 attack_max_t;
+    f32 damage_t;
+    u64 recent_attacker_id;
 
 
     f32 max_hitpoints;
@@ -163,5 +165,6 @@ struct Entity {
 
 
 
+internal Entity* entity_from_id(u64 id);
 internal Chunk* chunk_from_chunk_position(u16 x, u16 y);
 internal void chunk_position_from_world_position(f32 world_x, f32 world_y, u16* out_x, u16* out_y);

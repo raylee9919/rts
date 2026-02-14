@@ -330,10 +330,16 @@ static void make_model(State *state, Asset_Model *model_out) {
         for (u32 ti = 0; ti < num_tri; ++ti) {
             aiFace *tri = &mesh->mFaces[ti];
 
-            assert( tri->mNumIndices == 3 ); // We forced triangulation.
-
-            for (u32 i = 0; i < 3; ++i) {
-                mesh_out->indices[ti * 3 + i] = tri->mIndices[i];
+            if ( tri->mNumIndices == 3 ) {
+                for (u32 i = 0; i < 3; ++i) {
+                    mesh_out->indices[ti * 3 + i] = tri->mIndices[i];
+                }
+            } else if ( tri->mNumIndices == 2 ) {
+                mesh_out->indices[ti * 3 + 0] = tri->mIndices[0];
+                mesh_out->indices[ti * 3 + 1] = tri->mIndices[1];
+                mesh_out->indices[ti * 3 + 2] = tri->mIndices[2];
+            } else {
+                assert(!"It must be at least a lien.");
             }
         }
     }
@@ -360,14 +366,17 @@ static void make_animation(State *state, Asset_Animation *anim_out) {
     for (u32 ai = 0; ai < scene->mNumAnimations; ++ai) {
         aiAnimation *anim = scene->mAnimations[ai];
 
-        // f32 anim_duration = (f32)(anim->mDuration / anim->mTicksPerSecond);
+        // mDuration:       Duration of the animation in ticks.
+        // mTicksPerSecond: Ticks Per Second.
+        //
+        f32 duration = (f32)(anim->mDuration / anim->mTicksPerSecond);
         f32 fps = (f32)anim->mTicksPerSecond;
         u32 num_nodes = anim->mNumChannels;
 
         anim_out->length = (u32)strlen(anim->mName.data);
         anim_out->name = new u8[anim_out->length];
         memcpy(anim_out->name, anim->mName.data, anim_out->length);
-        anim_out->fps = fps;
+        anim_out->duration = duration;
         anim_out->num_nodes = num_nodes;
         anim_out->nodes = new Asset_Animation_Node[num_nodes];
 
@@ -508,8 +517,10 @@ int main(void)
     // @Temporary
 
     char *input_file_names[] = {
+        "../data/input/model/swordman.fbx",
+
         //"../data/input/model/skeleton_lord_rest_pose.dae",
-        "../data/input/model/skeleton_lord_idle.dae",
+        //"../data/input/model/skeleton_lord_idle.dae",
         //"../data/input/model/skeleton_lord_run.dae",
         //"../data/input/model/skeleton_lord_die.dae",
         //"../data/input/model/skeleton_lord_attack.dae",
@@ -668,7 +679,7 @@ int main(void)
             assert(f);
             {
                 fprintf(f, "%u %.*s\n", anim->length, anim->length, anim->name);
-                fprintf(f, "%.6f\n", anim->fps);
+                fprintf(f, "%.6f\n", anim->duration);
                 fprintf(f, "%u\n", anim->num_samples);
                 fprintf(f, "%u\n\n", anim->num_nodes);
 

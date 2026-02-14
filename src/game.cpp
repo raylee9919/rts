@@ -15,7 +15,7 @@
 #include "cdt.h"
 #include "game.h"
 #include "rts_entity.h"
-#include "rts_geogen.h"
+#include "geogen.h"
 #include "renderer/rts_renderer.h"
 #include "ui/ui_inc.h"
 #include "rect_pack/rpk.h"
@@ -39,7 +39,7 @@ global Renderer* renderer;
 #include "cdt.cpp"
 #include "rts_entity.cpp"
 #include "renderer/rts_renderer.cpp"
-#include "rts_geogen.cpp"
+#include "geogen.cpp"
 #include "ui/ui_inc.cpp"
 #include "rect_pack/rpk.cpp"
 #include "font_provider/fp_inc.cpp"
@@ -73,12 +73,11 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
     soldier->min_t             = 0.0f;
     soldier->max_t             = 0.5f;
 
-    soldier->attack_max_t      = 1.0f;
 
     soldier->max_hitpoints     = 40.f;
     soldier->hitpoints         = soldier->max_hitpoints;
 
-    soldier->find_target_max_t = 3.f;
+    soldier->find_target_max_t = 0.5f;
 
     soldier->position          = v3(x, 0.f, z);
     soldier->orientation       = {};
@@ -91,6 +90,11 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
     soldier->running_animation = assets->skeleton_run;
     soldier->die_animation     = assets->skeleton_die;
     soldier->attack_animation  = assets->skeleton_attack;
+
+    // @Todo: sync with anim.
+    soldier->attack_max_t      = assets->skeleton_attack->duration;
+    soldier->damage_t          = 0.5f;
+    assert(soldier->damage_t < soldier->attack_max_t);
 
     soldier->animation_player = new Animation_Player;
     soldier->animation_player->init(soldier->skeleton);
@@ -173,6 +177,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     game_state->draw_height   = platform->draw_height;
     game_state->window_width  = platform->window_width;
     game_state->window_height = platform->window_height;
+    game_state->window_handle = platform->window_handle;
 
     // @Todo: We'll deal with timestep later.
     const f32 dt = platform->dt;
@@ -335,7 +340,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 40;
+            const int num_soldiers = 30;
             const int num_rows = 15;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);
@@ -347,7 +352,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
 #if 1
             for (int i = 0; i < num_soldiers; ++i) {
-                f32 x = 40.f + 1.f*(i / num_rows);
+                f32 x = 30.f + 1.f*(i / num_rows);
                 f32 z =  0.f + 1.f*(i % num_rows);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
 
@@ -447,6 +452,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
     }
     ui_end();
 
+    //
     // Entity selection.
     //
     if (game_state->controlling_camera_id == game_state->game_camera_id) {

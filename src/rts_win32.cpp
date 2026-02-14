@@ -1,10 +1,5 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
 
 // TODO: 1. Should we support scalable dpi?
 //         2. Verfiy the OS version and load the appropriate libraries.
@@ -314,8 +309,7 @@ win32_toggle_fullscreen(HWND window)
         if (GetWindowPlacement(window, &g_window_placement) &&
             GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi)) 
         {
-            SetWindowLong(window, GWL_STYLE,
-                          style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowLong(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
             SetWindowPos(window, HWND_TOP,
                          mi.rcMonitor.left, mi.rcMonitor.top,
                          mi.rcMonitor.right - mi.rcMonitor.left,
@@ -446,11 +440,14 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 {
 #endif
 
-    // NOTE: init core.
+    //
+    // init core.
     //
     os_init();
     thread_init();
 
+
+    //
     // NOTE: init platform.
     //
     Platform platform = {};
@@ -483,23 +480,25 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
-    // NOTE: Init gfx.
     //
-    if (! SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
-    {
-        assert(! "Win32: Failed to set dpi awareness context."); 
+    // Init gfx.
+    //
+
+    // Call this before creating a window.
+    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+        assert(!"Win32: Failed to set dpi awareness context."); 
     }
 
     HWND hwnd = win32_window_create(hinst);
-    if (! hwnd) 
-    {
-        assert(! "Win32: Couldn't create window."); 
+    if (!hwnd) {
+        assert(!"Win32: Couldn't create window."); 
     }
+    platform.window_handle = to_os_handle(hwnd);
 
 
 
 
-    // NOTE: init win32 state.
+    // Init win32 state.
     // 
     {
         win32.arena = arena_alloc();
@@ -513,7 +512,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     }
 
 
-    // NOTE: toggle fullscreen if needed.
+    // toggle fullscreen if needed.
     // 
 #if !BUILD_DEBUG
     win32_toggle_fullscreen(hwnd);
@@ -522,7 +521,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     // alloc/init renderer.
     // 
     {
-        Arena *arena = arena_alloc();
+        Arena* arena = arena_alloc();
         g_renderer = push_struct(arena, Renderer);
         g_renderer->arena = arena;
 
@@ -545,8 +544,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         renderer_code.last_modified  = win32_get_last_modified(renderer_code.dll_path);
     }
     win32_code_load(&renderer_code);
-    if (! renderer_code.is_valid) {
-        assert(! "Couldn't load the renderer code."); 
+    if (!renderer_code.is_valid) {
+        assert(!"Couldn't load the renderer code."); 
     }
 
     Arena* renderer_arena = arena_alloc();
@@ -572,13 +571,14 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     win32_code_load(&game_code);
 
 
-    // NOTE: Main Loop
+    //
+    // Main Loop
     //
     u64 old_counter = os->perf_counter();
     while (g_running) 
     {
         {
-            // TEMPORARY: just learning win32 calls of gathering memory status.
+            // @Temporary: just learning win32 calls of gathering memory status.
             MEMORYSTATUSEX ms;
             ms.dwLength = sizeof(ms);
             GlobalMemoryStatusEx(&ms);
@@ -590,7 +590,8 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             CloseHandle(proc);
         }
 
-        // NOTE: draw resolution.
+        // Draw resolution.
+        //
         v2u render_dim = {
             //1280, 720
             //1920, 1080,
@@ -602,7 +603,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         os->event_poll();
 
 
-        // NOTE: Process Message
+        // Process Message
         //
         for (MSG msg; PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE);)
         {
@@ -620,7 +621,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
 
 
-        // NOTE: Fullscreen
+        // Fullscreen
         //
         for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
         {
@@ -633,7 +634,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         }
 
 
-        // NOTE: get dt.
+        // Delta Time
         //
         u64 new_counter = os->perf_counter();
         f32 dt = (new_counter - old_counter) * os->perf_counter_freq_inv;

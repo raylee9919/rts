@@ -1,5 +1,15 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+
 //
 // Functionalities
 //
@@ -78,7 +88,7 @@ entity_propagate_arrival(Entity* entity)
 {
     // Propagate radius
     const f32 r = 1.5f;
-    const f32 too_far_threshold = 8.0f;
+    const f32 too_far_threshold = 9.0f;
 
     const f32 x = entity->position.x;
     const f32 y = entity->position.z;
@@ -115,7 +125,7 @@ entity_propagate_arrival(Entity* entity)
                             entity_clear_path_data(entity);
 
                             // Recursively propagate arrival to nearby entities.
-                            entity_propagate_arrival(entity);
+                            entity_propagate_arrival(other);
                         }
                     }
                 }
@@ -169,6 +179,13 @@ entity_find_target(Entity* entity, f32 radius, Arena* arena)
 {
     auto entities = entites_from_position_and_radius(entity->position, radius, arena);
     f32 min_dist = F32_MAX;
+
+    Entity *attacker = entity_from_id(entity->recent_attacker_id);
+    if (attacker) {
+        min_dist = distance(attacker->position, entity->position);
+        entity->command   = ENTITY_CMD_ATTACK;
+        entity->target_id = attacker->id;
+    }
 
     for (Link<Entity*> *node = entities.first; node != nullptr; node = node->next) {
         Entity* other = node->data;
@@ -613,10 +630,13 @@ entity_update(Entity* entity, const f32 dt)
                     dir += os->key_is_down[OS_KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
                     dir += os->key_is_down[OS_KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
 
-                    //if ((f32)p.x > game_state->window_width)  desired_dir += v3( 1, 0, 0);
-                    //if ((f32)p.x < 0.f)                       desired_dir += v3(-1, 0, 0);
-                    //if ((f32)p.y > game_state->window_height) desired_dir += v3( 0, 0,-1);
-                    //if ((f32)p.y < 0.f)                       desired_dir += v3( 0, 0, 1);
+                    v2 mouse_pos = os->get_mouse_position(game_state->window_handle);
+
+                    f32 margin = 2.f;
+                    if (mouse_pos.x > game_state->window_width - margin)  dir += v3( 1, 0, 0);
+                    if (mouse_pos.x < margin)                             dir += v3(-1, 0, 0);
+                    if (mouse_pos.y > game_state->window_height - margin) dir += v3( 0, 0, 1);
+                    if (mouse_pos.y < margin)                             dir += v3( 0, 0,-1);
 
                 } else if (entity->flags & ENTITY_FLAG_FREE_CAMERA) {
 
@@ -766,7 +786,6 @@ entity_update(Entity* entity, const f32 dt)
                 const f32 arrival_threshold = 1.0f;
                 if (entity->waypoint_queue.empty()) {
                     entity->command = ENTITY_CMD_STOP;
-                    // @Todo: Not working properly?
                     entity_propagate_arrival(entity);
                 }
             } else if (entity->command == ENTITY_CMD_ATTACK) {
@@ -784,7 +803,7 @@ entity_update(Entity* entity, const f32 dt)
 
                             // Do damage to the target.
                             const f32 damage    = 8.f;   // Damage per hit
-                            const f32 damage_t  = 0.8f;  // Hit time in animation timeline [0, attack_max_t)
+                            const f32 damage_t  = entity->damage_t;
                             const f32 period    = entity->attack_max_t;
 
                             const f32 prev_t = entity->prev_attack_t;
@@ -800,6 +819,8 @@ entity_update(Entity* entity, const f32 dt)
                             if (hits > 0) {
                                 const f32 total_damage = (f32)hits * damage;
                                 other->hitpoints = max(other->hitpoints - total_damage, 0.f);
+
+                                other->recent_attacker_id = entity->id;
                             }
                         } else {
                             if (entity->find_target_t > entity->find_target_max_t) {
@@ -884,40 +905,40 @@ entity_update(Entity* entity, const f32 dt)
                 if (ap) {
                     if (!entity_is_dead(entity)) {
                         if (entity->attack_t > 0.f) {
-                            Pose_Channel *ch = &ap->channels[2];
-                            ch->set_animation(entity->attack_animation, true);
-                            ch->active = true;
-                            ch->accumulate(dt);
-                        } else {
-                            ap->channels[2].active = false;
+                            ap->channels[2].set_animation(entity->attack_animation, true);
 
+                            ap->blend_weights[0] = clamp_lo(ap->blend_weights[0] - dt * 2.f, 0.f);
+                            ap->blend_weights[1] = clamp_lo(ap->blend_weights[1] - dt * 2.f, 0.f);
+                            ap->blend_weights[2] = clamp_hi(ap->blend_weights[2] + dt * 2.f, 1.f);
+                            ap->blend_weights[3] = clamp_lo(ap->blend_weights[3] - dt * 2.f, 0.f);
+                        } else {
+                            ap->channels[0].set_animation(entity->idle_animation, true);
+                            ap->channels[1].set_animation(entity->running_animation, true);
 
                             f32 t = map01(entity->speed, 0.f, entity->max_speed);
                             ap->blend_weights[0] = 1.f - t;
                             ap->blend_weights[1] = t;
-
-                            Pose_Channel *ch0 = &ap->channels[0];
-                            ch0->set_animation(entity->idle_animation, true);
-                            ch0->active = true;
-                            ch0->accumulate(dt);
-
-                            Pose_Channel *ch1 = &ap->channels[1];
-                            ch1->set_animation(entity->running_animation, true);
-                            ch1->active = true;
-                            ch1->accumulate(dt);
+                            ap->blend_weights[2] = clamp_lo(ap->blend_weights[2] - dt * 2.f, 0.f);
+                            ap->blend_weights[3] = clamp_lo(ap->blend_weights[3] - dt * 2.f, 0.f);
                         }
                     } else {
-                        ap->channels[0].active = false;
-                        ap->channels[1].active = false;
-                        ap->channels[2].active = false;
+                        ap->channels[3].set_animation(entity->die_animation, false);
 
-                        Pose_Channel *ch3 = &ap->channels[3];
-                        ch3->set_animation(entity->die_animation, false);
-                        ch3->active = true;
-                        ch3->accumulate(dt);
+                        ap->blend_weights[0] = clamp_lo(ap->blend_weights[0] - dt * 10.f, 0.f);
+                        ap->blend_weights[1] = clamp_lo(ap->blend_weights[1] - dt * 10.f, 0.f);
+                        ap->blend_weights[2] = clamp_lo(ap->blend_weights[2] - dt * 10.f, 0.f);
+                        ap->blend_weights[3] = clamp_hi(ap->blend_weights[3] + dt * 10.f, 1.f);
                     }
 
+
+
+                    ap->accumulate(dt);
                     ap->eval();
+
+                    if (entity->id == 3) {
+                        printf("%.2f, %.2f, %.2f, %.2f\n", ap->blend_weights[0], ap->blend_weights[1], ap->blend_weights[2], ap->blend_weights[3]);
+                    }
+
                     memcpy(entity->skinning_matrices, ap->skinning_matrices.data, sk->num_joints * sizeof(m4x4));
                 }
             }
@@ -1117,15 +1138,15 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
 
             // Show chunk position of this entity.
             //
-            if ((game_state->display_chunk_position) && (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED)) {
+            if (!entity_is_dead(entity) && (game_state->display_chunk_position) && (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED)) {
 
-                auto aabb = fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_NO_DRAW | RENDER_STRING_FLAG_COMPUTE_SIZE).aabb;
+                auto aabb = fp_draw_string(utf8f(game_state->frame_arena, "[%llu] %.2f", entity->id, entity->attack_t), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_NO_DRAW | RENDER_STRING_FLAG_COMPUTE_SIZE).aabb;
                 aabb.min -= v2(4.f, 4.f);
                 aabb.max += v2(4.f, 4.f);
                 v4 c = v4{0.12f, 0.12f, 0.12f, 1.f};
                 f32 r = 6.f;
                 render_quad_c4r4(aabb.min, aabb.max, c,c,c,c, r,r,r,r);
-                fp_draw_string(utf8f(game_state->frame_arena, "(%u, %u)", entity->chunk_x, entity->chunk_y), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
+                fp_draw_string(utf8f(game_state->frame_arena, "[%llu] %.2f", entity->id, entity->attack_t), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
             }
 
 

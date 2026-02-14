@@ -305,6 +305,9 @@ typedef OS_EVENT_POLL(Os_Event_Poll);
 #define OS_GET_MODIFIERS(name) Os_Modifiers name(void)
 typedef OS_GET_MODIFIERS(Os_Get_Modifiers);
 
+#define OS_GET_MOUSE_POSITION(name) v2 name(Os_Handle window_handle)
+typedef OS_GET_MOUSE_POSITION(Os_Get_Mouse_Position);
+
 
 
 
@@ -341,6 +344,7 @@ struct OS
 
     Os_Event_Poll                   *event_poll;
     Os_Get_Modifiers                *get_modifiers;
+    Os_Get_Mouse_Position           *get_mouse_position;
 
     Os_Perf_Counter                 *perf_counter;
     u64                             perf_counter_freq;
