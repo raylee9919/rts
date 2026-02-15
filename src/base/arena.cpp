@@ -1,7 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-
-
 internal Arena* arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
 {
     u64 page_size = os->query_page_size();

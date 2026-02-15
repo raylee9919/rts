@@ -48,6 +48,8 @@ global Renderer* renderer;
 #include "third_party/stb/stb_image.h"
 
 
+
+
 void debug_print_entity_hierarchy(Entity* entity, int depth = 0) {
     for (int i = 0; i < depth*2; ++i) {
         printf(" ");
@@ -96,7 +98,7 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
     soldier->damage_t          = 0.5f;
     assert(soldier->damage_t < soldier->attack_max_t);
 
-    soldier->animation_player = new Animation_Player;
+    soldier->animation_player = alloc_animation_player();
     soldier->animation_player->init(soldier->skeleton);
 
     // @Hack:
@@ -197,7 +199,9 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
         
         game_state->random_series = rand_seed(1219);
 
-        game_state->entity_arena         = arena_alloc();
+        game_state->entity_arena    = arena_alloc();
+        game_state->animation_arena = arena_alloc();
+
         game_state->root_entity          = push_struct(game_state->entity_arena, Entity);
         game_state->root_entity->type    = ENTITY_TYPE_ROOT;
         game_state->entity_table_size    = 1024; // FIX: Memory bug in arena when set size to 4096
@@ -340,7 +344,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 30;
+            const int num_soldiers = 300;
             const int num_rows = 15;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);

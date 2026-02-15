@@ -86,4 +86,9 @@ struct Game_State {
 
     // Debugging
     b32         display_chunk_position;
+
+
+    Arena* animation_arena;
+    Animation_Player* first_free_animation_player;
+    Animation_Player* last_free_animation_player;
 };

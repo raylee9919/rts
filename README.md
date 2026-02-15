@@ -25,7 +25,7 @@ $
 ## Inspired by
 Thanks to these apex level programmers.
 - [Casey Muratori](https://x.com/cmuratori)
-- [Ryan Fleury](https://x.com/ryanjfleury)
+- [Ryan Fleury](https://x.com/rfleury)
 - [Jonathan Blow](https://x.com/Jonathan_Blow)
 - [Sean Barrett](https://x.com/nothings)
 

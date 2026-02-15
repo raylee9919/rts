@@ -480,9 +480,7 @@ entity_from_id(u64 id)
     return result;
 }
 
-internal Entity* 
-entity_alloc(void) 
-{
+Entity* entity_alloc() {
     Entity* entity = game_state->first_free_entity;
 
     if (entity) {
@@ -573,15 +571,13 @@ entity_init(Entity* entity, Entity* parent)
     }
 }
 
-internal void 
-entity_release(u64 id) 
-{
+void entity_release(u64 id) {
     Entity* entity = entity_from_id(id);
 
     if (entity) {
 
         if (entity->animation_player) {
-            delete entity->animation_player;
+            release_animation_player(entity->animation_player);
         }
 
         // Remove from the parent's children list.
@@ -934,10 +930,9 @@ entity_update(Entity* entity, const f32 dt)
                     ap->accumulate(dt);
                     ap->eval();
 
-                    if (entity->id == 3) {
-                        printf("%.2f, %.2f, %.2f, %.2f\n", ap->blend_weights[0], ap->blend_weights[1], ap->blend_weights[2], ap->blend_weights[3]);
-                    }
-
+                    // @Todo: This takes signifant amount of time, say, 1000 cpu wallclock time. For 1000 units, it'll take 1-miilion cycles.
+                    //        If I'm targeting 100 fps, I need about 37 million cycles, and 1 million out of 37 million is a lot.
+                    //        So, memcpying isn't really an option. Where do I put this?
                     memcpy(entity->skinning_matrices, ap->skinning_matrices.data, sk->num_joints * sizeof(m4x4));
                 }
             }

@@ -294,7 +294,6 @@ operator *= (v3& a, f32 b)
     a.x *= b;
     a.y *= b;
     a.z *= b;
-
     return a;
 }
 

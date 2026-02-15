@@ -1,12 +1,7 @@
-#ifndef RTS_BASE_CORE_H
-#define RTS_BASE_CORE_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
+
 
 // NOTE: Define platform.
 //
@@ -120,8 +115,9 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 
 
 
-// --------------------------------------
-// NOTE: 3rd-party include
+//
+// 3rd-party include
+//
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
@@ -215,10 +211,10 @@ enum
 
 // NOTE: List
 //
-#define sll_push_back_nz(f, l, n, nxt, zchk, zset) \
+#define sll_push_back_nz(f, l, n, next, zchk, zset) \
     ( ( zchk(f) ) ? \
       ( (f)=(l)=(n), zset((n)->next) ) : \
-      ( (l)->nxt = (n), (l) = (n), zset((n)->nxt) ) )
+      ( (l)->next = (n), (l) = (n), zset((n)->next) ) )
 #define sll_push_back_n(f, l, n, next)      sll_push_back_nz((f), (l), (n), next, check_null, set_null)
 #define sll_push_back(f, l, n)              sll_push_back_nz((f), (l), (n), next, check_null, set_null)
 
@@ -288,6 +284,11 @@ enum
 
 internal void *_dll_np(void *node, u64 np);
 internal void _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
+
+
+//
+// Iterator
+//
 
 
 
@@ -530,5 +531,3 @@ read_only global const u64 bit61 = (1ull<<60);
 read_only global const u64 bit62 = (1ull<<61);
 read_only global const u64 bit63 = (1ull<<62);
 read_only global const u64 bit64 = (1ull<<63);
-
-#endif // RTS_BASE_CORE_H

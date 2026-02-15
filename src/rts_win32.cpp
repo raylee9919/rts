@@ -428,9 +428,8 @@ win32_code_modified(Win32_Code *loaded)
     return result;
 }
 
-// NOTE: Entry
-//
-#if BUILD_DEBUG
+
+#if 1
 int wmain(int argc, wchar_t *argv[]) 
 {
     HINSTANCE hinst = GetModuleHandleW(0);
@@ -556,7 +555,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
 
     u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
-    f32 desired_dt = (1.0f / (f32)monitor_refresh_rate);
+    f32 desired_dt = 1.0f / (f32)monitor_refresh_rate;
 
     Win32_Game_Function_Table game = {};
     Win32_Code game_code = {};
@@ -641,16 +640,16 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         u64 new_counter = os->perf_counter();
         f32 dt = (new_counter - old_counter) * os->perf_counter_freq_inv;
         old_counter = new_counter;
-        if (dt < desired_dt) 
-        {
-            s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
-            if (os->sleep_is_granular)
-            {
-                // TODO: what?
-            }
-            Sleep(ms);
-            dt = desired_dt;
-        }
+        //if (dt < desired_dt) 
+        //{
+        //    s32 ms = (s32)((desired_dt - dt) * 1000.0f + 0.5f);
+        //    if (os->sleep_is_granular)
+        //    {
+        //        // TODO: what?
+        //    }
+        //    Sleep(ms);
+        //    dt = desired_dt;
+        //}
 
         {
             platform.dt = dt;

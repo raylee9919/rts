@@ -32,7 +32,7 @@ void Pose_Channel::accumulate(f32 dt) {
     current_dt = t;
 }
 
-static Animation_Joint* animation_node_from_joint_id(Animation *anim, s32 id) {
+internal Animation_Joint* animation_node_from_joint_id(Animation* anim, s32 id) {
     u64 slot = hash_joint_id(id) % anim->table_size;
     auto *entry = anim->joint_table + slot;
     for (auto *link = entry->first; link; link = link->next) {
@@ -135,10 +135,12 @@ void Animation_Player::init(Skeleton *skel) {
 }
 
 void Animation_Player::eval() {
+    ProfileScope;
+
     int num_channels = array_count(channels);
     int num_joints = skeleton->num_joints;
 
-    // First, zero out the intermediate matrices which the weighted transforms will be piled upon.
+    // First, clear the intermediate matrices that will accumulate the weighted transforms.
     //
     memset(blended_local_transforms.data, 0, sizeof(blended_local_transforms.data[0]) * num_joints);
 
@@ -162,6 +164,7 @@ void Animation_Player::eval() {
 
 
     // fmadd with blend weight
+    // @Todo: Can we use sse here?
     //
     for (int ch = 0; ch < num_channels; ++ch) {
         if (channels[ch].active) {
@@ -192,5 +195,30 @@ void Animation_Player::eval() {
 void Animation_Player::accumulate(f32 dt) {
     for (int ch = 0; ch < array_count(channels); ++ch) {
         channels[ch].accumulate(dt);
+    }
+}
+
+
+
+//
+// Allocation / Release
+//
+Animation_Player* alloc_animation_player() {
+    Arena* arena = game_state->animation_arena;
+    Animation_Player* player = game_state->first_free_animation_player;
+
+    if (player) {
+        zero_struct(player);
+        sll_pop_front_n(game_state->first_free_animation_player, game_state->last_free_animation_player, next_in_free_list);
+    } else {
+        player = push_struct(arena, Animation_Player);
+    }
+
+    return player;
+}
+
+void release_animation_player(Animation_Player* player) {
+    if (player) {
+        sll_push_back_n(game_state->first_free_animation_player, game_state->last_free_animation_player, player, next_in_free_list);
     }
 }

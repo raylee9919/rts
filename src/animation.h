@@ -7,18 +7,18 @@ struct Animation_Player;
 
 struct Pose_Channel {
 
-    int index = -1;
-    Animation_Player *my_animation_player = nullptr;
+    int index;
+    Animation_Player* my_animation_player;
 
-    Animation* animation = nullptr;
+    Animation* animation;
 
-    f32 current_t  = 0.f;
-    f32 current_dt = 0.f;
-    f32 multiplier = 0.f;
+    f32 current_t;
+    f32 current_dt;
+    f32 multiplier;
 
-    bool active = false;
-    bool loop   = false;
-    bool ended  = false;
+    bool active;
+    bool loop;
+    bool ended;
 
 
 
@@ -31,15 +31,17 @@ struct Pose_Channel {
 
 struct Animation_Player {
 
-    Skeleton *skeleton = nullptr;
+    Animation_Player* next_in_free_list;
 
-    Array <m4x4> skinning_matrices = {};
-    Array <m4x4> blended_local_transforms = {};
+    Skeleton* skeleton;
 
-    Pose_Channel channels[4] = {};
-    Array <m4x4> local_transforms[4] = {};
+    Array <m4x4> skinning_matrices;
+    Array <m4x4> blended_local_transforms;
 
-    f32 blend_weights[4] = {};
+    Pose_Channel channels[4];
+    Array <m4x4> local_transforms[4];
+
+    f32 blend_weights[4];
 
 
 
@@ -48,3 +50,7 @@ struct Animation_Player {
     void accumulate(f32 dt);
     void eval();
 };
+
+
+Animation_Player* alloc_animation_player();
+void release_animation_player(Animation_Player* player);
