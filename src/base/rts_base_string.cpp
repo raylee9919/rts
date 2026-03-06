@@ -18,6 +18,13 @@ string_length(const char *string)
     return len;
 }
 
+int cstrlen(const char *cstr)
+{
+    int len = 0;
+    while (*cstr++) ++len;
+    return len;
+}
+
 internal b32
 string_equal(char *str1, u64 len1, char *str2, u64 len2) 
 {

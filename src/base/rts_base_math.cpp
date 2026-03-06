@@ -30,7 +30,7 @@ f32 binormal_to_normal(f32 x) {
     return x * 0.5f + 0.5f;
 }
 
-f32 sqrt(f32 f) {
+f32 square_root(f32 f) {
     // Not much of a perf gain, but it is what it is.
     // Don't do '_mm_store_ss' to get out float. Use '_mm_cvtss_f32'.
     return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(f)));
@@ -39,7 +39,7 @@ f32 sqrt(f32 f) {
 // @Study:
 //         1. 16.17 FSQRT SQRTSS (https://www.agner.org/optimize/optimizing_assembly.pdf)
 //         2. Newtonian Iteration (https://stackoverflow.com/questions/14752399/newton-raphson-with-sse2-can-someone-explain-me-these-3-lines)
-f32 rsqrt(f32 f) {
+f32 rec_square_root(f32 f) {
     return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(f)));
 }
 
@@ -169,7 +169,7 @@ f32 invsqlen(v4 v) {
 }
 
 f32 length(v2 v) {
-    f32 len = sqrt(sqlen(v));
+    f32 len = square_root(sqlen(v));
     return len;
 }
 
@@ -181,7 +181,7 @@ v2 lerp(v2 a, f32 t, v2 b) {
 }
 
 v2 normalize(v2 v) {
-    f32 d = rsqrt(v.x * v.x + v.y * v.y);
+    f32 d = rec_square_root(v.x * v.x + v.y * v.y);
     v.x *= d;
     v.y *= d;
     return v;
@@ -359,12 +359,12 @@ v4 hadamard(v4 a, v4 b) {
 }
 
 f32 length(v3 v) {
-    f32 len = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    f32 len = square_root(v.x*v.x + v.y*v.y + v.z*v.z);
     return len;
 }
 
 v3 normalize(v3 v) {
-    f32 d = rsqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    f32 d = rec_square_root(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x *= d;
     v.y *= d;
     v.z *= d;
@@ -383,13 +383,13 @@ f32 distance(v3 a, v3 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
     f32 dz = a.z - b.z;
-    return sqrt(dx*dx + dy*dy + dz*dz);
+    return square_root(dx*dx + dy*dy + dz*dz);
 }
 
 f32 distance(v2 a, v2 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
-    return sqrt(dx*dx + dy*dy);
+    return square_root(dx*dx + dy*dy);
 }
 
 //
@@ -591,7 +591,7 @@ Quaternion operator - (Quaternion q) {
 }
 
 Quaternion normalize(Quaternion q) {
-    f32 d = rsqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+    f32 d = rec_square_root(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
 #if SSE_ENABLED
     __m128 d_ = _mm_set1_ps(d);
     q.sse = _mm_mul_ps(q.sse, d_);

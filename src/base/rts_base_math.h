@@ -111,8 +111,9 @@ internal f32 map(f32 x, f32 min, f32 max);
 internal f32 map01(f32 x, f32 min, f32 max);
 internal f32 map01_binormal(f32 x, f32 min, f32 max);
 internal f32 binormal_to_normal(f32 x);
-internal f32 sqrt(f32 f);
-internal f32 rsqrt(f32 f);
+internal f32 square_root(f32 f);
+internal f32 rec_square_root(f32 f);
+
 
 internal f32 lerp(f32 a, f32 t, f32 b);
 

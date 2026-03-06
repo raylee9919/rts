@@ -27,23 +27,22 @@ out smooth mat3 TBN;
 void main()
 {
     mat4 M;
+    mat4 bone_transform = mat4(0);
+    float weight_sum = 0.0;
+
     if (is_skeletal != 0) {
-        mat4 bone_transform;
-        if (bone_ids[0] != -1) {
-            bone_transform = bone_transforms[bone_ids[0]] * bone_weights[0];
-            for (int idx = 1; idx < MAX_BONE_PER_VERTEX; ++idx) {
-                int bone_id = bone_ids[idx];
-                if (bone_id != -1) {
-                    bone_transform += bone_transforms[bone_id] * bone_weights[idx];
-                } else {
-                    break;
-                }
+        for (int idx = 0; idx < MAX_BONE_PER_VERTEX; ++idx) {
+            int bone_id = bone_ids[idx];
+            if (bone_id != -1) {
+                bone_transform += bone_transforms[bone_id] * bone_weights[idx];
+                weight_sum += bone_weights[idx];
+            } else {
+                break;
             }
-        } else {
-            bone_transform = identity();
         }
-        M = world_transform * bone_transform;
+        M = world_transform * (bone_transform / weight_sum);
     } else {
+        bone_transform = mat4(1.0);
         M = world_transform;
     }
 
@@ -53,14 +52,13 @@ void main()
     vec3 bitangent = normalize(cross(fN, tangent));
     TBN = mat3(tangent, bitangent, fN);
 
-    v4 result_pos = M * vec4(vP,1);
-    result_pos /= result_pos.w;
-    fP = result_pos.xyz;
+    vec4 skinned_pos = M * vec4(vP,1);
 
+    fP  = skinned_pos.xyz / skinned_pos.w;
     fUV = vUV * uv_scale;
     fC  = vC;
 
-    gl_Position = VP * result_pos;
+    gl_Position = VP * skinned_pos;
 }
 
 )";

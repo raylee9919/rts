@@ -1083,13 +1083,38 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         case ENTITY_TYPE_SOLDIER: {
             m4x4 transform = m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
+
+#if 0
+                if (entity->skeleton) {
+                    for (u32 i = 0; i < entity->skeleton->num_joints; ++i) {
+                        Joint *joint = entity->skeleton->joints + i;
+                        entity->skinning_matrices[i] = identity();
+                    }
+                }
+#endif
+
+#if 1
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh* mesh = entity->model->meshes + mesh_idx;
                     push_mesh(renderer, mesh, transform, entity->skinning_matrices, entity->skeleton->num_joints, entity->id, v2(1.f, 1.f));
                 }
+#endif
 
+#if 0
+                if (entity->skeleton) {
+                    for (u32 i = 0; i < entity->skeleton->num_joints; ++i) {
+                        s32 parent = entity->skeleton->joints[i].parent;
+                        if (parent >= 0) {
+                            m4x4 transform1 = entity->skinning_matrices[i] * inverse(entity->skeleton->joints[i].inverse_bind_pose);
+                            m4x4 transform2 = entity->skinning_matrices[parent] * inverse(entity->skeleton->joints[parent].inverse_bind_pose);
+                            v3 p1 = (transform1 * v4{0,0,0,1}).xyz;
+                            v3 p2 = (transform2 * v4{0,0,0,1}).xyz;
 
-
+                            draw_line(render_group, p1, p2, v4{1,1,1,1});
+                        }
+                    }
+                }
+#endif
             }
 
             commands->debug_transform = transform;

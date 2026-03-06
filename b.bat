@@ -25,12 +25,13 @@ if not "%release%"=="1" set debug=1
 if "%debug%"=="1" set release=0 && echo [Debug Build]
 if "%release%"=="1" set debug=0 && echo [Release Build]
 
+if "%fbx%"=="1"    set build_fbx=1
 if "%assimp%"=="1" set build_assimp=1
-if "%game%"=="1" set BuildGame=1
-if "%os%"=="1"   set BuildWin=1
-if "%gl%"=="1"   set BuildGL=1
+if "%game%"=="1"   set BuildGame=1
+if "%os%"=="1"     set BuildWin=1
+if "%gl%"=="1"     set BuildGL=1
 
-if not defined build_assimp if not defined BuildGame if not defined BuildWin if not defined BuildGL (
+if not defined build_assimp if not defined build_fbx if not defined BuildGame if not defined BuildWin if not defined BuildGL (
     set "BuildGame=1"
     set "BuildWin=1"
     set "BuildGL=1"
@@ -53,7 +54,7 @@ set flags_linker=/incremental:no /opt:ref
 if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
 if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
 if "%profile%"=="1"     set flags_compile=%flags_compile% -DBUILD_PROFILE=1  && echo [Profiler Enabled]
-if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address && echo [ASAN Enabled]
+if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address -fsanitize=undefined && echo [ASAN Enabled]
 
 
 :: ---------------------------- Projects ---------------------------- ::
@@ -66,6 +67,11 @@ REM if exist *.pdb del *.pdb
 :: Assimp
 if "%assimp%" == "1" (
     call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib
+)
+
+:: FBX
+if "%fbx%" == "1" (
+    call %compiler% %flags_compile% ..\src\fbx\fbx.cpp -Fe:fbx.exe -I../src/third_party/ufbx -link %flags_linker%
 )
 
 :: Metaprogramming

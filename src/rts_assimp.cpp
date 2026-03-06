@@ -1,5 +1,14 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+
+// C++
+//
+#include <vector>
+#include <queue>
+#include <string>
+#include <set>
+#include <unordered_map>
+
 // Assimp includes.
 //
 #include "vendor/assimp/Importer.hpp"
@@ -11,12 +20,7 @@
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
-#include "rts_font.h"
 #include "asset.h"
-
-#define STBI_ASSERT(x)
-#define STB_IMAGE_IMPLEMENTATION
-#include "third_party/stb/stb_image.h"
 
 #include "rts_assimp.h"
 
@@ -24,12 +28,6 @@
 //
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
-
-#include <vector>
-#include <queue>
-#include <string>
-#include <set>
-#include <unordered_map>
 
 
 
@@ -69,18 +67,8 @@ struct std::hash<aiString> {
 //
 // Skeleton
 //
-static void fill_table_recursively(std::unordered_map<aiString, aiNode*>& table, aiNode *node) {
-    if (table.find(node->mName) == table.end()) {
-        table[node->mName] = node;
-    }
-
-    for (u32 i = 0; i < node->mNumChildren; ++i) {
-        aiNode *child = node->mChildren[i];
-        fill_table_recursively(table, child);
-    }
-}
-
-static std::vector <Asset_Joint> make_joint_array(State *state) {
+static std::vector <Asset_Joint> make_joint_array(State *state) 
+{
     using namespace std;
 
     aiScene *scene = state->scene;
@@ -299,6 +287,10 @@ static void make_model(State *state, Asset_Model *model_out) {
 
                 Asset_Vertex *vert_out = &mesh_out->vertices[vert_idx];
 
+                if (weight == 0.f) {
+                    continue;
+                }
+
                 // @Todo: Sort the weights and use the topmost 4 of them..
                 bool duplicated = false;
                 u32 next = 0xBEEF;
@@ -312,8 +304,18 @@ static void make_model(State *state, Asset_Model *model_out) {
                     }
                 }
 
-                if (!duplicated) {
-                    assert( next != 0xBEEF );
+                // Will overwrite the smallest weight.
+                if (next == 0xBEEF) {
+                    f32 min_weight = 100000.f;
+                    for (u32 j = 0; j < MAX_BONE_PER_VERTEX; ++j) {
+                        if (vert_out->node_weights[j] <= min_weight) {
+                            next = j;
+                            min_weight = vert_out->node_weights[j];
+                        }
+                    }
+                } 
+
+                if (next != 0xBEEF) {
                     vert_out->node_ids[next]     = bone_idx;
                     vert_out->node_weights[next] = weight;
                 }
@@ -482,9 +484,7 @@ int main(void)
 
     State *state = new State;
 
-    // @Temporary
-    // @Temporary
-    // @Temporary
+    // @Todo: Why the fuck can't I reproduce fucking mOffsetMatrix?????????
     m4x4 root = {
         0.010000f, 0.000000f, 0.000000f, 0.000000f,
         0.000000f, 0.010000f, 0.000000f, 0.000000f,
@@ -492,75 +492,79 @@ int main(void)
         0.000000f, 0.000000f, 0.000000f, 1.000000f,
     };
     m4x4 hip = {
-        -0.581853f, 0.800314f, 0.144723f, -0.694497f,
-        0.018189f, 0.190707f, -0.981478f, 83.361526f,
-        -0.813091f, -0.568444f, -0.125520f, 0.886050f,
+        -0.999999f, -0.000004f, -0.001377f, 0.011421f,
+        0.001377f, 0.031959f, -0.999488f, 98.654388f,
+        0.000048f, -0.999489f, -0.031958f, 1.337708f,
         0.000000f, 0.000000f, 0.000000f, 1.000000f,
     };
-    m4x4 scabbard = {
-        -0.078485f, -0.614300f, 0.785159f, -16.189623f,
-        0.649227f, 0.566186f, 0.507875f, -13.446239f,
-        -0.756534f, 0.549607f, 0.354384f, 2.368096f,
+    m4x4 l_backwardcloth = {
+        -0.992971f, -0.001494f, 0.118348f, -13.555919f,
+        -0.032481f, 0.964971f, -0.260337f, 8.028134f,
+        -0.113814f, -0.262351f, -0.958237f, 2.545166f,
         0.000000f, 0.000000f, 0.000000f, 1.000000f,
     };
-    m4x4 scabbard2 = {
-        1.000000f, 0.000000f, 0.000000f, 0.000000f,
-        0.000000f, 1.000000f, 0.000000f, 0.000000f,
-        0.000000f, 0.000000f, 1.000000f, 0.000000f,
-        0.000000f, 0.000000f, 0.000000f, 1.000000f,
+    m4x4 l_backwardcloth2 = {
+        0.999960f, -0.000466f, 0.008940f, 0.000000f,
+        0.000435f, 0.999994f, 0.003543f, 0.000000f,
+        -0.008941f, -0.003539f, 0.999954f, -16.920055f,
+        0.000000f, 0.000000f, 0.000000f, 1.000000f
     };
 
-    m4x4 res1 = hip * scabbard * scabbard2;
+    m4x4 res1 = root * hip * l_backwardcloth * l_backwardcloth2;
     m4x4 inv1 = inverse(res1);
-    // @Temporary
-    // @Temporary
-    // @Temporary
 
-    char *input_file_names[] = {
-        "../data/input/model/swordman.fbx",
 
-        //"../data/input/model/skeleton_lord_rest_pose.dae",
-        //"../data/input/model/skeleton_lord_idle.dae",
-        //"../data/input/model/skeleton_lord_run.dae",
-        //"../data/input/model/skeleton_lord_die.dae",
-        //"../data/input/model/skeleton_lord_attack.dae",
-        //"../data/input/model/sword.dae",
-        //"../data/input/model/plane.fbx",
-        //"../data/input/model/castle.fbx",
+    Utf8 input_file_names[] = {
+        //utf8lit("../data/input/knight.fbx"),
+        //utf8lit("../data/input/knight_idle.fbx"),
+        //utf8lit("../data/input/knight_run.fbx"),
+
+        //utf8lit("../data/input/model/skeleton_lord_rest_pose.dae"),
+        //utf8lit("../data/input/model/skeleton_lord_idle.dae"),
+        //utf8lit("../data/input/model/skeleton_lord_run.dae"),
+        //utf8lit("../data/input/model/skeleton_lord_die.dae"),
+        //utf8lit("../data/input/model/skeleton_lord_attack.dae"),
+        //utf8lit("../data/input/model/sword.dae"),
+        //utf8lit("../data/input/model/plane.fbx"),
+        //utf8lit("../data/input/model/castle.fbx"),
     };
-
-    stbi_set_flip_vertically_on_load(true);
 
     Assimp::Importer importer;
     importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
-    for (u32 file_idx = 0; file_idx < array_count(input_file_names); ++file_idx) {
+    for (u32 file_idx = 0; file_idx < array_count(input_file_names); ++file_idx) 
+    {
+        Temporary_Arena scratch = scratch_begin();
+        defer(scratch_end(scratch));
 
-        char *in_file_name = input_file_names[file_idx];
-        state->scene = (aiScene *)importer.ReadFile(in_file_name, (aiProcess_Triangulate |
-                                                                   aiProcess_ImproveCacheLocality |
-                                                                   aiProcess_CalcTangentSpace |
-                                                                   aiProcess_GlobalScale |
-                                                                   aiProcess_OptimizeMeshes |
-                                                                   aiProcess_OptimizeGraph |
-                                                                   aiProcess_RemoveRedundantMaterials |
-                                                                   aiProcess_LimitBoneWeights |
-                                                                   aiProcess_GenUVCoords |
-                                                                   aiProcess_FindDegenerates |
-                                                                   aiProcess_FindInvalidData |
-                                                                   aiProcess_FindInstances |
-                                                                   aiProcess_ValidateDataStructure |
-                                                                   aiProcess_JoinIdenticalVertices));
+        Utf8 in_file_name = input_file_names[file_idx];
+        state->scene = (aiScene *)importer.ReadFile((char*)in_file_name.str, (aiProcess_Triangulate |
+                                                                              aiProcess_ImproveCacheLocality |
+                                                                              aiProcess_CalcTangentSpace |
+                                                                              aiProcess_GlobalScale |
+                                                                              aiProcess_OptimizeMeshes |
+                                                                              aiProcess_OptimizeGraph |
+                                                                              aiProcess_RemoveRedundantMaterials |
+                                                                              //aiProcess_LimitBoneWeights |
+                                                                              aiProcess_GenUVCoords |
+                                                                              aiProcess_FindDegenerates |
+                                                                              aiProcess_FindInvalidData |
+                                                                              aiProcess_FindInstances |
+                                                                              aiProcess_ValidateDataStructure |
+                                                                              aiProcess_JoinIdenticalVertices));
+        u64 slash_pos = utf8_find_substr(in_file_name, utf8lit("/"), 0, STR_MATCH_FIND_LAST);
+        u64 dot_pos = utf8_find_substr(in_file_name, utf8lit("."), 0, STR_MATCH_FIND_LAST);
+        Utf8 file_name_no_ext = utf8f(scratch.arena, "%.*s", dot_pos - slash_pos - 1, in_file_name.str + slash_pos + 1);
 
         // Load scene.
         //
         {
             if (!state->scene) {
-                fprintf(stderr, "[ERROR]: Couldn't load file %s.\n", in_file_name);
+                fprintf(stderr, "[ERROR]: Couldn't load file %s.\n", in_file_name.str);
                 return -1;
             }
 
-            printf("\nLoaded scene '%s'.\n", in_file_name);
+            printf("\nLoaded scene '%s'.\n", in_file_name.str);
 
             state->num_nodes = get_node_count(state->scene->mRootNode);
             printf("# of aiNode: %d\n", state->num_nodes);
@@ -585,7 +589,8 @@ int main(void)
 
 
             // @Temporary
-            FILE *f = fopen("C:/dev/rts/data/skeleton_lord.skeleton", "wb");
+            Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.skeleton", file_name_no_ext);
+            FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
                 fprintf(f, "%u\n", (u32)joints.size());
@@ -617,12 +622,13 @@ int main(void)
 
         // Make model asset.
         //
-        {
+        if (state->scene->HasMeshes()) {
             Asset_Model *model = new Asset_Model;
             make_model(state, model);
 
             // @Temporary
-            FILE *f = fopen("C:/dev/rts/data/skeleton_lord.triangle_mesh", "wb");
+            Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.triangle_mesh", file_name_no_ext);
+            FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
                 fprintf(f, "%u\n\n", model->mesh_count);
@@ -657,7 +663,7 @@ int main(void)
                     for (u32 i = 0; i < mesh->index_count; ++i) {
                         fprintf(f, "%u ", mesh->indices[i]);
 
-                        if ((i+1) % 10 == 0) {
+                        if ((i+1) % 6 == 0) {
                             fprintf(f, "\n");
                         }
                     }
@@ -675,7 +681,8 @@ int main(void)
             make_animation(state, anim);
 
             // @Temporary
-            FILE *f = fopen("C:/dev/rts/data/skeleton_lord.keyframed_animation", "wb");
+            Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.keyframed_animation", file_name_no_ext);
+            FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
                 fprintf(f, "%u %.*s\n", anim->length, anim->length, anim->name);
@@ -698,103 +705,6 @@ int main(void)
             fclose(f);
         }
     }
-
-
-
-
-#if 0
-        Asset_Model asset_model = {};
-        {
-            asset_model.node_count = get_unique_joint_count(scene); 
-            asset_model.nodes      = new Asset_Node[asset_model.node_count];
-
-            printf("joint count: %u\n", asset_model.node_count);
-        }
-
-
-        fill_asset_nodes(scene, &asset_model, &hashmap);
-        fill_asset_meshes(scene, &asset_model, &hashmap);
-        fill_asset_materials(scene, &asset_model);
-
-        write_asset_meshes(model_out, &asset_model);
-        write_asset_materials(model_out, &asset_model);
-        write_asset_nodes(model_out, &asset_model);
-
-        // Print status
-        printf("[OK]: Written '%s'\n", out_file_name);
-        fclose(model_out);
-
-
-        //
-        // Animation
-        //
-        for (u32 anim_idx = 0; anim_idx < scene->mNumAnimations; ++anim_idx) {
-
-            Asset_Animation asset_animation = {};
-            aiAnimation *anim = scene->mAnimations[anim_idx];
-
-            char *anim_out_file_name = create_output_animation_filepath(in_file_name, anim->mName.data);
-            FILE *anim_out = fopen(anim_out_file_name, "wb");
-
-            if (!anim_out) {
-                printf("[ERROR]: Couldn't open output file %s\n", anim_out_file_name);
-                return -1;
-            }
-
-            f32 spt           = 1.0f / (f32)anim->mTicksPerSecond;
-            f32 anim_duration = (f32)(anim->mDuration / anim->mTicksPerSecond);
-            u32 node_count    = anim->mNumChannels;
-
-            fwrite(anim->mName.data, sizeof(char) * strlen(anim->mName.data) + 1, 1, anim_out);
-            fwrite_item(anim_duration, anim_out);
-            fwrite_item(node_count, anim_out);
-
-            for (u32 node_idx = 0; node_idx < node_count; ++node_idx) {
-
-                aiNodeAnim *node = anim->mChannels[node_idx];
-
-                s32 node_id = id_from_name(node->mNodeName.data, &hashmap);
-                u32 translation_count = node->mNumPositionKeys;
-                u32 rotation_count = node->mNumRotationKeys;
-                u32 scaling_count = node->mNumScalingKeys;
-
-                fwrite_item(node_id, anim_out);
-
-                fwrite_item(translation_count, anim_out);
-                fwrite_item(rotation_count, anim_out);
-                fwrite_item(scaling_count, anim_out);
-
-                for (u32 idx = 0; idx < translation_count; ++idx) {
-                    aiVectorKey key = node->mPositionKeys[idx];
-                    f32 dt = (f32)key.mTime * spt;
-                    v3 vec = to_v3(key.mValue);
-                    dt_v3_Pair dt_v3 = dt_v3_Pair{dt, vec};
-                    fwrite_item(dt_v3, anim_out);
-                }
-
-                for (u32 idx = 0; idx < rotation_count; ++idx) {
-                    aiQuatKey key = node->mRotationKeys[idx];
-                    f32 dt = (f32)key.mTime * spt;
-                    Quaternion q = to_quaternion(key.mValue);
-                    dt_qt_Pair dt_qt = dt_qt_Pair{dt, q};
-                    fwrite_item(dt_qt, anim_out);
-                }
-
-                for (u32 idx = 0; idx < scaling_count; ++idx) {
-                    aiVectorKey key = node->mScalingKeys[idx];
-                    f32 dt = (f32)key.mTime * spt;
-                    v3 vec = to_v3(key.mValue);
-                    dt_v3_Pair dt_v3 = dt_v3_Pair{dt, vec};
-                    fwrite_item(dt_v3, anim_out);
-                }
-            }
-
-            printf("[OK]: Written '%s'\n", anim_out_file_name);
-            fclose(anim_out);
-        }
-    }
-
-#endif
 
     printf("*** SUCCESSFUL! ***\n");
     return 0;
