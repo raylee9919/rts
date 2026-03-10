@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
+#if 0
 // @Note: No back-face.
 internal void
 geogen_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
@@ -34,42 +35,44 @@ geogen_plane(Mesh *mesh, Arena *arena, f32 length, u32 subdivision)
         INVALID_CODE_PATH;
     }
 }
+#endif
 
 // @Note: Do not use it except for quad tessellated terrain.
 internal void
 geogen_backfaced_cube(Mesh *mesh, Arena *arena, f32 scale)
 {
+    u32 white = 0xffffffff;
     Vertex vertices[] = 
     {
-        Vertex{v3{ 1, 1, 1}*scale, v3{ 1, 0, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1,-1, 1}*scale, v3{ 1, 0, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1,-1,-1}*scale, v3{ 1, 0, 0}, v2{1,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1, 1,-1}*scale, v3{ 1, 0, 0}, v2{1,1}, RGBA_WHITE, {}, {}},
+        Vertex{v3{ 1, 1, 1}*scale, v3{ 1, 0, 0}, v2{0,1}, white, {}, {}},
+        Vertex{v3{ 1,-1, 1}*scale, v3{ 1, 0, 0}, v2{0,0}, white, {}, {}},
+        Vertex{v3{ 1,-1,-1}*scale, v3{ 1, 0, 0}, v2{1,0}, white, {}, {}},
+        Vertex{v3{ 1, 1,-1}*scale, v3{ 1, 0, 0}, v2{1,1}, white, {}, {}},
 
-        Vertex{v3{-1,-1,-1}*scale, v3{-1, 0, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1,-1, 1}*scale, v3{-1, 0, 0}, v2{1,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1, 1,-1}*scale, v3{-1, 0, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1, 1, 1}*scale, v3{-1, 0, 0}, v2{1,1}, RGBA_WHITE, {}, {}},
+        Vertex{v3{-1,-1,-1}*scale, v3{-1, 0, 0}, v2{0,0}, white, {}, {}},
+        Vertex{v3{-1,-1, 1}*scale, v3{-1, 0, 0}, v2{1,0}, white, {}, {}},
+        Vertex{v3{-1, 1,-1}*scale, v3{-1, 0, 0}, v2{0,1}, white, {}, {}},
+        Vertex{v3{-1, 1, 1}*scale, v3{-1, 0, 0}, v2{1,1}, white, {}, {}},
 
-        Vertex{v3{-1, 1, 1}*scale, v3{ 0, 1, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1, 1, 1}*scale, v3{ 0, 1, 0}, v2{1,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1, 1,-1}*scale, v3{ 0, 1, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1, 1,-1}*scale, v3{ 0, 1, 0}, v2{1,1}, RGBA_WHITE, {}, {}},
+        Vertex{v3{-1, 1, 1}*scale, v3{ 0, 1, 0}, v2{0,0}, white, {}, {}},
+        Vertex{v3{ 1, 1, 1}*scale, v3{ 0, 1, 0}, v2{1,0}, white, {}, {}},
+        Vertex{v3{-1, 1,-1}*scale, v3{ 0, 1, 0}, v2{0,1}, white, {}, {}},
+        Vertex{v3{ 1, 1,-1}*scale, v3{ 0, 1, 0}, v2{1,1}, white, {}, {}},
 
-        Vertex{v3{ 1,-1, 1}*scale, v3{ 0, 1, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1,-1, 1}*scale, v3{ 0, 1, 0}, v2{1,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1,-1,-1}*scale, v3{ 0, 1, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1,-1,-1}*scale, v3{ 0, 1, 0}, v2{1,1}, RGBA_WHITE, {}, {}},
+        Vertex{v3{ 1,-1, 1}*scale, v3{ 0, 1, 0}, v2{0,0}, white, {}, {}},
+        Vertex{v3{-1,-1, 1}*scale, v3{ 0, 1, 0}, v2{1,0}, white, {}, {}},
+        Vertex{v3{ 1,-1,-1}*scale, v3{ 0, 1, 0}, v2{0,1}, white, {}, {}},
+        Vertex{v3{-1,-1,-1}*scale, v3{ 0, 1, 0}, v2{1,1}, white, {}, {}},
 
-        Vertex{v3{ 1,-1,-1}*scale, v3{ 0, 1, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1,-1,-1}*scale, v3{ 0, 1, 0}, v2{1,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1, 1,-1}*scale, v3{ 0, 1, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1, 1,-1}*scale, v3{ 0, 1, 0}, v2{1,1}, RGBA_WHITE, {}, {}},
+        Vertex{v3{ 1,-1,-1}*scale, v3{ 0, 1, 0}, v2{0,0}, white, {}, {}},
+        Vertex{v3{-1,-1,-1}*scale, v3{ 0, 1, 0}, v2{1,0}, white, {}, {}},
+        Vertex{v3{ 1, 1,-1}*scale, v3{ 0, 1, 0}, v2{0,1}, white, {}, {}},
+        Vertex{v3{-1, 1,-1}*scale, v3{ 0, 1, 0}, v2{1,1}, white, {}, {}},
 
-        Vertex{v3{-1,-1, 1}*scale, v3{ 0, 1, 0}, v2{0,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1,-1, 1}*scale, v3{ 0, 1, 0}, v2{1,0}, RGBA_WHITE, {}, {}},
-        Vertex{v3{-1, 1, 1}*scale, v3{ 0, 1, 0}, v2{0,1}, RGBA_WHITE, {}, {}},
-        Vertex{v3{ 1, 1, 1}*scale, v3{ 0, 1, 0}, v2{1,1}, RGBA_WHITE, {}, {}},
+        Vertex{v3{-1,-1, 1}*scale, v3{ 0, 1, 0}, v2{0,0}, white, {}, {}},
+        Vertex{v3{ 1,-1, 1}*scale, v3{ 0, 1, 0}, v2{1,0}, white, {}, {}},
+        Vertex{v3{-1, 1, 1}*scale, v3{ 0, 1, 0}, v2{0,1}, white, {}, {}},
+        Vertex{v3{ 1, 1, 1}*scale, v3{ 0, 1, 0}, v2{1,1}, white, {}, {}},
     };
     u32 indices[] = {
         0, 3, 1, 1, 3, 2,

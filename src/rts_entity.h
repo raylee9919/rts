@@ -10,6 +10,7 @@ enum Entity_Type {
     ENTITY_TYPE_SOLDIER,
     ENTITY_TYPE_CASTLE,
     ENTITY_TYPE_SWORD,
+    ENTITY_TYPE_KNIGHT,
 };
 
 typedef u16 Entity_Command;

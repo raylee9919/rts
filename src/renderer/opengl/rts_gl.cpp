@@ -156,7 +156,7 @@ gl_pbr_bind_texture_and_set_flags(Opengl *gl, Mesh *mesh, GLuint slot, GLenum wr
             *flags = (*flags | Pbr_Has_roughness);
             break;
 
-            case Pbr_Texture_Metalic:
+            case Pbr_Texture_Metallic:
             *flags = (*flags | Pbr_Has_metalic);
             break;
 
@@ -735,7 +735,7 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 gl_pbr_bind_texture_and_set_flags(gl, mesh, 0, GL_REPEAT, 1, Pbr_Texture_Albedo, &flags);
                 gl_pbr_bind_texture_and_set_flags(gl, mesh, 1, GL_REPEAT, 1, Pbr_Texture_Normal, &flags);
                 gl_pbr_bind_texture_and_set_flags(gl, mesh, 2, GL_REPEAT, 1, Pbr_Texture_Roughness, &flags);
-                gl_pbr_bind_texture_and_set_flags(gl, mesh, 3, GL_REPEAT, 1, Pbr_Texture_Metalic, &flags);
+                gl_pbr_bind_texture_and_set_flags(gl, mesh, 3, GL_REPEAT, 1, Pbr_Texture_Metallic, &flags);
                 gl_pbr_bind_texture_and_set_flags(gl, mesh, 4, GL_REPEAT, 1, Pbr_Texture_Emission, &flags);
                 gl_pbr_bind_texture_and_set_flags(gl, mesh, 5, GL_REPEAT, 1, Pbr_Texture_Orm, &flags);
 
@@ -752,8 +752,8 @@ opengl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
                 glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
                 glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, normal)));
                 glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, uv)));
-                glVertexAttribPointer(3, 4, GL_FLOAT, true,  sizeof(Vertex), (GLvoid *)(offset_of(Vertex, color)));
-                glVertexAttribPointer(4, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, tangent)));
+                glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(Vertex), (GLvoid *)(offset_of(Vertex, color)));
+                glVertexAttribPointer(4, 4, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, tangent)));
                 glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
                 glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
 

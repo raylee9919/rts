@@ -71,7 +71,7 @@ if "%assimp%" == "1" (
 
 :: FBX
 if "%fbx%" == "1" (
-    call %compiler% %flags_compile% ..\src\fbx\fbx.cpp -Fe:fbx.exe -I../src/third_party/ufbx -link %flags_linker%
+    call %compiler% %flags_compile% ..\src\importer\fbx_importer.cpp -Fe:fbx.exe -I../src/third_party/ufbx -link %flags_linker%
 )
 
 :: Metaprogramming

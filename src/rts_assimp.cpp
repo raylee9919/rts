@@ -267,6 +267,7 @@ static void make_model(State *state, Asset_Model *model_out) {
             vert_out->tangent.x = mesh->mTangents[vi].x;
             vert_out->tangent.y = mesh->mTangents[vi].y;
             vert_out->tangent.z = mesh->mTangents[vi].z;
+            vert_out->tangent.w = 1.f; // @Fix
 
             // Initialize joint data.
             for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
@@ -519,14 +520,13 @@ int main(void)
         //utf8lit("../data/input/knight_idle.fbx"),
         //utf8lit("../data/input/knight_run.fbx"),
 
-        //utf8lit("../data/input/model/skeleton_lord_rest_pose.dae"),
+        utf8lit("../data/input/model/skeleton_lord_rest_pose.dae"),
         //utf8lit("../data/input/model/skeleton_lord_idle.dae"),
         //utf8lit("../data/input/model/skeleton_lord_run.dae"),
         //utf8lit("../data/input/model/skeleton_lord_die.dae"),
         //utf8lit("../data/input/model/skeleton_lord_attack.dae"),
         //utf8lit("../data/input/model/sword.dae"),
         //utf8lit("../data/input/model/plane.fbx"),
-        //utf8lit("../data/input/model/castle.fbx"),
     };
 
     Assimp::Importer importer;
@@ -596,7 +596,6 @@ int main(void)
                 fprintf(f, "%u\n", (u32)joints.size());
                 fprintf(f, "\n");
 
-                int idx = 0;
                 for (auto joint : joints) {
                     fprintf(f, "%u %.*s\n", joint.length, joint.length, joint.name);
                     fprintf(f, "%d\n", joint.parent);
@@ -626,17 +625,23 @@ int main(void)
             Asset_Model *model = new Asset_Model;
             make_model(state, model);
 
+            int ver_major = 0;
+            int ver_minor = 1;
+            int ver_patch = 0;
+
             // @Temporary
             Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.triangle_mesh", file_name_no_ext);
             FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
+                fprintf(f, "v%d.%d.%d\n\n", ver_major, ver_minor, ver_patch);
+
                 fprintf(f, "%u\n\n", model->mesh_count);
 
                 for (u32 mi = 0; mi < model->mesh_count; ++mi) {
                     Asset_Mesh *mesh = &model->meshes[mi];
 
-                    fprintf(f, "%u %.*s\n", mesh->length, mesh->length, mesh->name);
+                    fprintf(f, ";%.*s\n", mesh->length, mesh->name);
 
                     fprintf(f, "%u\n", mesh->vertex_count);
                     for (u32 vi = 0; vi < mesh->vertex_count; ++vi) {
@@ -645,7 +650,7 @@ int main(void)
                         fprintf(f, "%.6f %.6f %.6f\n", vert->normal.x, vert->normal.y, vert->normal.z);
                         fprintf(f, "%.6f %.6f\n", vert->uv.x, vert->uv.y);
                         fprintf(f, "%.6f %.6f %.6f %.6f\n", vert->color.r, vert->color.g, vert->color.b, vert->color.a);
-                        fprintf(f, "%.6f %.6f %.6f\n", vert->tangent.x, vert->tangent.y, vert->tangent.z);
+                        fprintf(f, "%.6f %.6f %.6f %.6f\n", vert->tangent.x, vert->tangent.y, vert->tangent.z, vert->tangent.w);
                         for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
                             fprintf(f, "%d ", vert->node_ids[i]);
                         }

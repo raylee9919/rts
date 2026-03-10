@@ -41,7 +41,7 @@ internal Animation_Joint* animation_node_from_joint_id(Animation* anim, s32 id) 
         }
     }
 
-    return nullptr;
+    return NULL;
 }
 
 void Pose_Channel::eval() {
@@ -157,7 +157,7 @@ void Animation_Player::eval() {
             weights_sum += blend_weights[ch];
         }
     }
-    if (weights_sum < 0.000001f) {
+    if (weights_sum < 1e-8f) {
         return;
     }
     f32 denom = 1.f / weights_sum; // normalize
@@ -188,7 +188,7 @@ void Animation_Player::eval() {
             blended_local_transforms[ji] = blended_local_transforms[parent] * blended_local_transforms[ji];
         }
 
-        skinning_matrices[ji] = blended_local_transforms[ji] * joint->inverse_bind_pose;
+        skinning_matrices[ji] = skeleton->root_transform * blended_local_transforms[ji] * joint->inverse_bind_pose;
     }
 }
 

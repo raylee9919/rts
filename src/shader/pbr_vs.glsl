@@ -10,7 +10,7 @@ layout (location = 0) in vec3 vP;
 layout (location = 1) in vec3 vN;
 layout (location = 2) in vec2 vUV;
 layout (location = 3) in vec4 vC;
-layout (location = 4) in vec3 v_tangent;
+layout (location = 4) in vec4 v_tangent;
 
 uniform mat4                    bone_transforms[MAX_BONE_PER_MESH];
 layout (location = 5) in int    bone_ids[MAX_BONE_PER_VERTEX];
@@ -40,7 +40,12 @@ void main()
                 break;
             }
         }
-        M = world_transform * (bone_transform / weight_sum);
+
+        if (weight_sum > 1e-8f) {
+            bone_transform /= weight_sum;
+        }
+
+        M = world_transform * bone_transform;
     } else {
         bone_transform = mat4(1.0);
         M = world_transform;
@@ -48,8 +53,9 @@ void main()
 
 
     fN = normalize(mat3(M) * vN);
-    vec3 tangent = normalize(mat3(M) * v_tangent);
-    vec3 bitangent = normalize(cross(fN, tangent));
+    vec3 tangent = normalize(mat3(M) * v_tangent.xyz);
+    vec3 bitangent = normalize(cross(fN, tangent)) * v_tangent.w;
+
     TBN = mat3(tangent, bitangent, fN);
 
     vec4 skinned_pos = M * vec4(vP,1);

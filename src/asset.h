@@ -22,9 +22,10 @@
 typedef s32 Joint_Id;
 
 
-struct Asset_Name {
-    u8 length;
-    u8 text[64];
+struct Asset_Version {
+    u8 minor;
+    u8 major;
+    u8 patch;
 };
 
 struct Asset_Texture {
@@ -42,7 +43,7 @@ struct Asset_Vertex {
     v3  normal;
     v2  uv;
     v4  color;
-    v3  tangent;
+    v4  tangent;
 
     s32 node_ids[MAX_BONE_PER_VERTEX];
     f32 node_weights[MAX_BONE_PER_VERTEX];
@@ -116,8 +117,8 @@ struct Vertex {
     v3 position;
     v3 normal;
     v2 uv;
-    v4 color;
-    v3 tangent;
+    u32 color;
+    v4 tangent; // w: sign
 
     s32 node_ids[MAX_BONE_PER_VERTEX];
     f32 node_weights[MAX_BONE_PER_VERTEX];
@@ -127,7 +128,7 @@ enum Pbr_Texture_Type
 {
     Pbr_Texture_Albedo,
     Pbr_Texture_Normal,
-    Pbr_Texture_Metalic,
+    Pbr_Texture_Metallic,
     Pbr_Texture_Roughness,
     Pbr_Texture_Emission,
     Pbr_Texture_Orm,
@@ -136,7 +137,9 @@ enum Pbr_Texture_Type
 };
 
 struct Mesh  {
-    Asset_Name name;
+    Utf8 name;
+
+    m4x4    global_transform;
 
     u32     num_vertices;
     Vertex* vertices;
@@ -176,13 +179,15 @@ struct Model {
 // Skeleton
 //
 struct Joint {
-    Asset_Name name;
+    Utf8 name;
     s32  parent;
     m4x4 local_transform;
     m4x4 inverse_bind_pose;
 };
 
 struct Skeleton {
+    m4x4 root_transform; // not the root bone's transform.
+
     u32 num_joints;
     Joint *joints;
 };
@@ -212,7 +217,7 @@ struct Animation_Joint_Entry {
 };
 
 struct Animation {
-    Asset_Name name;
+    Utf8 name;
 
     f32 duration;
     u32 num_keyframes;

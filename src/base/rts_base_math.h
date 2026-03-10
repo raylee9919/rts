@@ -68,6 +68,10 @@ union v4 {
 #if SSE_ENABLED
     __m128 sse;
 #endif
+
+    v4() = default;
+    v4(f32 f1, f32 f2, f32 f3, f32 f4);
+    v4(f32 f);
 };
 
 union m4x4 {

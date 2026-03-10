@@ -61,7 +61,8 @@ void debug_print_entity_hierarchy(Entity* entity, int depth = 0) {
     }
 }
 
-Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
+Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) 
+{
     Entity* soldier            = entity_alloc();
     soldier->type              = ENTITY_TYPE_SOLDIER;
     soldier->flags             = (ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED |
@@ -114,7 +115,62 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) {
     return soldier;
 }
 
-Entity* debug_attach_sword(Entity* entity, Game_Assets* assets) {
+Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets) 
+{
+    Entity* e = entity_alloc();
+    e->type   = ENTITY_TYPE_SOLDIER;
+    e->flags  = (ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED |
+                 ENTITY_FLAG_COLLIDEABLE | ENTITY_FLAG_SHOWS_ON_MINIMAP);
+
+    e->team = team;
+
+    e->radius    = 0.5f;
+    e->max_speed = 3.0f;
+
+    e->min_t = 0.0f;
+    e->max_t = 0.5f;
+
+
+    e->max_hitpoints = 40.f;
+    e->hitpoints = e->max_hitpoints;
+
+    e->find_target_max_t = 0.5f;
+
+    e->position    = v3(x, 0.f, z);
+    e->orientation = {};
+    e->scaling     = v3(1.f);
+
+    e->model    = assets->knight_model;
+    e->skeleton = assets->knight_skeleton;
+
+    e->idle_animation    = assets->knight_idle;
+    e->running_animation = assets->knight_run;
+    e->die_animation     = assets->knight_die;
+    e->attack_animation  = assets->knight_attack;
+
+    // @Todo: sync with anim.
+    e->attack_max_t      = e->attack_animation->duration;
+    e->damage_t          = 0.5f;
+    assert(e->damage_t < e->attack_max_t);
+
+    e->animation_player = alloc_animation_player();
+    e->animation_player->init(e->skeleton);
+
+    // @Hack:
+    u32 num_joints = e->skeleton->num_joints;
+    e->skinning_matrices = push_array(game_state->entity_arena, m4x4, num_joints);
+    for (u32 i = 0; i < num_joints; ++i) {
+        e->skinning_matrices[i] = identity();
+    }
+
+    Entity* parent = nullptr;
+    entity_init(e, parent);
+
+    return e;
+}
+
+Entity* debug_attach_sword(Entity* entity, Game_Assets* assets) 
+{
     // Create a sword and attach it to soldier.
     //
     Entity* sword = entity_alloc();
@@ -136,7 +192,8 @@ Entity* debug_attach_sword(Entity* entity, Game_Assets* assets) {
     return sword;
 }
 
-Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets) {
+Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets) 
+{
     Entity* castle = entity_alloc();
     castle->type   = ENTITY_TYPE_CASTLE;
     castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_SHOWS_ON_MINIMAP;
@@ -151,6 +208,18 @@ Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets) {
     entity_init(castle, nullptr);
 
     return castle;
+}
+
+Mesh *mesh_from_name(Model *model, Utf8 name)
+{
+    for (u32 i = 0; i < model->num_meshes; ++i) {
+        Mesh *mesh = &model->meshes[i];
+        Utf8 n = mesh->name;
+        if (n == name) {
+            return mesh;
+        }
+    }
+    return NULL;
 }
 
 extern "C" __declspec(dllexport)
@@ -220,20 +289,35 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             assets->skeleton_model = push_struct(asset_arena, Model);
             {
                 auto *model = assets->skeleton_model;
-                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/skeleton_lord.triangle_mesh", platform->data_path));
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/helmetColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/helmetNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/helmetMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[1].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/helmetRoughness.sbmp", platform->data_path), asset_arena);
+                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/skeleton.triangle_mesh", platform->data_path));
 
-                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/bodyColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/bodyMetalic.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/bodyNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/bodyRoughness.sbmp", platform->data_path), asset_arena);
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("body-lib"));
+                    assert(mesh);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/bodyColor.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/bodyMetalic.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/bodyNormal.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/bodyRoughness.sbmp", platform->data_path), asset_arena);
+                }
 
-                asset_load_image(&model->meshes[2].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/clothColor.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[2].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/clothNormal.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&model->meshes[2].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/clothRoughness.sbmp", platform->data_path), asset_arena);
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("helm-lib"));
+                    assert(mesh);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/helmetColor.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/helmetNormal.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/helmetMetalic.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/helmetRoughness.sbmp", platform->data_path), asset_arena);
+                }
+
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("scabbard_2-lib"));
+                    assert(mesh);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/clothColor.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/clothNormal.sbmp", platform->data_path), asset_arena);
+                    asset_load_image(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/clothRoughness.sbmp", platform->data_path), asset_arena);
+                }
+
+
                 
                 assets->skeleton_idle = push_struct(asset_arena, Animation);
                 load_animation(asset_arena, assets->skeleton_idle, utf8f(scratch.arena, "%S/animation/skeleton_lord_idle.keyframed_animation", platform->data_path));
@@ -251,13 +335,131 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
             assets->skeleton_skeleton = push_struct(asset_arena, Skeleton);
             load_skeleton(asset_arena, assets->skeleton_skeleton, utf8f(scratch.arena, "%S/skeleton/skeleton_lord.skeleton", platform->data_path));  
 
+
+            // Knight
+            assets->knight_model = push_struct(asset_arena, Model);
+            {
+                // Model
+                auto *model = assets->knight_model;
+                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/knight.triangle_mesh", platform->data_path));
+
+                // Skeleton
+                assets->knight_skeleton = push_struct(asset_arena, Skeleton);
+                load_skeleton(asset_arena, assets->knight_skeleton, utf8f(scratch.arena, "%S/skeleton/knight.skeleton", platform->data_path));  
+
+                // Animations
+                assets->knight_idle = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->knight_idle, utf8f(scratch.arena, "%S/animation/knight_idle.keyframed_animation", platform->data_path));
+
+                assets->knight_run = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->knight_run, utf8f(scratch.arena, "%S/animation/knight_run.keyframed_animation", platform->data_path));
+
+                assets->knight_attack = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->knight_attack, utf8f(scratch.arena, "%S/animation/knight_attack.keyframed_animation", platform->data_path));
+
+                assets->knight_die = push_struct(asset_arena, Animation);
+                load_animation(asset_arena, assets->knight_die, utf8f(scratch.arena, "%S/animation/knight_die.keyframed_animation", platform->data_path));
+                
+                // Textures
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Head"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_head_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_head_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_head_roughness.tga", platform->data_path), asset_arena);
+                }
+
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Eyes"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_eye_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_eye_normal.tga", platform->data_path), asset_arena);
+                }
+
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Helm2"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_helm_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_helm_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_helm_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_helm_metallic.tga", platform->data_path), asset_arena);
+                }
+
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Arms"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_arms_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.tga", platform->data_path), asset_arena);
+                }
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Acessories"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_arms_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.tga", platform->data_path), asset_arena);
+                }
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Acessories2"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_arms_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.tga", platform->data_path), asset_arena);
+                }
+
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Breast_Armor"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.tga", platform->data_path), asset_arena);
+                }
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Leegs_Armor1"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.tga", platform->data_path), asset_arena);
+                }
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("pants"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.tga", platform->data_path), asset_arena);
+                }
+
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Weapon2"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_sword_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_sword_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_sword_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_sword_metallic.tga", platform->data_path), asset_arena);
+                }
+                {
+                    auto *mesh = mesh_from_name(model, utf8lit("Shield"));
+                    assert(mesh);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/knight_shield_albedo.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/knight_shield_normal.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/knight_shield_roughness.tga", platform->data_path), asset_arena);
+                    asset_load_image_general_format(&mesh->textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/knight_shield_metallic.tga", platform->data_path), asset_arena);
+                }
+            }
+
             assets->plane_model = push_struct(asset_arena, Model);
             {
-                load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane.triangle_mesh", platform->data_path));
+                load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane.triangle_mesh", platform->data_path), v3(100.f)); // @Temporary: Scaled
                 asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.sbmp", platform->data_path), asset_arena);
                 asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.sbmp", platform->data_path), asset_arena);
                 asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.sbmp", platform->data_path), asset_arena);
-                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.sbmp", platform->data_path), asset_arena);
+                asset_load_image(&assets->plane_model->meshes[0].textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.sbmp", platform->data_path), asset_arena);
             }
             
             assets->sword_model = push_struct(asset_arena, Model);
@@ -266,18 +468,14 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 load_model(asset_arena, assets->sword_model, utf8f(scratch.arena, "%S/mesh/sword.triangle_mesh", platform->data_path));
                 asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/sword_albedo.jpg", platform->data_path), asset_arena);
                 asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/sword_normal.jpg", platform->data_path), asset_arena);
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metalic], utf8f(scratch.arena, "%S/textures/sword_metalic.jpg", platform->data_path), asset_arena);
+                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Metallic], utf8f(scratch.arena, "%S/textures/sword_metalic.jpg", platform->data_path), asset_arena);
                 asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Roughness], utf8f(scratch.arena, "%S/textures/sword_roughness.jpg", platform->data_path), asset_arena);
             }
-            
 
             assets->castle_model = push_struct(asset_arena, Model);
             {
                 auto* model = assets->castle_model;
-                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/castle.triangle_mesh", platform->data_path), v3(8.f));
-
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Albedo], utf8f(scratch.arena, "%S/textures/castle_albedo.png", platform->data_path), asset_arena);
-                asset_load_image_general_format(&model->meshes[0].textures[Pbr_Texture_Normal], utf8f(scratch.arena, "%S/textures/castle_normal.png", platform->data_path), asset_arena);
+                load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/castle.triangle_mesh", platform->data_path), v3(0.05f));
             }
             
             asset_load_image(&game_state->assets->debug_bitmap, utf8f(scratch.arena, "%S/textures/doggo.sbmp", platform->data_path), asset_arena);
@@ -301,7 +499,7 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
                 game_camera->focal_length = 1.5f;
                 game_camera->N            = 0.5f;
                 game_camera->F            = 100000.0f;
-                game_camera->position     = v3(0.f, 20.f, 20.f);
+                game_camera->position     = v3(0.f, 18.f, 20.f);
                 game_camera->orientation  = euler_to_quaternion(radian_from_degree(-55.f), 0.f, 0.f);
                 game_camera->flags |= ENTITY_FLAG_GAME_CAMERA;
                 entity_init(game_camera, nullptr);
@@ -344,14 +542,14 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 1;
+            const int num_soldiers = 100;
             const int num_rows = 15;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);
                 f32 z = 0.f + 1.f*(i % num_rows);
-                Entity* soldier = debug_spawn_soldier(x, z, TEAM_PLAYER, assets);
+                Entity* soldier = debug_spawn_knight(x, z, TEAM_PLAYER, assets);
 
-                debug_attach_sword(soldier, assets);
+                //debug_attach_sword(soldier, assets);
             }
 
 #if 1
@@ -365,7 +563,42 @@ GAME_UPDATE_AND_RENDER(game_update_and_render)
 #endif
 
             debug_spawn_castle( 0.f,  0.f, TEAM_PLAYER, assets);
-            debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
+            //debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
+
+
+            
+            if (0) {
+                Entity* knight = entity_alloc();
+                knight->type   = ENTITY_TYPE_KNIGHT;
+                knight->flags  = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_SHOWS_ON_MINIMAP;
+
+                knight->position    = v3(5.f, 0.f, 5.f);
+                knight->orientation = Quaternion(1,0,0,0);
+                knight->scaling     = v3(1.f);
+
+                knight->model       = assets->knight_model;
+                knight->skeleton    = assets->knight_skeleton;
+
+                // @Hack:
+                u32 num_joints = knight->skeleton->num_joints;
+                knight->skinning_matrices = push_array(game_state->entity_arena, m4x4, num_joints);
+
+                for (u32 i = 0; i < num_joints; ++i) {
+                    auto *joint = &knight->skeleton->joints[i];
+                    s32 parent = joint->parent;
+                    if (parent == -1) {
+                        knight->skinning_matrices[i] = joint->local_transform;
+                    } else {
+                        knight->skinning_matrices[i] = knight->skinning_matrices[parent] * joint->local_transform;
+                    }
+                }
+
+                for (u32 i = 0; i < num_joints; ++i) {
+                    knight->skinning_matrices[i] = knight->skinning_matrices[i] * knight->skeleton->joints[i].inverse_bind_pose;
+                }
+
+                entity_init(knight, nullptr);
+            }
         }
     }
     

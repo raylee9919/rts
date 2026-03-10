@@ -54,6 +54,26 @@ struct Asset_Loader {
         return result;
     }
 
+    Asset_Version parse_version() {
+        assert( cursor && cursor < end );
+        eat_whitespace();
+
+        Asset_Version ver = {};
+
+        if (peek() == 'v') {
+            eat();
+            ver.major = (u8)parse_u32();
+            assert(peek()=='.');
+            eat();
+            ver.minor = (u8)parse_u32();
+            assert(peek()=='.');
+            eat();
+            ver.patch = (u8)parse_u32();
+        }
+
+        return ver;
+    }
+
     s32 parse_s32() {
         assert( cursor && cursor < end );
         eat_whitespace();
@@ -171,18 +191,38 @@ struct Asset_Loader {
         return result;
     }
 
-    Asset_Name parse_name(u8 length) {
-        Asset_Name result = {};
-        assert(length + 1 <= array_count(result.text));
+    Utf8 parse_string_by_length(Arena *arena, u8 length) {
+        Utf8 result = {};
 
-        assert( cursor && cursor < end );
+        assert(cursor && cursor < end);
         eat_whitespace();
 
-        result.length = length;
-        memcpy(result.text, cursor, length);
-        result.text[length] = 0;
+        result.len = length;
+        result.str = push_array(arena, u8, length + 1);
+        memcpy(result.str, cursor, length);
 
         cursor += length;
+
+        return result;
+    }
+
+    Utf8 parse_string_until_new_line(Arena *arena) {
+        Utf8 result = {};
+
+        int len = 0;
+        for (;;) {
+            u8 c = peek();
+            if (c == '\r' || c == '\n') {
+                break;
+            }
+
+            len++;
+            eat();
+        }
+
+        result.len = len;
+        result.str = push_array(arena, u8, len + 1);
+        memcpy(result.str, cursor - len, len);
 
         return result;
     }
@@ -205,6 +245,8 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
 
     printf("\nLoading model '%s'\n", file_path.str);
 
+    Asset_Version ver = l.parse_version();
+
     u32 num_meshes = l.parse_u32();
     model_out->num_meshes = num_meshes;
     model_out->meshes = push_array(arena, Mesh, num_meshes);
@@ -216,10 +258,16 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
     for (u32 mi = 0; mi < num_meshes; ++mi) {
         Mesh *mesh = &model_out->meshes[mi];
 
-        u8 str_len = (u8)l.parse_u32();
-        mesh->name = l.parse_name(str_len);
-
-
+        if (ver.major >= 0 && ver.minor >= 1) {
+            l.eat_whitespace();
+            assert(l.peek() == ';');
+            l.eat();
+            mesh->name = l.parse_string_until_new_line(arena);
+        } else {
+            u8 str_len = (u8)l.parse_u32();
+            mesh->name = l.parse_string_by_length(arena, str_len);
+        }
+        
         // Parse vertices.
         //
         u32 num_vertices = l.parse_u32();
@@ -228,15 +276,20 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
 
         num_total_vertices += num_vertices;
 
-        printf("  Mesh #%u '%s' has %u vertices.\n", mi, mesh->name.text, num_vertices);
+        printf("  Mesh #%u '%s' has %u vertices.\n", mi, mesh->name.str, num_vertices);
 
         for (u32 vi = 0; vi < num_vertices; ++vi) {
             Vertex *vert = &mesh->vertices[vi];
             vert->position = hadamard(l.parse_v3(), scale);
             vert->normal   = l.parse_v3();
             vert->uv       = l.parse_v2();
-            vert->color    = l.parse_v4();
-            vert->tangent  = l.parse_v3();
+            v4 color       = l.parse_v4();
+            u32 r = (u32)(color.r * 255.f + 0.5f);
+            u32 g = (u32)(color.g * 255.f + 0.5f);
+            u32 b = (u32)(color.b * 255.f + 0.5f);
+            u32 a = (u32)(color.a * 255.f + 0.5f);
+            vert->color = r | (g<<8) | (b<<16) | (a<<24);
+            vert->tangent  = l.parse_v4();
 
             for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) vert->node_ids[i] = l.parse_s32();
             for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) vert->node_weights[i] = l.parse_f32();
@@ -252,6 +305,8 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
             mesh->indices[ii] = l.parse_u32();
         }
     }
+
+    model_out->num_meshes = num_meshes;
 
     printf("  Total number of vertices: %u\n", num_total_vertices);
 
@@ -280,11 +335,13 @@ internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
     skel_out->num_joints = num_joints;
     skel_out->joints = push_array(arena, Joint, num_joints);
 
+    skel_out->root_transform = l.parse_m4x4();
+
     for (u32 ji = 0; ji < num_joints; ++ji) {
         Joint *joint = &skel_out->joints[ji];
 
         u8 name_len = (u8)l.parse_u32();
-        joint->name = l.parse_name(name_len);
+        joint->name = l.parse_string_by_length(arena, name_len);
 
         s32 parent = l.parse_s32();
         joint->parent = parent;
@@ -320,7 +377,7 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     printf("\nLoading animation '%s'\n", file_path.str);
 
     u8 name_len = (u8)l.parse_u32();
-    anim_out->name = l.parse_name(name_len);
+    anim_out->name = l.parse_string_by_length(arena, name_len);
 
     f32 duration      = l.parse_f32();
     u32 num_keyframes = l.parse_u32();

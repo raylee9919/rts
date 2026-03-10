@@ -11,9 +11,6 @@ struct Game_Assets {
 
     Bitmap debug_bitmap;
 
-    Model *skeleton_model;
-    Skeleton *skeleton_skeleton;
-
     Model* castle_model;
     Model* sword_model;
     Model* plane_model;
@@ -21,10 +18,19 @@ struct Game_Assets {
     Mesh   skybox_mesh;
     Bitmap skybox_textures[6];
 
+    Model *skeleton_model;
+    Skeleton *skeleton_skeleton;
     Animation* skeleton_idle;
     Animation* skeleton_run;
     Animation* skeleton_die;
     Animation* skeleton_attack;
+
+    Model *knight_model;
+    Skeleton *knight_skeleton;
+    Animation* knight_idle;
+    Animation* knight_run;
+    Animation* knight_die;
+    Animation* knight_attack;
 };
 
 struct Chunk {

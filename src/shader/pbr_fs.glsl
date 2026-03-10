@@ -53,13 +53,16 @@ vec3 schlick_ggx(float ndoti, float ndoto, float roughness)
 {
     float r = roughness + 1.0;
     float k = (r * r) / 8.0;
-    //vec3 result = vec3(r);
     vec3 result = vec3(schlick_g1(ndoti, k) * schlick_g1(ndoto, k));
     return result;
 }
 
 void main()
 {
+    // @Todo:
+    // Bunch of static branches. I assume it isn't as bad as I think, but using 
+    // default textures would be nicer.
+    //
     if ((flags & Pbr_No_Lighting) == 0) 
     {
         vec3 DEBUG_light_radiance = vec3(4.f, 4.f, 4.f);
@@ -70,7 +73,7 @@ void main()
         if ((flags & Pbr_Has_albedo) != 0) {
             albedo = pow(texture(albedo_texture, fUV).rgb, vec3(2.2));
         } else {
-            albedo = pow(fC.rgb, vec3(2.2));
+            albedo = fC.rgb;
         }
 
         vec3 normal;
@@ -81,18 +84,18 @@ void main()
             normal = fN;
         }
 
-        float metalic;
-        if ((flags & Pbr_Has_roughness) != 0) {
-            metalic = texture(metalic_texture, fUV).r;
-        } else {
-            metalic = 0.0;
-        }
-
         float roughness;
-        if ((flags & Pbr_Has_metalic) != 0) {
+        if ((flags & Pbr_Has_roughness) != 0) {
             roughness = texture(roughness_texture, fUV).r;
         } else {
             roughness = 1.0;
+        }
+
+        float metallic;
+        if ((flags & Pbr_Has_metalic) != 0) {
+            metallic = texture(metalic_texture, fUV).r;
+        } else {
+            metallic = 0.0;
         }
 
         vec3 emission;
@@ -111,14 +114,14 @@ void main()
         float ndoto = max(0, dot(normal, to_eye));
 
         vec3 f_dielectric = vec3(0.04);
-        vec3 f0 = mix(f_dielectric, albedo, metalic);
-        vec3 f = schlick_fresnel(f0, max(0.0, dot(halfway, to_eye)));
-        vec3 kd = mix(vec3(1) - f, vec3(0,0,0), metalic);
+        vec3 f0 = mix(f_dielectric, albedo, metallic);
+        vec3 f = schlick_fresnel(f0, max(0.0, dot(halfway, to_light)));
+        vec3 kd = (vec3(1.0) - f) * (1.0 - metallic);
         vec3 diffuse_brdf = kd * albedo;
 
         vec3 d = ndf_ggx(ndoth, roughness);
         vec3 g = schlick_ggx(ndoti, ndoto, roughness);
-        vec3 specular_brdf = (f * d * g) / max(1e-5, 4.0 * ndoti * ndoto);
+        vec3 specular_brdf = (f * d * g) / 4.0;
 
         vec3 radiance = DEBUG_light_radiance;
 
@@ -159,15 +162,20 @@ void main()
                 v2 offset = poisson_disk[i] * inv_possion_radius;
                 float depth = texture(shadowmaps, vec3(shadowmap_uv + offset, layer)).r;
                 if (frag.z > depth + bias) {
-                    shadowness += 0.8;
+                    shadowness += 0.5;
                 }
             }
             const float inv_sample_count = 1.0/16.0;
             shadowness *= inv_sample_count;
         }
 
-        result_color.rgb *= (1.0f - shadowness);
+        result_color.rgb *= (1.0 - shadowness);
         result_color *= tint;
+
+        //result_color.rgb = normal;
+
+
+
 
 // CSM Layer debugging
 #if 0
@@ -177,6 +185,7 @@ void main()
             vec3(0,0,1),
         };
         result_color.rgb = colors[layer % 3];
+
 #endif
     } else {
         result_color = wireframe_color;

@@ -395,6 +395,16 @@ f32 distance(v2 a, v2 b) {
 //
 // Vector4 
 //
+v4::v4(f32 f1, f32 f2, f32 f3, f32 f4)
+{
+    sse = _mm_setr_ps(f1, f2, f3, f4);
+}
+
+v4::v4(f32 f)
+{
+    sse = _mm_set1_ps(f);
+}
+
 internal v4
 V4(f32 x) 
 {
