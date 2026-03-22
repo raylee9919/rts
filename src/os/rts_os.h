@@ -255,6 +255,9 @@ typedef OS_FILE_ITERATOR_END(Os_File_Iterator_End);
 
 // Note: System Info
 //
+#define OS_GET_LOGICAL_CORE_COUNT(name) u32 name(void)
+typedef OS_GET_LOGICAL_CORE_COUNT(Os_Get_Logical_Core_Count);
+
 #define OS_QUERY_PAGE_SIZE(name) u64 name(void)
 typedef OS_QUERY_PAGE_SIZE(Os_Query_Page_Size);
 
@@ -308,6 +311,35 @@ typedef OS_GET_MODIFIERS(Os_Get_Modifiers);
 #define OS_GET_MOUSE_POSITION(name) v2 name(Os_Handle window_handle)
 typedef OS_GET_MOUSE_POSITION(Os_Get_Mouse_Position);
 
+// Work Queue
+//
+#define OS_WORK_CALLBACK(name) void name(void *param)
+typedef OS_WORK_CALLBACK(Os_Work_Callback);
+
+struct Os_Work {
+    Os_Work_Callback *callback;
+    void *param;
+};
+
+struct Os_Work_Queue {
+    Os_Work works[1024];
+
+    u32 volatile index_to_write;
+    u32 volatile index_to_read;
+
+    u32 volatile completion_count;
+    u32 volatile completion_goal;
+
+    Os_Handle semaphore;
+};
+
+#define OS_ADD_WORK(name) void name(Os_Work_Queue *queue, Os_Work_Callback *callback, void *param)
+typedef OS_ADD_WORK(Os_Add_Work);
+
+#define OS_COMPLETE_ALL_WORK(name) void name(Os_Work_Queue *queue)
+typedef OS_COMPLETE_ALL_WORK(Os_Complete_All_Work);
+
+
 
 
 
@@ -330,6 +362,7 @@ struct OS
     Os_File_Iterator_Next           *file_iterator_next;
     Os_File_Iterator_End            *file_iterator_end;
 
+    Os_Get_Logical_Core_Count       *get_logical_core_count;
     Os_Query_Page_Size              *query_page_size;
     Os_Caret_Blink_Time             *caret_blink_time;
     Os_String_From_System_Find_Kind *string_from_system_path_kind;
@@ -345,6 +378,9 @@ struct OS
     Os_Event_Poll                   *event_poll;
     Os_Get_Modifiers                *get_modifiers;
     Os_Get_Mouse_Position           *get_mouse_position;
+
+    Os_Add_Work                     *add_work;
+    Os_Complete_All_Work            *complete_all_work;
 
     Os_Perf_Counter                 *perf_counter;
     u64                             perf_counter_freq;
@@ -369,6 +405,9 @@ struct OS
     b32                             key_is_down[256];
     b32                             key_toggled[256];
     v2                              mouse_position_last;
+
+    u32                             num_logical_cores;
+    Os_Work_Queue                   work_queue;
 };
 global OS *os;
 

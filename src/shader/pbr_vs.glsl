@@ -12,59 +12,69 @@ layout (location = 2) in vec2 vUV;
 layout (location = 3) in vec4 vC;
 layout (location = 4) in vec4 v_tangent;
 
-uniform mat4                    bone_transforms[MAX_BONE_PER_MESH];
 layout (location = 5) in int    bone_ids[MAX_BONE_PER_VERTEX];
 layout (location = 6) in float  bone_weights[MAX_BONE_PER_VERTEX];
-
+uniform mat4                    bone_transforms[MAX_BONE_PER_MESH];
 uniform v2 uv_scale;
 
-out smooth vec3 fP;
-out smooth vec3 fN;
-out smooth vec2 fUV;
-out smooth vec4 fC;
-out smooth mat3 TBN;
+out VS_Out {
+    vec3 fP;
+    vec3 fN;
+    vec3 fT;
+    vec2 fUV;
+    vec4 fC;
+    float fSign;
+} vs_out;
 
 void main()
 {
-    mat4 M;
-    mat4 bone_transform = mat4(0);
-    float weight_sum = 0.0;
+    vec3 model_position = vec3(0);
+    vec3 model_normal   = vec3(0);
+    vec3 model_tangent  = vec3(0);
 
-    if (is_skeletal != 0) {
-        for (int idx = 0; idx < MAX_BONE_PER_VERTEX; ++idx) {
-            int bone_id = bone_ids[idx];
-            if (bone_id != -1) {
-                bone_transform += bone_transforms[bone_id] * bone_weights[idx];
-                weight_sum += bone_weights[idx];
-            } else {
-                break;
-            }
-        }
-
-        if (weight_sum > 1e-8f) {
-            bone_transform /= weight_sum;
-        }
-
-        M = world_transform * bone_transform;
+    if (is_skeletal == 0) {
+        model_position = vP;
+        model_normal   = vN;
+        model_tangent  = v_tangent.xyz;
     } else {
-        bone_transform = mat4(1.0);
-        M = world_transform;
+        f32 weights_sum = 0.0;
+        for (int i = 0; i < MAX_BONE_PER_VERTEX && bone_ids[i] != -1; i += 1) {
+            int bone_id = bone_ids[i];
+            float weight = bone_weights[i];
+            weights_sum += weight;
+
+            mat4 skinning_matrix = bone_transforms[bone_id];
+
+            vec3 pose_position = (skinning_matrix * vec4(vP, 1)).xyz;
+            model_position += pose_position * weight;
+
+            vec3 pose_normal = (skinning_matrix * vec4(vN, 0)).xyz;
+            model_normal += pose_normal * weight;
+
+            vec3 pose_tangent = (skinning_matrix * vec4(v_tangent.xyz, 0)).xyz;
+            model_tangent += pose_tangent * weight;
+        }
+
+        if (weights_sum > 1e-8) {
+            float inv = 1.0 / weights_sum;
+            model_position *= inv;
+        }
     }
 
+    model_position = (world_transform * vec4(model_position, 1)).xyz;
+    model_normal = (world_transform * vec4(model_normal, 0)).xyz;
+    model_tangent = (world_transform * vec4(model_tangent, 0)).xyz;
 
-    fN = normalize(mat3(M) * vN);
-    vec3 tangent = normalize(mat3(M) * v_tangent.xyz);
-    vec3 bitangent = normalize(cross(fN, tangent)) * v_tangent.w;
+    vs_out.fN = normalize(model_normal);
+    vs_out.fT = normalize(model_tangent);
+    vs_out.fT = normalize(vs_out.fT - dot(vs_out.fT, vs_out.fN) * vs_out.fN); // Gram-Schmidt
+    vs_out.fSign = v_tangent.w;
 
-    TBN = mat3(tangent, bitangent, fN);
+    vs_out.fP  = model_position;
+    vs_out.fUV = vUV * uv_scale;
+    vs_out.fC  = vC;
 
-    vec4 skinned_pos = M * vec4(vP,1);
-
-    fP  = skinned_pos.xyz / skinned_pos.w;
-    fUV = vUV * uv_scale;
-    fC  = vC;
-
-    gl_Position = VP * skinned_pos;
+    gl_Position = VP * vec4(model_position, 1);
 }
 
 )";

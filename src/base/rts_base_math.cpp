@@ -30,7 +30,8 @@ f32 binormal_to_normal(f32 x) {
     return x * 0.5f + 0.5f;
 }
 
-f32 square_root(f32 f) {
+f32 square_root(f32 f) 
+{
     // Not much of a perf gain, but it is what it is.
     // Don't do '_mm_store_ss' to get out float. Use '_mm_cvtss_f32'.
     return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(f)));
@@ -135,13 +136,15 @@ f32 triarea2(v2 a, v2 b, v2 c) {
     return p.x*q.y - p.y*q.x;
 }
 
-f64 fmod_cycling(f64 x, f64 y) {
+f64 fmod_cycling(f64 x, f64 y) 
+{
     assert( y != 0 );
     f64 remainder = x - (floor(x/y) * y);
     return remainder;
 }
 
-f32 fmod_cycling(f32 x, f32 y) {
+f32 fmod_cycling(f32 x, f32 y) 
+{
     return (f32)fmod_cycling((f64)x, (f64)y);
 }
 
@@ -358,7 +361,8 @@ v4 hadamard(v4 a, v4 b) {
     return v;
 }
 
-f32 length(v3 v) {
+f32 length(v3 v) 
+{
     f32 len = square_root(v.x*v.x + v.y*v.y + v.z*v.z);
     return len;
 }
@@ -442,32 +446,27 @@ V4(v3 rgb, f32 a)
     return v;
 }
 
-v4 operator + (v4 a, v4 b) {
-#if SSE_ENABLED
+v4 operator + (v4 a, v4 b) 
+{
     v4 v;
     v.sse = _mm_add_ps(a.sse, b.sse);
     return v;
-#else
-    return v4{a.x+b.x, a.y+b.y, a.z+b.z, a.w+b.w};
-#endif
 }
 
-v4 operator * (v4 v, f32 f) {
-#if SSE_ENABLED
+v4 operator * (v4 v, f32 f) 
+{
     __m128 fv = _mm_set1_ps(f);
     v.sse = _mm_mul_ps(fv, v.sse);
     return v;
-#else
-    return v4{v.r*f, v.g*f, v.b*f, v.a*f};
-#endif
 }
 
-v4 operator * (f32 f, v4 v) {
+v4 operator * (f32 f, v4 v) 
+{
     return v * f;
 }
 
-v4 lerp(v4 a, f32 t, v4 b) {
-#if SSE_ENABLED
+v4 lerp(v4 a, f32 t, v4 b) 
+{
     __m128 ax4 = a.sse;
     __m128 bx4 = b.sse;
     __m128 tx4 = _mm_set1_ps(t);
@@ -475,74 +474,36 @@ v4 lerp(v4 a, f32 t, v4 b) {
     v4 v;
     v.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
     return v;
-#else
-    v4 v;
-    v.r = lerp(a.r, t, b.r);
-    v.g = lerp(a.g, t, b.g);
-    v.b = lerp(a.b, t, b.b);
-    v.a = lerp(a.a, t, b.a);
-    return v; 
-#endif
 }
 
 
 //
 // Quaternion
 //
-Quaternion::Quaternion() {
-#if SSE_ENABLED
+Quaternion::Quaternion() 
+{
     sse = _mm_setr_ps(1.f, 0.f, 0.f, 0.f);
-#else
-    w = 1.f;
-    x = 0.f;
-    y = 0.f;
-    z = 0.f;
-#endif
 }
 
-Quaternion::Quaternion(f32 w_, f32 x_, f32 y_, f32 z_) {
-#if SSE_ENABLED
+Quaternion::Quaternion(f32 w_, f32 x_, f32 y_, f32 z_) 
+{
     sse = _mm_setr_ps(w_, x_, y_, z_);
-#else
-    w = w_;
-    x = x_;
-    y = y_;
-    z = z_;
-#endif
 }
 
 Quaternion operator + (Quaternion a, Quaternion b) {
-#if SSE_ENABLED
     Quaternion quat = {};
     quat.sse = _mm_add_ps(a.sse, b.sse);
     return quat;
-#else
-    Quaternion quat = {};
-    quat.w = a.w + b.w;
-    quat.x = a.x + b.x;
-    quat.y = a.y + b.y;
-    quat.z = a.z + b.z;
-    return quat;
-#endif
 }
 
-Quaternion operator - (Quaternion l, Quaternion r) {
-#if SSE_ENABLED
+Quaternion operator - (Quaternion l, Quaternion r) 
+{
     Quaternion quat = {};
     quat.sse = _mm_sub_ps(l.sse, r.sse);
     return quat;
-#else
-    Quaternion quat = {};
-    quat.w = l.w - r.w;
-    quat.x = l.x - r.x;
-    quat.y = l.y - r.y;
-    quat.z = l.z - r.z;
-    return quat;
-#endif
 }
 
-Quaternion
-operator * (Quaternion a, Quaternion b)
+Quaternion operator * (Quaternion a, Quaternion b)
 {
     Quaternion q;
     q.w = (a.w * b.w) - (a.x * b.x) - (a.y * b.y) - (a.z * b.z); 
@@ -552,101 +513,59 @@ operator * (Quaternion a, Quaternion b)
     return q;
 }
 
-Quaternion operator * (Quaternion q, f32 f) {
-#if SSE_ENABLED
+Quaternion operator * (Quaternion q, f32 f) 
+{
     __m128 q_ = q.sse;
     __m128 f_ = _mm_set1_ps(f);
     __m128 qf = _mm_mul_ps(q_, f_);
     Quaternion quat;
     quat.sse = qf;
     return quat;
-#else
-    q.w = q.w * f;
-    q.x = q.x * f;
-    q.y = q.y * f;
-    q.z = q.z * f;
-    return q;
-#endif
 }
 
-Quaternion operator * (f32 f, Quaternion q) {
-#if SSE_ENABLED
+Quaternion operator * (f32 f, Quaternion q) 
+{
     __m128 q_ = q.sse;
     __m128 f_ = _mm_set1_ps(f);
     __m128 qf = _mm_mul_ps(q_, f_);
     Quaternion quat;
     quat.sse = qf;
     return quat;
-#else
-    q.w = q.w * f;
-    q.x = q.x * f;
-    q.y = q.y * f;
-    q.z = q.z * f;
-    return q;
-#endif
 }
 
-Quaternion operator - (Quaternion q) {
-#if SSE_ENABLED
+Quaternion operator - (Quaternion q) 
+{
     __m128 f = _mm_set1_ps(-1.f);
     q.sse = _mm_mul_ps(q.sse, f);
     return q;
-#else
-    q.w *= -1.f;
-    q.x *= -1.f;
-    q.y *= -1.f;
-    q.z *= -1.f;
-    return q;
-#endif
 }
 
-Quaternion normalize(Quaternion q) {
+Quaternion normalize(Quaternion q) 
+{
     f32 d = rec_square_root(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
-#if SSE_ENABLED
     __m128 d_ = _mm_set1_ps(d);
     q.sse = _mm_mul_ps(q.sse, d_);
     return q;
-#else
-    q.w *= d;
-    q.x *= d;
-    q.y *= d;
-    q.z *= d;
-    return q;
-#endif
 }
 
-
-f32 dot(Quaternion a, Quaternion b) {
-#if SSE_ENABLED
+f32 dot(Quaternion a, Quaternion b) 
+{
     return dot(a.sse, b.sse);
-#else
-    f32 result = (a.w * b.w) + (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
-    return result;
-#endif
 }
 
-Quaternion nlerp(Quaternion a, f32 t, Quaternion b) {
-#if SSE_ENABLED
+Quaternion nlerp(Quaternion a, f32 t, Quaternion b) 
+{
     __m128 ax4 = a.sse;
     __m128 bx4 = b.sse;
     __m128 tx4 = _mm_set1_ps(t);
     __m128 dx4 = _mm_sub_ps(bx4, ax4);
-    Quaternion result;
-    result.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
-    return result;
-#else
-    Quaternion quat;
-    quat.w = lerp(a.w, t, b.w);
-    quat.x = lerp(a.x, t, b.x);
-    quat.y = lerp(a.y, t, b.y);
-    quat.z = lerp(a.z, t, b.z);
-    return quat;
-#endif
+    Quaternion q;
+    q.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
+    return q;
 }
 
-Quaternion slerp(Quaternion q1, f32 t, Quaternion q2) {
-    Quaternion result;
-
+Quaternion slerp(Quaternion q1, f32 t, Quaternion q2) 
+{
     f32 cosom = q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
     Quaternion q3 = q2;
     if (cosom < 0.0f) {
@@ -671,59 +590,51 @@ Quaternion slerp(Quaternion q1, f32 t, Quaternion q2) {
         sclq = t;
     }
 
-    result.x = sclp * q1.x + sclq * q3.x;
-    result.y = sclp * q1.y + sclq * q3.y;
-    result.z = sclp * q1.z + sclq * q3.z;
-    result.w = sclp * q1.w + sclq * q3.w;
-
-    return result;
+    Quaternion q;
+    q.w = sclp * q1.w + sclq * q3.w;
+    q.x = sclp * q1.x + sclq * q3.x;
+    q.y = sclp * q1.y + sclq * q3.y;
+    q.z = sclp * q1.z + sclq * q3.z;
+    return q;
 }
 
 //
 // m4x4
 //
-m4x4 operator * (m4x4 a, m4x4 b) {
-#if SSE_ENABLED
-    auto linear_combine = [](__m128 a, m4x4 b) {
-        __m128 result;
-        result = _mm_mul_ps(_mm_shuffle_ps(a, a, 0x00), b.rows[0].sse);
-        result = _mm_add_ps(result, _mm_mul_ps(_mm_shuffle_ps(a, a, 0x55), b.rows[1].sse));
-        result = _mm_add_ps(result, _mm_mul_ps(_mm_shuffle_ps(a, a, 0xaa), b.rows[2].sse));
-        result = _mm_add_ps(result, _mm_mul_ps(_mm_shuffle_ps(a, a, 0xff), b.rows[3].sse));
-        return result;
-    };
-
-    m4x4 result;
-    __m128 out1x = linear_combine(a.rows[0].sse, b);
-    __m128 out2x = linear_combine(a.rows[1].sse, b);
-    __m128 out3x = linear_combine(a.rows[2].sse, b);
-    __m128 out4x = linear_combine(a.rows[3].sse, b);
-
-    result.rows[0].sse = out1x;
-    result.rows[1].sse = out2x;
-    result.rows[2].sse = out3x;
-    result.rows[3].sse = out4x;
-
-    return result;
-#else
-    m4x4 m = {};
-    for (int r = 0; r < 4; ++r) {
-        for (int c = 0; c < 4; ++c) {
-            for (int i = 0; i < 4; ++i) {
-                m.e[r][c] += a.e[r][i] * b.e[i][c];
-            }
-        }
-    }
+__m128 lincomb(__m128 a, m4x4 b)
+{
+    __m128 m;
+    m = _mm_mul_ps(_mm_shuffle_ps(a, a, 0x00), b.rows[0].sse);
+    m = _mm_add_ps(m, _mm_mul_ps(_mm_shuffle_ps(a, a, 0x55), b.rows[1].sse));
+    m = _mm_add_ps(m, _mm_mul_ps(_mm_shuffle_ps(a, a, 0xaa), b.rows[2].sse));
+    m = _mm_add_ps(m, _mm_mul_ps(_mm_shuffle_ps(a, a, 0xff), b.rows[3].sse));
     return m;
-#endif
 }
 
-m4x4& operator *= (m4x4& m, f32 f) {
+m4x4 operator * (m4x4 a, m4x4 b) 
+{
+    m4x4 m;
+    __m128 out1x = lincomb(a.rows[0].sse, b);
+    __m128 out2x = lincomb(a.rows[1].sse, b);
+    __m128 out3x = lincomb(a.rows[2].sse, b);
+    __m128 out4x = lincomb(a.rows[3].sse, b);
+
+    m.rows[0].sse = out1x;
+    m.rows[1].sse = out2x;
+    m.rows[2].sse = out3x;
+    m.rows[3].sse = out4x;
+
+    return m;
+}
+
+m4x4& operator *= (m4x4& m, f32 f) 
+{
     m = m * f;
     return m;
 }
 
-m4x4 operator * (m4x4 m, f32 f) {
+m4x4 operator * (m4x4 m, f32 f) 
+{
     m.rows[0] = f * m.rows[0];
     m.rows[1] = f * m.rows[1];
     m.rows[2] = f * m.rows[2];
@@ -745,7 +656,8 @@ v4 operator * (m4x4 m, v4 p) {
     return res;
 }
 
-m4x4& operator += (m4x4& l, m4x4 r) {
+m4x4& operator += (m4x4& l, m4x4 r) 
+{
     l.rows[0] = l.rows[0] + r.rows[0];
     l.rows[1] = l.rows[1] + r.rows[1];
     l.rows[2] = l.rows[2] + r.rows[2];
@@ -753,24 +665,14 @@ m4x4& operator += (m4x4& l, m4x4 r) {
     return l;
 }
 
-m4x4 identity() {
-#if SSE_ENABLED
+m4x4 identity() 
+{
     m4x4 m;
     m.rows[0].sse = _mm_setr_ps(1.f, 0.f, 0.f, 0.f);
     m.rows[1].sse = _mm_setr_ps(0.f, 1.f, 0.f, 0.f);
     m.rows[2].sse = _mm_setr_ps(0.f, 0.f, 1.f, 0.f);
     m.rows[3].sse = _mm_setr_ps(0.f, 0.f, 0.f, 1.f);
     return m;
-#else
-    m4x4 m;
-    m = {
-        1.f, 0.f, 0.f, 0.f,
-        0.f, 1.f, 0.f, 0.f,
-        0.f, 0.f, 1.f, 0.f,
-        0.f, 0.f, 0.f, 1.f
-    };
-    return m;
-#endif
 }
 
 m4x4 x_rotation(f32 a) {
@@ -1055,12 +957,46 @@ add_radius_to(Rect2 rect, v2 radius)
     return result;
 }
 
-m4x4 m4x4_from_trs(v3 translation, Quaternion rotation, v3 scaling) {
-    m4x4 T = translate(identity(), translation);
-    m4x4 R = quaternion_to_m4x4(rotation);
-    m4x4 S = scale(identity(), scaling);
-    m4x4 result = T * R * S;
-    return result;
+m4x4 to_m4x4(Xform xform)
+{
+    m4x4 m;
+
+    v3 t = xform.translation;
+    Quaternion r = xform.rotation;
+    v3 s = xform.scale;
+
+    m._11 = 1.0f - 2.0f * (r.y * r.y + r.z * r.z);
+    m._12 = 2.0f * (r.x * r.y - r.z * r.w);
+    m._13 = 2.0f * (r.x * r.z + r.y * r.w);
+    m._14 = t.x;
+    m.rows[0].sse = _mm_mul_ps(m.rows[0].sse, _mm_setr_ps(s.x, s.x, s.x, 1));
+
+    m._21 = 2.0f * (r.x * r.y + r.z * r.w);
+    m._22 = 1.0f - 2.0f * (r.x * r.x + r.z * r.z);
+    m._23 = 2.0f * (r.y * r.z - r.x * r.w);
+    m._24 = t.y;
+    m.rows[1].sse = _mm_mul_ps(m.rows[1].sse, _mm_setr_ps(s.y, s.y, s.y, 1));
+
+    m._31 = 2.0f * (r.x * r.z - r.y * r.w);
+    m._32 = 2.0f * (r.y * r.z + r.x * r.w);
+    m._33 = 1.0f - 2.0f * (r.x * r.x + r.y * r.y);
+    m._34 = t.z;
+    m.rows[2].sse = _mm_mul_ps(m.rows[2].sse, _mm_setr_ps(s.z, s.z, s.z, 1));
+
+
+    m.rows[3].sse = _mm_setr_ps(0, 0, 0, 1);
+
+    return m;
+}
+
+m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale) 
+{
+    Xform xform;
+    xform.translation = translation;
+    xform.rotation = rotation;
+    xform.scale = scale;
+    m4x4 m = to_m4x4(xform);
+    return m;
 }
 
 internal Quaternion
@@ -1261,4 +1197,78 @@ bool ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out) {
     } else {
         return false;
     }
+}
+
+Xform::Xform()
+{
+    translation = v3(0.f, 0.f, 0.f);
+    rotation    = Quaternion(1.f, 0.f, 0.f, 0.f);
+    scale       = v3(1.f, 1.f, 1.f);
+}
+
+Xform to_xform(m4x4 m)
+{
+    Xform xform;
+
+    v3 translation = v3(m._14, m._24, m._34);
+    v3 scale       = v3(length(v3(m._11, m._21, m._31)),
+                        length(v3(m._12, m._22, m._32)),
+                        length(v3(m._13, m._23, m._33)));
+
+    m4x4 r = m;
+    r._11 /= scale.x;
+    r._21 /= scale.x;
+    r._31 /= scale.x;
+
+    r._12 /= scale.y;
+    r._22 /= scale.y;
+    r._32 /= scale.y;
+    
+    r._13 /= scale.z;
+    r._23 /= scale.z;
+    r._33 /= scale.z;
+
+    // Rotation matrix to quaternion (Shepperd's method)
+    // Row-major, so r._rc means row r, col c
+    float trace = r._11 + r._22 + r._33;
+    Quaternion rotation;
+
+    if (trace > 0.0f)
+    {
+        float s = 0.5f / sqrtf(trace + 1.0f);
+        rotation.w = 0.25f / s;
+        rotation.x = (r._32 - r._23) * s;
+        rotation.y = (r._13 - r._31) * s;
+        rotation.z = (r._21 - r._12) * s;
+    }
+    else if (r._11 > r._22 && r._11 > r._33)
+    {
+        float s = 2.0f * sqrtf(1.0f + r._11 - r._22 - r._33);
+        rotation.w = (r._32 - r._23) / s;
+        rotation.x = 0.25f * s;
+        rotation.y = (r._12 + r._21) / s;
+        rotation.z = (r._13 + r._31) / s;
+    }
+    else if (r._22 > r._33)
+    {
+        float s = 2.0f * sqrtf(1.0f + r._22 - r._11 - r._33);
+        rotation.w = (r._13 - r._31) / s;
+        rotation.x = (r._12 + r._21) / s;
+        rotation.y = 0.25f * s;
+        rotation.z = (r._23 + r._32) / s;
+    }
+    else
+    {
+        float s = 2.0f * sqrtf(1.0f + r._33 - r._11 - r._22);
+        rotation.w = (r._21 - r._12) / s;
+        rotation.x = (r._13 + r._31) / s;
+        rotation.y = (r._23 + r._32) / s;
+        rotation.z = 0.25f * s;
+    }
+
+    xform.translation = translation;
+    xform.rotation    = rotation;
+    xform.scale       = scale;
+
+    return xform;
 }

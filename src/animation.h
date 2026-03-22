@@ -31,22 +31,24 @@ struct Pose_Channel {
 
 struct Animation_Player {
 
-    Animation_Player* next_in_free_list;
+    Animation_Player* next;
+    Animation_Player* prev;
 
     Skeleton* skeleton;
 
-    Array <m4x4> skinning_matrices;
+    m4x4 *skinning_matrices;
+
     Array <m4x4> blended_local_transforms;
 
     Pose_Channel channels[4];
-    Array <m4x4> local_transforms[4];
+    Array <Xform> local_transforms[4];
 
     f32 blend_weights[4];
 
 
 
 
-    void init(Skeleton *skel);
+    void init(Skeleton *skel, m4x4 *out_skinning_matrices);
     void accumulate(f32 dt);
     void eval();
 };

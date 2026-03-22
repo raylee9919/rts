@@ -2,7 +2,7 @@
 
 
 // TODO: 1. Should we support scalable dpi?
-//         2. Verfiy the OS version and load the appropriate libraries.
+//       2. Verfiy the OS version and load the appropriate libraries.
 //
 
 
@@ -440,16 +440,14 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 #endif
 
     //
-    // init core.
+    // Init core.
     //
     os_init();
     thread_init();
 
 
-
-
     //
-    // NOTE: init platform.
+    // Init platform.
     //
     Platform platform = {};
     Utf8 binary_path = {};
@@ -578,19 +576,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     u64 old_counter = os->perf_counter();
     while (g_running) 
     {
-        {
-            // @Temporary: just learning win32 calls of gathering memory status.
-            MEMORYSTATUSEX ms;
-            ms.dwLength = sizeof(ms);
-            GlobalMemoryStatusEx(&ms);
-
-
-            HANDLE proc = GetCurrentProcess();
-            PROCESS_MEMORY_COUNTERS pmc;
-            GetProcessMemoryInfo(proc,  &pmc, sizeof(pmc));
-            CloseHandle(proc);
-        }
-
         // Draw resolution.
         //
         v2u render_dim = {
@@ -685,21 +670,21 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         // NOTE: Game code hot reloading.
         //
-        if (win32_code_modified(&game_code)) 
-        {
-            __debugbreak();
-            win32_code_reload(&game_code); 
-            game_code.last_modified = win32_get_last_modified(game_code.dll_path);
-        }
+        //if (win32_code_modified(&game_code)) 
+        //{
+        //    __debugbreak();
+        //    win32_code_reload(&game_code); 
+        //    game_code.last_modified = win32_get_last_modified(game_code.dll_path);
+        //}
 
         // Render end.
         //
         if (renderer_code.is_valid) 
         {
-            if (renderer_was_reloaded) 
-            {
-                renderer_was_reloaded = false;
-            }
+            //if (renderer_was_reloaded) 
+            //{
+            //    renderer_was_reloaded = false;
+            //}
             renderer_functions.end_frame(renderer, g_renderer, render_commands);
         }
 

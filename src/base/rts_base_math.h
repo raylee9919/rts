@@ -87,12 +87,18 @@ union m4x4 {
 
 union Quaternion {
     struct { f32 w, x, y, z; };
-#if SSE_ENABLED
     __m128 sse;
-#endif
-    
+
     Quaternion();
     Quaternion(f32 w_, f32 x_, f32 y_, f32 z_);
+};
+
+struct Xform {
+    v3         translation;
+    Quaternion rotation;
+    v3         scale;
+
+    Xform();
 };
 
 struct Rect2 {
@@ -221,7 +227,8 @@ internal Rect2 rect2_min_dim(v2 min, v2 dim);
 internal Rect2 rect2_inv_inf();
 internal Rect2 offset(Rect2 rect, v2 offset);
 internal Rect2 add_radius_to(Rect2 rect, v2 radius);
-internal m4x4 m4x4_from_transform(v3 translation, Quaternion rotation, v3 scaling);
+internal m4x4 to_m4x4(Xform xform);
+internal m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale);
 internal Quaternion build_quaternion(v3 axis, f32 radian);
 internal Quaternion rotate(Quaternion q0, v3 axis, f32 radian);
 internal v3 project(v3 p, m4x4 view_proj);

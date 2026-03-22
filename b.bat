@@ -46,7 +46,7 @@ set flags_release=/O2 /DBUILD_DEBUG=0
 :: 4189: local variable is initialized but not referenced
 :: 4456: declaration hides previous local declaration
 :: 4244::::::::::::::::::::::::::::::::::::::::::::::::::
-set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS -wd4201 -wd4505 -wd4100 -wd4189 -wd4456 -wd4244
+set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS -wd4201 -wd4505 -wd4100 -wd4189 -wd4244
 set flags_linker=/incremental:no /opt:ref
 
 :: Choose Compile/Link Lines
@@ -54,7 +54,7 @@ set flags_linker=/incremental:no /opt:ref
 if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
 if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
 if "%profile%"=="1"     set flags_compile=%flags_compile% -DBUILD_PROFILE=1  && echo [Profiler Enabled]
-if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address -fsanitize=undefined && echo [ASAN Enabled]
+if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address && echo [ASAN Enabled]
 
 
 :: ---------------------------- Projects ---------------------------- ::
@@ -83,12 +83,12 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Renderers
 if "%BuildGL%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
+    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
 :: Game
 if "%BuildGame%"=="1" (
-    call %compiler% %flags_compile% ..\src\game.cpp /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb
+    call %compiler% %flags_compile% ..\src\game.cpp /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
 )
 
 :: Platform

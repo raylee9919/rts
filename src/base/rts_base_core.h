@@ -174,7 +174,7 @@ enum
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define max(a, b) ( ((a) > (b)) ? (a) : (b) )
 #define min(a, b) ( ((a) < (b)) ? (a) : (b) )
-#define defer_loop(start, end) for(int _i_ = ((start), 0); _i_ == 0; (_i_ += 1, (end)))
+#define defer_loop(start, end) for(int CONCAT2(_i_,__LINE__) = ((start), 0); CONCAT2(_i_,__LINE__) == 0; (CONCAT2(_i_,__LINE__) += 1, (end)))
 
 // -------------------------------------
 // NOTE: Clamp

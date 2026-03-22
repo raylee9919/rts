@@ -269,7 +269,7 @@ render_texture_from_id(Render_Id id)
 }
 
 internal Render_Id
-render_texture_create(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags)
+render_texture_create(Texture_Layout layout, void *data, u32 width, u32 height, Render_Command_Flags flags)
 {
     Render_Id id;
     id.e[0] = renderer->texture_next_id++;
@@ -281,7 +281,7 @@ render_texture_create(Render_Texture_Type type, void *data, u32 width, u32 heigh
     Render_Texture *texture = render_texture_alloc();
     {
         texture->id     = id;
-        texture->type   = type;
+        texture->layout = layout;
         texture->data   = data;
         texture->width  = width;
         texture->height = height;

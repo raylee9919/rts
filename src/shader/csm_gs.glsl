@@ -1,12 +1,9 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
+
+// A single draw call normally only renders to one render target layer at a time.
+// That's why I need this geometry shader for my cascaded shadow maps.
 
 layout(triangles, invocations = CSM_COUNT) in;
 layout(triangle_strip, max_vertices = 3) out;

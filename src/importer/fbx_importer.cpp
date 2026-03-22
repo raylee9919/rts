@@ -37,7 +37,11 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
     Arena *arena = state->scene_arena;
 
     ufbx_mesh *fbx_mesh = node->mesh;
-    if (fbx_mesh && node->attrib_type == UFBX_ELEMENT_MESH) {
+
+    if (fbx_mesh &&
+        node->attrib_type == UFBX_ELEMENT_MESH && 
+        node->visible) 
+    {
         bool has_uv      = fbx_mesh->vertex_uv.exists;
         bool has_color   = fbx_mesh->vertex_color.exists;
         bool has_tangent = fbx_mesh->vertex_tangent.exists;
@@ -56,6 +60,29 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
 
         size_t tri_num_indices = fbx_mesh->max_face_triangles * 3;
         u32 *tri_indices = push_array(scratch.arena, u32, tri_num_indices);
+
+        // @Temporary
+        // @Temporary
+        // @Temporary
+        // @Temporary
+        // @Temporary
+        //m4x4 *global_transforms = new m4x4[state->num_bones];
+        //memset(global_transforms, 0, sizeof(m4x4) * state->num_bones);
+
+        //for (u32 i = 0; i < state->num_bones; ++i) {
+        //    auto *bone = &state->bones[i];
+        //    s32 parent = bone->parent;
+        //    if (parent >= 0) {
+        //        global_transforms[i] = global_transforms[parent] * bone->local_transform;
+        //    } else {
+        //        global_transforms[i] = bone->local_transform;
+        //    }
+        //}
+        // @Temporary
+        // @Temporary
+        // @Temporary
+        // @Temporary
+        // @Temporary
 
         auto faces = fbx_mesh->faces;
         for (size_t fi = 0; fi < faces.count; ++fi) {
@@ -77,10 +104,24 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                         vert->normal  = to_v3(ufbx_transform_direction(&node->geometry_to_world, ufbx_get_vertex_vec3(&fbx_mesh->skinned_normal, index)));
                     }
 
-
                     // Because we want to exclude a chain of transforms before the root bone.
                     vert->pos     = (state->undo_pre_root_bone_transforms * V4(vert->pos, 1.f)).xyz;
-                    vert->normal  = (state->undo_pre_root_bone_transforms * V4(vert->normal, 0.f)).xyz;
+                    vert->normal  = normalize((state->undo_pre_root_bone_transforms * V4(vert->normal, 0.f)).xyz);
+
+
+                    // @Temporary
+                    // @Temporary
+                    // @Temporary
+                    // @Temporary
+                    // @Temporary
+                    //std::string key((char *)mesh.name, mesh.length);
+                    //s32 id = state->bone_map[key];
+                    //vert->pos = (global_transforms[id] * V4(vert->pos, 1.f)).xyz;
+                    // @Temporary
+                    // @Temporary
+                    // @Temporary
+                    // @Temporary
+                    // @Temporary
 
 
                     if (has_uv) {
@@ -93,10 +134,11 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                     // are interpreting vertex color as a tint in our shader.
                     vert->color = v4(1.f);
 
-                    if (has_tangent) {
-                        vert->tangent.xyz = to_v3(ufbx_get_vertex_vec3(&fbx_mesh->vertex_tangent, index));
-                        vert->tangent.w = 1.f; // @Fix
-                    }
+                    //if (has_tangent) {
+                    //    vert->tangent.xyz = to_v3(ufbx_get_vertex_vec3(&fbx_mesh->vertex_tangent, index));
+                    //    vert->tangent.w = 1.f; // @Fix
+                    //    assert(0);
+                    //}
 
                     // Init skinning data.
                     for (int i = 0; i < MAX_BONE_PER_VERTEX; ++i) vert->node_ids[i] = -1;
@@ -127,10 +169,12 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                         }
 
                         // Normalize weights.
+                        f32 rcp_weights = 0.f;
                         if (total_weight > 1e-8) {
-                            for (int i = 0; i < num_weights; ++i) {
-                                vert->node_weights[i] /= total_weight;
-                            }
+                            rcp_weights = 1.f / total_weight;
+                        }
+                        for (int i = 0; i < num_weights; ++i) {
+                            vert->node_weights[i] *= rcp_weights;
                         }
                     }
                 }
@@ -156,7 +200,8 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
         mesh.indices = indices;
         mesh.index_count = (u32)num_indices;
 
-        if (!has_tangent) {
+        // @Temporary
+        if (1) {
             state->mikkt_ctx.m_pUserData = &mesh;
             genTangSpaceDefault(&state->mikkt_ctx);
         }
@@ -175,13 +220,10 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
 
 void fbx_fill_meshes(State *state)
 {
-    u32 num_meshes = (u32)state->scene->meshes.count;
-    state->meshes = push_array(state->scene_arena, Asset_Mesh, num_meshes);
+    u32 max_num_meshes = (u32)state->scene->meshes.count;
+    state->meshes = push_array(state->scene_arena, Asset_Mesh, max_num_meshes);
 
     fbx_fill_meshes_recursively(state, state->scene->root_node);
-
-    // Does the actual mesh count match the expected count?
-    assert(state->num_meshes == num_meshes);
 }
 
 ufbx_node *fbx_find_root_bone(ufbx_node *node)
@@ -349,7 +391,7 @@ void fbx_fill_animation(State *state, int index)
 
     u32 tmp = 0;
 
-    for (u32 ni = 0, fill_idx = 0; ni < (u32)baked->nodes.count; ++ni) {
+    for (int ni = 0, fill_idx = 0; ni < (int)baked->nodes.count; ++ni) {
         ufbx_baked_node *baked_node = &baked->nodes[ni];
         ufbx_node *scene_node = scene->nodes[baked_node->typed_id];
 
@@ -449,9 +491,9 @@ void mikkt_set_basic(const SMikkTSpaceContext *ctx, const float tangent[], const
     u32 index = mesh->indices[face*3 + vert];
     auto *v = &mesh->vertices[index];
 
-    v->tangent.x = sign * tangent[0];
-    v->tangent.y = sign * tangent[1];
-    v->tangent.z = sign * tangent[2];
+    v->tangent.x = tangent[0];
+    v->tangent.y = tangent[1];
+    v->tangent.z = tangent[2];
     v->tangent.w = sign;
 }
 
@@ -487,7 +529,7 @@ int main()
 
 
     {
-        Utf8 name     = utf8lit("knight");
+        Utf8 name     = utf8lit("castle");
         Utf8 in_file  = utf8f(state->scene_arena, "C:/dev/rts/data/input/%S.fbx", name);
 
         Utf8 out_mesh = utf8f(state->scene_arena, "C:/dev/rts/data/%S.triangle_mesh", name);
@@ -500,6 +542,9 @@ int main()
         opts.generate_missing_normals    = true;
         opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; 
         opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE; // This is what ufbx suggests. "...what many importers do and simplifies everything."
+        opts.evaluate_skinning           = true;
+        opts.clean_skin_weights          = true;
+        opts.normalize_normals           = true;
 
         ufbx_error error;
         ufbx_scene *scene = ufbx_load_file((const char *)in_file.str, &opts, &error);
@@ -511,7 +556,7 @@ int main()
 
         state->scene = scene;
 
-        //fbx_print_nodes(scene->root_node);
+        fbx_print_nodes(scene->root_node);
         fbx_fill_bones(state);
         fbx_fill_meshes(state);
         fbx_fill_animations(state);
@@ -623,7 +668,7 @@ int main()
 #endif
 
         // Write animations.
-#if 1
+#if 0
         assert(state->num_anims == 1);
         for (int i = 0; i < state->num_anims; ++i) {
             auto *anim = &state->anims[i];

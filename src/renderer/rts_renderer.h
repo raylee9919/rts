@@ -4,7 +4,7 @@
 //
 #define MAX_LIGHTS              10
 #define SHADOWMAP_RESOLUTION    2048 // @Todo: If you want to be understaned by all machines...use 1024...?
-#define CSM_COUNT               4
+#define CSM_COUNT               4    // @Important: Changing it'll break things. Like, uniform buffer block alignment thinggggs.
 static_assert(CSM_COUNT > 0, "CSM_COUNT must be bigger than 0!");
 
 
@@ -121,7 +121,7 @@ struct Render_Commands
 
     b32         skybox_on;
     Mesh*       skybox_mesh;
-    Bitmap*     skybox_textures[6];
+    Bitmap*     skybox_textures;
     m4x4        skybox_eye_view_proj;
 
     v2          toggled_down_mouse_position;
@@ -166,11 +166,11 @@ struct Render_Vertex
     f32         radius;
 };
 
-typedef u16 Render_Texture_Type;
-enum
-{
-    RENDER_TEXTURE_TYPE_INVALID  = 0,
-    RENDER_TEXTURE_TYPE_R8G8B8A8 = 1,
+typedef u16 Texture_Layout;
+enum {
+    TEXTURE_LAYOUT_INVALID  = 0,
+    TEXTURE_LAYOUT_R8G8B8A8 = 1,
+    TEXTURE_LAYOUT_R8G8B8   = 2,
 };
 
 struct Render_Buffer
@@ -188,7 +188,7 @@ struct Render_Texture
     Render_Texture      *prev;
 
     Render_Id           id;
-    Render_Texture_Type type;
+    Texture_Layout      layout;
     void               *data;
     u32                 width;
     u32                 height;
@@ -279,20 +279,20 @@ enum
 };
 
 
-// # Note: Constants
+// Constants
 //
 #define render_max_vertex_count     32768
 #define render_max_command_count    4096
 
 
-// # Note: Texture.
+// Texture.
 //
-internal Render_Id render_texture_create(Render_Texture_Type type, void *data, u32 width, u32 height, Render_Command_Flags flags);
+internal Render_Id render_texture_create(Texture_Layout layout, void *data, u32 width, u32 height, Render_Command_Flags flags);
 internal void render_texture_destroy(Render_Id id);
 
 
 
-// # Note: Drawing Functions.
+// Drawing Functions.
 //
 #define render_quad(mn,mx)                          render_quad_t(render_id_null(), mn, mx)
 #define render_quad_t(t,mn,mx)                      render_quad_tuv(t, mn, mx, v2{0,0}, v2{1,1})

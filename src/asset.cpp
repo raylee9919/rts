@@ -3,18 +3,19 @@
 
 
 #define READ(to, type)\
-    memcpy(&to, at, sizeof(type)); \
+    memory_copy(&to, at, sizeof(type)); \
     at += sizeof(to);
 #define READ_COUNT(to, type, count) \
     to = push_array(arena, type, count); \
-    memcpy(to, at, sizeof(type)*count); \
+    memory_copy(to, at, sizeof(type)*count); \
     at += (sizeof(type)*count);
 
 struct Asset_Loader {
     u8 *cursor;
     u8 *end;
 
-    void eat_whitespace() {
+    void eat_whitespace() 
+    {
         while (cursor < end) {
             u8 c = *cursor;
             if (!is_whitespace(c)) break;
@@ -22,18 +23,21 @@ struct Asset_Loader {
         }
     }
 
-    u8 peek() {
+    u8 peek() 
+    {
         assert( cursor && cursor < end );
         return *cursor;
     }
 
-    u8 eat() {
+    u8 eat() 
+    {
         assert( cursor && cursor < end );
         u8 c = *cursor++;
         return c;
     }
 
-    u32 parse_u32() {
+    u32 parse_u32() 
+    {
         assert( cursor && cursor < end );
         eat_whitespace();
 
@@ -54,7 +58,8 @@ struct Asset_Loader {
         return result;
     }
 
-    Asset_Version parse_version() {
+    Asset_Version parse_version() 
+    {
         assert( cursor && cursor < end );
         eat_whitespace();
 
@@ -74,7 +79,8 @@ struct Asset_Loader {
         return ver;
     }
 
-    s32 parse_s32() {
+    s32 parse_s32() 
+    {
         assert( cursor && cursor < end );
         eat_whitespace();
 
@@ -98,7 +104,8 @@ struct Asset_Loader {
         return result;
     }
 
-    f32 parse_f32() {
+    f32 parse_f32() 
+    {
         assert( cursor && cursor < end );
         eat_whitespace();
 
@@ -149,14 +156,16 @@ struct Asset_Loader {
         return result;
     }
 
-    v2 parse_v2() {
+    v2 parse_v2() 
+    {
         v2 result;
         result.x = parse_f32();
         result.y = parse_f32();
         return result;
     }
 
-    v3 parse_v3() {
+    v3 parse_v3() 
+    {
         v3 result;
         result.x = parse_f32();
         result.y = parse_f32();
@@ -164,7 +173,8 @@ struct Asset_Loader {
         return result;
     }
 
-    v4 parse_v4() {
+    v4 parse_v4() 
+    {
         v4 result;
         result.r = parse_f32();
         result.g = parse_f32();
@@ -173,7 +183,8 @@ struct Asset_Loader {
         return result;
     }
 
-    m4x4 parse_m4x4() {
+    m4x4 parse_m4x4() 
+    {
         m4x4 result;
         result.rows[0] = parse_v4();
         result.rows[1] = parse_v4();
@@ -182,7 +193,8 @@ struct Asset_Loader {
         return result;
     }
 
-    Quaternion parse_quaternion() {
+    Quaternion parse_quaternion() 
+    {
         Quaternion result;
         result.w = parse_f32();
         result.x = parse_f32();
@@ -191,7 +203,8 @@ struct Asset_Loader {
         return result;
     }
 
-    Utf8 parse_string_by_length(Arena *arena, u8 length) {
+    Utf8 parse_string_by_length(Arena *arena, u8 length) 
+    {
         Utf8 result = {};
 
         assert(cursor && cursor < end);
@@ -199,14 +212,15 @@ struct Asset_Loader {
 
         result.len = length;
         result.str = push_array(arena, u8, length + 1);
-        memcpy(result.str, cursor, length);
+        memory_copy(result.str, cursor, length);
 
         cursor += length;
 
         return result;
     }
 
-    Utf8 parse_string_until_new_line(Arena *arena) {
+    Utf8 parse_string_until_new_line(Arena *arena) 
+    {
         Utf8 result = {};
 
         int len = 0;
@@ -222,13 +236,13 @@ struct Asset_Loader {
 
         result.len = len;
         result.str = push_array(arena, u8, len + 1);
-        memcpy(result.str, cursor - len, len);
+        memory_copy(result.str, cursor - len, len);
 
         return result;
     }
 };
 
-internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
+void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
 {
     assert(model_out);
 
@@ -314,7 +328,7 @@ internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scal
     assert( l.cursor == l.end );
 }
 
-internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
+void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
 {
     assert(skel_out);
 
@@ -347,6 +361,9 @@ internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
         joint->parent = parent;
         joint->local_transform = l.parse_m4x4();
         joint->inverse_bind_pose = l.parse_m4x4();
+
+        // Decompose matrix into xform.
+        joint->local_xform = to_xform(joint->local_transform);
     }
 
     l.eat_whitespace();
@@ -359,7 +376,7 @@ internal u64 hash_joint_id(s32 id)
     return result;
 }
 
-internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
+void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
 {
     assert(anim_out);
 
@@ -383,7 +400,7 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     u32 num_keyframes = l.parse_u32();
     u32 num_joints    = l.parse_u32();
 
-    assert( duration != 0.f ); // It'll cause divide by zero.
+    assert( duration > 1e-8f ); // It'll cause divide by zero.
     anim_out->duration = duration;
     anim_out->num_keyframes = num_keyframes;
     anim_out->num_joints = num_joints;
@@ -418,12 +435,11 @@ internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
         sll_push_back(entry->first, entry->last, new_node);
     }
 
-
     l.eat_whitespace();
     assert( l.cursor == l.end );
 }
 
-internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
+void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
     assert(bitmap);
 
@@ -452,7 +468,7 @@ internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena)
     assert(at == end);
 }
 
-internal void asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
+void asset_load_image_general_format(Bitmap *bitmap, Utf8 file_path, Arena *arena)
 {
     assert(bitmap);
 

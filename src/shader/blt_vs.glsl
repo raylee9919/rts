@@ -1,17 +1,11 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
 
-layout (location = 0) in v3 vP;
-layout (location = 2) in v2 vUV;
+layout (location = 0) in vec3 vP;
+layout (location = 2) in vec2 vUV;
 
-out v2 fUV;
+out vec2 fUV;
 
 void main()
 {

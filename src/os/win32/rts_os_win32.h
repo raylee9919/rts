@@ -1,12 +1,6 @@
-#ifndef RTS_OS_WIN32_H
-#define RTS_OS_WIN32_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
 
 #define NOMINMAX
 #define UNICODE
@@ -30,5 +24,3 @@ struct Win32_File_Find_Data
     WIN32_FIND_DATAW    find_data;
 };
 static_assert( sizeof(Win32_File_Find_Data) <= sizeof(Os_File_Iterator) );
-
-#endif // RTS_OS_WIN32_H

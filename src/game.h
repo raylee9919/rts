@@ -97,4 +97,6 @@ struct Game_State {
     Arena* animation_arena;
     Animation_Player* first_free_animation_player;
     Animation_Player* last_free_animation_player;
+    Animation_Player* first_animation_player;
+    Animation_Player* last_animation_player;
 };

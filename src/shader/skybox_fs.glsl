@@ -1,23 +1,16 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
 
-in v3 fUV;
+in vec3 fUV;
 
-out v4 result;
+out vec4 result;
 
-uniform samplerCube skybox;
+layout(binding=0) uniform samplerCube skybox;
 
 void main()
 {
     result = texture(skybox, fUV);
-    //result = v4(1,1,1,1);
 }
 
 )";

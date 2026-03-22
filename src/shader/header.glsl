@@ -1,13 +1,7 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
-#version 420
+#version 450
 
 #define u32     uint
 #define s32     int
@@ -39,13 +33,13 @@ m4x4 identity()
                 0, 0, 0, 1);
 }
 
-v4 rgba8_to_v4(u32 val)
+vec4 rgba8_to_v4(uint val)
 {
-    v4 result = v4(
-        f32((val & 0x000000FF)) / 255.0f * 2.0f - 1.0f,
-        f32((val & 0x0000FF00) >>  8U) / 255.0f * 2.0f - 1.0f,
-        f32((val & 0x00FF0000) >> 16U) / 255.0f * 2.0f - 1.0f,
-        f32((val & 0xFF000000) >> 24U)
+    vec4 result = vec4(
+        float((val & 0x000000FF)) / 255.0 * 2.0 - 1.0,
+        float((val & 0x0000FF00) >>  8U) / 255.0 * 2.0 - 1.0,
+        float((val & 0x00FF0000) >> 16U) / 255.0 * 2.0 - 1.0,
+        float((val & 0xFF000000) >> 24U)
     );
     return result;
 }

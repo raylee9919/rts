@@ -1,24 +1,34 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-HANDLE to_win32_handle(Os_Handle handle) {
+HANDLE to_win32_handle(Os_Handle handle) 
+{
     static_assert(sizeof(HANDLE) == sizeof(handle.e[0]));
     HANDLE result = (HANDLE)handle.e[0];
     return result;
 }
 
-HWND to_hwnd(Os_Handle handle) {
+HWND to_hwnd(Os_Handle handle) 
+{
     static_assert(sizeof(HWND) == sizeof(handle.e[0]));
     HWND result = (HWND)handle.e[0];
     return result;
 }
 
-Os_Handle to_os_handle(HANDLE handle) {
+Os_Handle to_os_handle(HANDLE handle) 
+{
     Os_Handle result = {};
     result.e[0] = (u64)handle;
     return result;
 }
 
-internal
+OS_GET_LOGICAL_CORE_COUNT(win32_get_logical_core_count)
+{
+    SYSTEM_INFO sys_info = {};
+    GetSystemInfo(&sys_info);
+    DWORD core_count = sys_info.dwNumberOfProcessors;
+    return core_count;
+}
+
 OS_QUERY_PAGE_SIZE(win32_query_page_size)
 {
     SYSTEM_INFO info;
@@ -26,7 +36,6 @@ OS_QUERY_PAGE_SIZE(win32_query_page_size)
     return info.dwPageSize;
 }
 
-internal
 OS_CARET_BLINK_TIME(win32_caret_blink_time)
 {
     UINT val = GetCaretBlinkTime();
@@ -34,7 +43,6 @@ OS_CARET_BLINK_TIME(win32_caret_blink_time)
     return result;
 }
 
-internal
 OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -70,8 +78,7 @@ OS_STRING_FROM_SYSTEM_PATH_KIND(win32_string_from_system_path_kind)
     return result;
 }
 
-internal Os_File_Attributes
-win32_file_attributes_from_find_data(WIN32_FIND_DATAW find_data)
+Os_File_Attributes win32_file_attributes_from_find_data(WIN32_FIND_DATAW find_data)
 {
     Os_File_Attributes result = {};
 
@@ -83,7 +90,7 @@ win32_file_attributes_from_find_data(WIN32_FIND_DATAW find_data)
     return result;
 }
 
-internal
+
 OS_ATTRIBUTES_FROM_FILE_PATH(win32_attributes_from_file_path)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -117,7 +124,7 @@ OS_FILE_ITERATOR_BEGIN(win32_file_iterator_begin)
     return it;
 }
 
-internal
+
 OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
 {
     b32 result = 0;
@@ -175,7 +182,7 @@ OS_FILE_ITERATOR_NEXT(win32_file_iterator_next)
     return result;
 }
 
-internal
+
 OS_FILE_ITERATOR_END(win32_file_iterator_end)
 {
     Win32_File_Find_Data *file_find_data = (Win32_File_Find_Data *)it;
@@ -185,27 +192,27 @@ OS_FILE_ITERATOR_END(win32_file_iterator_end)
 
 // NOTE: Memory
 //
-internal
+
 OS_RESERVE(win32_memory_reserve)
 {
     void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
     return result;
 }
 
-internal
+
 OS_COMMIT(win32_memory_commit)
 {
     b32 result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
     return result;
 }
 
-internal
+
 OS_DECOMMIT(win32_memory_decommit)
 {
     VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
-internal
+
 OS_RELEASE(win32_memory_release)
 {
     // NOTE: size is not required in Windows, but necessary in other OSes.
@@ -215,7 +222,7 @@ OS_RELEASE(win32_memory_release)
 
 // NOTE: File
 //
-internal
+
 OS_FILE_IS_VALID(win32_file_is_valid)
 {
     HANDLE handle = to_win32_handle(file);
@@ -223,7 +230,7 @@ OS_FILE_IS_VALID(win32_file_is_valid)
     return result;
 }
 
-internal
+
 OS_FILE_OPEN(win32_file_open)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -268,7 +275,7 @@ OS_FILE_OPEN(win32_file_open)
     return result;
 }
 
-internal
+
 OS_FILE_CLOSE(win32_file_close)
 {
     HANDLE handle = to_win32_handle(file);
@@ -276,7 +283,7 @@ OS_FILE_CLOSE(win32_file_close)
     { CloseHandle(handle); }
 }
 
-internal
+
 OS_FILE_SIZE(win32_file_size)
 {
     HANDLE handle = to_win32_handle(file);
@@ -288,7 +295,7 @@ OS_FILE_SIZE(win32_file_size)
     return result;
 }
 
-internal
+
 OS_FILE_READ(win32_file_read)
 {
     u64 result = 0;
@@ -328,7 +335,7 @@ OS_FILE_READ(win32_file_read)
     return result;
 }
 
-internal
+
 OS_FILE_DELETE(win32_file_delete)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -337,7 +344,7 @@ OS_FILE_DELETE(win32_file_delete)
     scratch_end(scratch);
 }
 
-internal
+
 OS_FILE_MOVE(win32_file_move)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -347,7 +354,7 @@ OS_FILE_MOVE(win32_file_move)
     scratch_end(scratch);
 }
 
-internal
+
 OS_FILE_COPY(win32_file_copy)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -358,7 +365,7 @@ OS_FILE_COPY(win32_file_copy)
     return result;
 }
 
-internal
+
 OS_MAKE_DIRECTORY(win32_make_directory)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -376,7 +383,7 @@ OS_MAKE_DIRECTORY(win32_make_directory)
 
 // NOTE: Abort
 //
-internal
+
 OS_ABORT(win32_abort)
 {
     ExitProcess(1);
@@ -384,7 +391,7 @@ OS_ABORT(win32_abort)
 
 // NOTE: Event Poll
 //
-internal
+
 OS_EVENT_POLL(win32_event_poll)
 {
     BYTE vk_state[256];
@@ -403,7 +410,6 @@ OS_EVENT_POLL(win32_event_poll)
 
 // NOTE: Performance Counter
 //
-internal
 OS_PERF_COUNTER(win32_perf_counter)
 {
     LARGE_INTEGER value;
@@ -411,8 +417,7 @@ OS_PERF_COUNTER(win32_perf_counter)
     return value.QuadPart;
 }
 
-internal u64
-win32_perf_counter_frequency(void)
+u64 win32_perf_counter_frequency(void)
 {
     LARGE_INTEGER value;
     QueryPerformanceFrequency(&value);
@@ -422,7 +427,7 @@ win32_perf_counter_frequency(void)
 
 // NOTE: Time
 //
-internal
+
 OS_DATE_TIME_CURRENT(win32_date_time_current)
 {
     SYSTEMTIME st = {};
@@ -441,7 +446,7 @@ OS_DATE_TIME_CURRENT(win32_date_time_current)
     return result;
 }
 
-internal
+
 OS_GET_MODIFIERS(win32_get_modifiers)
 {
     Os_Modifiers modifiers = 0;
@@ -451,7 +456,8 @@ OS_GET_MODIFIERS(win32_get_modifiers)
     return modifiers;
 }
 
-OS_GET_MOUSE_POSITION(win32_get_mouse_position) {
+OS_GET_MOUSE_POSITION(win32_get_mouse_position) 
+{
     HWND hwnd = to_hwnd(window_handle);
     POINT p;
     GetCursorPos(&p);
@@ -459,9 +465,85 @@ OS_GET_MOUSE_POSITION(win32_get_mouse_position) {
     return v2{(f32)p.x, (f32)p.y};
 }
 
+// Work Queue
+//
+OS_ADD_WORK(win32_add_work)
+{
+    // @Todo: Single producer implementation atm. We gonna have to switch to 
+    // cmpxchg if we want multiple producers, ultimately.
+    u32 index = queue->index_to_write;
+    u32 new_write_index = (queue->index_to_write + 1) % array_count(queue->works);
+
+    assert(new_write_index != queue->index_to_read);
+
+    queue->works[index].callback = callback;
+    queue->works[index].param = param;
+    _WriteBarrier();
+    queue->index_to_write = new_write_index;
+    queue->completion_goal++;
+
+    HANDLE semaphore = to_win32_handle(queue->semaphore);
+    ReleaseSemaphore(semaphore, 1, 0);
+}
+
+bool win32_do_work_or_should_sleep(Os_Work_Queue *queue)
+{
+    bool should_sleep = false;
+
+    u32 old_index = queue->index_to_read;
+    u32 new_index = (old_index + 1) % array_count(queue->works);
+
+    if (old_index != queue->index_to_write) {
+        u32 index = InterlockedCompareExchange((LONG volatile *)&queue->index_to_read, new_index, old_index);
+        if (index == old_index) {
+            Os_Work work = queue->works[index];
+            work.callback(work.param);
+            InterlockedIncrement(&queue->completion_count);
+        }
+    } else {
+        should_sleep = true;
+    }
+
+    return should_sleep;
+}
+
+void win32_complete_all_work(Os_Work_Queue *queue) 
+{
+    while (queue->completion_count != queue->completion_goal) {
+        win32_do_work_or_should_sleep(queue);
+    }
+
+    queue->completion_count = 0;
+    queue->completion_goal  = 0;
+}
+
+DWORD WINAPI win32_worker_thread_proc(LPVOID param) 
+{
+    Os_Work_Queue *queue = (Os_Work_Queue *)param;
+
+    for (;;) {
+        if (win32_do_work_or_should_sleep(queue)) {
+            HANDLE semaphore = to_win32_handle(queue->semaphore);
+            WaitForSingleObject(semaphore, INFINITE);
+        }
+    }
+}
+
+void win32_init_work_queue(Os_Work_Queue *queue, int num_threads)
+{
+    HANDLE semaphore = CreateSemaphore(NULL, 0, num_threads, 0);
+    queue->semaphore = to_os_handle(semaphore);
+
+    for (int i = 0; i < num_threads; ++i) {
+        DWORD thread_id;
+        HANDLE thread_handle = CreateThread(NULL, 0, win32_worker_thread_proc, queue, 0, &thread_id);
+        CloseHandle(thread_handle);
+    }
+}
 
 
-internal
+
+
 OS_INIT(os_win32_init)
 {
     // HACK:
@@ -477,6 +559,7 @@ OS_INIT(os_win32_init)
     os->file_copy                       = win32_file_copy;
     os->make_directory                  = win32_make_directory;
 
+    os->get_logical_core_count          = win32_get_logical_core_count;
     os->query_page_size                 = win32_query_page_size;
     os->caret_blink_time                = win32_caret_blink_time;
     os->string_from_system_path_kind    = win32_string_from_system_path_kind;
@@ -496,6 +579,9 @@ OS_INIT(os_win32_init)
     os->event_poll                      = win32_event_poll;
     os->get_modifiers                   = win32_get_modifiers;
     os->get_mouse_position              = win32_get_mouse_position;
+
+    os->add_work                        = win32_add_work;
+    os->complete_all_work               = win32_complete_all_work;
 
     os->perf_counter                    = win32_perf_counter;
     os->perf_counter_freq               = win32_perf_counter_frequency();
@@ -591,4 +677,8 @@ OS_INIT(os_win32_init)
     os->key_table[VK_OEM_6]         = OS_KEY_RIGHT_BRACKET;
     os->key_table[VK_INSERT]        = OS_KEY_INSERT;
     os->key_table[VK_OEM_1]         = OS_KEY_SEMICOLON;
+
+
+    os->num_logical_cores = win32_get_logical_core_count();
+    win32_init_work_queue(&os->work_queue, os->num_logical_cores - 1);
 }

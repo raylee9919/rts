@@ -86,8 +86,7 @@ struct Asset_Animation {
 
 
 
-struct Bitmap 
-{
+struct Bitmap {
     s32 bits_per_channel;
     s32 channel_count;
     s32 width;
@@ -126,14 +125,13 @@ struct Vertex {
 
 enum Pbr_Texture_Type 
 {
-    Pbr_Texture_Albedo,
-    Pbr_Texture_Normal,
-    Pbr_Texture_Metallic,
-    Pbr_Texture_Roughness,
-    Pbr_Texture_Emission,
-    Pbr_Texture_Orm,
+    PBR_ALBEDO,
+    PBR_NORMAL,
+    PBR_METALLIC,
+    PBR_ROUGHNESS,
+    PBR_EMISSION,
 
-    Pbr_Texture_Count,
+    PBR_COUNT,
 };
 
 struct Mesh  {
@@ -147,7 +145,7 @@ struct Mesh  {
     u32     num_indices;
     u32*    indices;
 
-    Bitmap textures[Pbr_Texture_Count];
+    Bitmap textures[PBR_COUNT];
 };
 
 struct Material 
@@ -181,7 +179,10 @@ struct Model {
 struct Joint {
     Utf8 name;
     s32  parent;
-    m4x4 local_transform;
+
+    m4x4  local_transform;
+    Xform local_xform;
+
     m4x4 inverse_bind_pose;
 };
 
@@ -196,12 +197,6 @@ struct Skeleton {
 //
 // Animation
 //
-struct Xform {
-    v3         translation;
-    Quaternion rotation;
-    v3         scale;
-};
-
 struct Animation_Joint {
     s32 id;
     Xform *keyframes;

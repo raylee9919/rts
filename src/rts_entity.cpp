@@ -149,7 +149,8 @@ entity_orient_to(Entity* entity, v3 target, f32 dt)
     }
 }
 
-bool entity_is_dead(Entity* entity) {
+bool entity_is_dead(Entity* entity) 
+{
     if ((entity->command == ENTITY_CMD_DIEING) || (entity->flags & ENTITY_FLAG_DEAD)) {
         return true;
     }
@@ -165,7 +166,7 @@ entity_is_targetable(Entity* entity)
 }
 
 internal bool
-entity_is_pushable(Entity* me, Entity* other)
+can_push(Entity* me, Entity* other)
 {
     if (other->command == ENTITY_CMD_ATTACK) return false;
     if (me->team != other->team) return false;
@@ -480,12 +481,13 @@ entity_from_id(u64 id)
     return result;
 }
 
-Entity* entity_alloc() {
+Entity* entity_alloc() 
+{
     Entity* entity = game_state->first_free_entity;
 
     if (entity) {
-        zero_struct(entity);
         sll_pop_front_n(game_state->first_free_entity, game_state->last_free_entity, next_in_table);
+        zero_struct(entity);
     } else {
         entity = push_struct(game_state->entity_arena, Entity);
     }
@@ -552,7 +554,7 @@ entity_init(Entity* entity, Entity* parent)
             entity->chunk_y = chunk_y;
         }
 
-        // @Todo: Doomed coordinate..
+        // @Todo: Cursed coordinate..
         //
         if (entity->navmesh_scale > 0.f) {
             const u64 id = entity->id;
@@ -571,7 +573,8 @@ entity_init(Entity* entity, Entity* parent)
     }
 }
 
-void entity_release(u64 id) {
+void entity_release(u64 id) 
+{
     Entity* entity = entity_from_id(id);
 
     if (entity) {
@@ -883,17 +886,17 @@ entity_update(Entity* entity, const f32 dt)
 
 
             // Update speed.
-            f32 norm_t          = map01(entity->speed_t, entity->min_t, entity->max_t);
-            entity->speed       = hermite(0.f, norm_t, entity->max_speed);
+            {
+                const f32 norm_t = map01(entity->speed_t, entity->min_t, entity->max_t);
+                entity->speed = hermite(0.f, norm_t, entity->max_speed);
+            }
 
 
 
-            //
             // Animation
             //
             if (entity->model && entity->skeleton) {
-                ProfileScopeNC("entity_update_animation", 0xffc5d3);
-
+                // @Todo: Sync... Who's responsibility is it??
                 Skeleton *sk = entity->skeleton;
                 Animation_Player *ap = entity->animation_player;
                 if (ap) {
@@ -901,10 +904,10 @@ entity_update(Entity* entity, const f32 dt)
                         if (entity->attack_t > 0.f) {
                             ap->channels[2].set_animation(entity->attack_animation, true);
 
-                            ap->blend_weights[0] = clamp_lo(ap->blend_weights[0] - dt * 2.f, 0.f);
-                            ap->blend_weights[1] = clamp_lo(ap->blend_weights[1] - dt * 2.f, 0.f);
-                            ap->blend_weights[2] = clamp_hi(ap->blend_weights[2] + dt * 2.f, 1.f);
-                            ap->blend_weights[3] = clamp_lo(ap->blend_weights[3] - dt * 2.f, 0.f);
+                            ap->blend_weights[0] = clamp(ap->blend_weights[0] - dt * 2.f, 0.f, 1.f);
+                            ap->blend_weights[1] = clamp(ap->blend_weights[1] - dt * 2.f, 0.f, 1.f);
+                            ap->blend_weights[2] = clamp(ap->blend_weights[2] + dt * 2.f, 0.f, 1.f);
+                            ap->blend_weights[3] = clamp(ap->blend_weights[3] - dt * 2.f, 0.f, 1.f);
                         } else {
                             ap->channels[0].set_animation(entity->idle_animation, true);
                             ap->channels[1].set_animation(entity->running_animation, true);
@@ -912,28 +915,18 @@ entity_update(Entity* entity, const f32 dt)
                             f32 t = map01(entity->speed, 0.f, entity->max_speed);
                             ap->blend_weights[0] = 1.f - t;
                             ap->blend_weights[1] = t;
-                            ap->blend_weights[2] = clamp_lo(ap->blend_weights[2] - dt * 2.f, 0.f);
-                            ap->blend_weights[3] = clamp_lo(ap->blend_weights[3] - dt * 2.f, 0.f);
+                            ap->blend_weights[2] = clamp(ap->blend_weights[2] - dt * 2.f, 0.f, 1.f);
+                            ap->blend_weights[3] = clamp(ap->blend_weights[3] - dt * 2.f, 0.f, 1.f);
                         }
                     } else {
                         ap->channels[3].set_animation(entity->die_animation, false);
 
                         // @Fix: Proper blend...
-                        ap->blend_weights[0] = clamp_lo(ap->blend_weights[0] - dt * 10.f, 0.f);
-                        ap->blend_weights[1] = clamp_lo(ap->blend_weights[1] - dt * 10.f, 0.f);
-                        ap->blend_weights[2] = clamp_lo(ap->blend_weights[2] - dt * 10.f, 0.f);
-                        ap->blend_weights[3] = clamp_hi(ap->blend_weights[3] + dt * 10.f, 1.f);
+                        ap->blend_weights[0] = clamp(ap->blend_weights[0] - dt * 2.f, 0.f, 1.f);
+                        ap->blend_weights[1] = clamp(ap->blend_weights[1] - dt * 2.f, 0.f, 1.f);
+                        ap->blend_weights[2] = clamp(ap->blend_weights[2] - dt * 2.f, 0.f, 1.f);
+                        ap->blend_weights[3] = clamp(ap->blend_weights[3] + dt * 2.f, 0.f, 1.f);
                     }
-
-
-
-                    ap->accumulate(dt);
-                    ap->eval();
-
-                    // @Todo: This takes signifant amount of time, say, 1000 cpu wallclock time. For 1000 units, it'll take 1-miilion cycles.
-                    //        If I'm targeting 100 fps, I need about 37 million cycles, and 1 million out of 37 million is a lot.
-                    //        So, memcpying isn't really an option. Where do I put this?
-                    memcpy(entity->skinning_matrices, ap->skinning_matrices.data, sk->num_joints * sizeof(m4x4));
                 }
             }
         } break;
@@ -944,8 +937,8 @@ entity_update(Entity* entity, const f32 dt)
             s32 joint_id = entity->parent_joint_id;
             Joint *joint = &parent->skeleton->joints[joint_id];
             m4x4 local_transform = parent->skinning_matrices[joint_id] * inverse(joint->inverse_bind_pose);
-            m4x4 world_transform = m4x4_from_trs(parent->position, parent->orientation, parent->scaling) * local_transform;
-            entity->transform = world_transform * m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
+            m4x4 world_transform = to_m4x4(parent->position, parent->orientation, parent->scaling) * local_transform;
+            entity->transform = world_transform * to_m4x4(entity->position, entity->orientation, entity->scaling);
         } break;
 
         case ENTITY_TYPE_CASTLE: {
@@ -998,7 +991,7 @@ entity_update(Entity* entity, const f32 dt)
                                 const v2 normal = normalize(other_pos - pos); // @Fix: This can give a bogus number!
                                 const f32 depth = radii - dist;
 
-                                if (entity_is_pushable(entity, other)) {
+                                if (can_push(entity, other)) {
                                     entity->position.x -= normal.x*depth*0.5f;
                                     entity->position.z -= normal.y*depth*0.5f;
 
@@ -1012,20 +1005,28 @@ entity_update(Entity* entity, const f32 dt)
                         } else if (other->navmesh_scale > 0.f) {
                             // nearest position on navmesh's rectangle to unit's circle.
                             // @Fix: WRONG WRONG WRONG
-                            const f32 nx = clamp(pos.x, other_pos.x - other->navmesh_scale, other_pos.x + other->navmesh_scale);
-                            const f32 ny = clamp(pos.y, other_pos.y - other->navmesh_scale, other_pos.y + other->navmesh_scale);
+                            f32 half = 0.5f * other->navmesh_scale;
+                            f32 dx = clamp(pos.x - other_x, -half, half);
+                            f32 dy = clamp(pos.y - other_y, -half, half);
 
-                            const f32 dist = distance(pos, v2(nx, ny));
-                            const f32 radii = entity->radius + epsilon;
+                            if (absolute(dx) < half && absolute(dy) < half) {
+                            } else {
+                                // Point on the edge of a rect that's closest to the circle.
+                                v2 np = other_pos + v2(dx, dy);
+                                v2 dv = np - pos;
 
-                            // colliding
-                            if (dist < radii) {
-                                const f32 depth = radii - dist;
-                                const v2 normal = pos - other_pos;
+                                f32 d = length(dv);
+                                f32 radius = entity->radius - 1e-6f;
 
-                                // resolution
-                                entity->position.x += normal.x*depth;
-                                entity->position.z += normal.y*depth;
+                                // colliding
+                                if (d < radius) {
+                                    f32 depth = radius - d;
+                                    v2 normal = pos - other_pos;
+
+                                    // resolution
+                                    entity->position.x += normal.x*depth;
+                                    entity->position.z += normal.y*depth;
+                                }
                             }
                         }
                     }
@@ -1084,7 +1085,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         } break;
 
         case ENTITY_TYPE_SOLDIER: {
-            m4x4 transform = m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
+            m4x4 transform = to_m4x4(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
 
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
@@ -1177,7 +1178,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         } break;
 
         case ENTITY_TYPE_CASTLE: {
-            m4x4 transform = m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
+            m4x4 transform = to_m4x4(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
@@ -1187,7 +1188,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
         } break;
 
         case ENTITY_TYPE_KNIGHT: {
-            m4x4 transform = m4x4_from_trs(entity->position, entity->orientation, entity->scaling);
+            m4x4 transform = to_m4x4(entity->position, entity->orientation, entity->scaling);
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
@@ -1220,4 +1221,19 @@ lb_update_children:
         next = child->next_sibling;
         entity_draw(child, dt, render_group, commands);
     }
+}
+
+struct Update_Animation_Param {
+    Animation_Player *ap;
+    f32 dt;
+};
+
+internal OS_WORK_CALLBACK(update_animation_player_work)
+{
+    Update_Animation_Param *param_ = (Update_Animation_Param *)param;
+    Animation_Player *ap = param_->ap;
+    f32 dt = param_->dt;
+
+    ap->accumulate(dt);
+    ap->eval();
 }

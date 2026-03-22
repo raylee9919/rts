@@ -1,23 +1,17 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
 
-layout (location = 0) in v3 vP;
+layout (location = 0) in vec3 vP;
 
-out v3 fUV;
+out vec3 fUV;
 
-uniform m4x4 view_proj;
+uniform mat4 view_proj;
 
 void main()
 {
     fUV = vP;
-    gl_Position = view_proj * v4(vP, 1);
+    gl_Position = view_proj * vec4(vP, 1);
 }
 
 
