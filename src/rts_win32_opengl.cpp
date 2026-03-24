@@ -243,9 +243,7 @@ internal void win32_get_gl_functions(GL_Info info)
     WGL_GET_PROC_ADDRESS(glDrawElementsInstanced);
     WGL_GET_PROC_ADDRESS(glUniform1f);
     WGL_GET_PROC_ADDRESS(glUniform1fv);
-    WGL_GET_PROC_ADDRESS(glTexStorage3D);
     WGL_GET_PROC_ADDRESS(glTexSubImage3D);
-    WGL_GET_PROC_ADDRESS(glGenerateMipmap);
     WGL_GET_PROC_ADDRESS(glBindImageTexture);
     WGL_GET_PROC_ADDRESS(glClearTexImage);
     WGL_GET_PROC_ADDRESS(glDrawBuffers);
@@ -289,7 +287,6 @@ internal void win32_get_gl_functions(GL_Info info)
 
     if (info.opengl_arb_framebuffer_object) 
     {
-        WGL_GET_PROC_ADDRESS(glGenFramebuffers);
         WGL_GET_PROC_ADDRESS(glBindFramebuffer);
         WGL_GET_PROC_ADDRESS(glFramebufferTexture2D);
     }

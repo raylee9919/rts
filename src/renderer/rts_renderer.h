@@ -75,12 +75,6 @@ struct Render_Bitmap
     v3 max;
 };
 
-struct Textured_Vertex 
-{
-    v3 pos;
-    v2 uv;
-};
-
 struct Render_Group 
 {
     u64 capacity;

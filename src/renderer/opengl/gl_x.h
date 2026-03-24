@@ -53,12 +53,9 @@ typedef void        Type_glVertexAttribDivisor (GLuint index, GLuint divisor);
 typedef void        Type_glDrawElementsInstanced (GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount);
 typedef void        Type_glUniform1f (GLint location, GLfloat v0);
 typedef void        Type_glUniform1fv (GLint location, GLsizei count, const GLfloat *value);
-typedef void        Type_glGenFramebuffers (GLsizei n, GLuint *framebuffers);
 typedef void        Type_glBindFramebuffer (GLenum target, GLuint framebuffer);
 typedef void        Type_glFramebufferTexture2D (GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-typedef void        Type_glTexStorage3D (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 typedef void        Type_glTexSubImage3D (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels);
-typedef void        Type_glGenerateMipmap (GLenum target);
 typedef void        Type_glBindImageTexture (GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer, GLenum access, GLenum format);
 typedef void        Type_glClearTexImage (GLuint texture, GLint level, GLenum format, GLenum type, const void *data);
 typedef void        Type_glDrawBuffers (GLsizei n, const GLenum *bufs);
@@ -136,12 +133,9 @@ OPENGL_FUNCTION(glVertexAttribDivisor);
 OPENGL_FUNCTION(glDrawElementsInstanced);
 OPENGL_FUNCTION(glUniform1f);
 OPENGL_FUNCTION(glUniform1fv);
-OPENGL_FUNCTION(glGenFramebuffers);
 OPENGL_FUNCTION(glBindFramebuffer);
 OPENGL_FUNCTION(glFramebufferTexture2D);
-OPENGL_FUNCTION(glTexStorage3D);
 OPENGL_FUNCTION(glTexSubImage3D);
-OPENGL_FUNCTION(glGenerateMipmap);
 OPENGL_FUNCTION(glBindImageTexture);
 OPENGL_FUNCTION(glClearTexImage);
 OPENGL_FUNCTION(glDrawBuffers);
@@ -199,6 +193,17 @@ OPENGL_FUNCTION(glTextureSubImage2D);
     X(PFNGLNAMEDFRAMEBUFFERTEXTUREPROC,         glNamedFramebufferTexture) \
     X(PFNGLCHECKNAMEDFRAMEBUFFERSTATUSPROC,     glCheckNamedFramebufferStatus) \
     X(PFNGLCLEARNAMEDFRAMEBUFFERFVPROC,         glClearNamedFramebufferfv) \
+    X(PFNGLCREATEBUFFERSPROC,                   glCreateBuffers) \
+    X(PFNGLNAMEDBUFFERDATAPROC,                 glNamedBufferData) \
+    X(PFNGLNAMEDBUFFERSTORAGEPROC,              glNamedBufferStorage) \
+    X(PFNGLNAMEDBUFFERSUBDATAPROC,              glNamedBufferSubData) \
+    X(PFNGLVERTEXARRAYVERTEXBUFFERPROC,         glVertexArrayVertexBuffer) \
+    X(PFNGLVERTEXARRAYELEMENTBUFFERPROC,        glVertexArrayElementBuffer) \
+    X(PFNGLENABLEVERTEXARRAYATTRIBPROC,         glEnableVertexArrayAttrib) \
+    X(PFNGLDISABLEVERTEXARRAYATTRIBPROC,        glDisableVertexArrayAttrib) \
+    X(PFNGLVERTEXARRAYATTRIBFORMATPROC,         glVertexArrayAttribFormat) \
+    X(PFNGLVERTEXARRAYATTRIBIFORMATPROC,        glVertexArrayAttribIFormat) \
+    X(PFNGLVERTEXARRAYATTRIBBINDINGPROC,        glVertexArrayAttribBinding) \
     X(PFNGLDEBUGMESSAGECONTROLPROC,             glDebugMessageControl)
 
 

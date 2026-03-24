@@ -57,10 +57,8 @@ internal void opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(pbr_program, bone_transforms);
     GET_UNIFORM_LOCATION(pbr_program, tint);
     {
-        glGenBuffers(1, &gl->pbr_program.ubo);
-        glBindBuffer(GL_UNIFORM_BUFFER, gl->pbr_program.ubo);
-        glBufferData(GL_UNIFORM_BUFFER, 384, NULL, GL_STREAM_DRAW); // @Robustness: Hard-coded size...?
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+        glCreateBuffers(1, &gl->pbr_program.ubo);
+        glNamedBufferData(gl->pbr_program.ubo, 384, NULL, GL_STREAM_DRAW);  // @Robustness: Hard-coded size...?
     }
 
 
@@ -124,13 +122,21 @@ internal GL_Mesh_Buffer* opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
 
         node->mesh = mesh;
 
-        glGenBuffers(1, &node->vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, node->vbo);
-        glBufferData(GL_ARRAY_BUFFER, mesh->num_vertices * sizeof(mesh->vertices[0]), mesh->vertices, GL_STREAM_DRAW);
+        GLsizei ilen = GLsizei(mesh->num_indices * sizeof(u32));
+        GLsizei vlen = GLsizei(mesh->num_vertices * sizeof(Vertex));
 
-        glGenBuffers(1, &node->ibo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, node->ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->num_indices * sizeof(mesh->indices[0]), mesh->indices, GL_STREAM_DRAW);
+        GLsizei ioffset = vlen;
+        GLsizei voffset = 0;
+
+        GLuint buffer = GL_NONE;
+        glCreateBuffers(1, &buffer);
+        glNamedBufferStorage(buffer, ilen + vlen, NULL, GL_DYNAMIC_STORAGE_BIT);
+
+        glNamedBufferSubData(buffer, ioffset, ilen, mesh->indices);
+        glNamedBufferSubData(buffer, voffset, vlen, mesh->vertices);
+        
+        node->buffer = buffer;
+        node->index_offset = ioffset;
 
         sll_push_back(gl->first_mesh_buffer, gl->last_mesh_buffer, node);
     }
@@ -345,29 +351,26 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             Render_Mesh* piece = renderer->meshes + i;
 
             Mesh* mesh = piece->mesh;
-            auto mesh_buffer = opengl_get_mesh_buffer(gl, mesh);
+            auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
-            // Bind vbo.
-            glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer->vbo);
-            defer(glBindBuffer(GL_ARRAY_BUFFER, gl->vbo));
+            GLuint vao = gl->vao;
 
-            // Bind ibo.
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_buffer->ibo);
-            defer(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio));
+            glVertexArrayVertexBuffer(vao, 0, mbuf->buffer, 0, sizeof(Vertex));
+            glVertexArrayElementBuffer(vao, mbuf->buffer);
 
-            // Vertex attributes
-            //
-            glEnableVertexAttribArray(0); defer(glDisableVertexAttribArray(0));
-            glEnableVertexAttribArray(5); defer(glDisableVertexAttribArray(5));
-            glEnableVertexAttribArray(6); defer(glDisableVertexAttribArray(6));
+            glEnableVertexArrayAttrib(vao, 0);
+            glEnableVertexArrayAttrib(vao, 5);
+            glEnableVertexArrayAttrib(vao, 6);
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
-            glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
-            glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
+            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+            glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
+            glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
+
+            glVertexArrayAttribBinding(vao, 0, 0);
+            glVertexArrayAttribBinding(vao, 5, 0);
+            glVertexArrayAttribBinding(vao, 6, 0);
 
 
-            // Uniforms
-            //
             glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
             glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
             glUniform1i(shadowmap_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
@@ -377,8 +380,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
 
             // Draw call
-            //
-            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)0);
+            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset);
         }
     }
     
@@ -422,18 +424,21 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             Skybox_Program* skybox_program = &gl->skybox_program;
             glUseProgram(skybox_program->id);
 
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
+            Mesh *mesh = frame->skybox_mesh;
+            auto mbuf = opengl_get_mesh_buffer(gl, mesh);
+
+            GLuint vao = gl->vao;
+
+            glVertexArrayVertexBuffer(vao, 0, mbuf->buffer, 0, sizeof(Vertex));
+            glVertexArrayElementBuffer(vao, mbuf->buffer);
+
+            glEnableVertexArrayAttrib(vao, 0);
+            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+            glVertexArrayAttribBinding(vao, 0, 0);
 
             glUniformMatrix4fv(skybox_program->view_proj, 1, GL_TRUE, &frame->skybox_eye_view_proj.e[0][0]);
 
-            Mesh *mesh = frame->skybox_mesh;
-            glBufferData(GL_ARRAY_BUFFER, mesh->num_vertices * sizeof(Vertex), mesh->vertices, GL_DYNAMIC_DRAW);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->num_indices * sizeof(u32), mesh->indices, GL_DYNAMIC_DRAW);
-
-            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)0);
-
-            glDisableVertexAttribArray(0);
+            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset);
         }
 
         glEnable(GL_DEPTH_TEST);
@@ -474,16 +479,36 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 Render_Mesh* piece = renderer->meshes + i;
 
                 Mesh* mesh = piece->mesh;
-                auto mesh_buffer = opengl_get_mesh_buffer(gl, mesh);
+                auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
-                // Bind vbo.
-                glBindBuffer(GL_ARRAY_BUFFER, mesh_buffer->vbo);
-                defer(glBindBuffer(GL_ARRAY_BUFFER, gl->vbo));
+                GLuint vao = gl->vao;
 
-                // Bind ibo.
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_buffer->ibo);
-                defer(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio));
+                glVertexArrayVertexBuffer(vao, 0, mbuf->buffer, 0, sizeof(Vertex));
+                glVertexArrayElementBuffer(vao, mbuf->buffer);
 
+                glEnableVertexArrayAttrib(vao, 0);
+                glEnableVertexArrayAttrib(vao, 1);
+                glEnableVertexArrayAttrib(vao, 2);
+                glEnableVertexArrayAttrib(vao, 3);
+                glEnableVertexArrayAttrib(vao, 4);
+                glEnableVertexArrayAttrib(vao, 5);
+                glEnableVertexArrayAttrib(vao, 6);
+
+                glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+                glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, normal));
+                glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offset_of(Vertex, uv));
+                glVertexArrayAttribFormat(vao, 3, 4, GL_UNSIGNED_BYTE, GL_TRUE, offset_of(Vertex, color));
+                glVertexArrayAttribFormat(vao, 4, 4, GL_FLOAT, GL_FALSE, offset_of(Vertex, tangent));
+                glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
+                glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
+
+                glVertexArrayAttribBinding(vao, 0, 0);
+                glVertexArrayAttribBinding(vao, 1, 0);
+                glVertexArrayAttribBinding(vao, 2, 0);
+                glVertexArrayAttribBinding(vao, 3, 0);
+                glVertexArrayAttribBinding(vao, 4, 0);
+                glVertexArrayAttribBinding(vao, 5, 0);
+                glVertexArrayAttribBinding(vao, 6, 0);
 
                 glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
                 glUniform1i(pbr_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
@@ -492,48 +517,31 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
                 glBindTextureUnit(6, gl->shadowmaps);
 
-
                 gl_bind_pbr_texture(gl, mesh, PBR_ALBEDO,    0, gl->white_texture);
                 gl_bind_pbr_texture(gl, mesh, PBR_NORMAL,    1, gl->blue_texture);
                 gl_bind_pbr_texture(gl, mesh, PBR_ROUGHNESS, 2, gl->white_texture);
                 gl_bind_pbr_texture(gl, mesh, PBR_METALLIC,  3, gl->black_texture);
                 gl_bind_pbr_texture(gl, mesh, PBR_EMISSION,  4, gl->black_texture);
 
-
                 if (frame->wireframe_mode) {
                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
                     //opengl_set_flags_for_wireframe_mode(&flags);
                 }
 
-                glEnableVertexAttribArray(0); defer(glDisableVertexAttribArray(0));
-                glEnableVertexAttribArray(1); defer(glDisableVertexAttribArray(1));
-                glEnableVertexAttribArray(2); defer(glDisableVertexAttribArray(2));
-                glEnableVertexAttribArray(3); defer(glDisableVertexAttribArray(3));
-                glEnableVertexAttribArray(4); defer(glDisableVertexAttribArray(4));
-                glEnableVertexAttribArray(5); defer(glDisableVertexAttribArray(5));
-                glEnableVertexAttribArray(6); defer(glDisableVertexAttribArray(6));
-
-                glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, position)));
-                glVertexAttribPointer(1, 3, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, normal)));
-                glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, uv)));
-                glVertexAttribPointer(3, 4, GL_UNSIGNED_BYTE, GL_TRUE,  sizeof(Vertex), (GLvoid *)(offset_of(Vertex, color)));
-                glVertexAttribPointer(4, 4, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, tangent)));
-                glVertexAttribIPointer(5, MAX_BONE_PER_VERTEX, GL_INT, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_ids)));
-                glVertexAttribPointer(6, MAX_BONE_PER_VERTEX, GL_FLOAT, false, sizeof(Vertex), (GLvoid *)(offset_of(Vertex, node_weights)));
-
-
                 if (piece->skinning_matrices && piece->num_skinning_matrices) {
                     glUniformMatrix4fv(pbr_program->bone_transforms, piece->num_skinning_matrices, true, (GLfloat *)piece->skinning_matrices);
                 }
 
-
-                glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)0);
+                // Draw call
+                glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset);
             }
         }
 
         // Triangles
         //
+
         {
+#if 0
             Simple_Program *simple_program = &gl->simple_program;
             glUseProgram(simple_program->id);
 
@@ -578,11 +586,13 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
 
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
         }
 
         // Lines
         //
         {
+#if 0
             Simple_Program *simple_program = &gl->simple_program;
             glUseProgram(simple_program->id);
 
@@ -630,13 +640,14 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             glEnable(GL_DEPTH_TEST);
+#endif
         }
 
         glViewport(0, 0, window_width, window_height);
     }
 
 
-    // Blt
+    // Blit
     //
     {
         glEnable(GL_FRAMEBUFFER_SRGB);
@@ -645,30 +656,23 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glDisable(GL_DEPTH_TEST);
         glUseProgram(gl->blt_program.id);
 
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(2);
+        GLuint vao = gl->vao;
 
+        glVertexArrayVertexBuffer(vao, 0, gl->blit_vbo, 0, sizeof(Vertex));
 
-        // 3----1
-        // |    |
-        // 2----0
-        const Textured_Vertex vertices[] = {
-            {v3{ 1,-1, 0}, v2{1,0}},
-            {v3{ 1, 1, 0}, v2{1,1}},
-            {v3{-1,-1, 0}, v2{0,0}},
-            {v3{-1, 1, 0}, v2{0,1}}
-        };
+        glEnableVertexArrayAttrib(vao, 0);
+        glEnableVertexArrayAttrib(vao, 2);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, pos));
-        glVertexAttribPointer(2, 2, GL_FLOAT, false, sizeof(Textured_Vertex), (GLvoid *)offset_of(Textured_Vertex, uv));
+        glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+        glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offset_of(Vertex, uv));
+
+        glVertexArrayAttribBinding(vao, 0, 0);
+        glVertexArrayAttribBinding(vao, 2, 0);
+
 
         glBindTextureUnit(0, gl->color_texture);
 
-        glBufferData(GL_ARRAY_BUFFER, array_count(vertices) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(2);
     }
 
 
@@ -676,6 +680,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     //
     if (frame->draw_csm_frustum) 
     {
+#if 0
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
         glUseProgram(gl->simple_program.id);
@@ -711,6 +716,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glDisableVertexAttribArray(0);
         glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
+#endif
     }
 
 
@@ -736,10 +742,8 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             } break;
 
             case RENDER_COMMAND_TYPE_TEXTURE_UPDATE: {
-                GLuint gl_id = opengl_id_from_render_id(cmd.texture.id);
-
-                glBindTexture(GL_TEXTURE_2D, gl_id);
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, cmd.texture.width, cmd.texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cmd.texture.data);
+                GLuint name = opengl_id_from_render_id(cmd.texture.id);
+                glTextureSubImage2D(name, 0, 0, 0, cmd.texture.width, cmd.texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cmd.texture.data);
             } break;
 
             INVALID_DEFAULT_CASE;
@@ -747,10 +751,13 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     }
 
 
-    // NOTE: Revamping renderer currently.
-    //
+    // @Todo: DSA
+    // @Todo: DSA
+    // @Todo: DSA
+    // @Todo: DSA
     for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; type += 1)
     {
+#if 1
         Render_Buffer *buffer = renderer->buffer + type;
         u64 vertex_count = buffer->vertex_count;
         u64 instance_count = buffer->instance_count;
@@ -809,11 +816,8 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 assert(! "not implemented yet?");
             } break;
         }
+#endif
     }
-
-
-
-
 }
 
 // Program
@@ -1250,7 +1254,7 @@ internal void opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenu
         case GL_DEBUG_SEVERITY_HIGH: severity_str = "HIGH"; break;
     }
 
-    gl_printf("%s, %s, %s, %d: \n%s\n\n", src_str, type_str, severity_str, id, message);
+    printf("%s, %s, %s, %d: \n%s\n\n", src_str, type_str, severity_str, id, message);
 #endif
 }
 
@@ -1410,10 +1414,24 @@ internal void gl_init(Opengl *gl)
         glGenVertexArrays(1, &gl->vao);
         glBindVertexArray(gl->vao);
 
-        glGenBuffers(1, &gl->vbo);
+        glCreateBuffers(1, &gl->vbo);
 
-        glGenBuffers(1, &gl->vio);
+        glCreateBuffers(1, &gl->vio);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio);
+    }
+
+    {
+        // 3----1
+        // |    |
+        // 2----0
+        Vertex vertices[4] = {};
+        vertices[0].position = v3{ 1,-1, 0}; vertices[0].uv = v2{1,0};
+        vertices[1].position = v3{ 1, 1, 0}; vertices[1].uv = v2{1,1};
+        vertices[2].position = v3{-1,-1, 0}; vertices[2].uv = v2{0,0};
+        vertices[3].position = v3{-1, 1, 0}; vertices[3].uv = v2{0,1};
+
+        glCreateBuffers(1, &gl->blit_vbo);
+        glNamedBufferData(gl->blit_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
     }
 
     glDisable(GL_MULTISAMPLE);

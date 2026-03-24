@@ -10,9 +10,7 @@
 
 #include "./gl_resource.h"
 
-#pragma comment(lib, "opengl32.lib")
 
-//
 // Globals and Constants.
 //
 global const char *g_shader_header = 
@@ -21,8 +19,6 @@ global char g_shared[2048];
 
 #define gl_max_uniform_count    16
 #define gl_max_attrib_count     16
-// # Debug
-#define gl_printf printf
 
 
 
@@ -141,14 +137,15 @@ struct Gl_Program
 struct GL_Mesh_Buffer {
     // @Robustness
     Mesh*  mesh;
-    GLuint vbo;
-    GLuint ibo;
+
+    // Separating vertex buffer and index buffer was useful when there were several ways 
+    // to attach GPUs to the main system, but AGP was completely phased out by PCIe.
+    GLuint buffer;
+    u64 index_offset; // offset to indices.
 
     GL_Mesh_Buffer* next;
 };
 
-// # Note: OpenGL
-//
 struct Opengl
 {
     Platform_Renderer header;
@@ -203,11 +200,9 @@ struct Opengl
     GL_Mesh_Buffer *last_mesh_buffer;
 
 
-
-
-    // Revamping...
-    //
     
+    GLuint blit_vbo;
+
             
 
     Gl_Program quad_program;
