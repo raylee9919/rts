@@ -121,7 +121,7 @@ struct Render_Commands
 
     b32         skybox_on;
     Mesh*       skybox_mesh;
-    Bitmap*     skybox_textures;
+    Asset::Texture* skybox_textures;
     m4x4        skybox_eye_view_proj;
 
     v2          toggled_down_mouse_position;

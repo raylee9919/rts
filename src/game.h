@@ -9,14 +9,12 @@ struct Entity;
 struct Game_Assets {
     Arena* arena;
 
-    Bitmap debug_bitmap;
-
     Model* castle_model;
     Model* sword_model;
     Model* plane_model;
 
     Mesh   skybox_mesh;
-    Bitmap skybox_textures[6];
+    Asset::Texture skybox_textures[6];
 
     Model *skeleton_model;
     Skeleton *skeleton_skeleton;

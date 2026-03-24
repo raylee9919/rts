@@ -400,10 +400,10 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 assert(frame->skybox_textures);
                 auto tex = &frame->skybox_textures[0];
                 Texture_Layout layout = {};
-                if (tex->bits_per_channel == 8) {
-                    if (tex->channel_count == 4) {
+                if (tex->bytes_per_channel == 1) {
+                    if (tex->num_channels == 4) {
                         layout = TEXTURE_LAYOUT_R8G8B8A8;
-                    } else if (tex->channel_count == 3) {
+                    } else if (tex->num_channels == 3) {
                         layout = TEXTURE_LAYOUT_R8G8B8;
                     } else {
                         INVALID_CODE_PATH;
@@ -411,7 +411,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 } else {
                     INVALID_CODE_PATH;
                 }
-                gl->skybox_texture = gl_create_cubemap_texture(layout, tex->width, tex->height, frame->skybox_textures, sizeof(frame->skybox_textures[0]), offset_of(Bitmap, memory));
+                gl->skybox_texture = gl_create_cubemap_texture(layout, tex->width, tex->height, frame->skybox_textures, sizeof(frame->skybox_textures[0]), offset_of(Asset::Texture, data));
             }
 
             glDisable(GL_CULL_FACE);
@@ -1220,34 +1220,34 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
 //
 internal void opengl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, GLchar const* message, void const* userParam)
 {
-#if 0
+#if 1
     const char *src_str = NULL;
     switch (source) {
-        case GL_DEBUG_SOURCE_API: src_str = "API";
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM: src_str = "WINDOW SYSTEM";
-        case GL_DEBUG_SOURCE_SHADER_COMPILER: src_str = "SHADER COMPILER";
-        case GL_DEBUG_SOURCE_THIRD_PARTY: src_str = "THIRD PARTY";
-        case GL_DEBUG_SOURCE_APPLICATION: src_str = "APPLICATION";
-        case GL_DEBUG_SOURCE_OTHER: src_str = "OTHER";
+        case GL_DEBUG_SOURCE_API: src_str = "API"; break;
+        case GL_DEBUG_SOURCE_WINDOW_SYSTEM: src_str = "WINDOW SYSTEM"; break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: src_str = "SHADER COMPILER"; break;
+        case GL_DEBUG_SOURCE_THIRD_PARTY: src_str = "THIRD PARTY"; break;
+        case GL_DEBUG_SOURCE_APPLICATION: src_str = "APPLICATION"; break;
+        case GL_DEBUG_SOURCE_OTHER: src_str = "OTHER"; break;
     }
 
     const char *type_str = NULL;
     switch (type) {
-        case GL_DEBUG_TYPE_ERROR: type_str = "ERROR";
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: type_str = "DEPRECATED_BEHAVIOR";
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: type_str = "UNDEFINED_BEHAVIOR";
-        case GL_DEBUG_TYPE_PORTABILITY: type_str = "PORTABILITY";
-        case GL_DEBUG_TYPE_PERFORMANCE: type_str = "PERFORMANCE";
-        case GL_DEBUG_TYPE_MARKER: type_str = "MARKER";
-        case GL_DEBUG_TYPE_OTHER: type_str = "OTHER";
+        case GL_DEBUG_TYPE_ERROR: type_str = "ERROR"; break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: type_str = "DEPRECATED_BEHAVIOR"; break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: type_str = "UNDEFINED_BEHAVIOR"; break;
+        case GL_DEBUG_TYPE_PORTABILITY: type_str = "PORTABILITY"; break;
+        case GL_DEBUG_TYPE_PERFORMANCE: type_str = "PERFORMANCE"; break;
+        case GL_DEBUG_TYPE_MARKER: type_str = "MARKER"; break;
+        case GL_DEBUG_TYPE_OTHER: type_str = "OTHER"; break;
     }
 
     const char *severity_str = NULL;
     switch (severity) {
-        case GL_DEBUG_SEVERITY_NOTIFICATION: severity_str = "NOTIFICATION";
-        case GL_DEBUG_SEVERITY_LOW: severity_str = "LOW";
-        case GL_DEBUG_SEVERITY_MEDIUM: severity_str = "MEDIUM";
-        case GL_DEBUG_SEVERITY_HIGH: severity_str = "HIGH";
+        case GL_DEBUG_SEVERITY_NOTIFICATION: severity_str = "NOTIFICATION"; break;
+        case GL_DEBUG_SEVERITY_LOW: severity_str = "LOW"; break;
+        case GL_DEBUG_SEVERITY_MEDIUM: severity_str = "MEDIUM"; break;
+        case GL_DEBUG_SEVERITY_HIGH: severity_str = "HIGH"; break;
     }
 
     gl_printf("%s, %s, %s, %d: \n%s\n\n", src_str, type_str, severity_str, id, message);
@@ -1359,11 +1359,7 @@ internal void gl_init(Opengl *gl)
     glDebugMessageCallbackARB(opengl_debug_callback, NULL);
 
     // Filter out messages.
-    // Fix: NOT WORKING
-    const GLuint ids[] = {
-        131185,
-    };
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, array_count(ids), ids, GL_FALSE);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, NULL, GL_FALSE);
 #endif
 
     // Textured Quad Shader

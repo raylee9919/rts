@@ -105,7 +105,7 @@ OS_ATTRIBUTES_FROM_FILE_PATH(win32_attributes_from_file_path)
     return result;
 }
 
-// NOTE: File Iterator
+// File Iterator
 //
 OS_FILE_ITERATOR_BEGIN(win32_file_iterator_begin)
 {
@@ -190,7 +190,7 @@ OS_FILE_ITERATOR_END(win32_file_iterator_end)
 }
 
 
-// NOTE: Memory
+// Memory
 //
 
 OS_RESERVE(win32_memory_reserve)
@@ -212,7 +212,6 @@ OS_DECOMMIT(win32_memory_decommit)
     VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
-
 OS_RELEASE(win32_memory_release)
 {
     // NOTE: size is not required in Windows, but necessary in other OSes.
@@ -220,7 +219,7 @@ OS_RELEASE(win32_memory_release)
 }
 
 
-// NOTE: File
+// File
 //
 
 OS_FILE_IS_VALID(win32_file_is_valid)

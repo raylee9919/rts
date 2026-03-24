@@ -13,6 +13,7 @@
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
+#include "asset/texture.h"
 #include "asset.h"
 #include "third_party/mikktspace/mikktspace.h"
 #include "fbx_importer_util.h"
@@ -22,7 +23,12 @@
 //
 #include "base/rts_base_inc.cpp"
 #include "os/rts_os.cpp"
+
+#pragma warning(push)
+#pragma warning(disable : 4456)
 #include "third_party/mikktspace/mikktspace.c"
+#pragma warning(pop)
+
 #include "fbx_importer_util.cpp"
 
 static int a;
@@ -588,11 +594,11 @@ int main()
                 fprintf(f, "%u %.*s\n", bone.length, bone.length, bone.name);
                 fprintf(f, "%d\n", bone.parent);
 
-                m4x4 m = bone.local_transform;
-                fprintf(f, "%.6f %.6f %.6f %.6f\n", m._11, m._12, m._13, m._14);
-                fprintf(f, "%.6f %.6f %.6f %.6f\n", m._21, m._22, m._23, m._24);
-                fprintf(f, "%.6f %.6f %.6f %.6f\n", m._31, m._32, m._33, m._34);
-                fprintf(f, "%.6f %.6f %.6f %.6f\n", m._41, m._42, m._43, m._44);
+                m4x4 l = bone.local_transform;
+                fprintf(f, "%.6f %.6f %.6f %.6f\n", l._11, l._12, l._13, l._14);
+                fprintf(f, "%.6f %.6f %.6f %.6f\n", l._21, l._22, l._23, l._24);
+                fprintf(f, "%.6f %.6f %.6f %.6f\n", l._31, l._32, l._33, l._34);
+                fprintf(f, "%.6f %.6f %.6f %.6f\n", l._41, l._42, l._43, l._44);
                 fprintf(f, "\n");
 
                 m4x4 inv = bone.inverse_bind_pose;

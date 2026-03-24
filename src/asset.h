@@ -28,16 +28,6 @@ struct Asset_Version {
     u8 patch;
 };
 
-struct Asset_Texture {
-    s32 bits_per_channel;
-    s32 channel_count;
-    s32 width;
-    s32 height;
-    s32 pitch;
-    u32 size;
-    void *data;
-};
-
 struct Asset_Vertex {
     v3  pos;
     v3  normal;
@@ -84,18 +74,17 @@ struct Asset_Animation {
     Asset_Animation_Node *nodes;
 };
 
-
-
-struct Bitmap {
-    s32 bits_per_channel;
-    s32 channel_count;
-    s32 width;
-    s32 height;
-    s32 pitch;
-    u32 handle;
-    u32 size;
-    void *memory;
-};
+//struct Bitmap {
+//    s32 bits_per_channel;
+//    s32 channel_count;
+//    s32 width;
+//    s32 height;
+//    s32 pitch;
+//    u32 size;
+//    void *memory;
+//
+//    u32 handle;
+//};
 
 enum Asset_ID 
 {
@@ -145,7 +134,7 @@ struct Mesh  {
     u32     num_indices;
     u32*    indices;
 
-    Bitmap textures[PBR_COUNT];
+    Asset::Texture textures[PBR_COUNT];
 };
 
 struct Material 
@@ -230,7 +219,6 @@ struct Animation {
 
 
 
-internal void asset_load_image(Bitmap *bitmap, Utf8 file_path, Arena *arena);
 internal u32 get_triangle_count(Model *model);
 internal u64 animation_hash(u32 id, u32 length);
 

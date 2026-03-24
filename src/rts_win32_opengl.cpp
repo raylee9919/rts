@@ -10,6 +10,7 @@
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_font.h"
+#include "asset/texture.h"
 #include "asset.h"
 
 #include "renderer/rts_renderer.h"

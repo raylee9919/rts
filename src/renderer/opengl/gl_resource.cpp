@@ -1,18 +1,18 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-internal void gl_alloc_texture(Opengl *gl, Bitmap *bitmap, GLenum wrapping, bool generate_mipmap)
+internal void gl_alloc_texture(Opengl *gl, Asset::Texture *texture, GLenum wrapping, bool generate_mipmap)
 {
-    glCreateTextures(GL_TEXTURE_2D, 1, &bitmap->handle);
-    GLuint tex = bitmap->handle;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture->handle);
+    GLuint tex = texture->handle;
 
-    u32 w = bitmap->width;
-    u32 h = bitmap->height;
-    void *data = bitmap->memory;
+    u32 w = texture->width;
+    u32 h = texture->height;
+    void *data = texture->data;
 
     GLsizei levels = generate_mipmap ? (GLsizei)floor(log2(max(w, h))) + 1 : 1;
 
-    if (bitmap->bits_per_channel == 8) {
-        switch (bitmap->channel_count) {
+    if (texture->bytes_per_channel == 1) {
+        switch (texture->num_channels) {
             case 1: 
             glTextureStorage2D(tex, levels, GL_R8, w, h);
             glTextureSubImage2D(tex, 0, 0, 0, w, h, GL_RED, GL_UNSIGNED_BYTE, data);
@@ -35,7 +35,7 @@ internal void gl_alloc_texture(Opengl *gl, Bitmap *bitmap, GLenum wrapping, bool
 
             INVALID_DEFAULT_CASE;
         }
-    } else if (bitmap->bits_per_channel == 16) {
+    } else if (texture->bytes_per_channel == 2) {
         INVALID_CODE_PATH;
     } else {
         INVALID_CODE_PATH;
