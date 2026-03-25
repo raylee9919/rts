@@ -8,6 +8,7 @@
 #include "renderer/opengl/gl_x.h"
 #include "renderer/opengl/gl_ext.h"
 
+#include "./gl_bump_allocator.h"
 #include "./gl_resource.h"
 
 
@@ -36,13 +37,12 @@ struct GL_Info
     GLint max_attachment;
 
     // ARB/EXT
-    bool opengl_ext_texture_sgb;
-    bool opengl_ext_framebuffer_srgb;
-    bool opengl_arb_framebuffer_object;
+    bool ARB_framebuffer_object;
+    bool EXT_texture_srgb;
+    bool ARB_EXT_framebuffer_srgb;
     bool ARB_direct_state_access;
     bool ARB_explicit_uniform_location;
     bool ARB_bindless_texture;
-    bool ARB_EXT_framebuffer_srgb;
 };
 
 struct Sprite_Program 
@@ -138,13 +138,13 @@ struct GL_Mesh_Buffer {
     // @Robustness
     Mesh*  mesh;
 
-    // Separating vertex buffer and index buffer was useful when there were several ways 
-    // to attach GPUs to the main system, but AGP was completely phased out by PCIe.
-    GLuint buffer;
-    u64 index_offset; // offset to indices.
+    // Suballocated in a big mesh buffer.
+    u64 vertex_offset; // offset to vertices.
+    u64 index_offset;  // offset to indices.
 
     GL_Mesh_Buffer* next;
 };
+
 
 struct Opengl
 {
@@ -194,6 +194,10 @@ struct Opengl
     u32    blue[4][4];
 
 
+    GL::Bump_Allocator vertex_buffer;
+    GL::Bump_Allocator index_buffer;
+
+
 
     // VBO list.
     GL_Mesh_Buffer *first_mesh_buffer;
@@ -201,10 +205,6 @@ struct Opengl
 
 
     
-    GLuint blit_vbo;
-
-            
-
     Gl_Program quad_program;
 };
 

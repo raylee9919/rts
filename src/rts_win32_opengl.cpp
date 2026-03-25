@@ -33,35 +33,56 @@
 
 // WGL Functions.
 //
-typedef HGLRC WINAPI Wgl_Create_Context_Attribs_Arb(HDC hDC, HGLRC hShareContext, const int *attribList);
 typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Iv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
 typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Fv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
-typedef BOOL WINAPI Wgl_Choose_Pixel_Format_Arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *n);
-typedef BOOL WINAPI Wgl_Swap_Interval_Ext(int interval);
-typedef const char * WINAPI Wgl_Get_Extensions_String_Ext(void);
 
-global Wgl_Create_Context_Attribs_Arb *wglCreateContextAttribsARB;
-global Wgl_Choose_Pixel_Format_Arb *wglChoosePixelFormatARB;
-global Wgl_Swap_Interval_Ext *wglSwapIntervalEXT;
-global Wgl_Get_Extensions_String_Ext *wglGetExtensionsStringEXT;
+static PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = NULL;
+static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
+static PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT = NULL;
 
-// WGL Globals.
-//
-global int win32_opengl_attribs[] =
+
+internal void set_pixel_format(Opengl *gl, HDC dc) 
 {
-    WGL_CONTEXT_MAJOR_VERSION_ARB, RTS_GL_VERSION_MAJOR,
-    WGL_CONTEXT_MINOR_VERSION_ARB, RTS_GL_VERSION_MINOR,
-    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-    WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if BUILD_DEBUG
-        |WGL_CONTEXT_DEBUG_BIT_ARB
-#endif
-        ,
-    0,
-};
+    int attrib[] =
+    {
+        WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+        WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+        WGL_DOUBLE_BUFFER_ARB,  GL_TRUE,
+        WGL_PIXEL_TYPE_ARB,     WGL_TYPE_RGBA_ARB,
+        WGL_COLOR_BITS_ARB,     24,
+        WGL_DEPTH_BITS_ARB,     24,
+        WGL_STENCIL_BITS_ARB,   8,
 
-internal void win32_set_pixel_format(Opengl *gl, HDC window_dc) 
-{
+        // uncomment for sRGB framebuffer, from WGL_ARB_framebuffer_sRGB extension
+        // https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_framebuffer_sRGB.txt
+        WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, GL_TRUE,
+
+        // uncomment for multisampled framebuffer, from WGL_ARB_multisample extension
+        // https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_multisample.txt
+        //WGL_SAMPLE_BUFFERS_ARB, 1,
+        //WGL_SAMPLES_ARB,        4, // 4x MSAA
+
+        0,
+    };
+
+    int format;
+    UINT formats;
+    if (!wglChoosePixelFormatARB(dc, attrib, NULL, 1, &format, &formats) || formats == 0) {
+        assert(!"OpenGL does not support required pixel format!");
+    }
+
+    PIXELFORMATDESCRIPTOR desc = {};
+    desc.nSize = sizeof(desc);
+    int ok = DescribePixelFormat(dc, format, sizeof(desc), &desc);
+    assert(ok && "Failed to describe OpenGL pixel format");
+
+    if (!SetPixelFormat(dc, format, &desc)) {
+        assert(!"Cannot set OpenGL selected pixel format!");
+    }
+
+
+
+#if 0
     int suggested_pixel_format_index = 0;
     GLuint extended_pick = 0;
     if (wglChoosePixelFormatARB)
@@ -76,15 +97,15 @@ internal void win32_set_pixel_format(Opengl *gl, HDC window_dc)
             WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, GL_TRUE,          // 5
             0,
         };
-        
+
         if (!gl->info.ARB_EXT_framebuffer_srgb) {
             int_attrib_list[11] = 0;
         }
-        
+
         wglChoosePixelFormatARB(window_dc, int_attrib_list, 0, 1,
                                 &suggested_pixel_format_index, &extended_pick);
     }
-    
+
     if (! extended_pick)
     {
         // # Todo: Hey Raymond Chen - what's the deal here?
@@ -100,87 +121,101 @@ internal void win32_set_pixel_format(Opengl *gl, HDC window_dc)
             desired_pixel_format.cDepthBits = 24;
             desired_pixel_format.iLayerType = PFD_MAIN_PLANE;
         }
-        
+
         suggested_pixel_format_index = ChoosePixelFormat(window_dc, &desired_pixel_format);
     }
-    
+
     PIXELFORMATDESCRIPTOR suggested_pixel_format;
     // Technically you do not need to call DescribePixelFormat here,
     // as SetPixelFormat doesn't actually need it to be filled out properly.
     // DescribePixelFormat(window_dc, suggested_pixel_format_index, sizeof(suggested_pixel_format), &suggested_pixel_format);
     SetPixelFormat(window_dc, suggested_pixel_format_index, &suggested_pixel_format);
+#endif
 }
 
-internal void win32_load_wgl_extensions(Opengl *gl) 
+internal void get_wgl_functions(Opengl *gl) 
 {
-    WNDCLASSA wclass = {};
-    wclass.lpfnWndProc   = DefWindowProcA;
-    wclass.hInstance     = GetModuleHandle(0);
-    wclass.lpszClassName = "WGL_Loader";
+    HWND dummy = CreateWindowExW(0, L"STATIC", L"DummyWindow", WS_OVERLAPPED,
+                                 CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                                 NULL, NULL, NULL, NULL);
 
-    if (RegisterClassA(&wclass)) 
-    {
-        HWND window = CreateWindowExA(0, wclass.lpszClassName, "WGL_Loader", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, wclass.hInstance, 0);
-        HDC dc = GetDC(window);
-        win32_set_pixel_format(gl, dc);
-        HGLRC glrc = wglCreateContext(dc);
-        if (wglMakeCurrent(dc, glrc)) 
-        {
-            wglChoosePixelFormatARB    = (Wgl_Choose_Pixel_Format_Arb *)wglGetProcAddress("wglChoosePixelFormatARB");
-            wglCreateContextAttribsARB = (Wgl_Create_Context_Attribs_Arb *)wglGetProcAddress("wglCreateContextAttribsARB");
-            wglGetExtensionsStringEXT  = (Wgl_Get_Extensions_String_Ext *)wglGetProcAddress("wglGetExtensionsStringEXT");
+    HDC dc = GetDC(dummy);
+    assert(dc && "Failed to get device context for dummy window.");
 
-            if (wglGetExtensionsStringEXT)
-            {
-                char *extensions = (char *)wglGetExtensionsStringEXT();
-                char *at = extensions;
-                while (*at)
-                {
-                    while (is_whitespace(*at)) { ++at; }
-                    char *end = at;
-                    while (*end && !is_whitespace(*end)) {++end;}
+    PIXELFORMATDESCRIPTOR desc = {};
+    desc.nSize = sizeof(desc);
+    desc.nVersion = 1;
+    desc.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    desc.iPixelType = PFD_TYPE_RGBA;
+    desc.cColorBits = 24;
 
-                    umm count = end - at;
+    int format = ChoosePixelFormat(dc, &desc);
+    if (!format) {
+        assert(!"Cannot choose OpenGL pixel format for dummy window!");
+    }
 
-                    if (string_equal(at, count, "WGL_EXT_framebuffer_sRGB")) {
-                        gl->info.ARB_EXT_framebuffer_srgb = true;
-                    }
-                    else if (string_equal(at, count, "WGL_ARB_framebuffer_sRGB")) {
-                        gl->info.ARB_EXT_framebuffer_srgb = true;
-                    }
+    int ok = DescribePixelFormat(dc, format, sizeof(desc), &desc);
+    assert(ok && "Failed to describe OpenGL pixel format");
 
-                    at = end;
-                }
-            } else {
-                assert(0);
-            }
+    // reason to create dummy window is that SetPixelFormat can be called only once for the window
+    if (!SetPixelFormat(dc, format, &desc)) {
+        assert(!"Cannot set OpenGL pixel format for dummy window!");
+    }
 
-            assert(wglMakeCurrent(0, 0));
-        } else {
-            assert(0);
+    HGLRC rc = wglCreateContext(dc);
+    assert(rc && "Failed to create OpenGL context for dummy window.");
+
+    ok = wglMakeCurrent(dc, rc);
+    assert(ok && "Failed to make current OpenGL context for dummy window.");
+
+    // https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_extensions_string.txt
+    auto wglGetExtensionsStringARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
+    if (!wglGetExtensionsStringARB) {
+        assert(!"OpenGL does not support WGL_ARB_extensions_string extension!");
+    }
+
+    const char* ext = wglGetExtensionsStringARB(dc);
+    assert(ext && "Failed to get OpenGL WGL extension string.");
+
+    char* start = (char *)ext;
+    for (;;) {
+        while (*ext != 0 && *ext != ' ') {
+            ext++;
         }
 
-        assert(wglDeleteContext(glrc));
-        ReleaseDC(window, dc);
-        DestroyWindow(window);
-        UnregisterClassA(wclass.lpszClassName, wclass.hInstance);
-    } else {
-        assert(0);
-    }
-}
+        size_t length = ext - start;
+        if (string_equal("WGL_ARB_pixel_format", start, length)) {
+            // https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_pixel_format.txt
+            wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+        }
+        else if (string_equal("WGL_ARB_create_context", start, length)) {
+            // https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_create_context.txt
+            wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+        }
+        else if (string_equal("WGL_EXT_swap_control", start, length)) {
+            // https://www.khronos.org/registry/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
+            wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+        } else if (string_equal("WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB", start, length)) {
 
-internal void
-platform_opengl_set_vsync(Opengl *gl, b32 vsync_enabled)
-{
-    if(! wglSwapIntervalEXT) 
-    {
-        wglSwapIntervalEXT = (Wgl_Swap_Interval_Ext *)wglGetProcAddress("wglSwapIntervalEXT");
+        }
+ 
+        if (*ext == 0) {
+            break;
+        }
+
+        ext++;
+        start = (char *)ext;
     }
 
-    if (wglSwapIntervalEXT) 
-    {
-        wglSwapIntervalEXT(vsync_enabled ? 1 : 0);
+    if (!wglChoosePixelFormatARB || !wglCreateContextAttribsARB || !wglSwapIntervalEXT) {
+        assert(!"OpenGL does not support required WGL extensions for modern context!");
     }
+
+
+    wglMakeCurrent(NULL, NULL);
+    wglDeleteContext(rc);
+    ReleaseDC(dummy, dc);
+    DestroyWindow(dummy);
 }
 
 extern "C" __declspec(dllexport)
@@ -211,7 +246,6 @@ RENDERER_END_FRAME(win32_end_frame)
 internal void win32_get_gl_functions(GL_Info info)
 {
 #define WGL_GET_PROC_ADDRESS(name) name = (Type_##name *)wglGetProcAddress(#name)
-    WGL_GET_PROC_ADDRESS(glCreateShader);
     WGL_GET_PROC_ADDRESS(glShaderSource);
     WGL_GET_PROC_ADDRESS(glCompileShader);
     WGL_GET_PROC_ADDRESS(glCreateProgram);
@@ -285,85 +319,69 @@ internal void win32_get_gl_functions(GL_Info info)
     WGL_GET_PROC_ADDRESS(glTextureStorage2D);
     WGL_GET_PROC_ADDRESS(glTextureSubImage2D);
 
-    if (info.opengl_arb_framebuffer_object) 
-    {
+    if (info.ARB_framebuffer_object) {
         WGL_GET_PROC_ADDRESS(glBindFramebuffer);
         WGL_GET_PROC_ADDRESS(glFramebufferTexture2D);
     }
 }
 
-internal Opengl* win32_init_opengl(HDC window_dc, umm push_buffer_size, Arena *arena, OS *os_init)
+internal Opengl* win32_init_opengl(HDC dc, umm push_buffer_size, Arena *arena, OS *os_init)
 {
     os = os_init;
-
-    b32 reload = false;
-
-    // @Fix: broke
-    // if (arena->used) 
-    // { reload = true; }
-
 
     Opengl *gl = push_struct(arena, Opengl);
     GL_Info *glinfo = push_struct(arena, GL_Info);
 
-    if (reload) 
-    {
-        Opengl *oldgl = push_struct(arena, Opengl);
-        gl->info = oldgl->info;
-        gl->render_commands = oldgl->render_commands;
+    // Get WGL functions to be able to create modern GL context.
+    get_wgl_functions(gl);
 
-        gl->info.ARB_EXT_framebuffer_srgb = oldgl->info.ARB_EXT_framebuffer_srgb;
-        HGLRC glrc = wglGetCurrentContext();
-        win32_load_wgl_extensions(gl);
-        wglMakeCurrent(window_dc, glrc);
-    }
-    else 
+    // Set pixel format for OpenGL context.
+    set_pixel_format(gl, dc);
+
+
+    int attrib[] =
     {
-        win32_set_pixel_format(gl, window_dc);
-        win32_load_wgl_extensions(gl);
+        WGL_CONTEXT_MAJOR_VERSION_ARB, RTS_GL_VERSION_MAJOR,
+        WGL_CONTEXT_MINOR_VERSION_ARB, RTS_GL_VERSION_MINOR,
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+#if BUILD_DEBUG
+        // ask for debug context for non "Release" builds
+        // this is so we can enable debug callback
+        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
+#endif
+        0,
+    };
+
+    HGLRC rc = wglCreateContextAttribsARB(dc, NULL, attrib);
+    if (!rc) {
+        assert(!"Cannot create modern OpenGL context! OpenGL version 4.5 not supported?");
     }
 
+    BOOL ok = wglMakeCurrent(dc, rc);
+    assert(ok && "Failed to make current OpenGL Context.");
+
+
+#define X(type, name) name = (type)wglGetProcAddress(#name); assert(name);
+    GL_FUNCTIONS(X);
+#undef X
+
+    // V-Sync
+    wglSwapIntervalEXT(true);
+
+
+    // @Todo: wtf is this..
     gl->push_buffer = (u8 *)push_size(arena, push_buffer_size);
     gl->push_buffer_size = push_buffer_size;
 
-    if (reload) 
-    {
-        win32_get_gl_functions(gl->info);
-    } 
-    else 
-    {
-        b32 modern_context = true;
-        HGLRC glrc = 0;
-        if (wglCreateContextAttribsARB) 
-        {
-            glrc = wglCreateContextAttribsARB(window_dc, 0, win32_opengl_attribs);
-        }
-        if (! glrc) 
-        {
-            modern_context = false;
-            glrc = wglCreateContext(window_dc);
-        }
-        assert(glrc);
 
-        if (wglMakeCurrent(window_dc, glrc)) 
-        {
-#define X(type, name) name = (type)wglGetProcAddress(#name); assert(name);
-        GL_FUNCTIONS(X)
-#undef X
-            GL_Info info = opengl_get_info(gl, modern_context);
-            win32_get_gl_functions(info);
-            gl->info = info;
+    // @Todo: Cleanup
+    GL_Info info = opengl_get_info(gl, true);
+    win32_get_gl_functions(info);
+    gl->info = info;
 
-            platform_opengl_set_vsync(gl, true);
-        }
-        else 
-        {
-            assert(0);
-        }
-    }
 
+    // @Todo: Cleanup
     gl_init(gl);
-
     return gl;
 }
 

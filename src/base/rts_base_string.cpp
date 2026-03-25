@@ -50,6 +50,12 @@ string_equal(char *str1, u64 len1, char *str2)
     return string_equal(str1, len1, str2, string_length(str2));
 }
 
+internal bool
+string_equal(const char *str1, char *str2, u64 len2) 
+{
+    return string_equal((char *)str1, string_length((char *)str1), str2, len2);
+}
+
 internal b32
 string_equal(char *str1, char *str2) 
 {

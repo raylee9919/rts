@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
+#include "./gl_bump_allocator.cpp"
 #include "./gl_resource.cpp"
 
 
@@ -40,15 +41,7 @@ internal void opengl_compile_shaders(Opengl *gl)
     char *simple_fs = 
     #include "shader/simple_fs.glsl"
 
-    char *blt_vs = 
-    #include "shader/blt_vs.glsl"
-    char *blt_fs = 
-    #include "shader/blt_fs.glsl"
 
-
-
-
-    glDeleteShader(gl->pbr_program.id);
     gl->pbr_program.id = opengl_program_create_vf(gl, pbr_vs, pbr_fs);
     GET_UNIFORM_LOCATION(pbr_program, world_transform);
     GET_UNIFORM_LOCATION(pbr_program, VP);
@@ -64,11 +57,9 @@ internal void opengl_compile_shaders(Opengl *gl)
 
 
 
-    glDeleteShader(gl->skybox_program.id);
     gl->skybox_program.id = opengl_program_create_vf(gl, skybox_vs, skybox_fs);
     GET_UNIFORM_LOCATION(skybox_program, view_proj);
 
-    glDeleteShader(gl->shadowmap_program.id);
     gl->shadowmap_program.id = opengl_create_program(gl, csm_vs, csm_gs, csm_fs);
     GET_UNIFORM_LOCATION(shadowmap_program, world_transform);
     GET_UNIFORM_LOCATION(shadowmap_program, VP);
@@ -76,13 +67,9 @@ internal void opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(shadowmap_program, bone_transforms);
     GET_UNIFORM_LOCATION(shadowmap_program, light_view_projs);
 
-    glDeleteShader(gl->simple_program.id);
     gl->simple_program.id = opengl_program_create_vf(gl, simple_vs, simple_fs);
     GET_UNIFORM_LOCATION(simple_program, VP);
     GET_UNIFORM_LOCATION(simple_program, color);
-
-    glDeleteShader(gl->blt_program.id);
-    gl->blt_program.id = opengl_program_create_vf(gl, blt_vs, blt_fs);
 }
 
 internal Render_Commands* opengl_frame_begin(Opengl *gl, v2u window_dim, v2u render_dim)
@@ -125,18 +112,17 @@ internal GL_Mesh_Buffer* opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
         GLsizei ilen = GLsizei(mesh->num_indices * sizeof(u32));
         GLsizei vlen = GLsizei(mesh->num_vertices * sizeof(Vertex));
 
-        GLsizei ioffset = vlen;
-        GLsizei voffset = 0;
+        GLsizei ioffset = gl->index_buffer.used;
+        GLsizei voffset = gl->vertex_buffer.used;
 
-        GLuint buffer = GL_NONE;
-        glCreateBuffers(1, &buffer);
-        glNamedBufferStorage(buffer, ilen + vlen, NULL, GL_DYNAMIC_STORAGE_BIT);
+        glNamedBufferSubData(gl->index_buffer.handle, ioffset, ilen, mesh->indices);
+        glNamedBufferSubData(gl->vertex_buffer.handle, voffset, vlen, mesh->vertices);
 
-        glNamedBufferSubData(buffer, ioffset, ilen, mesh->indices);
-        glNamedBufferSubData(buffer, voffset, vlen, mesh->vertices);
-        
-        node->buffer = buffer;
-        node->index_offset = ioffset;
+        GL::bump_push(&gl->index_buffer,  ilen);
+        GL::bump_push(&gl->vertex_buffer, vlen);
+
+        node->vertex_offset = voffset;
+        node->index_offset  = ioffset;
 
         sll_push_back(gl->first_mesh_buffer, gl->last_mesh_buffer, node);
     }
@@ -346,30 +332,30 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
         glUniformMatrix4fv(shadowmap_program->light_view_projs, CSM_COUNT, true, (GLfloat *)light_view_projs);
 
+        // Vertex attributes.
+        GLuint vao = gl->vao;
+
+        glVertexArrayVertexBuffer(vao, 0, gl->vertex_buffer.handle, 0, sizeof(Vertex));
+        glVertexArrayElementBuffer(vao, gl->index_buffer.handle);
+
+        glEnableVertexArrayAttrib(vao, 0);
+        glEnableVertexArrayAttrib(vao, 5);
+        glEnableVertexArrayAttrib(vao, 6);
+
+        glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+        glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
+        glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
+
+        glVertexArrayAttribBinding(vao, 0, 0);
+        glVertexArrayAttribBinding(vao, 5, 0);
+        glVertexArrayAttribBinding(vao, 6, 0);
+
         for (u32 i = 0; i < renderer->num_meshes; ++i) {
 
             Render_Mesh* piece = renderer->meshes + i;
 
             Mesh* mesh = piece->mesh;
             auto mbuf = opengl_get_mesh_buffer(gl, mesh);
-
-            GLuint vao = gl->vao;
-
-            glVertexArrayVertexBuffer(vao, 0, mbuf->buffer, 0, sizeof(Vertex));
-            glVertexArrayElementBuffer(vao, mbuf->buffer);
-
-            glEnableVertexArrayAttrib(vao, 0);
-            glEnableVertexArrayAttrib(vao, 5);
-            glEnableVertexArrayAttrib(vao, 6);
-
-            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
-            glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
-            glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
-
-            glVertexArrayAttribBinding(vao, 0, 0);
-            glVertexArrayAttribBinding(vao, 5, 0);
-            glVertexArrayAttribBinding(vao, 6, 0);
-
 
             glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
             glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
@@ -380,10 +366,11 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
 
             // Draw call
-            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset);
+            GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
+            glDrawElementsBaseVertex(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset, base_vertex);
         }
     }
-    
+
 
 
 
@@ -416,6 +403,17 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 gl->skybox_texture = gl_create_cubemap_texture(layout, tex->width, tex->height, frame->skybox_textures, sizeof(frame->skybox_textures[0]), offset_of(Asset::Texture, data));
             }
 
+
+            GLuint vao = gl->vao;
+
+            glVertexArrayVertexBuffer(vao, 0, gl->vertex_buffer.handle, 0, sizeof(Vertex));
+            glVertexArrayElementBuffer(vao, gl->index_buffer.handle);
+
+            glEnableVertexArrayAttrib(vao, 0);
+            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+            glVertexArrayAttribBinding(vao, 0, 0);
+
+
             glDisable(GL_CULL_FACE);
             defer(GL_CULL_FACE);
 
@@ -427,18 +425,11 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             Mesh *mesh = frame->skybox_mesh;
             auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
-            GLuint vao = gl->vao;
-
-            glVertexArrayVertexBuffer(vao, 0, mbuf->buffer, 0, sizeof(Vertex));
-            glVertexArrayElementBuffer(vao, mbuf->buffer);
-
-            glEnableVertexArrayAttrib(vao, 0);
-            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
-            glVertexArrayAttribBinding(vao, 0, 0);
-
             glUniformMatrix4fv(skybox_program->view_proj, 1, GL_TRUE, &frame->skybox_eye_view_proj.e[0][0]);
 
-            glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset);
+            // Draw call
+            GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
+            glDrawElementsBaseVertex(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset, base_vertex);
         }
 
         glEnable(GL_DEPTH_TEST);
@@ -474,41 +465,42 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glBufferSubData(GL_UNIFORM_BUFFER, 368, 16, &csm_z_spans);
             }
 
+            
+            GLuint vao = gl->vao;
+
+            glVertexArrayVertexBuffer(vao, 0, gl->vertex_buffer.handle, 0, sizeof(Vertex));
+            glVertexArrayElementBuffer(vao, gl->index_buffer.handle);
+
+            glEnableVertexArrayAttrib(vao, 0);
+            glEnableVertexArrayAttrib(vao, 1);
+            glEnableVertexArrayAttrib(vao, 2);
+            glEnableVertexArrayAttrib(vao, 3);
+            glEnableVertexArrayAttrib(vao, 4);
+            glEnableVertexArrayAttrib(vao, 5);
+            glEnableVertexArrayAttrib(vao, 6);
+
+            glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
+            glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, normal));
+            glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offset_of(Vertex, uv));
+            glVertexArrayAttribFormat(vao, 3, 4, GL_UNSIGNED_BYTE, GL_TRUE, offset_of(Vertex, color));
+            glVertexArrayAttribFormat(vao, 4, 4, GL_FLOAT, GL_FALSE, offset_of(Vertex, tangent));
+            glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
+            glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
+
+            glVertexArrayAttribBinding(vao, 0, 0);
+            glVertexArrayAttribBinding(vao, 1, 0);
+            glVertexArrayAttribBinding(vao, 2, 0);
+            glVertexArrayAttribBinding(vao, 3, 0);
+            glVertexArrayAttribBinding(vao, 4, 0);
+            glVertexArrayAttribBinding(vao, 5, 0);
+            glVertexArrayAttribBinding(vao, 6, 0);
+
 
             for (u32 i = 0; i < renderer->num_meshes; ++i) {
                 Render_Mesh* piece = renderer->meshes + i;
 
                 Mesh* mesh = piece->mesh;
                 auto mbuf = opengl_get_mesh_buffer(gl, mesh);
-
-                GLuint vao = gl->vao;
-
-                glVertexArrayVertexBuffer(vao, 0, mbuf->buffer, 0, sizeof(Vertex));
-                glVertexArrayElementBuffer(vao, mbuf->buffer);
-
-                glEnableVertexArrayAttrib(vao, 0);
-                glEnableVertexArrayAttrib(vao, 1);
-                glEnableVertexArrayAttrib(vao, 2);
-                glEnableVertexArrayAttrib(vao, 3);
-                glEnableVertexArrayAttrib(vao, 4);
-                glEnableVertexArrayAttrib(vao, 5);
-                glEnableVertexArrayAttrib(vao, 6);
-
-                glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
-                glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, normal));
-                glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offset_of(Vertex, uv));
-                glVertexArrayAttribFormat(vao, 3, 4, GL_UNSIGNED_BYTE, GL_TRUE, offset_of(Vertex, color));
-                glVertexArrayAttribFormat(vao, 4, 4, GL_FLOAT, GL_FALSE, offset_of(Vertex, tangent));
-                glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
-                glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
-
-                glVertexArrayAttribBinding(vao, 0, 0);
-                glVertexArrayAttribBinding(vao, 1, 0);
-                glVertexArrayAttribBinding(vao, 2, 0);
-                glVertexArrayAttribBinding(vao, 3, 0);
-                glVertexArrayAttribBinding(vao, 4, 0);
-                glVertexArrayAttribBinding(vao, 5, 0);
-                glVertexArrayAttribBinding(vao, 6, 0);
 
                 glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
                 glUniform1i(pbr_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
@@ -533,7 +525,8 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 }
 
                 // Draw call
-                glDrawElements(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset);
+                GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
+                glDrawElementsBaseVertex(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset, base_vertex);
             }
         }
 
@@ -651,28 +644,12 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     //
     {
         glEnable(GL_FRAMEBUFFER_SRGB);
-        defer(glDisable(GL_FRAMEBUFFER_SRGB));
-
-        glDisable(GL_DEPTH_TEST);
-        glUseProgram(gl->blt_program.id);
-
-        GLuint vao = gl->vao;
-
-        glVertexArrayVertexBuffer(vao, 0, gl->blit_vbo, 0, sizeof(Vertex));
-
-        glEnableVertexArrayAttrib(vao, 0);
-        glEnableVertexArrayAttrib(vao, 2);
-
-        glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
-        glVertexArrayAttribFormat(vao, 2, 2, GL_FLOAT, GL_FALSE, offset_of(Vertex, uv));
-
-        glVertexArrayAttribBinding(vao, 0, 0);
-        glVertexArrayAttribBinding(vao, 2, 0);
-
-
-        glBindTextureUnit(0, gl->color_texture);
-
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glBlitNamedFramebuffer(gl->fbo, 0,
+                               0, 0, render_width, render_height,
+                               0, 0, window_width, window_height,
+                               GL_COLOR_BUFFER_BIT,
+                               GL_LINEAR);
+        glDisable(GL_FRAMEBUFFER_SRGB);
     }
 
 
@@ -1281,10 +1258,10 @@ internal GL_Info opengl_get_info(Opengl *gl, b32 modern_context)
         char *ext_name = (char *)glGetStringi(GL_EXTENSIONS, i);
 
         if (0) {}
-        else if (string_equal(ext_name, "GL_EXT_texture_sRGB"))              { info.opengl_ext_texture_sgb = true; }
-        else if (string_equal(ext_name, "GL_EXT_framebuffer_sRGB"))          { info.opengl_ext_framebuffer_srgb = true; }
-        else if (string_equal(ext_name, "GL_ARB_framebuffer_sRGB"))          { info.opengl_ext_framebuffer_srgb = true; }
-        else if (string_equal(ext_name, "GL_ARB_framebuffer_object"))        { info.opengl_arb_framebuffer_object = true; }
+        else if (string_equal(ext_name, "GL_EXT_texture_sRGB"))              { info.EXT_texture_srgb = true; }
+        else if (string_equal(ext_name, "GL_EXT_framebuffer_sRGB"))          { info.ARB_EXT_framebuffer_srgb = true; }
+        else if (string_equal(ext_name, "GL_ARB_framebuffer_sRGB"))          { info.ARB_EXT_framebuffer_srgb = true; }
+        else if (string_equal(ext_name, "GL_ARB_framebuffer_object"))        { info.ARB_framebuffer_object = true; }
         else if (string_equal(ext_name, "GL_ARB_direct_state_access"))       { info.ARB_direct_state_access = true; }
         else if (string_equal(ext_name, "GL_ARB_explicit_uniform_location")) { info.ARB_explicit_uniform_location = true; }
         else if (string_equal(ext_name, "GL_ARB_bindless_texture"))          { info.ARB_bindless_texture = true; }
@@ -1310,11 +1287,11 @@ internal GL_Info opengl_get_info(Opengl *gl, b32 modern_context)
     
     
     if ((major > 2) || ((major == 2) && (minor >= 1))) {
-        info.opengl_ext_texture_sgb = true;
+        info.EXT_texture_srgb = true;
     }
     
     if (major >= 3) {
-        info.opengl_arb_framebuffer_object = true;
+        info.ARB_framebuffer_object = true;
     }
 
     if ((major > 4) || (major == 4 && minor >= 3)) {
@@ -1325,6 +1302,7 @@ internal GL_Info opengl_get_info(Opengl *gl, b32 modern_context)
     }
 
 
+    assert(info.ARB_EXT_framebuffer_srgb);
     assert(info.ARB_direct_state_access);
     assert(info.ARB_explicit_uniform_location);
     assert(info.ARB_bindless_texture);
@@ -1356,7 +1334,7 @@ internal void gl_bind_pbr_texture(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type,
 
 internal void gl_init(Opengl *gl)
 {
-#if BUILD_DEBUG
+#if BUILD_DEBUG // @Fix: Commenting this out causes error in blit draw... Why?
     // KHR_debug has been in core since 4.3
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -1420,19 +1398,9 @@ internal void gl_init(Opengl *gl)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl->vio);
     }
 
-    {
-        // 3----1
-        // |    |
-        // 2----0
-        Vertex vertices[4] = {};
-        vertices[0].position = v3{ 1,-1, 0}; vertices[0].uv = v2{1,0};
-        vertices[1].position = v3{ 1, 1, 0}; vertices[1].uv = v2{1,1};
-        vertices[2].position = v3{-1,-1, 0}; vertices[2].uv = v2{0,0};
-        vertices[3].position = v3{-1, 1, 0}; vertices[3].uv = v2{0,1};
+    GL::bump_init(&gl->vertex_buffer, MB(128));
+    GL::bump_init(&gl->index_buffer, MB(96));
 
-        glCreateBuffers(1, &gl->blit_vbo);
-        glNamedBufferData(gl->blit_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    }
 
     glDisable(GL_MULTISAMPLE);
 }

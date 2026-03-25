@@ -21,7 +21,6 @@ typedef void (APIENTRY  *GLDEBUGPROCARB)(GLenum source,GLenum type,GLuint id,GLe
 // Scrapped from OpenGL core header file.
 //
 typedef BOOL        Type_wglSwapIntervalEXT(int interval);
-typedef GLuint      Type_glCreateShader(GLenum shaderType);
 typedef void        Type_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
 typedef void        Type_glCompileShader(GLuint shader);
 typedef GLuint      Type_glCreateProgram(void);
@@ -101,7 +100,6 @@ typedef void        Type_glTextureSubImage2D (GLuint texture, GLint level, GLint
 // #Note: Function Pointers
 //
 #define OPENGL_FUNCTION(Name) Type_##Name *Name
-OPENGL_FUNCTION(glCreateShader);
 OPENGL_FUNCTION(glShaderSource);
 OPENGL_FUNCTION(glCompileShader);
 OPENGL_FUNCTION(glCreateProgram);
@@ -184,6 +182,7 @@ OPENGL_FUNCTION(glTextureSubImage2D);
 // All you have to do is append the desired function! X macro will do the heavy lifting!
 #define GL_FUNCTIONS(X) \
     X(PFNGLGETSTRINGIPROC,                      glGetStringi) \
+    X(PFNGLCREATESHADERPROC,                    glCreateShader) \
     X(PFNGLTEXTUREPARAMETERFPROC,               glTextureParameterf) \
     X(PFNGLTEXTURESUBIMAGE3DPROC,               glTextureSubImage3D) \
     X(PFNGLTEXTURESTORAGE3DPROC,                glTextureStorage3D) \
@@ -204,6 +203,8 @@ OPENGL_FUNCTION(glTextureSubImage2D);
     X(PFNGLVERTEXARRAYATTRIBFORMATPROC,         glVertexArrayAttribFormat) \
     X(PFNGLVERTEXARRAYATTRIBIFORMATPROC,        glVertexArrayAttribIFormat) \
     X(PFNGLVERTEXARRAYATTRIBBINDINGPROC,        glVertexArrayAttribBinding) \
+    X(PFNGLDRAWELEMENTSBASEVERTEXPROC,          glDrawElementsBaseVertex) \
+    X(PFNGLBLITNAMEDFRAMEBUFFERPROC,            glBlitNamedFramebuffer) \
     X(PFNGLDEBUGMESSAGECONTROLPROC,             glDebugMessageControl)
 
 
