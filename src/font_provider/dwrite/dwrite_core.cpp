@@ -246,7 +246,7 @@ dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
             font->atlas.rpk_ctx = push_struct(font->arena, Rpk_Context);
             rpk_init(font->atlas.rpk_ctx, font->arena, font->atlas.width, font->atlas.height);
 
-            font->atlas.id = render_texture_create(TEXTURE_LAYOUT_R8G8B8A8, font->atlas.data, font->atlas.width, font->atlas.height, RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT);
+            font->atlas.id = render_texture_create(TEXTURE_LAYOUT_RGBA8, font->atlas.data, font->atlas.width, font->atlas.height, RENDER_COMMAND_FLAG_TEXTURE_FILTER_DOT);
         }
 
         u16 *indices                 = NULL;

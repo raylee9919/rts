@@ -6,6 +6,10 @@ namespace Asset
 {
     struct Texture 
     {
+        // @Todo: Stable ID
+        // Unstable ID. May differ every time you play a game.
+        u64 incremental_id;
+
         // Read
         Utf8 name;
 
@@ -18,22 +22,23 @@ namespace Asset
         // Computed
         u32 pitch;
         u32 size;
-
-        // @Temporary
-        u32 handle;
+        Texture_Layout layout;
     };
 
-    // Loads data in engine's texture format from memory.
-    void load_texture(Texture *tex, void *memory, u64 size);
+    // APIs
+    //
+    void load_texture(System *sys, Texture *tex, void *memory, u64 size);
 
-    // Loads data in engine's texture format from file.
-    void load_texture(Texture *tex, Utf8 file_path);
+    void load_texture(System *sys, Texture *tex, Utf8 file_path);
 
-    // Loads file with stb_image and convert to engine's format.
-    void import_texture(Texture *tex, Utf8 file_path, bool flip);
+    void import_texture(System *sys, Texture *tex, Utf8 file_path, bool flip);
 
-    void export_texture(Texture *tex, Utf8 file_path);
+    void export_texture(System *sys, Texture *tex, Utf8 file_path);
 
-    // Stores texture that is in engine's format.
-    void store_texture(Texture *tex, Utf8 file_path);
+    void store_texture(System *sys, Texture *tex, Utf8 file_path);
+
+
+    // Internal
+    //
+    Texture_Layout determine_layout(u32 bytes_per_channel, u32 num_channels);
 }

@@ -240,6 +240,7 @@ enum
 
 #define list_for_n(f, it, next) for (decltype(f) (it) = (f); (it) != 0; (it) = (it)->next)
 #define list_for(f, it)  list_for_n(f, it, next)
+#define List_For(f, it)  list_for_n(f, it, next)
 
 
 // ---------------------------------------
@@ -532,3 +533,12 @@ read_only global const u64 bit61 = (1ull<<60);
 read_only global const u64 bit62 = (1ull<<61);
 read_only global const u64 bit63 = (1ull<<62);
 read_only global const u64 bit64 = (1ull<<63);
+
+
+enum Texture_Layout
+{
+    TEXTURE_LAYOUT_INVALID,
+    TEXTURE_LAYOUT_RGBA8,
+    TEXTURE_LAYOUT_RGB8,
+    TEXTURE_LAYOUT_R8,
+};

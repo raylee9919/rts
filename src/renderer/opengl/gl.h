@@ -5,10 +5,10 @@
 
 #include <gl/gl.h>
 #include "third_party/opengl/glcorearb.h"
-#include "renderer/opengl/gl_x.h"
-#include "renderer/opengl/gl_ext.h"
 
+#include "./gl_x.h"
 #include "./gl_bump_allocator.h"
+#include "./gl_texture.h"
 #include "./gl_resource.h"
 
 
@@ -206,6 +206,13 @@ struct Opengl
 
     
     Gl_Program quad_program;
+
+
+    GLuint texture_buffer;
+    u32 max_num_textures;
+    u32 num_textures;
+    GL::Texture* first_texture;
+    GL::Texture* last_texture;
 };
 
 #define GET_UNIFORM_LOCATION(Program, Name) gl->Program.Name = glGetUniformLocation(gl->Program.id, #Name);

@@ -18,7 +18,6 @@
 typedef void (APIENTRY  *GLDEBUGPROCARB)(GLenum source,GLenum type,GLuint id,GLenum severity,GLsizei length,const GLchar *message,const void *userParam);
 
 // @Todo: This was a bad idea. X macro is much cleaner...
-// Scrapped from OpenGL core header file.
 //
 typedef BOOL        Type_wglSwapIntervalEXT(int interval);
 typedef void        Type_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
@@ -205,6 +204,9 @@ OPENGL_FUNCTION(glTextureSubImage2D);
     X(PFNGLVERTEXARRAYATTRIBBINDINGPROC,        glVertexArrayAttribBinding) \
     X(PFNGLDRAWELEMENTSBASEVERTEXPROC,          glDrawElementsBaseVertex) \
     X(PFNGLBLITNAMEDFRAMEBUFFERPROC,            glBlitNamedFramebuffer) \
+    X(PFNGLGETTEXTUREHANDLEARBPROC,             glGetTextureHandleARB) \
+    X(PFNGLMAKETEXTUREHANDLERESIDENTARBPROC,    glMakeTextureHandleResidentARB) \
+    X(PFNGLMAKETEXTUREHANDLENONRESIDENTARBPROC, glMakeTextureHandleNonResidentARB) \
     X(PFNGLDEBUGMESSAGECONTROLPROC,             glDebugMessageControl)
 
 

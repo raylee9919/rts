@@ -83,7 +83,7 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: Renderers
 if "%BuildGL%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link %flags_linker% /PDB:win32_opengl_%random%.pdb
+    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link opengl32.lib %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
 :: Game

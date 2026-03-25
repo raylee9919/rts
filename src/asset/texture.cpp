@@ -5,19 +5,22 @@
 
 namespace Asset
 {
-    void load_texture(Texture *tex, void *memory, u64 size)
+    void load_texture(System *sys, Texture *tex, void *memory, u64 size)
     {
         assert(tex);
 
         Asset::Parser p = {};
         init(&p, memory, size);
 
+        tex->incremental_id    = sys->next_incremental_id++;
         tex->bytes_per_channel = parse_u32(&p);
         tex->num_channels      = parse_u32(&p);
         tex->width             = parse_u32(&p);
         tex->height            = parse_u32(&p);
         tex->pitch             = tex->width * tex->num_channels * tex->bytes_per_channel;
         tex->size              = tex->pitch * tex->height;
+        tex->layout            = determine_layout(tex->bytes_per_channel, tex->num_channels);
+
 
         eat_whitespace(&p);
         // @Todo: Alloc data properly.
@@ -28,7 +31,7 @@ namespace Asset
         assert(is_eof(&p));
     }
 
-    void load_texture(Texture *tex, Utf8 file_path)
+    void load_texture(System *sys, Texture *tex, Utf8 file_path)
     {
         assert(tex);
 
@@ -37,10 +40,10 @@ namespace Asset
 
         Utf8 contents = read_entire_file(scratch.arena, file_path);
 
-        load_texture(tex, contents.str, contents.len);
+        load_texture(sys, tex, contents.str, contents.len);
     }
 
-    void import_texture(Texture *tex, Utf8 file_path, bool flip)
+    void import_texture(System *sys, Texture *tex, Utf8 file_path, bool flip)
     {
         assert(tex);
 
@@ -53,12 +56,15 @@ namespace Asset
         int x, y, num_channels;
         u8 *data = stbi_load_from_memory(contents.str, (int)contents.len, &x, &y, &num_channels, 0);
 
+        tex->incremental_id    = sys->next_incremental_id++;
         tex->bytes_per_channel = 1; // @Todo: It mustn't be hard-coded.
         tex->num_channels      = num_channels;
         tex->width             = x;
         tex->height            = y;
         tex->pitch             = tex->width * tex->num_channels * tex->bytes_per_channel;
         tex->size              = tex->pitch * tex->height;
+        tex->layout            = determine_layout(tex->bytes_per_channel, tex->num_channels);
+
 
         // @Todo: Alloc data properly.
         tex->data = new u8[tex->size];
@@ -67,13 +73,13 @@ namespace Asset
         stbi_image_free(data);
     }
 
-    void export_texture(Texture *tex, Utf8 file_path)
+    void export_texture(System *sys, Texture *tex, Utf8 file_path)
     {
         int ok = stbi_write_png((const char *)file_path.str, tex->width, tex->height, tex->num_channels, tex->data, tex->pitch);
         assert(ok);
     }
 
-    void store_texture(Texture *tex, Utf8 file_path)
+    void store_texture(System *sys, Texture *tex, Utf8 file_path)
     {
         FILE *f = fopen((const char *)file_path.str, "wb");
         if (f) {
@@ -85,5 +91,27 @@ namespace Asset
 
             fclose(f);
         }
+    }
+
+
+    Texture_Layout determine_layout(u32 bytes_per_channel, u32 num_channels)
+    {
+        Texture_Layout layout = TEXTURE_LAYOUT_INVALID;
+
+        if (bytes_per_channel == 1) {
+            if (num_channels == 4) {
+                layout = TEXTURE_LAYOUT_RGBA8;
+            } else if (num_channels == 3) {
+                layout = TEXTURE_LAYOUT_RGB8;
+            } else if (num_channels == 1) {
+                layout = TEXTURE_LAYOUT_R8;
+            } else { 
+                assert(0);
+            }
+        } else {
+            assert(0);
+        }
+
+        return layout;
     }
 }

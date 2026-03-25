@@ -47,6 +47,8 @@ struct Game_State {
 
     Os_Handle window_handle;
 
+    Asset::System asset_system;
+
     b32 editor_initted;
 
     Arena* frame_arena;

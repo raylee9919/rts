@@ -2,7 +2,7 @@
 
 struct Opengl;
 
-internal void gl_alloc_texture(Opengl *gl, Asset::Texture *texture, GLenum wrapping, bool generate_mipmap = false);
+//internal void gl_alloc_texture(Opengl *gl, Asset::Texture *texture, GLenum wrapping, bool generate_mipmap = false);
 
 internal void gl_alloc_texture2(Opengl *gl, const Render_Command& cmd, GLuint* table);
 

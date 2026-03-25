@@ -1,10 +1,4 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
 
@@ -35,9 +29,9 @@ void main()
     f_rect_half_dim = v_rect_half_dim;
     f_radius = v_radius;
 
-    float x = ( v_position.x / viewport_w * 2.0f) - 1.0f;
-    float y = (-v_position.y / viewport_h * 2.0f) + 1.0f;
-    gl_Position = vec4(x, y, 0.0f, 1.0f);
+    float x = ( v_position.x / viewport_w * 2.0) - 1.0;
+    float y = (-v_position.y / viewport_h * 2.0) + 1.0;
+    gl_Position = vec4(x, y, 0.0, 1.0);
 }
 
 )";

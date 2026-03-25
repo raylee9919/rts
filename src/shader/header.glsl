@@ -3,6 +3,8 @@
 R"(
 #version 450
 
+#extension GL_ARB_bindless_texture : require
+
 #define u32     uint
 #define s32     int
 #define f32     float

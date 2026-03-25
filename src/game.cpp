@@ -10,8 +10,7 @@
 #include "ds.h"
 #include "rts_platform.h"
 #include "rts_font.h"
-#include "asset/texture.h"
-#include "asset/parser.h"
+#include "asset/inc.h"
 #include "asset.h"
 #include "animation.h"
 #include "cdt.h"
@@ -36,8 +35,7 @@ global Renderer* renderer;
 #include "rts_random.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
-#include "asset/texture.cpp"
-#include "asset/parser.cpp"
+#include "asset/inc.cpp"
 #include "asset.cpp"
 #include "animation.cpp"
 #include "cdt.cpp"
@@ -274,6 +272,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         game_state->next_generational_id = 1;
 
         game_state->minimap_size         = 300.f;
+
+        Asset::init(&game_state->asset_system);
         
         { // Temporary
             Temporary_Arena scratch = scratch_begin();
@@ -281,6 +281,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
             
             Game_Assets *assets = game_state->assets;
             Arena *asset_arena = game_state->assets->arena;
+            auto asset_system = &game_state->asset_system;
             
             assets->skeleton_model = push_struct(asset_arena, Model);
             {
@@ -290,27 +291,27 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("body-lib"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/bodyColor.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/bodyMetalic.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/bodyNormal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/bodyRoughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/bodyColor.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/bodyMetalic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/bodyNormal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/bodyRoughness.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("helm-lib"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/helmetColor.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/helmetNormal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/helmetMetalic.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/helmetRoughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/helmetColor.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/helmetNormal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/helmetMetalic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/helmetRoughness.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("scabbard_2-lib"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/clothColor.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/clothNormal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/clothRoughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/clothColor.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/clothNormal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/clothRoughness.texture", platform->data_path));
                 }
 
 
@@ -360,125 +361,125 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Head"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_head_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_head_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_head_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_head_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_head_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_head_roughness.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Eyes"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_eye_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_eye_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_eye_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_eye_normal.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Helm2"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_helm_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_helm_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_helm_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_helm_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_helm_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_helm_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_helm_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_helm_metallic.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Arms"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_arms_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_arms_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.texture", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Acessories"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_arms_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_arms_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.texture", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Acessories2"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_arms_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_arms_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_arms_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_arms_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_arms_metallic.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Breast_Armor"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.texture", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Leegs_Armor1"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.texture", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("pants"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_breast_armor_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_breast_armor_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_breast_armor_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_breast_armor_metallic.texture", platform->data_path));
                 }
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Weapon2"));
                     assert(mesh);
 
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_sword_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_sword_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_sword_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_sword_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_sword_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_sword_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_sword_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_sword_metallic.texture", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Shield"));
                     assert(mesh);
-                    load_texture(&mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_shield_albedo.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_shield_normal.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_shield_roughness.texture", platform->data_path));
-                    load_texture(&mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_shield_metallic.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_shield_albedo.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_shield_normal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_shield_roughness.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/knight_shield_metallic.texture", platform->data_path));
                 }
             }
 
             assets->plane_model = push_struct(asset_arena, Model);
             {
                 load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane.triangle_mesh", platform->data_path), v3(100.f)); // @Temporary: Scaled
-                load_texture(&assets->plane_model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", platform->data_path));
-                load_texture(&assets->plane_model->meshes[0].textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.texture", platform->data_path));
-                load_texture(&assets->plane_model->meshes[0].textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.texture", platform->data_path));
-                load_texture(&assets->plane_model->meshes[0].textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.texture", platform->data_path));
+                load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", platform->data_path));
+                load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.texture", platform->data_path));
+                load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.texture", platform->data_path));
+                load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.texture", platform->data_path));
             }
             
             assets->sword_model = push_struct(asset_arena, Model);
             {
                 auto* model = assets->sword_model;
                 load_model(asset_arena, assets->sword_model, utf8f(scratch.arena, "%S/mesh/sword.triangle_mesh", platform->data_path));
-                load_texture(&model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/sword_albedo.texture", platform->data_path));
-                load_texture(&model->meshes[0].textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/sword_normal.texture", platform->data_path));
-                load_texture(&model->meshes[0].textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/sword_metalic.texture", platform->data_path));
-                load_texture(&model->meshes[0].textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/sword_roughness.texture", platform->data_path));
+                load_texture(asset_system, &model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/sword_albedo.texture", platform->data_path));
+                load_texture(asset_system, &model->meshes[0].textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/sword_normal.texture", platform->data_path));
+                load_texture(asset_system, &model->meshes[0].textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/sword_metalic.texture", platform->data_path));
+                load_texture(asset_system, &model->meshes[0].textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/sword_roughness.texture", platform->data_path));
             }
 
             assets->castle_model = push_struct(asset_arena, Model);
             {
                 auto* model = assets->castle_model;
                 load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/castle.triangle_mesh", platform->data_path), v3(8.f));
-                load_texture(&model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", platform->data_path));
+                load_texture(asset_system, &model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", platform->data_path));
             }
             
             char *skybox_filenames[6] = {"right", "left", "top", "bottom", "front", "back"};
             for (u32 i = 0; i < 6; ++i) {
-                load_texture(assets->skybox_textures + i, utf8f(scratch.arena, "%S/textures/%s.texture", platform->data_path, skybox_filenames[i]));
+                load_texture(asset_system, assets->skybox_textures + i, utf8f(scratch.arena, "%S/textures/%s.texture", platform->data_path, skybox_filenames[i]));
             }
 
             game_state->map_arena     = arena_alloc();
@@ -613,6 +614,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
     // Alias
     //
     Game_Assets *assets = game_state->assets;
+    auto asset_system = &game_state->asset_system;
     
     Render_Group* render_group = begin_render_group(render_commands, MB(16));
 

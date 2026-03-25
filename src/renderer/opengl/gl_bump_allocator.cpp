@@ -12,7 +12,7 @@ namespace GL
 
     void bump_push(Bump_Allocator *b, u64 size)
     {
-        assert(b->used + size < b->size);
+        assert(b->used + size < b->size && "Exceed the capacity. Must reallocate.");
 
         b->used += size;
     }

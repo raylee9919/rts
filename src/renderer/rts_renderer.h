@@ -7,7 +7,6 @@
 #define CSM_COUNT               4    // @Important: Changing it'll break things. Like, uniform buffer block alignment thinggggs.
 static_assert(CSM_COUNT > 0, "CSM_COUNT must be bigger than 0!");
 
-
 // Constants
 //
 #define RGBA_WHITE      v4{1.0f, 1.0f, 1.0f, 1.0f}
@@ -158,13 +157,6 @@ struct Render_Vertex
     v2          rect_center;
     v2          rect_half_dim;
     f32         radius;
-};
-
-typedef u16 Texture_Layout;
-enum {
-    TEXTURE_LAYOUT_INVALID  = 0,
-    TEXTURE_LAYOUT_R8G8B8A8 = 1,
-    TEXTURE_LAYOUT_R8G8B8   = 2,
 };
 
 struct Render_Buffer

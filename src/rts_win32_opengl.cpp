@@ -10,7 +10,7 @@
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
 #include "rts_font.h"
-#include "asset/texture.h"
+#include "asset/inc.h"
 #include "asset.h"
 
 #include "renderer/rts_renderer.h"
@@ -23,18 +23,6 @@
 #include "base/rts_base_inc.cpp"
 #include "renderer/opengl/gl.cpp"
 
-
-// Windows-specific directives.
-//
-#pragma comment(lib, "user32")
-#pragma comment(lib, "gdi32")
-#pragma comment(lib, "opengl32")
-
-
-// WGL Functions.
-//
-typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Iv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues);
-typedef BOOL WINAPI Wgl_Get_Pixel_Format_Attrib_Fv_Arb(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues);
 
 static PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB = NULL;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribsARB = NULL;
@@ -79,58 +67,6 @@ internal void set_pixel_format(Opengl *gl, HDC dc)
     if (!SetPixelFormat(dc, format, &desc)) {
         assert(!"Cannot set OpenGL selected pixel format!");
     }
-
-
-
-#if 0
-    int suggested_pixel_format_index = 0;
-    GLuint extended_pick = 0;
-    if (wglChoosePixelFormatARB)
-    {
-        int int_attrib_list[] =
-        {
-            WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,                    // 0
-            WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,    // 1
-            WGL_SUPPORT_OPENGL_ARB, GL_TRUE,                    // 2
-            WGL_DOUBLE_BUFFER_ARB, GL_TRUE,                     // 3
-            WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,              // 4
-            WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, GL_TRUE,          // 5
-            0,
-        };
-
-        if (!gl->info.ARB_EXT_framebuffer_srgb) {
-            int_attrib_list[11] = 0;
-        }
-
-        wglChoosePixelFormatARB(window_dc, int_attrib_list, 0, 1,
-                                &suggested_pixel_format_index, &extended_pick);
-    }
-
-    if (! extended_pick)
-    {
-        // # Todo: Hey Raymond Chen - what's the deal here?
-        //         Is cColorBits ACTUALLY supposed to exclude the alpha bits, like MSDN says, or not?
-        PIXELFORMATDESCRIPTOR desired_pixel_format = {};
-        {
-            desired_pixel_format.nSize      = sizeof(desired_pixel_format);
-            desired_pixel_format.nVersion   = 1;
-            desired_pixel_format.iPixelType = PFD_TYPE_RGBA;
-            desired_pixel_format.dwFlags    = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
-            desired_pixel_format.cColorBits = 32;
-            desired_pixel_format.cAlphaBits = 8;
-            desired_pixel_format.cDepthBits = 24;
-            desired_pixel_format.iLayerType = PFD_MAIN_PLANE;
-        }
-
-        suggested_pixel_format_index = ChoosePixelFormat(window_dc, &desired_pixel_format);
-    }
-
-    PIXELFORMATDESCRIPTOR suggested_pixel_format;
-    // Technically you do not need to call DescribePixelFormat here,
-    // as SetPixelFormat doesn't actually need it to be filled out properly.
-    // DescribePixelFormat(window_dc, suggested_pixel_format_index, sizeof(suggested_pixel_format), &suggested_pixel_format);
-    SetPixelFormat(window_dc, suggested_pixel_format_index, &suggested_pixel_format);
-#endif
 }
 
 internal void get_wgl_functions(Opengl *gl) 

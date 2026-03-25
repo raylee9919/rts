@@ -1,5 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#if 0
 internal void gl_alloc_texture(Opengl *gl, Asset::Texture *texture, GLenum wrapping, bool generate_mipmap)
 {
     glCreateTextures(GL_TEXTURE_2D, 1, &texture->handle);
@@ -53,6 +54,7 @@ internal void gl_alloc_texture(Opengl *gl, Asset::Texture *texture, GLenum wrapp
         glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 }
+#endif
 
 internal void gl_alloc_texture2(Opengl* gl, const Render_Command& cmd, GLuint* table)
 {
@@ -73,7 +75,7 @@ internal void gl_alloc_texture2(Opengl* gl, const Render_Command& cmd, GLuint* t
     GLsizei levels = gen_mipmap ? (GLsizei)floor(log2(max(width, height))) + 1 : 1;
 
     switch (type) {
-        case TEXTURE_LAYOUT_R8G8B8A8: {
+        case TEXTURE_LAYOUT_RGBA8: {
             glTextureStorage2D(tex, levels, GL_RGBA8, width, height);
             glTextureSubImage2D(tex, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
         } break;
@@ -144,12 +146,12 @@ internal GLuint gl_create_cubemap_texture(Texture_Layout layout_, int width, int
     GLenum layout = {}, format = {};
 
     switch (layout_) {
-        case TEXTURE_LAYOUT_R8G8B8A8: {
+        case TEXTURE_LAYOUT_RGBA8: {
             layout = GL_RGBA8;
             format = GL_RGBA;
         } break;
 
-        case TEXTURE_LAYOUT_R8G8B8: {
+        case TEXTURE_LAYOUT_RGB8: {
             layout = GL_RGB8;
             format = GL_RGB;
         } break;

@@ -2,12 +2,29 @@
 
 
 #include "./gl_bump_allocator.cpp"
+#include "./gl_texture.cpp"
 #include "./gl_resource.cpp"
 
 
 // @Todo: Remove
 //
 global GLuint id_table[4096];
+
+internal GLint gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
+{
+    GLint index = -1;
+
+    auto tex = &mesh->textures[type];
+    if (tex->size > 0) {
+        auto t = GL::alloc_texture_unique(gl, tex->incremental_id, tex->layout, tex->width, tex->height, tex->data);
+        index = t->index;
+
+        GL::commit_texture(gl, t->id);
+    }
+
+    return index;
+}
+
 
 
 internal void opengl_compile_shaders(Opengl *gl)
@@ -391,9 +408,9 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 Texture_Layout layout = {};
                 if (tex->bytes_per_channel == 1) {
                     if (tex->num_channels == 4) {
-                        layout = TEXTURE_LAYOUT_R8G8B8A8;
+                        layout = TEXTURE_LAYOUT_RGBA8;
                     } else if (tex->num_channels == 3) {
-                        layout = TEXTURE_LAYOUT_R8G8B8;
+                        layout = TEXTURE_LAYOUT_RGB8;
                     } else {
                         INVALID_CODE_PATH;
                     }
@@ -465,19 +482,17 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glBufferSubData(GL_UNIFORM_BUFFER, 368, 16, &csm_z_spans);
             }
 
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->texture_buffer);
+
             
             GLuint vao = gl->vao;
 
             glVertexArrayVertexBuffer(vao, 0, gl->vertex_buffer.handle, 0, sizeof(Vertex));
             glVertexArrayElementBuffer(vao, gl->index_buffer.handle);
 
-            glEnableVertexArrayAttrib(vao, 0);
-            glEnableVertexArrayAttrib(vao, 1);
-            glEnableVertexArrayAttrib(vao, 2);
-            glEnableVertexArrayAttrib(vao, 3);
-            glEnableVertexArrayAttrib(vao, 4);
-            glEnableVertexArrayAttrib(vao, 5);
-            glEnableVertexArrayAttrib(vao, 6);
+            for (int i = 0; i <= 6; ++i) {
+                glEnableVertexArrayAttrib(vao, i);
+            }
 
             glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, position));
             glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, offset_of(Vertex, normal));
@@ -487,13 +502,9 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             glVertexArrayAttribIFormat(vao, 5, MAX_BONE_PER_VERTEX, GL_INT, offset_of(Vertex, node_ids));
             glVertexArrayAttribFormat(vao, 6, MAX_BONE_PER_VERTEX, GL_FLOAT, GL_FALSE, offset_of(Vertex, node_weights));
 
-            glVertexArrayAttribBinding(vao, 0, 0);
-            glVertexArrayAttribBinding(vao, 1, 0);
-            glVertexArrayAttribBinding(vao, 2, 0);
-            glVertexArrayAttribBinding(vao, 3, 0);
-            glVertexArrayAttribBinding(vao, 4, 0);
-            glVertexArrayAttribBinding(vao, 5, 0);
-            glVertexArrayAttribBinding(vao, 6, 0);
+            for (int i = 0; i <= 6; ++i) {
+                glVertexArrayAttribBinding(vao, i, 0);
+            }
 
 
             for (u32 i = 0; i < renderer->num_meshes; ++i) {
@@ -509,11 +520,11 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
                 glBindTextureUnit(6, gl->shadowmaps);
 
-                gl_bind_pbr_texture(gl, mesh, PBR_ALBEDO,    0, gl->white_texture);
-                gl_bind_pbr_texture(gl, mesh, PBR_NORMAL,    1, gl->blue_texture);
-                gl_bind_pbr_texture(gl, mesh, PBR_ROUGHNESS, 2, gl->white_texture);
-                gl_bind_pbr_texture(gl, mesh, PBR_METALLIC,  3, gl->black_texture);
-                gl_bind_pbr_texture(gl, mesh, PBR_EMISSION,  4, gl->black_texture);
+                glUniform1i(glGetUniformLocation(pbr_program->id, "u_albedo"), gl_foo(gl, mesh, PBR_ALBEDO));
+                glUniform1i(glGetUniformLocation(pbr_program->id, "u_normal"), gl_foo(gl, mesh, PBR_NORMAL));
+                glUniform1i(glGetUniformLocation(pbr_program->id, "u_roughness"), gl_foo(gl, mesh, PBR_ROUGHNESS));
+                glUniform1i(glGetUniformLocation(pbr_program->id, "u_metallic"), gl_foo(gl, mesh, PBR_METALLIC));
+                glUniform1i(glGetUniformLocation(pbr_program->id, "u_emission"), gl_foo(gl, mesh, PBR_EMISSION));
 
                 if (frame->wireframe_mode) {
                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -788,10 +799,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 }
             } break;
 
-            default: 
-            {
-                assert(! "not implemented yet?");
-            } break;
+            INVALID_DEFAULT_CASE;
         }
 #endif
     }
@@ -1323,10 +1331,8 @@ internal void gl_bind_pbr_texture(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type,
 {
     auto tex = &mesh->textures[type];
     if (tex->size > 0) {
-        if (!tex->handle) {
-            gl_alloc_texture(gl, tex, GL_REPEAT, true);
-        }
-        glBindTextureUnit(slot, tex->handle);
+        auto t = GL::alloc_texture_unique(gl, tex->incremental_id, tex->layout, tex->width, tex->height, tex->data);
+        glBindTextureUnit(slot, t->name);
     } else {
         glBindTextureUnit(slot, default_handle);
     }
@@ -1401,6 +1407,10 @@ internal void gl_init(Opengl *gl)
     GL::bump_init(&gl->vertex_buffer, MB(128));
     GL::bump_init(&gl->index_buffer, MB(96));
 
-
-    glDisable(GL_MULTISAMPLE);
+    {
+        gl->num_textures = 0;
+        gl->max_num_textures = 1024;
+        glCreateBuffers(1, &gl->texture_buffer);
+        glNamedBufferStorage(gl->texture_buffer, sizeof(GLuint64) * gl->max_num_textures, NULL, GL_DYNAMIC_STORAGE_BIT);
+    }
 }
