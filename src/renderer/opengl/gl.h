@@ -208,9 +208,6 @@ struct Opengl
     Gl_Program quad_program;
 
 
-    GLuint texture_buffer;
-    u32 max_num_textures;
-    u32 num_textures;
     GL::Texture* first_texture;
     GL::Texture* last_texture;
 };

@@ -10,19 +10,19 @@
 //
 global GLuint id_table[4096];
 
-internal GLint gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
+internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
 {
-    GLint index = -1;
+    GLuint64 handle = 0;
 
     auto tex = &mesh->textures[type];
     if (tex->size > 0) {
         auto t = GL::alloc_texture_unique(gl, tex->incremental_id, tex->layout, tex->width, tex->height, tex->data);
-        index = t->index;
+        handle = t->handle;
 
         GL::commit_texture(gl, t->id);
     }
 
-    return index;
+    return handle;
 }
 
 
@@ -482,8 +482,6 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glBufferSubData(GL_UNIFORM_BUFFER, 368, 16, &csm_z_spans);
             }
 
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->texture_buffer);
-
             
             GLuint vao = gl->vao;
 
@@ -520,11 +518,17 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
                 glBindTextureUnit(6, gl->shadowmaps);
 
-                glUniform1i(glGetUniformLocation(pbr_program->id, "u_albedo"), gl_foo(gl, mesh, PBR_ALBEDO));
-                glUniform1i(glGetUniformLocation(pbr_program->id, "u_normal"), gl_foo(gl, mesh, PBR_NORMAL));
-                glUniform1i(glGetUniformLocation(pbr_program->id, "u_roughness"), gl_foo(gl, mesh, PBR_ROUGHNESS));
-                glUniform1i(glGetUniformLocation(pbr_program->id, "u_metallic"), gl_foo(gl, mesh, PBR_METALLIC));
-                glUniform1i(glGetUniformLocation(pbr_program->id, "u_emission"), gl_foo(gl, mesh, PBR_EMISSION));
+                u64 u_albedo    = gl_foo(gl, mesh, PBR_ALBEDO);
+                u64 u_normal    = gl_foo(gl, mesh, PBR_NORMAL);
+                u64 u_roughness = gl_foo(gl, mesh, PBR_ROUGHNESS);
+                u64 u_metallic  = gl_foo(gl, mesh, PBR_METALLIC);
+                u64 u_emission  = gl_foo(gl, mesh, PBR_EMISSION);
+
+                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_albedo"), (u32)u_albedo, (u32)(u_albedo >> 32));
+                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_normal"), (u32)u_normal, (u32)(u_normal >> 32));
+                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_roughness"), (u32)u_roughness, (u32)(u_roughness >> 32));
+                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_metallic"), (u32)u_metallic, (u32)(u_metallic >> 32));
+                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_emission"), (u32)u_emission, (u32)(u_emission >> 32));
 
                 if (frame->wireframe_mode) {
                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -1407,10 +1411,4 @@ internal void gl_init(Opengl *gl)
     GL::bump_init(&gl->vertex_buffer, MB(128));
     GL::bump_init(&gl->index_buffer, MB(96));
 
-    {
-        gl->num_textures = 0;
-        gl->max_num_textures = 1024;
-        glCreateBuffers(1, &gl->texture_buffer);
-        glNamedBufferStorage(gl->texture_buffer, sizeof(GLuint64) * gl->max_num_textures, NULL, GL_DYNAMIC_STORAGE_BIT);
-    }
 }

@@ -11,7 +11,6 @@ namespace GL
         u64      id;      // asset id
         GLuint   name;    // obtained with glCreateTextures()
         GLuint64 handle;  // bindless texture handle
-        u32      index;   // index in a large texture ssbo
 
         b32      committed;
 

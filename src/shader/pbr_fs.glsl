@@ -17,11 +17,11 @@ out vec4 result_color;
 uniform vec4 tint;
 
 
-uniform int u_albedo;
-uniform int u_normal;
-uniform int u_roughness;
-uniform int u_metallic;
-uniform int u_emission;
+uniform uvec2 u_albedo;
+uniform uvec2 u_normal;
+uniform uvec2 u_roughness;
+uniform uvec2 u_metallic;
+uniform uvec2 u_emission;
 layout(binding = 6) uniform sampler2DArray shadowmaps;
 
 layout(std140, row_major, binding = 7) uniform PBR_Uniform_Block 
@@ -34,11 +34,6 @@ layout(std140, row_major, binding = 7) uniform PBR_Uniform_Block
     /*368*/vec4 csm_z_spans; // instead of 'float csm_z_spans[CSM_COUNT]' for better packing.
     /*384*/
 };
-
-layout(binding = 8, std430) readonly buffer Texture_SSBO {
-    sampler2D textures[];
-};
-
 
 vec3 schlick_fresnel(vec3 f0, float ndoth) 
 {
@@ -80,12 +75,12 @@ void main()
 
         vec3 to_eye = normalize(eye_position - fP);
 
-        vec3 albedo     = u_albedo > -1 ? pow(texture(textures[u_albedo], fUV).rgb, vec3(2.2)) : vec3(1.0);
-        float roughness = u_roughness > -1 ? texture(textures[u_roughness], fUV).r : 1.0;
-        float metallic  = u_metallic > -1 ? texture(textures[u_metallic], fUV).r : 0.0;
-        vec3 emission   = u_emission > -1 ? pow(texture(textures[u_emission], fUV).rgb, vec3(2.2)) : vec3(0.0);
+        vec3 albedo     = (u_albedo.x == 0 && u_albedo.y == 0) ? vec3(1.0) : pow(texture(sampler2D(u_albedo), fUV).rgb, vec3(2.2));
+        float roughness = (u_roughness.x == 0 && u_roughness.y == 0) ? 1.0 : texture(sampler2D(u_roughness), fUV).r;
+        float metallic  = (u_metallic.x == 0 && u_metallic.y == 0) ? 0.0 : texture(sampler2D(u_metallic), fUV).r;
+        vec3 emission   = (u_emission.x == 0 && u_emission.y == 0) ? vec3(0.0) : pow(texture(sampler2D(u_emission), fUV).rgb, vec3(2.2));
 
-        vec3 n = u_normal > -1 ? texture(textures[u_normal], fUV).rgb * 2.0 - 1.0 : vec3(0.0, 0.0, 1.0);
+        vec3 n = (u_normal.x == 0 && u_normal.y == 0) ? vec3(0.0, 0.0, 1.0) : texture(sampler2D(u_normal), fUV).rgb * 2.0 - 1.0;
         vec3 N = normalize(fN);
         vec3 T = normalize(fT);
         vec3 B = normalize(fSign * cross(fN, fT));

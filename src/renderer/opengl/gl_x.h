@@ -181,6 +181,7 @@ OPENGL_FUNCTION(glTextureSubImage2D);
 // All you have to do is append the desired function! X macro will do the heavy lifting!
 #define GL_FUNCTIONS(X) \
     X(PFNGLGETSTRINGIPROC,                      glGetStringi) \
+    X(PFNGLUNIFORM2UIPROC,                      glUniform2ui) \
     X(PFNGLCREATESHADERPROC,                    glCreateShader) \
     X(PFNGLTEXTUREPARAMETERFPROC,               glTextureParameterf) \
     X(PFNGLTEXTURESUBIMAGE3DPROC,               glTextureSubImage3D) \

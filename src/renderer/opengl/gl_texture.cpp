@@ -4,8 +4,6 @@ namespace GL
 {
     Texture* alloc_texture_unique(Opengl* gl, u64 id, Texture_Layout layout, u32 width, u32 height, void* data)
     {
-        assert(gl->num_textures < gl->max_num_textures);
-
         List_For(gl->first_texture, it) {
             if (it->id == id) {
                 return it;
@@ -71,10 +69,6 @@ namespace GL
         tex->id     = id;
         tex->name   = name;
         tex->handle = handle;
-        tex->index  = gl->num_textures;
-
-        glNamedBufferSubData(gl->texture_buffer, sizeof(GLuint64) * gl->num_textures, sizeof(GLuint64), &handle);
-        gl->num_textures++;
 
         dll_push_back(gl->first_texture, gl->last_texture, tex);
 
