@@ -530,6 +530,10 @@ DWORD WINAPI win32_worker_thread_proc(LPVOID param)
 
 void win32_init_work_queue(Os_Work_Queue *queue, int num_threads)
 {
+    if (num_threads == 0) {
+        return;
+    }
+    
     HANDLE semaphore = CreateSemaphore(NULL, 0, num_threads, 0);
     queue->semaphore = to_os_handle(semaphore);
 
@@ -680,4 +684,5 @@ OS_INIT(os_win32_init)
 
     os->num_logical_cores = win32_get_logical_core_count();
     win32_init_work_queue(&os->work_queue, os->num_logical_cores - 1);
+    //win32_init_work_queue(&os->work_queue, 0);
 }

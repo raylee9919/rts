@@ -100,10 +100,8 @@ render_vertex_push(Render_Vertex_Type type)
     return result;
 }
 
-internal void render_init(m4x4* skinning_matrices)
+internal void render_init()
 {
-    assert(skinning_matrices);
-
     for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i) {
         Render_Buffer *buffer = renderer->buffer + i;
         buffer->vertices = push_array(renderer->arena, Render_Vertex, render_max_vertex_count);
@@ -121,14 +119,12 @@ internal void render_init(m4x4* skinning_matrices)
 
 
     renderer->num_meshes = 0;
-    renderer->max_meshes = 8192;
+    renderer->max_meshes = KB(16);
     renderer->meshes     = push_array(renderer->arena, Render_Mesh, renderer->max_meshes);
 
     renderer->num_lines = 0;
     renderer->max_lines = 1024;
     renderer->lines     = push_array(renderer->arena, Render_Line_2D, renderer->max_lines);
-
-    renderer->skinning_matrices = skinning_matrices;
 }
 
 // # Note: Sort Cmp Functions

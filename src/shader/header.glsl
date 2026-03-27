@@ -4,6 +4,7 @@ R"(
 #version 460
 
 #extension GL_ARB_bindless_texture : require
+#extension GL_ARB_shader_viewport_layer_array : require
 
 #define u32     uint
 #define s32     int

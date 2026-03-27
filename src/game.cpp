@@ -68,7 +68,7 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
 
     soldier->team              = team;
 
-    soldier->radius            = 0.5f;
+    soldier->radius            = 0.4f;
     soldier->max_speed         = 3.5f;
 
     soldier->min_t             = 0.0f;
@@ -120,7 +120,7 @@ Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets)
 
     e->team = team;
 
-    e->radius    = 0.5f;
+    e->radius    = 0.4f;
     e->max_speed = 3.5f;
 
     e->min_t = 0.0f;
@@ -247,6 +247,11 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
     game_state->window_width  = platform->window_width;
     game_state->window_height = platform->window_height;
     game_state->window_handle = platform->window_handle;
+
+    if (!renderer) {
+        renderer = platform->renderer;
+        render_init();
+    }
     
     if (!game_state->initted) {
         game_state->initted = true;
@@ -268,7 +273,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         game_state->num_skinning_matrices = 0;
         game_state->max_skinning_matrices = RHI::max_num_skinning_matrices;
-        game_state->skinning_matrices = push_array(game_state->animation_arena, m4x4, game_state->max_skinning_matrices);
+        //game_state->skinning_matrices = push_array(game_state->animation_arena, m4x4, game_state->max_skinning_matrices);
+        game_state->skinning_matrices = render_commands->skinning_matrices;
 
         game_state->root_entity          = push_struct(game_state->entity_arena, Entity);
         game_state->root_entity->type    = ENTITY_TYPE_ROOT;
@@ -545,12 +551,17 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 300;
-            const int num_rows = 20;
+            const int num_soldiers = 1200;
+            const int num_rows = 50;
             for (int i = 0; i < num_soldiers; ++i) {
                 f32 x = 6.f + 1.f*(i / num_rows);
                 f32 z = 0.f + 1.f*(i % num_rows);
+#if 0
                 Entity* soldier = debug_spawn_knight(x, z, TEAM_PLAYER, assets);
+#else
+                Entity* soldier = debug_spawn_soldier(x, z, TEAM_PLAYER, assets); 
+                debug_attach_sword(soldier, assets);
+#endif
             }
 
 #if 1
@@ -568,10 +579,6 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
 
-    if (!renderer) {
-        renderer = platform->renderer;
-        render_init(game_state->skinning_matrices);
-    }
     
     
     arena_clear(game_state->frame_arena);
@@ -608,9 +615,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
     //            1. Interact with UI built in last frame.
     //            2. Build new hierarchy while retaining some data(!!!)
     //
-    local_persist f32 light_x = 1.f;
-    local_persist f32 light_y = 1.f;
-    local_persist f32 light_z = 1.f;
+    local_persist f32 light_x = 1.f, light_y = 1.f, light_z = 1.f;
     local_persist b32 draw_chunk_partitions = false;
     ui_begin(actual_dt, platform->window_width, platform->window_height);
     {
@@ -640,7 +645,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             if (ui_expander(utf8lit("Shadow"))) {
                 ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("x"));
-                ui_slider_f32(&light_y,  0.1f, 1.0f, utf8lit("y"));
+                ui_slider_f32(&light_y, -1.0f, 1.0f, utf8lit("y"));
                 ui_slider_f32(&light_z, -1.0f, 1.0f, utf8lit("z"));
                 if (ui_button(utf8lit("Valient's Method")).pressed_left) {
                     render_commands->csm_varient_method = !render_commands->csm_varient_method; 
@@ -923,7 +928,6 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         
         // Skybox
         //
-        render_commands->skybox_on = true;
         render_commands->skybox_mesh = &assets->skybox_mesh;
         render_commands->skybox_eye_view_proj = controlling_camera->VP;
         render_commands->skybox_textures = assets->skybox_textures;
@@ -961,8 +965,6 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
         render_commands->csm_view = game_camera->V;
     }
-
-    renderer->num_skinning_matrices = game_state->num_skinning_matrices;
 
     render_end();
 }

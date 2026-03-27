@@ -321,8 +321,9 @@ struct Os_Work {
     void *param;
 };
 
-struct Os_Work_Queue {
-    Os_Work works[1024];
+struct Os_Work_Queue 
+{
+    Os_Work works[4192];
 
     u32 volatile index_to_write;
     u32 volatile index_to_read;

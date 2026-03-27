@@ -5,24 +5,22 @@
 #define MAX_LIGHTS              10
 #define SHADOWMAP_RESOLUTION    2048 // @Todo: If you want to be understaned by all machines...use 1024...?
 #define CSM_COUNT               4    // @Important: Changing it'll break things. Like, uniform buffer block alignment thinggggs.
-static_assert(CSM_COUNT > 0, "CSM_COUNT must be bigger than 0!");
-
-// Constants
-//
-#define RGBA_WHITE      v4{1.0f, 1.0f, 1.0f, 1.0f}
-#define RGBA_BLACK      v4{0.0f, 0.0f, 0.0f, 1.0f}
-#define RGBA_RED        v4{1.0f, 0.0f, 0.0f, 1.0f}
-#define RGBA_GREEN      v4{0.0f, 1.0f, 0.0f, 1.0f}
-#define RGBA_BLUE       v4{0.0f, 0.0f, 1.0f, 1.0f}
-#define RGBA_MAGENTA    v4{1.0f, 0.0f, 1.0f, 1.0f}
-
 
 struct Renderer;
 struct Render_Commands;
 struct Platform_Renderer;
 struct Mesh;
-struct Material;
 struct Camera;
+
+namespace RHI
+{
+    static u32 max_num_skinning_matrices = KB(192);
+
+    struct Material
+    {
+    };
+}
+
 
 #define RENDERER_BEGIN_FRAME(NAME) Render_Commands *NAME(Platform_Renderer *renderer, v2u os_window_dim, v2u render_dim)
 typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
@@ -30,7 +28,8 @@ typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
 #define RENDERER_END_FRAME(NAME) void NAME(Platform_Renderer *platform_renderer, Renderer *renderer, Render_Commands *frame)
 typedef RENDERER_END_FRAME(Renderer_End_Frame);
 
-enum Render_Type {
+enum Render_Type 
+{
     RENDER_TYPE_NULL = 0,
 
     eRender_Bitmap,
@@ -38,7 +37,8 @@ enum Render_Type {
     eRender_Line,
 };
 
-struct Render_Entity_Header {
+struct Render_Entity_Header 
+{
     Render_Type type;
     u64 size;
 };
@@ -59,7 +59,8 @@ struct Render_Triangles
     v4 color;
 };
 
-struct Render_Line {
+struct Render_Line 
+{
     Render_Entity_Header header;
     v3 p[2];
     v4 color;
@@ -112,7 +113,6 @@ struct Render_Commands
 
     b32         draw_navmesh;
 
-    b32         skybox_on;
     Mesh*       skybox_mesh;
     Asset::Texture* skybox_textures;
     m4x4        skybox_eye_view_proj;
@@ -124,6 +124,8 @@ struct Render_Commands
 
     m4x4        debug_transform;
     f32         debug_radius;
+
+    m4x4*       skinning_matrices;
 };
 
 internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform,
@@ -255,9 +257,6 @@ struct Renderer
     Render_Line_2D*    lines;
     u32                num_lines;
     u32                max_lines;
-
-    m4x4* skinning_matrices;
-    u32 num_skinning_matrices;
 };
 
 typedef u8 Render_String_Flags;
@@ -300,7 +299,3 @@ internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string
 
 
 
-namespace RHI
-{
-    static u32 max_num_skinning_matrices = KB(64);
-}

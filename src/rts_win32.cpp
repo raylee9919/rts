@@ -580,6 +580,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         // Draw resolution.
         //
         v2u render_dim = {
+            //960, 540
             //1280, 720
             //1920, 1080,
             2560, 1440,

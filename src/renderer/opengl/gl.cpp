@@ -48,8 +48,6 @@ internal void opengl_compile_shaders(Opengl *gl)
 
     char *csm_vs = 
     #include "shader/csm_vs.glsl"
-    char *csm_gs = 
-    #include "shader/csm_gs.glsl"
     char *csm_fs = 
     #include "shader/csm_fs.glsl"
 
@@ -72,7 +70,7 @@ internal void opengl_compile_shaders(Opengl *gl)
     gl->skybox_program.id = opengl_program_create_vf(gl, skybox_vs, skybox_fs);
     GET_UNIFORM_LOCATION(skybox_program, view_proj);
 
-    gl->shadowmap_program.id = opengl_create_program(gl, csm_vs, csm_gs, csm_fs);
+    gl->shadowmap_program.id = opengl_program_create_vf(gl, csm_vs, csm_fs);
     GET_UNIFORM_LOCATION(shadowmap_program, light_view_projs);
 
     gl->simple_program.id = opengl_program_create_vf(gl, simple_vs, simple_fs);
@@ -90,6 +88,9 @@ internal Render_Commands* opengl_frame_begin(Opengl *gl, v2u window_dim, v2u ren
     frame->push_buffer_size = gl->push_buffer_size;
     frame->push_buffer_base = gl->push_buffer;
     frame->push_buffer_used = 0;
+
+    // @Temporary
+    frame->skinning_matrices = gl->skinning_matrices;
 
     return frame;
 }
@@ -138,21 +139,20 @@ internal GL_Mesh_Buffer* opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
     return node;
 }
 
-internal void gl_record_commands(Opengl *gl, Renderer *renderer)
+void gl_record_commands(Opengl *gl, Renderer *renderer, GLuint num_instances)
 {
-    gl->num_commands = 0;
+    const u32 num_cmd = renderer->num_meshes;
+    assert(num_cmd < gl->max_draw_count);
 
-    for (u32 i = 0; i < renderer->num_meshes; ++i) {
-        assert(gl->num_commands < gl->max_draw_count);
-
+    for (u32 i = 0; i < num_cmd; ++i) 
+    {
         Render_Mesh* piece = renderer->meshes + i;
-
         Mesh* mesh = piece->mesh;
         auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
         // Record parameters.
         //
-        auto mat = gl->materials + gl->num_commands;
+        auto mat = gl->materials + i;
         {
             mat->albedo    = gl_foo(gl, mesh, PBR_ALBEDO);
             mat->normal    = gl_foo(gl, mesh, PBR_NORMAL);
@@ -161,7 +161,7 @@ internal void gl_record_commands(Opengl *gl, Renderer *renderer)
             mat->emission  = gl_foo(gl, mesh, PBR_EMISSION);
         }
 
-        auto geo = gl->geometry_params + gl->num_commands;
+        auto geo = gl->geometry_params + i;
         {
             geo->world_transform = piece->world_transform;
             geo->is_skeletal     = piece->num_joints ? 1 : 0;
@@ -174,22 +174,17 @@ internal void gl_record_commands(Opengl *gl, Renderer *renderer)
         GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
         GLint first_index = mbuf->index_offset / sizeof(u32);
 
-        auto cmd = &gl->commands[gl->num_commands];
+        auto cmd = &gl->commands[i];
         {
             cmd->count          = mesh->num_indices;
-            cmd->instance_count = 1;
+            cmd->instance_count = num_instances;
             cmd->first_index    = first_index;
             cmd->base_vertex    = base_vertex;
             cmd->base_instance  = 0;
         }
-
-        ++gl->num_commands;
     }
 
-
-    glNamedBufferSubData(gl->geometry_param_buffer, 0, sizeof(GL::Geometry_Param) * gl->num_commands, gl->geometry_params);
-    glNamedBufferSubData(gl->material_buffer, 0, sizeof(GL::Material) * gl->num_commands, gl->materials);
-    glNamedBufferSubData(gl->draw_command_buffer, 0, sizeof(GL::MDI_Command) * gl->num_commands, gl->commands);
+    gl->num_commands = num_cmd;
 }
 
 internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
@@ -217,7 +212,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             glCreateTextures(GL_TEXTURE_2D, 1, &gl->depth_texture);
 
             GLuint tex = gl->depth_texture;
-            glTextureStorage2D(tex, 1, GL_DEPTH_COMPONENT32F, render_width, render_height);
+            glTextureStorage2D(tex, 1, GL_DEPTH24_STENCIL8, render_width, render_height);
             glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         }
@@ -371,10 +366,10 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
 
 
-    gl_record_commands(gl, renderer);
+    gl_record_commands(gl, renderer, CSM_COUNT);
 
     // Update skinning matrices.
-    glNamedBufferSubData(gl->skinning_matrices_buffer, 0, sizeof(m4x4) * renderer->num_skinning_matrices, renderer->skinning_matrices);
+    //glNamedBufferSubData(gl->skinning_matrices_buffer, 0, sizeof(m4x4) * renderer->num_skinning_matrices, renderer->skinning_matrices);
 
 
 
@@ -425,6 +420,8 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)0, gl->num_commands, 0);
 #endif
     }
+
+    gl_record_commands(gl, renderer, 1);
 
 
 
@@ -500,6 +497,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         // Static/Skeletal mesh shader.
         //
         {
+            if (frame->wireframe_mode) { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }
             defer(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 
             Pbr_Program* pbr_program = &gl->pbr_program;
@@ -1339,7 +1337,7 @@ internal GL_Info opengl_get_info(Opengl *gl, b32 modern_context)
 
 internal void gl_init(Opengl *gl)
 {
-#if BUILD_DEBUG // @Fix: Commenting this out causes error in blit draw... Why?
+#if 1 // @Fix: I have no idea why turning this off causes perf issue, or some other crazy problems!
     // KHR_debug has been in core since 4.3
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -1406,35 +1404,41 @@ internal void gl_init(Opengl *gl)
     GL::bump_init(&gl->vertex_buffer, MB(128));
     GL::bump_init(&gl->index_buffer, MB(96));
 
+
+    GLbitfield mapping_flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    GLbitfield storage_flags = GL_DYNAMIC_STORAGE_BIT | mapping_flags;
+
     {
         glCreateBuffers(1, &gl->skinning_matrices_buffer);
         GLsizei sz = sizeof(m4x4) * RHI::max_num_skinning_matrices;
-        glNamedBufferStorage(gl->skinning_matrices_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+        glNamedBufferStorage(gl->skinning_matrices_buffer, sz, NULL, storage_flags);
+
+        gl->skinning_matrices = (m4x4*)glMapNamedBufferRange(gl->skinning_matrices_buffer, 0, sz, mapping_flags);
     }
 
     {
-        gl->max_draw_count = KB(8);
+        gl->max_draw_count = KB(16);
 
         glCreateBuffers(1, &gl->draw_command_buffer);
-        GLsizei sz = sizeof(GL::MDI_Command) * gl->max_draw_count;
-        glNamedBufferStorage(gl->draw_command_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+        GLsizei sz = sizeof(GL::Command) * gl->max_draw_count;
+        glNamedBufferStorage(gl->draw_command_buffer, sz, NULL, storage_flags);
 
-        gl->commands = new GL::MDI_Command[gl->max_draw_count];
+        gl->commands = (GL::Command*)glMapNamedBufferRange(gl->draw_command_buffer, 0, sz, mapping_flags);
     }
 
     {
         glCreateBuffers(1, &gl->material_buffer);
         GLsizei sz = sizeof(GL::Material) * gl->max_draw_count;
-        glNamedBufferStorage(gl->material_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+        glNamedBufferStorage(gl->material_buffer, sz, NULL, storage_flags);
 
-        gl->materials = new GL::Material[gl->max_draw_count];
+        gl->materials = (GL::Material*)glMapNamedBufferRange(gl->material_buffer, 0, sz, mapping_flags);
     }
 
     {
         glCreateBuffers(1, &gl->geometry_param_buffer);
         GLsizei sz = sizeof(GL::Geometry_Param) * gl->max_draw_count;
-        glNamedBufferStorage(gl->geometry_param_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+        glNamedBufferStorage(gl->geometry_param_buffer, sz, NULL, storage_flags);
 
-        gl->geometry_params = new GL::Geometry_Param[gl->max_draw_count];
+        gl->geometry_params = (GL::Geometry_Param*)glMapNamedBufferRange(gl->geometry_param_buffer, 0, sz, mapping_flags);
     }
 }

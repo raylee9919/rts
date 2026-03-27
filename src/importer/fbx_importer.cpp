@@ -13,6 +13,7 @@
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
+#include "asset/system.h"
 #include "asset/texture.h"
 #include "asset.h"
 #include "third_party/mikktspace/mikktspace.h"

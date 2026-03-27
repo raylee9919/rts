@@ -1,7 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-struct Renderer;
-
 struct Platform
 {
     Arena*      arena;
@@ -12,7 +10,7 @@ struct Platform
     Utf8        data_path;
     f32         dt;
 
-    Renderer*    renderer;
+    struct Renderer* renderer;
 
     u32         draw_width;
     u32         draw_height;

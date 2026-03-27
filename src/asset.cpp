@@ -268,6 +268,7 @@ void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
     printf("  Number of meshes: '%u'\n", num_meshes);
 
     u32 num_total_vertices = 0;
+    u32 num_total_indices = 0;
 
     for (u32 mi = 0; mi < num_meshes; ++mi) {
         Mesh *mesh = &model_out->meshes[mi];
@@ -289,8 +290,6 @@ void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
         mesh->vertices = push_array(arena, Vertex, num_vertices);
 
         num_total_vertices += num_vertices;
-
-        printf("  Mesh #%u '%s' has %u vertices.\n", mi, mesh->name.str, num_vertices);
 
         for (u32 vi = 0; vi < num_vertices; ++vi) {
             Vertex *vert = &mesh->vertices[vi];
@@ -315,14 +314,22 @@ void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
         mesh->num_indices = num_indices;
         mesh->indices = push_array(arena, u32, num_indices);
 
+        num_total_indices += num_indices;
+
         for (u32 ii = 0; ii < num_indices; ++ii) {
             mesh->indices[ii] = l.parse_u32();
         }
+
+
+        printf("  Mesh #%u '%s' has %u vertices, %u indices\n", mi, mesh->name.str, num_vertices, num_indices);
+
     }
 
     model_out->num_meshes = num_meshes;
 
     printf("  Total number of vertices: %u\n", num_total_vertices);
+    printf("  Total number of indices: %u\n", num_total_indices);
+    printf("  Total number of triangles: %u\n", num_total_indices / 3);
 
     l.eat_whitespace();
     assert( l.cursor == l.end );

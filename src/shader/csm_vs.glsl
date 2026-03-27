@@ -24,6 +24,9 @@ layout(std430, row_major, binding = 8) readonly buffer Skinning_Matrices
     mat4 skinning_matrices[];
 };
 
+uniform m4x4 light_view_projs[CSM_COUNT];
+
+
 void main()
 {
     vec3 model_position = vec3(0);
@@ -51,7 +54,8 @@ void main()
         }
     }
 
-    gl_Position = geo.world_transform * vec4(model_position, 1.0);
+    gl_Position = light_view_projs[gl_InstanceID] * geo.world_transform * vec4(model_position, 1.0);
+    gl_Layer = gl_InstanceID;
 }
 
 )";

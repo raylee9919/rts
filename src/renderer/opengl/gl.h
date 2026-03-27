@@ -41,7 +41,7 @@ namespace GL
         v2    uv_scale;
     };
 
-    struct MDI_Command
+    struct Command
     {
         GLuint count;
         GLuint instance_count;
@@ -220,12 +220,13 @@ struct Opengl
 
 
     GLuint skinning_matrices_buffer;
+    m4x4* skinning_matrices;
 
     u32 max_draw_count;
     u32 num_commands;
 
     GLuint draw_command_buffer;
-    GL::MDI_Command* commands;
+    GL::Command* commands;
 
 
     GLuint material_buffer;
