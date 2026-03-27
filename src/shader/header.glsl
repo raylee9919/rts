@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 R"(
-#version 450
+#version 460
 
 #extension GL_ARB_bindless_texture : require
 

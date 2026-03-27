@@ -3,7 +3,7 @@
 // Desired OpenGL Version
 //
 #define RTS_GL_VERSION_MAJOR 4
-#define RTS_GL_VERSION_MINOR 5
+#define RTS_GL_VERSION_MINOR 6
     
 // .h
 //

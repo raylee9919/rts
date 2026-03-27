@@ -22,6 +22,34 @@ global char g_shared[2048];
 #define gl_max_attrib_count     16
 
 
+namespace GL
+{
+    struct Material
+    {
+        u64 albedo;
+        u64 normal;
+        u64 roughness;
+        u64 metallic;
+        u64 emission;
+    };
+
+    struct Geometry_Param
+    {
+        m4x4  world_transform;
+        s32   is_skeletal;
+        u32   index_to_my_skinning_matrices;
+        v2    uv_scale;
+    };
+
+    struct MDI_Command
+    {
+        GLuint count;
+        GLuint instance_count;
+        GLuint first_index;
+        GLint  base_vertex;
+        GLuint base_instance;
+    };
+}
 
 struct GL_Info
 {
@@ -58,14 +86,7 @@ struct Pbr_Program
 {
     s32 id;
 
-    s32 world_transform;
-    s32 VP;
-    s32 is_skeletal;
-    s32 index_to_my_skinning_matrices;
-
-    s32 uv_scale;
-
-    s32 tint;
+    s32 u_view_proj;
 
     GLuint ubo;
 };
@@ -80,10 +101,6 @@ struct Skybox_Program
 struct Shadowmap_Program 
 {
     s32 id;
-
-    s32 world_transform;
-    s32 is_skeletal;
-    s32 index_to_my_skinning_matrices;
 
     s32 light_view_projs;
 };
@@ -203,6 +220,19 @@ struct Opengl
 
 
     GLuint skinning_matrices_buffer;
+
+    u32 max_draw_count;
+    u32 num_commands;
+
+    GLuint draw_command_buffer;
+    GL::MDI_Command* commands;
+
+
+    GLuint material_buffer;
+    GL::Material* materials;
+
+    GLuint geometry_param_buffer;
+    GL::Geometry_Param* geometry_params;
 };
 
 #define GET_UNIFORM_LOCATION(Program, Name) gl->Program.Name = glGetUniformLocation(gl->Program.id, #Name);

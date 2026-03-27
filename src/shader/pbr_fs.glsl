@@ -9,19 +9,11 @@ in VS_Out {
     vec2 fUV;
     vec4 fC;
     float fSign;
-} /*instance name (optional)*/;
-
+    flat int draw_id;
+};
 
 out vec4 result_color;
 
-uniform vec4 tint;
-
-
-uniform uvec2 u_albedo;
-uniform uvec2 u_normal;
-uniform uvec2 u_roughness;
-uniform uvec2 u_metallic;
-uniform uvec2 u_emission;
 layout(binding = 6) uniform sampler2DArray shadowmaps;
 
 layout(std140, row_major, binding = 7) uniform PBR_Uniform_Block 
@@ -33,6 +25,20 @@ layout(std140, row_major, binding = 7) uniform PBR_Uniform_Block
     /*304*/mat4 csm_view;
     /*368*/vec4 csm_z_spans; // instead of 'float csm_z_spans[CSM_COUNT]' for better packing.
     /*384*/
+};
+
+struct Material
+{
+    uvec2 albedo;
+    uvec2 normal;
+    uvec2 roughness;
+    uvec2 metallic;
+    uvec2 emission;
+};
+
+layout(std430, row_major, binding = 9) readonly buffer Material_SSBO
+{
+    Material materials[];
 };
 
 vec3 schlick_fresnel(vec3 f0, float ndoth) 
@@ -72,15 +78,16 @@ void main()
     if (true) 
     {
         vec3 DEBUG_light_radiance = vec3(4.0);
-
         vec3 to_eye = normalize(eye_position - fP);
 
-        vec3 albedo     = (u_albedo.x == 0 && u_albedo.y == 0) ? vec3(1.0) : pow(texture(sampler2D(u_albedo), fUV).rgb, vec3(2.2));
-        float roughness = (u_roughness.x == 0 && u_roughness.y == 0) ? 1.0 : texture(sampler2D(u_roughness), fUV).r;
-        float metallic  = (u_metallic.x == 0 && u_metallic.y == 0) ? 0.0 : texture(sampler2D(u_metallic), fUV).r;
-        vec3 emission   = (u_emission.x == 0 && u_emission.y == 0) ? vec3(0.0) : pow(texture(sampler2D(u_emission), fUV).rgb, vec3(2.2));
+        Material mat = materials[draw_id];
 
-        vec3 n = (u_normal.x == 0 && u_normal.y == 0) ? vec3(0.0, 0.0, 1.0) : texture(sampler2D(u_normal), fUV).rgb * 2.0 - 1.0;
+        vec3 albedo     = (mat.albedo.x == 0 && mat.albedo.y == 0) ? vec3(1.0) : pow(texture(sampler2D(mat.albedo), fUV).rgb, vec3(2.2));
+        float roughness = (mat.roughness.x == 0 && mat.roughness.y == 0) ? 1.0 : texture(sampler2D(mat.roughness), fUV).r;
+        float metallic  = (mat.metallic.x == 0 && mat.metallic.y == 0) ? 0.0 : texture(sampler2D(mat.metallic), fUV).r;
+        vec3 emission   = (mat.emission.x == 0 && mat.emission.y == 0) ? vec3(0.0) : pow(texture(sampler2D(mat.emission), fUV).rgb, vec3(2.2));
+
+        vec3 n = (mat.normal.x == 0 && mat.normal.y == 0) ? vec3(0.0, 0.0, 1.0) : texture(sampler2D(mat.normal), fUV).rgb * 2.0 - 1.0;
         vec3 N = normalize(fN);
         vec3 T = normalize(fT);
         vec3 B = normalize(fSign * cross(fN, fT));
@@ -155,7 +162,6 @@ void main()
         }
 
         result_color.rgb *= (1.0 - shadowness);
-        result_color *= tint;
 
 
 

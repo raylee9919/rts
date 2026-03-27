@@ -121,7 +121,7 @@ internal void render_init(m4x4* skinning_matrices)
 
 
     renderer->num_meshes = 0;
-    renderer->max_meshes = 4196;
+    renderer->max_meshes = 8192;
     renderer->meshes     = push_array(renderer->arena, Render_Mesh, renderer->max_meshes);
 
     renderer->num_lines = 0;

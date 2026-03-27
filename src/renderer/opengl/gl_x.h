@@ -116,6 +116,7 @@
     X(PFNGLTEXTURESUBIMAGE2DPROC,               glTextureSubImage2D) \
     X(PFNGLBINDFRAMEBUFFERPROC,                 glBindFramebuffer) \
     X(PFNGLFRAMEBUFFERTEXTURE2DPROC,            glFramebufferTexture2D) \
+    X(PFNGLMULTIDRAWELEMENTSINDIRECTPROC,       glMultiDrawElementsIndirect) \
     X(PFNGLDEBUGMESSAGECONTROLPROC,             glDebugMessageControl)
 
 

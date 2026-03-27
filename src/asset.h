@@ -137,12 +137,12 @@ struct Mesh  {
     Asset::Texture textures[PBR_COUNT];
 };
 
-struct Material 
-{
-    v3 color_ambient;
-    v3 color_diffuse;
-    v3 color_specular;
-};
+//struct Material 
+//{
+//    v3 color_ambient;
+//    v3 color_diffuse;
+//    v3 color_specular;
+//};
 
 struct Node 
 {

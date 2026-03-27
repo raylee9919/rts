@@ -60,12 +60,7 @@ internal void opengl_compile_shaders(Opengl *gl)
 
 
     gl->pbr_program.id = opengl_program_create_vf(gl, pbr_vs, pbr_fs);
-    GET_UNIFORM_LOCATION(pbr_program, world_transform);
-    GET_UNIFORM_LOCATION(pbr_program, VP);
-    GET_UNIFORM_LOCATION(pbr_program, is_skeletal);
-    GET_UNIFORM_LOCATION(pbr_program, index_to_my_skinning_matrices);
-    GET_UNIFORM_LOCATION(pbr_program, uv_scale);
-    GET_UNIFORM_LOCATION(pbr_program, tint);
+    GET_UNIFORM_LOCATION(pbr_program, u_view_proj);
     {
         glCreateBuffers(1, &gl->pbr_program.ubo);
         glNamedBufferData(gl->pbr_program.ubo, 384, NULL, GL_STREAM_DRAW);  // @Robustness: Hard-coded size...?
@@ -78,9 +73,6 @@ internal void opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(skybox_program, view_proj);
 
     gl->shadowmap_program.id = opengl_create_program(gl, csm_vs, csm_gs, csm_fs);
-    GET_UNIFORM_LOCATION(shadowmap_program, world_transform);
-    GET_UNIFORM_LOCATION(shadowmap_program, is_skeletal);
-    GET_UNIFORM_LOCATION(shadowmap_program, index_to_my_skinning_matrices);
     GET_UNIFORM_LOCATION(shadowmap_program, light_view_projs);
 
     gl->simple_program.id = opengl_program_create_vf(gl, simple_vs, simple_fs);
@@ -144,6 +136,60 @@ internal GL_Mesh_Buffer* opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
     }
 
     return node;
+}
+
+internal void gl_record_commands(Opengl *gl, Renderer *renderer)
+{
+    gl->num_commands = 0;
+
+    for (u32 i = 0; i < renderer->num_meshes; ++i) {
+        assert(gl->num_commands < gl->max_draw_count);
+
+        Render_Mesh* piece = renderer->meshes + i;
+
+        Mesh* mesh = piece->mesh;
+        auto mbuf = opengl_get_mesh_buffer(gl, mesh);
+
+        // Record parameters.
+        //
+        auto mat = gl->materials + gl->num_commands;
+        {
+            mat->albedo    = gl_foo(gl, mesh, PBR_ALBEDO);
+            mat->normal    = gl_foo(gl, mesh, PBR_NORMAL);
+            mat->roughness = gl_foo(gl, mesh, PBR_ROUGHNESS);
+            mat->metallic  = gl_foo(gl, mesh, PBR_METALLIC);
+            mat->emission  = gl_foo(gl, mesh, PBR_EMISSION);
+        }
+
+        auto geo = gl->geometry_params + gl->num_commands;
+        {
+            geo->world_transform = piece->world_transform;
+            geo->is_skeletal     = piece->num_joints ? 1 : 0;
+            geo->uv_scale        = piece->uv_scale;
+            geo->index_to_my_skinning_matrices = piece->index_to_my_skinning_matrices;
+        }
+
+        // Record commands
+        //
+        GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
+        GLint first_index = mbuf->index_offset / sizeof(u32);
+
+        auto cmd = &gl->commands[gl->num_commands];
+        {
+            cmd->count          = mesh->num_indices;
+            cmd->instance_count = 1;
+            cmd->first_index    = first_index;
+            cmd->base_vertex    = base_vertex;
+            cmd->base_instance  = 0;
+        }
+
+        ++gl->num_commands;
+    }
+
+
+    glNamedBufferSubData(gl->geometry_param_buffer, 0, sizeof(GL::Geometry_Param) * gl->num_commands, gl->geometry_params);
+    glNamedBufferSubData(gl->material_buffer, 0, sizeof(GL::Material) * gl->num_commands, gl->materials);
+    glNamedBufferSubData(gl->draw_command_buffer, 0, sizeof(GL::MDI_Command) * gl->num_commands, gl->commands);
 }
 
 internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
@@ -324,6 +370,9 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     }
 
 
+
+    gl_record_commands(gl, renderer);
+
     // Update skinning matrices.
     glNamedBufferSubData(gl->skinning_matrices_buffer, 0, sizeof(m4x4) * renderer->num_skinning_matrices, renderer->skinning_matrices);
 
@@ -334,7 +383,6 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     {
 #if 1
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
-        defer(glViewport(0, 0, window_width, window_height));
 
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
         defer(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -346,14 +394,12 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
+
         Shadowmap_Program* shadowmap_program = &gl->shadowmap_program;
         glUseProgram(shadowmap_program->id);
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
-
         glUniformMatrix4fv(shadowmap_program->light_view_projs, CSM_COUNT, true, (GLfloat *)light_view_projs);
 
-        // Vertex attributes.
         GLuint vao = gl->vao;
 
         glVertexArrayVertexBuffer(vao, 0, gl->vertex_buffer.handle, 0, sizeof(Vertex));
@@ -371,22 +417,12 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glVertexArrayAttribBinding(vao, 5, 0);
         glVertexArrayAttribBinding(vao, 6, 0);
 
-        for (u32 i = 0; i < renderer->num_meshes; ++i) {
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, gl->material_buffer);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, gl->geometry_param_buffer);
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, gl->draw_command_buffer);
 
-            Render_Mesh* piece = renderer->meshes + i;
-
-            Mesh* mesh = piece->mesh;
-            auto mbuf = opengl_get_mesh_buffer(gl, mesh);
-
-            glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
-            glUniform1i(shadowmap_program->is_skeletal, piece->num_joints ? 1 : 0);
-            glUniform1ui(shadowmap_program->index_to_my_skinning_matrices, piece->index_to_my_skinning_matrices);
-
-
-            // Draw call
-            GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
-            glDrawElementsBaseVertex(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset, base_vertex);
-        }
+        glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)0, gl->num_commands, 0);
 #endif
     }
 
@@ -472,6 +508,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             // Bind UBO with data shared across all meshes.
             //
             // @Robustness: Hard-coded binding index.
+            glBindBufferBase(GL_UNIFORM_BUFFER, 7, pbr_program->ubo);
             {
                 glBufferSubData(GL_UNIFORM_BUFFER,  0, 16, &frame->wireframe_color);
                 glBufferSubData(GL_UNIFORM_BUFFER, 16, 12, &frame->main_eye_position);
@@ -481,9 +518,6 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glBufferSubData(GL_UNIFORM_BUFFER, 368, 16, &csm_z_spans);
             }
 
-            glBindBufferBase(GL_UNIFORM_BUFFER, 7, pbr_program->ubo);
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
-            
             GLuint vao = gl->vao;
 
             glVertexArrayVertexBuffer(vao, 0, gl->vertex_buffer.handle, 0, sizeof(Vertex));
@@ -505,45 +539,17 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glVertexArrayAttribBinding(vao, i, 0);
             }
 
+            glUniformMatrix4fv(pbr_program->u_view_proj, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
 
-            for (u32 i = 0; i < renderer->num_meshes; ++i) {
-                Render_Mesh* piece = renderer->meshes + i;
+            glBindTextureUnit(6, gl->shadowmaps);
 
-                Mesh* mesh = piece->mesh;
-                auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
-                glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
-                glUniform1i(pbr_program->is_skeletal, piece->num_joints ? 1 : 0);
-                glUniformMatrix4fv(pbr_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
-                glUniform2f(pbr_program->uv_scale, piece->uv_scale.x, piece->uv_scale.y);
-                glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
-                glBindTextureUnit(6, gl->shadowmaps);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, gl->material_buffer);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, gl->geometry_param_buffer);
+            glBindBuffer(GL_DRAW_INDIRECT_BUFFER, gl->draw_command_buffer);
 
-                u64 u_albedo    = gl_foo(gl, mesh, PBR_ALBEDO);
-                u64 u_normal    = gl_foo(gl, mesh, PBR_NORMAL);
-                u64 u_roughness = gl_foo(gl, mesh, PBR_ROUGHNESS);
-                u64 u_metallic  = gl_foo(gl, mesh, PBR_METALLIC);
-                u64 u_emission  = gl_foo(gl, mesh, PBR_EMISSION);
-
-                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_albedo"), (u32)u_albedo, (u32)(u_albedo >> 32));
-                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_normal"), (u32)u_normal, (u32)(u_normal >> 32));
-                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_roughness"), (u32)u_roughness, (u32)(u_roughness >> 32));
-                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_metallic"), (u32)u_metallic, (u32)(u_metallic >> 32));
-                glUniform2ui(glGetUniformLocation(pbr_program->id, "u_emission"), (u32)u_emission, (u32)(u_emission >> 32));
-
-                if (frame->wireframe_mode) {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                    //opengl_set_flags_for_wireframe_mode(&flags);
-                }
-
-                if (piece->num_joints) {
-                    glUniform1ui(pbr_program->index_to_my_skinning_matrices, piece->index_to_my_skinning_matrices);
-                }
-
-                // Draw call
-                GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
-                glDrawElementsBaseVertex(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset, base_vertex);
-            }
+            glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)0, gl->num_commands, 0);
         }
 
         // Triangles
@@ -652,19 +658,18 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 #endif
         }
 
-        glViewport(0, 0, window_width, window_height);
     }
 
 
     // Blit
     //
     {
+        glViewport(0, 0, window_width, window_height);
         glEnable(GL_FRAMEBUFFER_SRGB);
         glBlitNamedFramebuffer(gl->fbo, 0,
                                0, 0, render_width, render_height,
                                0, 0, window_width, window_height,
-                               GL_COLOR_BUFFER_BIT,
-                               GL_LINEAR);
+                               GL_COLOR_BUFFER_BIT, GL_LINEAR);
         glDisable(GL_FRAMEBUFFER_SRGB);
     }
 
@@ -1332,17 +1337,6 @@ internal GL_Info opengl_get_info(Opengl *gl, b32 modern_context)
     return info;
 }
 
-internal void gl_bind_pbr_texture(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type, int slot, GLuint default_handle)
-{
-    auto tex = &mesh->textures[type];
-    if (tex->size > 0) {
-        auto t = GL::alloc_texture_unique(gl, tex->incremental_id, tex->layout, tex->width, tex->height, tex->data);
-        glBindTextureUnit(slot, t->name);
-    } else {
-        glBindTextureUnit(slot, default_handle);
-    }
-}
-
 internal void gl_init(Opengl *gl)
 {
 #if BUILD_DEBUG // @Fix: Commenting this out causes error in blit draw... Why?
@@ -1416,5 +1410,31 @@ internal void gl_init(Opengl *gl)
         glCreateBuffers(1, &gl->skinning_matrices_buffer);
         GLsizei sz = sizeof(m4x4) * RHI::max_num_skinning_matrices;
         glNamedBufferStorage(gl->skinning_matrices_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+    }
+
+    {
+        gl->max_draw_count = KB(8);
+
+        glCreateBuffers(1, &gl->draw_command_buffer);
+        GLsizei sz = sizeof(GL::MDI_Command) * gl->max_draw_count;
+        glNamedBufferStorage(gl->draw_command_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+
+        gl->commands = new GL::MDI_Command[gl->max_draw_count];
+    }
+
+    {
+        glCreateBuffers(1, &gl->material_buffer);
+        GLsizei sz = sizeof(GL::Material) * gl->max_draw_count;
+        glNamedBufferStorage(gl->material_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+
+        gl->materials = new GL::Material[gl->max_draw_count];
+    }
+
+    {
+        glCreateBuffers(1, &gl->geometry_param_buffer);
+        GLsizei sz = sizeof(GL::Geometry_Param) * gl->max_draw_count;
+        glNamedBufferStorage(gl->geometry_param_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+
+        gl->geometry_params = new GL::Geometry_Param[gl->max_draw_count];
     }
 }
