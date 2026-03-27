@@ -166,99 +166,8 @@ RENDERER_END_FRAME(win32_end_frame)
 {
     gl_frame_end((Opengl *)platform_renderer, renderer, frame);
     HDC hdc = wglGetCurrentDC();
-    if (hdc) 
-    {
-        if (! SwapBuffers(hdc)) 
-        {
-            assert(0); 
-        }
-    }
-    else 
-    {
-        assert(0); 
-    }
-}
-
-internal void win32_get_gl_functions(GL_Info info)
-{
-#define WGL_GET_PROC_ADDRESS(name) name = (Type_##name *)wglGetProcAddress(#name)
-    WGL_GET_PROC_ADDRESS(glShaderSource);
-    WGL_GET_PROC_ADDRESS(glCompileShader);
-    WGL_GET_PROC_ADDRESS(glCreateProgram);
-    WGL_GET_PROC_ADDRESS(glAttachShader);
-    WGL_GET_PROC_ADDRESS(glLinkProgram);
-    WGL_GET_PROC_ADDRESS(glGetProgramiv);
-    WGL_GET_PROC_ADDRESS(glGetShaderInfoLog);
-    WGL_GET_PROC_ADDRESS(glValidateProgram);
-    WGL_GET_PROC_ADDRESS(glGetProgramInfoLog);
-    WGL_GET_PROC_ADDRESS(glGenBuffers);
-    WGL_GET_PROC_ADDRESS(glBindBuffer);
-    WGL_GET_PROC_ADDRESS(glUniformMatrix4fv);
-    WGL_GET_PROC_ADDRESS(glGetUniformLocation);
-    WGL_GET_PROC_ADDRESS(glUseProgram);
-    WGL_GET_PROC_ADDRESS(glUniform1i);
-    WGL_GET_PROC_ADDRESS(glBufferData);
-    WGL_GET_PROC_ADDRESS(glVertexAttribPointer);
-    WGL_GET_PROC_ADDRESS(glGetAttribLocation);
-    WGL_GET_PROC_ADDRESS(glEnableVertexAttribArray);
-    WGL_GET_PROC_ADDRESS(glGenVertexArrays);
-    WGL_GET_PROC_ADDRESS(glBindVertexArray);
-    WGL_GET_PROC_ADDRESS(glBindAttribLocation);
-    WGL_GET_PROC_ADDRESS(glDebugMessageCallbackARB);
-    WGL_GET_PROC_ADDRESS(glDisableVertexAttribArray);
-    WGL_GET_PROC_ADDRESS(glUniform3fv);
-    WGL_GET_PROC_ADDRESS(glVertexAttribIPointer);
-    WGL_GET_PROC_ADDRESS(glUniform4fv);
-    WGL_GET_PROC_ADDRESS(glVertexAttribDivisor);
-    WGL_GET_PROC_ADDRESS(glDrawElementsInstanced);
-    WGL_GET_PROC_ADDRESS(glUniform1f);
-    WGL_GET_PROC_ADDRESS(glUniform1fv);
-    WGL_GET_PROC_ADDRESS(glTexSubImage3D);
-    WGL_GET_PROC_ADDRESS(glBindImageTexture);
-    WGL_GET_PROC_ADDRESS(glClearTexImage);
-    WGL_GET_PROC_ADDRESS(glDrawBuffers);
-    WGL_GET_PROC_ADDRESS(glActiveTexture);
-    WGL_GET_PROC_ADDRESS(glBindRenderbuffer);
-    WGL_GET_PROC_ADDRESS(glRenderbufferStorage);
-    WGL_GET_PROC_ADDRESS(glFramebufferRenderbuffer);
-    WGL_GET_PROC_ADDRESS(glGenRenderbuffers);
-    WGL_GET_PROC_ADDRESS(glBufferSubData);
-    WGL_GET_PROC_ADDRESS(glBufferStorage);
-    WGL_GET_PROC_ADDRESS(glBindBufferBase);
-    WGL_GET_PROC_ADDRESS(glGetBufferSubData);
-    WGL_GET_PROC_ADDRESS(glTexBuffer);
-    WGL_GET_PROC_ADDRESS(glUniform1ui);
-    WGL_GET_PROC_ADDRESS(glDispatchCompute);
-    WGL_GET_PROC_ADDRESS(glMemoryBarrier);
-    WGL_GET_PROC_ADDRESS(glMapBufferRange);
-    WGL_GET_PROC_ADDRESS(glUnmapBuffer);
-    WGL_GET_PROC_ADDRESS(glGetIntegeri_v);
-    WGL_GET_PROC_ADDRESS(glDeleteBuffers);
-    WGL_GET_PROC_ADDRESS(glClearNamedBufferData);
-    WGL_GET_PROC_ADDRESS(glDeleteFramebuffers);
-    WGL_GET_PROC_ADDRESS(glDeleteRenderbuffers);
-    WGL_GET_PROC_ADDRESS(glGenerateTextureMipmap);
-    WGL_GET_PROC_ADDRESS(glPatchParameteri);
-    WGL_GET_PROC_ADDRESS(glDeleteShader);
-    WGL_GET_PROC_ADDRESS(glFramebufferTexture);
-    WGL_GET_PROC_ADDRESS(glTexImage3D);
-    WGL_GET_PROC_ADDRESS(glCheckFramebufferStatus);
-    WGL_GET_PROC_ADDRESS(glUniform4f);
-    WGL_GET_PROC_ADDRESS(glUniform2f);
-    WGL_GET_PROC_ADDRESS(glGetUniformiv);
-    WGL_GET_PROC_ADDRESS(glGetActiveUniform);
-    WGL_GET_PROC_ADDRESS(glGetActiveAttrib);
-    WGL_GET_PROC_ADDRESS(glDrawArraysInstanced);
-    WGL_GET_PROC_ADDRESS(glGetShaderiv);
-    WGL_GET_PROC_ADDRESS(glCreateTextures);
-    WGL_GET_PROC_ADDRESS(glTextureParameteri);
-    WGL_GET_PROC_ADDRESS(glTextureStorage2D);
-    WGL_GET_PROC_ADDRESS(glTextureSubImage2D);
-
-    if (info.ARB_framebuffer_object) {
-        WGL_GET_PROC_ADDRESS(glBindFramebuffer);
-        WGL_GET_PROC_ADDRESS(glFramebufferTexture2D);
-    }
+    assert(hdc && "failed to get current dc.");
+    assert(SwapBuffers(hdc) && "failed to swap buffer."); 
 }
 
 internal Opengl* win32_init_opengl(HDC dc, umm push_buffer_size, Arena *arena, OS *os_init)
@@ -312,7 +221,6 @@ internal Opengl* win32_init_opengl(HDC dc, umm push_buffer_size, Arena *arena, O
 
     // @Todo: Cleanup
     GL_Info info = opengl_get_info(gl, true);
-    win32_get_gl_functions(info);
     gl->info = info;
 
 

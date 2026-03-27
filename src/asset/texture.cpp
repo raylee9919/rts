@@ -5,6 +5,8 @@
 
 namespace Asset
 {
+    using namespace File;
+
     void load_texture(System *sys, Texture *tex, void *memory, u64 size)
     {
         assert(tex);

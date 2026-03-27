@@ -16,8 +16,9 @@ __push_render_entity(Render_Group* renderGroup, u32 size, Render_Type type)
     return header;
 }
 
-internal void
-push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* skinning_matrices, u32 num_skinning_matrices, u64 entity_id, v2 uv_scale, v4 tint)
+void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform,
+               u32 index_to_my_skinning_matrices, u32 num_joints,
+               v2 uv_scale, v4 tint)
 {
     assert(r->num_meshes < r->max_meshes);
 
@@ -25,11 +26,10 @@ push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* skinning_matrices
     {
         piece->mesh                  = mesh;
         piece->world_transform       = world_transform;
-        piece->skinning_matrices     = skinning_matrices;
-        piece->num_skinning_matrices = num_skinning_matrices;
-        piece->entity_id             = entity_id;
         piece->uv_scale              = uv_scale;
         piece->tint                  = tint;
+        piece->num_joints = num_joints;
+        piece->index_to_my_skinning_matrices = index_to_my_skinning_matrices;
     }
     ++r->num_meshes;
 }
@@ -100,11 +100,10 @@ render_vertex_push(Render_Vertex_Type type)
     return result;
 }
 
-// # Note: Init Function
-//
-internal void
-render_init(void)
+internal void render_init(m4x4* skinning_matrices)
 {
+    assert(skinning_matrices);
+
     for (u32 i = 0; i < RENDER_VERTEX_TYPE_COUNT; ++i) {
         Render_Buffer *buffer = renderer->buffer + i;
         buffer->vertices = push_array(renderer->arena, Render_Vertex, render_max_vertex_count);
@@ -128,6 +127,8 @@ render_init(void)
     renderer->num_lines = 0;
     renderer->max_lines = 1024;
     renderer->lines     = push_array(renderer->arena, Render_Line_2D, renderer->max_lines);
+
+    renderer->skinning_matrices = skinning_matrices;
 }
 
 // # Note: Sort Cmp Functions

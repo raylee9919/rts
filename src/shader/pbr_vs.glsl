@@ -2,10 +2,6 @@
 
 R"(
 
-uniform mat4  world_transform;
-uniform mat4  VP;
-uniform int   is_skeletal;
-
 layout (location = 0) in vec3 vP;
 layout (location = 1) in vec3 vN;
 layout (location = 2) in vec2 vUV;
@@ -14,8 +10,12 @@ layout (location = 4) in vec4 v_tangent;
 
 layout (location = 5) in int    bone_ids[MAX_BONE_PER_VERTEX];
 layout (location = 6) in float  bone_weights[MAX_BONE_PER_VERTEX];
-uniform mat4                    bone_transforms[MAX_BONE_PER_MESH];
-uniform v2 uv_scale;
+
+uniform mat4  world_transform;
+uniform mat4  VP;
+uniform int   is_skeletal;
+uniform uint index_to_my_skinning_matrices;
+uniform vec2 uv_scale;
 
 out VS_Out {
     vec3 fP;
@@ -25,6 +25,11 @@ out VS_Out {
     vec4 fC;
     float fSign;
 } vs_out;
+
+layout(std430, row_major, binding = 8) readonly buffer Skinning_Matrices
+{
+    mat4 skinning_matrices[];
+};
 
 void main()
 {
@@ -43,7 +48,7 @@ void main()
             float weight = bone_weights[i];
             weights_sum += weight;
 
-            mat4 skinning_matrix = bone_transforms[bone_id];
+            mat4 skinning_matrix = skinning_matrices[index_to_my_skinning_matrices + bone_id];
 
             vec3 pose_position = (skinning_matrix * vec4(vP, 1)).xyz;
             model_position += pose_position * weight;

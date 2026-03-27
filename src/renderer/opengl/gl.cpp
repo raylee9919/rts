@@ -63,8 +63,8 @@ internal void opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(pbr_program, world_transform);
     GET_UNIFORM_LOCATION(pbr_program, VP);
     GET_UNIFORM_LOCATION(pbr_program, is_skeletal);
+    GET_UNIFORM_LOCATION(pbr_program, index_to_my_skinning_matrices);
     GET_UNIFORM_LOCATION(pbr_program, uv_scale);
-    GET_UNIFORM_LOCATION(pbr_program, bone_transforms);
     GET_UNIFORM_LOCATION(pbr_program, tint);
     {
         glCreateBuffers(1, &gl->pbr_program.ubo);
@@ -79,9 +79,8 @@ internal void opengl_compile_shaders(Opengl *gl)
 
     gl->shadowmap_program.id = opengl_create_program(gl, csm_vs, csm_gs, csm_fs);
     GET_UNIFORM_LOCATION(shadowmap_program, world_transform);
-    GET_UNIFORM_LOCATION(shadowmap_program, VP);
     GET_UNIFORM_LOCATION(shadowmap_program, is_skeletal);
-    GET_UNIFORM_LOCATION(shadowmap_program, bone_transforms);
+    GET_UNIFORM_LOCATION(shadowmap_program, index_to_my_skinning_matrices);
     GET_UNIFORM_LOCATION(shadowmap_program, light_view_projs);
 
     gl->simple_program.id = opengl_program_create_vf(gl, simple_vs, simple_fs);
@@ -325,10 +324,15 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     }
 
 
+    // Update skinning matrices.
+    glNamedBufferSubData(gl->skinning_matrices_buffer, 0, sizeof(m4x4) * renderer->num_skinning_matrices, renderer->skinning_matrices);
+
+
 
     // Shadow map
     //
     {
+#if 1
         glViewport(0, 0, SHADOWMAP_RESOLUTION, SHADOWMAP_RESOLUTION);
         defer(glViewport(0, 0, window_width, window_height));
 
@@ -342,10 +346,10 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        m4x4 identity_view_proj = identity();
-
         Shadowmap_Program* shadowmap_program = &gl->shadowmap_program;
         glUseProgram(shadowmap_program->id);
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
 
         glUniformMatrix4fv(shadowmap_program->light_view_projs, CSM_COUNT, true, (GLfloat *)light_view_projs);
 
@@ -375,17 +379,15 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
             glUniformMatrix4fv(shadowmap_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
-            glUniformMatrix4fv(shadowmap_program->VP, 1, GL_TRUE, &identity_view_proj.e[0][0]);
-            glUniform1i(shadowmap_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
-            if (piece->skinning_matrices && piece->num_skinning_matrices) {
-                glUniformMatrix4fv(shadowmap_program->bone_transforms, piece->num_skinning_matrices, true, (GLfloat *)piece->skinning_matrices);
-            }
+            glUniform1i(shadowmap_program->is_skeletal, piece->num_joints ? 1 : 0);
+            glUniform1ui(shadowmap_program->index_to_my_skinning_matrices, piece->index_to_my_skinning_matrices);
 
 
             // Draw call
             GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
             glDrawElementsBaseVertex(GL_TRIANGLES, mesh->num_indices, GL_UNSIGNED_INT, (void *)mbuf->index_offset, base_vertex);
         }
+#endif
     }
 
 
@@ -470,9 +472,6 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             // Bind UBO with data shared across all meshes.
             //
             // @Robustness: Hard-coded binding index.
-            glBindBufferBase(GL_UNIFORM_BUFFER, 7, pbr_program->ubo);
-            glBindBuffer(GL_UNIFORM_BUFFER, pbr_program->ubo);
-            defer(glBindBuffer(GL_UNIFORM_BUFFER, 0));
             {
                 glBufferSubData(GL_UNIFORM_BUFFER,  0, 16, &frame->wireframe_color);
                 glBufferSubData(GL_UNIFORM_BUFFER, 16, 12, &frame->main_eye_position);
@@ -482,6 +481,8 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 glBufferSubData(GL_UNIFORM_BUFFER, 368, 16, &csm_z_spans);
             }
 
+            glBindBufferBase(GL_UNIFORM_BUFFER, 7, pbr_program->ubo);
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
             
             GLuint vao = gl->vao;
 
@@ -512,7 +513,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
                 glUniformMatrix4fv(pbr_program->VP, 1, GL_TRUE, &frame->main_view_proj.e[0][0]);
-                glUniform1i(pbr_program->is_skeletal, piece->skinning_matrices && piece->num_skinning_matrices ? 1 : 0);
+                glUniform1i(pbr_program->is_skeletal, piece->num_joints ? 1 : 0);
                 glUniformMatrix4fv(pbr_program->world_transform, 1, true, &piece->world_transform.e[0][0]);
                 glUniform2f(pbr_program->uv_scale, piece->uv_scale.x, piece->uv_scale.y);
                 glUniform4fv(pbr_program->tint, 1, (GLfloat *)&piece->tint);
@@ -535,8 +536,8 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                     //opengl_set_flags_for_wireframe_mode(&flags);
                 }
 
-                if (piece->skinning_matrices && piece->num_skinning_matrices) {
-                    glUniformMatrix4fv(pbr_program->bone_transforms, piece->num_skinning_matrices, true, (GLfloat *)piece->skinning_matrices);
+                if (piece->num_joints) {
+                    glUniform1ui(pbr_program->index_to_my_skinning_matrices, piece->index_to_my_skinning_matrices);
                 }
 
                 // Draw call
@@ -1411,4 +1412,9 @@ internal void gl_init(Opengl *gl)
     GL::bump_init(&gl->vertex_buffer, MB(128));
     GL::bump_init(&gl->index_buffer, MB(96));
 
+    {
+        glCreateBuffers(1, &gl->skinning_matrices_buffer);
+        GLsizei sz = sizeof(m4x4) * RHI::max_num_skinning_matrices;
+        glNamedBufferStorage(gl->skinning_matrices_buffer, sz, NULL, GL_DYNAMIC_STORAGE_BIT);
+    }
 }

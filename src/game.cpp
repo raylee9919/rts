@@ -6,6 +6,7 @@
 #include "rts_profiler.h"
 #include "base/rts_base_inc.h"
 #include "os/rts_os.h"
+#include "file_system/file.h"
 #include "rts_random.h"
 #include "ds.h"
 #include "rts_platform.h"
@@ -32,6 +33,7 @@ global Renderer* renderer;
 //
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.cpp"
+#include "file_system/file.cpp"
 #include "rts_random.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
@@ -86,7 +88,9 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     soldier->skeleton          = assets->skeleton_skeleton;
 
     u32 num_joints = soldier->skeleton->num_joints;
-    soldier->skinning_matrices = push_array(game_state->entity_arena, m4x4, num_joints);
+    assert(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
+    soldier->index_to_my_skinning_matrices = game_state->num_skinning_matrices;
+    game_state->num_skinning_matrices += num_joints;
 
     soldier->idle_animation    = assets->skeleton_idle;
     soldier->running_animation = assets->skeleton_run;
@@ -99,7 +103,7 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     assert(soldier->damage_t < soldier->attack_max_t);
 
     soldier->animation_player = alloc_animation_player();
-    soldier->animation_player->init(soldier->skeleton, soldier->skinning_matrices);
+    soldier->animation_player->init(soldier->skeleton, &game_state->skinning_matrices[soldier->index_to_my_skinning_matrices]);
 
     Entity* parent = nullptr;
     entity_init(soldier, parent);
@@ -136,7 +140,9 @@ Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets)
     e->skeleton = assets->knight_skeleton;
 
     u32 num_joints = e->skeleton->num_joints;
-    e->skinning_matrices = push_array(game_state->entity_arena, m4x4, num_joints);
+    assert(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
+    e->index_to_my_skinning_matrices = game_state->num_skinning_matrices;
+    game_state->num_skinning_matrices += num_joints;
 
     e->idle_animation    = assets->knight_idle;
     e->running_animation = assets->knight_run;
@@ -149,7 +155,7 @@ Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets)
     assert(e->damage_t < e->attack_max_t);
 
     e->animation_player = alloc_animation_player();
-    e->animation_player->init(e->skeleton, e->skinning_matrices);
+    e->animation_player->init(e->skeleton, &game_state->skinning_matrices[e->index_to_my_skinning_matrices]);
 
     // @Hack:
 
@@ -223,11 +229,6 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         os = platform->os;
     }
     
-    if (!renderer) {
-        renderer = platform->renderer;
-        render_init();
-    }
-    
     game_state = (Game_State *)platform->game_state;
     if (!game_state) {
         platform->game_state = game_state = push_struct(platform->arena, Game_State);
@@ -264,6 +265,10 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         game_state->entity_arena    = arena_alloc();
         game_state->animation_arena = arena_alloc();
+
+        game_state->num_skinning_matrices = 0;
+        game_state->max_skinning_matrices = RHI::max_num_skinning_matrices;
+        game_state->skinning_matrices = push_array(game_state->animation_arena, m4x4, game_state->max_skinning_matrices);
 
         game_state->root_entity          = push_struct(game_state->entity_arena, Entity);
         game_state->root_entity->type    = ENTITY_TYPE_ROOT;
@@ -560,43 +565,14 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             debug_spawn_castle( 0.f,  0.f, TEAM_PLAYER, assets);
             //debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
-
-
-            
-            if (0) {
-                Entity* knight = entity_alloc();
-                knight->type   = ENTITY_TYPE_KNIGHT;
-                knight->flags  = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_SHOWS_ON_MINIMAP;
-
-                knight->position    = v3(5.f, 0.f, 5.f);
-                knight->orientation = Quaternion(1,0,0,0);
-                knight->scaling     = v3(1.f);
-
-                knight->model       = assets->knight_model;
-                knight->skeleton    = assets->knight_skeleton;
-
-                // @Hack:
-                u32 num_joints = knight->skeleton->num_joints;
-                knight->skinning_matrices = push_array(game_state->entity_arena, m4x4, num_joints);
-
-                for (u32 i = 0; i < num_joints; ++i) {
-                    auto *joint = &knight->skeleton->joints[i];
-                    s32 parent = joint->parent;
-                    if (parent == -1) {
-                        knight->skinning_matrices[i] = joint->local_transform;
-                    } else {
-                        knight->skinning_matrices[i] = knight->skinning_matrices[parent] * joint->local_transform;
-                    }
-                }
-
-                for (u32 i = 0; i < num_joints; ++i) {
-                    knight->skinning_matrices[i] = knight->skinning_matrices[i] * knight->skeleton->joints[i].inverse_bind_pose;
-                }
-
-                entity_init(knight, nullptr);
-            }
         }
     }
+
+    if (!renderer) {
+        renderer = platform->renderer;
+        render_init(game_state->skinning_matrices);
+    }
+    
     
     arena_clear(game_state->frame_arena);
     render_begin();
@@ -864,7 +840,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         0, 0, 0, 1,
     };
     v2 uv_scale = v2(gx, gy) * 0.1f;
-    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, 0, uv_scale);
+    push_mesh(renderer, ground_mesh, ground_transform, 0, 0, uv_scale);
 
     
     // Draw navmesh
@@ -985,6 +961,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
         render_commands->csm_view = game_camera->V;
     }
+
+    renderer->num_skinning_matrices = game_state->num_skinning_matrices;
 
     render_end();
 }

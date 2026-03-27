@@ -32,6 +32,12 @@ entity_attach(Entity* child, Entity* parent, s32 joint_id = -1)
     child->parent_joint_id = joint_id;
 }
 
+internal m4x4* get_skinning_matrices(Entity* e)
+{
+    assert(e);
+    return game_state->skinning_matrices + e->index_to_my_skinning_matrices;
+}
+
 internal void
 entity_clear_path_data(Entity* entity)
 {
@@ -936,7 +942,8 @@ entity_update(Entity* entity, const f32 dt)
             Entity *parent = entity->parent;
             s32 joint_id = entity->parent_joint_id;
             Joint *joint = &parent->skeleton->joints[joint_id];
-            m4x4 local_transform = parent->skinning_matrices[joint_id] * inverse(joint->inverse_bind_pose);
+            m4x4* skinnings = get_skinning_matrices(parent);
+            m4x4 local_transform = skinnings[joint_id] * inverse(joint->inverse_bind_pose);
             m4x4 world_transform = to_m4x4(parent->position, parent->orientation, parent->scaling) * local_transform;
             entity->transform = world_transform * to_m4x4(entity->position, entity->orientation, entity->scaling);
         } break;
@@ -1090,7 +1097,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
 
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh* mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, entity->skinning_matrices, entity->skeleton->num_joints, entity->id, v2(1.f, 1.f));
+                    push_mesh(renderer, mesh, transform, entity->index_to_my_skinning_matrices, entity->skeleton->num_joints, v2(1.f, 1.f));
                 }
             }
 
@@ -1169,7 +1176,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 i = 0; i < entity->model->num_meshes; ++i) {
                     Mesh *mesh = &entity->model->meshes[i];
-                    push_mesh(renderer, mesh, transform, nullptr, 0, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, 0, 0, v2{1,1});
                 }
             }
         } break;
@@ -1182,7 +1189,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, nullptr, 0, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, 0, 0, v2{1,1});
                 }
             }
         } break;
@@ -1192,24 +1199,25 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             if (entity->model) {
                 for (u32 mesh_idx = 0; mesh_idx < entity->model->num_meshes; ++mesh_idx) {
                     Mesh *mesh = entity->model->meshes + mesh_idx;
-                    push_mesh(renderer, mesh, transform, entity->skinning_matrices, entity->skeleton->num_joints, entity->id, v2{1,1});
+                    push_mesh(renderer, mesh, transform, entity->index_to_my_skinning_matrices, entity->skeleton->num_joints, v2{1,1});
                 }
             }
 
-#if 1
-                if (entity->skeleton) {
-                    for (u32 i = 0; i < entity->skeleton->num_joints; ++i) {
-                        s32 parent = entity->skeleton->joints[i].parent;
-                        if (parent >= 0) {
-                            m4x4 transform1 = transform * entity->skinning_matrices[i] * inverse(entity->skeleton->joints[i].inverse_bind_pose);
-                            m4x4 transform2 = transform * entity->skinning_matrices[parent] * inverse(entity->skeleton->joints[parent].inverse_bind_pose);
-                            v3 p1 = (transform1 * v4{0,0,0,1}).xyz;
-                            v3 p2 = (transform2 * v4{0,0,0,1}).xyz;
+#if 0
+            if (entity->skeleton) {
+                for (u32 i = 0; i < entity->skeleton->num_joints; ++i) {
+                    s32 parent = entity->skeleton->joints[i].parent;
+                    if (parent >= 0) {
+                        m4x4* skinnings = get_skinning_matrices(entity);
+                        m4x4 transform1 = transform * skinnings[i] * inverse(entity->skeleton->joints[i].inverse_bind_pose);
+                        m4x4 transform2 = transform * skinnings[parent] * inverse(entity->skeleton->joints[parent].inverse_bind_pose);
+                        v3 p1 = (transform1 * v4{0,0,0,1}).xyz;
+                        v3 p2 = (transform2 * v4{0,0,0,1}).xyz;
 
-                            draw_line(render_group, p1, p2, v4{1.f,0.4f,0.4f,1.f});
-                        }
+                        draw_line(render_group, p1, p2, v4{1.f,0.4f,0.4f,1.f});
                     }
                 }
+            }
 #endif
         } break;
     }

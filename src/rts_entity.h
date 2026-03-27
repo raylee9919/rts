@@ -108,7 +108,7 @@ struct Entity {
 
     Animation_Player* animation_player;
 
-    m4x4*                skinning_matrices;
+    u32                  index_to_my_skinning_matrices;
     Animation*           idle_animation;
     Animation*           running_animation;
     Animation*           die_animation;
@@ -156,9 +156,6 @@ struct Entity {
 
     // Navmesh
     f32 navmesh_scale;
-
-
-
 };
 
 

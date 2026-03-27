@@ -126,7 +126,9 @@ struct Render_Commands
     f32         debug_radius;
 };
 
-internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform, m4x4* skinning_matrices, u32 num_skinning_matrices, u64 entity_id, v2 uv_scale, v4 tint = v4{1,1,1,1});
+internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform,
+                        u32 index_to_my_skinning_matrices, u32 num_joints,
+                        v2 uv_scale, v4 tint=v4{1,1,1,1});
 
 internal void draw_line(Render_Group *group, v3 a, v3 b, v4 color);
 
@@ -212,11 +214,10 @@ struct Render_Command
 struct Render_Mesh {
     Mesh* mesh;
     m4x4  world_transform;
-    u64   entity_id;
-    m4x4* skinning_matrices;
-    u32   num_skinning_matrices;
     v2    uv_scale;
     v4    tint;
+    u32   num_joints;
+    u32   index_to_my_skinning_matrices;
 };
 
 struct Render_Line_2D {
@@ -254,6 +255,9 @@ struct Renderer
     Render_Line_2D*    lines;
     u32                num_lines;
     u32                max_lines;
+
+    m4x4* skinning_matrices;
+    u32 num_skinning_matrices;
 };
 
 typedef u8 Render_String_Flags;
@@ -293,3 +297,10 @@ internal void render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min,
 internal void render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11);
 
 internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags, AABB2 cull_aabb);
+
+
+
+namespace RHI
+{
+    static u32 max_num_skinning_matrices = KB(64);
+}

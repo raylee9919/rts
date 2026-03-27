@@ -61,13 +61,9 @@ struct Pbr_Program
     s32 world_transform;
     s32 VP;
     s32 is_skeletal;
-    s32 bone_transforms;
+    s32 index_to_my_skinning_matrices;
 
     s32 uv_scale;
-
-    s32 entity_id;
-    s32 hot_entity_id;
-    s32 active_entity_id;
 
     s32 tint;
 
@@ -86,9 +82,9 @@ struct Shadowmap_Program
     s32 id;
 
     s32 world_transform;
-    s32 VP;
     s32 is_skeletal;
-    s32 bone_transforms;
+    s32 index_to_my_skinning_matrices;
+
     s32 light_view_projs;
 };
 
@@ -98,11 +94,6 @@ struct Simple_Program
 
     s32 VP;
     s32 color;
-};
-
-struct Blt_Program 
-{
-    s32 id;
 };
 
 struct Gl_Uniform
@@ -169,7 +160,6 @@ struct Opengl
     Skybox_Program           skybox_program;
     Shadowmap_Program        shadowmap_program;
     Simple_Program           simple_program;
-    Blt_Program              blt_program;
 
 
     GLuint fbo;
@@ -210,6 +200,9 @@ struct Opengl
 
     GL::Texture* first_texture;
     GL::Texture* last_texture;
+
+
+    GLuint skinning_matrices_buffer;
 };
 
 #define GET_UNIFORM_LOCATION(Program, Name) gl->Program.Name = glGetUniformLocation(gl->Program.id, #Name);

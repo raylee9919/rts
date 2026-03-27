@@ -2,57 +2,47 @@
 
 R"(
 
-uniform mat4  world_transform;
-uniform mat4  VP;
-uniform int   is_skeletal;
-
 layout (location = 0) in vec3 vP;
-
-uniform mat4                    bone_transforms[MAX_BONE_PER_MESH];
 layout (location = 5) in int    bone_ids[MAX_BONE_PER_VERTEX];
 layout (location = 6) in float  bone_weights[MAX_BONE_PER_VERTEX];
+
+uniform mat4  world_transform;
+uniform int   is_skeletal;
+uniform uint  index_to_my_skinning_matrices;
+
+layout(std430, row_major, binding = 8) readonly buffer Skinning_Matrices
+{
+    mat4 skinning_matrices[];
+};
 
 out smooth vec3 fP;
 
 void main()
 {
-    mat4 M;
-    
-    if (is_skeletal != 0) 
-    {
-        mat4 bone_transform;
-        if (bone_ids[0] != -1) 
-        {
-            bone_transform = bone_transforms[bone_ids[0]] * bone_weights[0];
-            for (int idx = 1; idx < MAX_BONE_PER_VERTEX; ++idx) 
-            {
-                int bone_id = bone_ids[idx];
-                if (bone_id != -1) 
-                {
-                    bone_transform += bone_transforms[bone_id] * bone_weights[idx];
-                }
-                else 
-                {
-                    break;
-                }
-            }
+    vec3 model_position = vec3(0);
+
+    if (is_skeletal == 0) {
+        model_position = vP;
+    } else {
+        f32 weights_sum = 0.0;
+        for (int i = 0; i < MAX_BONE_PER_VERTEX && bone_ids[i] != -1; i += 1) {
+            int bone_id = bone_ids[i];
+            float weight = bone_weights[i];
+            weights_sum += weight;
+
+            mat4 skinning_matrix = skinning_matrices[index_to_my_skinning_matrices + bone_id];
+
+            vec3 pose_position = (skinning_matrix * vec4(vP, 1)).xyz;
+            model_position += pose_position * weight;
         }
-        else 
-        {
-            bone_transform = identity();
+
+        if (weights_sum > 1e-8) {
+            float inv = 1.0 / weights_sum;
+            model_position *= inv;
         }
-        M = world_transform * bone_transform;
-    } 
-    else 
-    {
-        M = world_transform;
     }
 
-    vec4 result_pos = M * vec4(vP,1);
-    result_pos /= result_pos.w;
-    fP = result_pos.xyz;
-
-    gl_Position = VP * result_pos;
+    gl_Position = world_transform * vec4(model_position, 1.0);
 }
 
 )";
