@@ -369,20 +369,20 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
                 load_animation(asset_arena, assets->knight_die, utf8f(scratch.arena, "%S/animation/knight_die.keyframed_animation", platform->data_path));
                 
                 // Textures
-                {
-                    auto *mesh = mesh_from_name(model, utf8lit("Head"));
-                    assert(mesh);
-                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_head_albedo.texture", platform->data_path));
-                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_head_normal.texture", platform->data_path));
-                    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_head_roughness.texture", platform->data_path));
-                }
+                //{
+                //    auto *mesh = mesh_from_name(model, utf8lit("Head"));
+                //    assert(mesh);
+                //    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_head_albedo.texture", platform->data_path));
+                //    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_head_normal.texture", platform->data_path));
+                //    load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/knight_head_roughness.texture", platform->data_path));
+                //}
 
-                {
-                    auto *mesh = mesh_from_name(model, utf8lit("Eyes"));
-                    assert(mesh);
-                    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_eye_albedo.texture", platform->data_path));
-                    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_eye_normal.texture", platform->data_path));
-                }
+                //{
+                //    auto *mesh = mesh_from_name(model, utf8lit("Eyes"));
+                //    assert(mesh);
+                //    load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/knight_eye_albedo.texture", platform->data_path));
+                //    load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/knight_eye_normal.texture", platform->data_path));
+                //}
 
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Helm2"));
@@ -551,12 +551,13 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 1200;
+            const int num_soldiers = 425;
             const int num_rows = 50;
+            const f32 dist = 0.8f;
             for (int i = 0; i < num_soldiers; ++i) {
-                f32 x = 6.f + 1.f*(i / num_rows);
-                f32 z = 0.f + 1.f*(i % num_rows);
-#if 0
+                f32 x = 6.f + dist*(i / num_rows);
+                f32 z = 0.f + dist*(i % num_rows);
+#if 1
                 Entity* soldier = debug_spawn_knight(x, z, TEAM_PLAYER, assets);
 #else
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_PLAYER, assets); 
@@ -566,8 +567,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
 #if 1
             for (int i = 0; i < num_soldiers; ++i) {
-                f32 x = 30.f + 1.f*(i / num_rows);
-                f32 z =  0.f + 1.f*(i % num_rows);
+                f32 x = 30.f + dist*(i / num_rows);
+                f32 z =  0.f + dist*(i % num_rows);
                 Entity* soldier = debug_spawn_soldier(x, z, TEAM_ENEMY, assets);
 
                 debug_attach_sword(soldier, assets);
@@ -625,7 +626,9 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         ui_platform(utf8lit("Release Build"))
 #endif
         {
-            ui_labelf("mspf: %.2f | %ux%u", actual_dt*1000.f, game_state->draw_width, game_state->draw_height);
+            f32 mspf = actual_dt * 1000.f;
+            f32 fps = 1.f / actual_dt;
+            ui_labelf("mspf: %.2f | fps: %.2f", mspf, fps);
             ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
             if (ui_button(utf8lit("Chunk Partitions")).pressed_left) {
                 draw_chunk_partitions = !draw_chunk_partitions;
@@ -936,7 +939,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         // CSM
         //
         render_commands->csm_to_light = normalize(v3(light_x, light_y, light_z));
-        f32 csm_frustum_edge_length = 200.0f;
+        f32 csm_frustum_edge_length = 300.0f;
         m4x4 inv = inverse(game_camera->VP);
         // @Todo: Renderer independent calculation!
         v4 ndcs[4] = {

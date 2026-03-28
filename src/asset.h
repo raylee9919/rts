@@ -123,7 +123,8 @@ enum Pbr_Texture_Type
     PBR_COUNT,
 };
 
-struct Mesh  {
+struct Mesh  
+{
     Utf8 name;
 
     m4x4    global_transform;

@@ -7,7 +7,6 @@ layout (location = 1) in vec3 vN;
 layout (location = 2) in vec2 vUV;
 layout (location = 3) in vec4 vC;
 layout (location = 4) in vec4 v_tangent;
-
 layout (location = 5) in int    bone_ids[MAX_BONE_PER_VERTEX];
 layout (location = 6) in float  bone_weights[MAX_BONE_PER_VERTEX];
 

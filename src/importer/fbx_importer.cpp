@@ -17,6 +17,7 @@
 #include "asset/texture.h"
 #include "asset.h"
 #include "third_party/mikktspace/mikktspace.h"
+#include "third_party/meshoptimizer/meshoptimizer.h"
 #include "fbx_importer_util.h"
 #include "fbx_importer.h"
 
@@ -36,6 +37,8 @@ static int a;
 static int b;
 
 
+// @Cleanup: pingponging buffer with meshoptimizer gives me headache which arena to use.
+// 
 void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -68,29 +71,6 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
         size_t tri_num_indices = fbx_mesh->max_face_triangles * 3;
         u32 *tri_indices = push_array(scratch.arena, u32, tri_num_indices);
 
-        // @Temporary
-        // @Temporary
-        // @Temporary
-        // @Temporary
-        // @Temporary
-        //m4x4 *global_transforms = new m4x4[state->num_bones];
-        //memset(global_transforms, 0, sizeof(m4x4) * state->num_bones);
-
-        //for (u32 i = 0; i < state->num_bones; ++i) {
-        //    auto *bone = &state->bones[i];
-        //    s32 parent = bone->parent;
-        //    if (parent >= 0) {
-        //        global_transforms[i] = global_transforms[parent] * bone->local_transform;
-        //    } else {
-        //        global_transforms[i] = bone->local_transform;
-        //    }
-        //}
-        // @Temporary
-        // @Temporary
-        // @Temporary
-        // @Temporary
-        // @Temporary
-
         auto faces = fbx_mesh->faces;
         for (size_t fi = 0; fi < faces.count; ++fi) {
             ufbx_face face = faces.data[fi];
@@ -114,21 +94,6 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                     // Because we want to exclude a chain of transforms before the root bone.
                     vert->pos     = (state->undo_pre_root_bone_transforms * V4(vert->pos, 1.f)).xyz;
                     vert->normal  = normalize((state->undo_pre_root_bone_transforms * V4(vert->normal, 0.f)).xyz);
-
-
-                    // @Temporary
-                    // @Temporary
-                    // @Temporary
-                    // @Temporary
-                    // @Temporary
-                    //std::string key((char *)mesh.name, mesh.length);
-                    //s32 id = state->bone_map[key];
-                    //vert->pos = (global_transforms[id] * V4(vert->pos, 1.f)).xyz;
-                    // @Temporary
-                    // @Temporary
-                    // @Temporary
-                    // @Temporary
-                    // @Temporary
 
 
                     if (has_uv) {
@@ -207,13 +172,32 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
         mesh.indices = indices;
         mesh.index_count = (u32)num_indices;
 
-        // @Temporary
-        if (1) {
+        
+        u32* new_indices = push_array(arena, u32, num_indices);
+
+
+        // Reorders indices to reduce the number of GPU vertex shader invocations
+        meshopt_optimizeVertexCache(new_indices, indices, num_indices, num_vert);
+
+        // Reorders indices to reduce the number of GPU vertex shader invocations and the pixel overdraw
+        meshopt_optimizeOverdraw(indices, new_indices, num_indices, &vertices[0].pos.x, num_vert, sizeof(vertices[0]), 1.05f);
+
+        Asset_Vertex *new_vertices = push_array(arena, Asset_Vertex, num_tri * 3);
+
+        // Reorders vertices and changes indices to reduce the amount of GPU memory fetches during vertex processing
+        u32 new_num_vert = (u32)meshopt_optimizeVertexFetch(new_vertices, indices, num_indices, vertices, num_vert, sizeof(new_vertices[0]));
+
+        mesh.vertices     = new_vertices;
+        mesh.vertex_count = new_num_vert;
+        mesh.indices      = indices;
+
+        // Generate mikkt space tangents.
+        if (1)
+        {
             state->mikkt_ctx.m_pUserData = &mesh;
             genTangSpaceDefault(&state->mikkt_ctx);
         }
 
-        
         // Push the mesh.
         state->meshes[state->num_meshes++] = mesh;
     }
@@ -536,12 +520,12 @@ int main()
 
 
     {
-        Utf8 name     = utf8lit("castle");
-        Utf8 in_file  = utf8f(state->scene_arena, "C:/dev/rts/data/input/%S.fbx", name);
+        Utf8 name     = utf8lit("knight");
+        Utf8 in_file  = utf8f(state->scene_arena, "C:/dev/swl/rts/data/input/%S.fbx", name);
 
-        Utf8 out_mesh = utf8f(state->scene_arena, "C:/dev/rts/data/%S.triangle_mesh", name);
-        Utf8 out_skel = utf8f(state->scene_arena, "C:/dev/rts/data/%S.skeleton", name);
-        Utf8 out_anim = utf8f(state->scene_arena, "C:/dev/rts/data/%S.keyframed_animation", name);
+        Utf8 out_mesh = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.triangle_mesh", name);
+        Utf8 out_skel = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.skeleton", name);
+        Utf8 out_anim = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.keyframed_animation", name);
 
         ufbx_load_opts opts = {};
         opts.target_axes                 = ufbx_axes_right_handed_y_up;
@@ -563,7 +547,7 @@ int main()
 
         state->scene = scene;
 
-        fbx_print_nodes(scene->root_node);
+        //fbx_print_nodes(scene->root_node);
         fbx_fill_bones(state);
         fbx_fill_meshes(state);
         fbx_fill_animations(state);
