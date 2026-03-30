@@ -551,10 +551,12 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            const int num_soldiers = 425;
-            const int num_rows = 50;
-            const f32 dist = 0.8f;
-            for (int i = 0; i < num_soldiers; ++i) {
+            int num_soldiers = 550;
+            int num_rows = 50;
+            f32 dist = 0.8f;
+
+            for (int i = 0; i < num_soldiers; ++i) 
+            {
                 f32 x = 6.f + dist*(i / num_rows);
                 f32 z = 0.f + dist*(i % num_rows);
 #if 1

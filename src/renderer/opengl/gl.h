@@ -220,7 +220,7 @@ struct Opengl
 
 
     GLuint skinning_matrices_buffer;
-    m4x4* skinning_matrices;
+    m3x4* skinning_matrices;
 
     u32 max_draw_count;
     u32 num_commands;

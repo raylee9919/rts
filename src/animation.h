@@ -36,7 +36,7 @@ struct Animation_Player {
 
     Skeleton* skeleton;
 
-    m4x4 *skinning_matrices;
+    m3x4 *skinning_matrices;
 
     Array <m4x4> blended_local_transforms;
 
@@ -48,7 +48,7 @@ struct Animation_Player {
 
 
 
-    void init(Skeleton *skel, m4x4 *out_skinning_matrices);
+    void init(Skeleton *skel, m3x4 *out_skinning_matrices);
     void accumulate(f32 dt);
     void eval();
 };

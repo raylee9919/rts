@@ -14,7 +14,7 @@ struct Camera;
 
 namespace RHI
 {
-    static u32 max_num_skinning_matrices = KB(192);
+    static u32 max_num_skinning_matrices = KB(512);
 
     struct Material
     {
@@ -125,7 +125,7 @@ struct Render_Commands
     m4x4        debug_transform;
     f32         debug_radius;
 
-    m4x4*       skinning_matrices;
+    m3x4*       skinning_matrices;
 };
 
 internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform,

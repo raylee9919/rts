@@ -121,7 +121,7 @@ void Pose_Channel::eval()
     }
 }
 
-void Animation_Player::init(Skeleton *skel, m4x4 *out_skinning_matrices) 
+void Animation_Player::init(Skeleton *skel, m3x4 *out_skinning_matrices) 
 {
     skeleton = skel;
 
@@ -206,7 +206,8 @@ void Animation_Player::eval()
             blended_local_transforms[ji] = blended_local_transforms[parent] * blended_local_transforms[ji];
         }
 
-        skinning_matrices[ji] = skeleton->root_transform * blended_local_transforms[ji] * joint->inverse_bind_pose;
+        m4x4 m = skeleton->root_transform * blended_local_transforms[ji] * joint->inverse_bind_pose;
+        memory_copy(&skinning_matrices[ji], &m, sizeof(m3x4));
     }
 }
 

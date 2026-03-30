@@ -25,8 +25,6 @@ internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
     return handle;
 }
 
-
-
 internal void opengl_compile_shaders(Opengl *gl)
 {
     snprintf(g_shared, array_count(g_shared), R"(
@@ -139,6 +137,28 @@ internal GL_Mesh_Buffer* opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
     return node;
 }
 
+void gl_compute_mesh_type_count_and_instance_count(Renderer *renderer, int* num_mesh_types, int* num_instances_per_mesh, int max_types)
+{
+    int num_types = 0;
+
+    // @Temporary; Use ID, and I don't want to compute number of mesh types here.
+    void* ptr = NULL;
+    for (u32 i = 0; i < renderer->num_meshes; ++i) {
+        void *mesh = renderer->meshes[i].mesh;
+        if (mesh != ptr) {
+            ptr = mesh;
+            num_types++;
+            num_instances_per_mesh[num_types - 1] = 0;
+        }
+
+        assert(num_types < max_types);
+
+        num_instances_per_mesh[num_types - 1]++;
+    }
+
+    *num_mesh_types = num_types;
+}
+
 void gl_record_commands(Opengl *gl, Renderer *renderer, GLuint num_instances)
 {
     const u32 num_cmd = renderer->num_meshes;
@@ -150,8 +170,30 @@ void gl_record_commands(Opengl *gl, Renderer *renderer, GLuint num_instances)
         Mesh* mesh = piece->mesh;
         auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
-        // Record parameters.
-        //
+        GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
+        GLint first_index = mbuf->index_offset / sizeof(u32);
+
+        auto cmd = &gl->commands[i];
+        {
+            cmd->count          = mesh->num_indices;
+            cmd->instance_count = num_instances;
+            cmd->first_index    = first_index;
+            cmd->base_vertex    = base_vertex;
+            cmd->base_instance  = 0;
+        }
+    }
+
+    gl->num_commands = num_cmd;
+}
+
+void gl_record_draw_params(Opengl* gl, Renderer* renderer)
+{
+    // Record parameters into SSBO.
+    for (u32 i = 0; i < renderer->num_meshes; ++i)
+    {
+        Render_Mesh* piece = renderer->meshes + i;
+        Mesh* mesh = piece->mesh;
+
         auto mat = gl->materials + i;
         {
             mat->albedo    = gl_foo(gl, mesh, PBR_ALBEDO);
@@ -168,24 +210,32 @@ void gl_record_commands(Opengl *gl, Renderer *renderer, GLuint num_instances)
             geo->uv_scale        = piece->uv_scale;
             geo->index_to_my_skinning_matrices = piece->index_to_my_skinning_matrices;
         }
-
-        // Record commands
-        //
-        GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
-        GLint first_index = mbuf->index_offset / sizeof(u32);
-
-        auto cmd = &gl->commands[i];
-        {
-            cmd->count          = mesh->num_indices;
-            cmd->instance_count = num_instances;
-            cmd->first_index    = first_index;
-            cmd->base_vertex    = base_vertex;
-            cmd->base_instance  = 0;
-        }
     }
-
-    gl->num_commands = num_cmd;
 }
+
+//void gl_draw_instances(Opengl* gl, Renderer* renderer, int num_mesh_types, int* num_instances_per_mesh)
+//{
+//    // Instanced Draw
+//    for (int t = 0, inst = 0; t < num_mesh_types; ++t) 
+//    {
+//        int num_instances = num_instances_per_mesh[t];
+//
+//        Mesh* mesh = renderer->meshes[inst].mesh;
+//        auto mbuf = opengl_get_mesh_buffer(gl, mesh);
+//
+//        GLint base_vertex = mbuf->vertex_offset / sizeof(Vertex);
+//
+//        glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES,
+//                                                      mesh->num_indices,
+//                                                      GL_UNSIGNED_INT,
+//                                                      (void*)mbuf->index_offset,
+//                                                      num_instances,
+//                                                      base_vertex, 
+//                                                      inst);
+//
+//        inst += num_instances;
+//    }
+//}
 
 internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 {
@@ -365,11 +415,15 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     }
 
 
+    // 
+    int num_mesh_types = 0;
+    int num_instances_per_mesh[256];
+    gl_compute_mesh_type_count_and_instance_count(renderer, &num_mesh_types, num_instances_per_mesh, array_count(num_instances_per_mesh));
+
+    // Materials, matrices...
+    gl_record_draw_params(gl, renderer);
 
     gl_record_commands(gl, renderer, CSM_COUNT);
-
-    // Update skinning matrices.
-    //glNamedBufferSubData(gl->skinning_matrices_buffer, 0, sizeof(m4x4) * renderer->num_skinning_matrices, renderer->skinning_matrices);
 
 
 
@@ -382,7 +436,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glBindFramebuffer(GL_FRAMEBUFFER, gl->shadowmap_fbo);
         defer(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
-        float clear_depth[1] = {1.f};
+        float clear_depth[1] = { 1.f };
         glClearNamedFramebufferfv(gl->shadowmap_fbo, GL_DEPTH, 0, clear_depth);
 
         glEnable(GL_CULL_FACE);
@@ -416,6 +470,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, gl->material_buffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, gl->geometry_param_buffer);
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, gl->draw_command_buffer);
+
 
         glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)0, gl->num_commands, 0);
 #endif
@@ -497,7 +552,9 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
         // Static/Skeletal mesh shader.
         //
         {
-            if (frame->wireframe_mode) { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }
+            if (frame->wireframe_mode) {
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
+            }
             defer(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 
             Pbr_Program* pbr_program = &gl->pbr_program;
@@ -541,13 +598,14 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
             glBindTextureUnit(6, gl->shadowmaps);
 
-
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, gl->skinning_matrices_buffer);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, gl->material_buffer);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, gl->geometry_param_buffer);
             glBindBuffer(GL_DRAW_INDIRECT_BUFFER, gl->draw_command_buffer);
 
             glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)0, gl->num_commands, 0);
+
+            //gl_draw_instances(gl, renderer, num_mesh_types, num_instances_per_mesh);
         }
 
         // Triangles
@@ -1410,10 +1468,10 @@ internal void gl_init(Opengl *gl)
 
     {
         glCreateBuffers(1, &gl->skinning_matrices_buffer);
-        GLsizei sz = sizeof(m4x4) * RHI::max_num_skinning_matrices;
+        GLsizei sz = sizeof(m3x4) * RHI::max_num_skinning_matrices;
         glNamedBufferStorage(gl->skinning_matrices_buffer, sz, NULL, storage_flags);
 
-        gl->skinning_matrices = (m4x4*)glMapNamedBufferRange(gl->skinning_matrices_buffer, 0, sz, mapping_flags);
+        gl->skinning_matrices = (m3x4*)glMapNamedBufferRange(gl->skinning_matrices_buffer, 0, sz, mapping_flags);
     }
 
     {

@@ -118,7 +118,9 @@
     X(PFNGLFRAMEBUFFERTEXTURE2DPROC,            glFramebufferTexture2D) \
     X(PFNGLMULTIDRAWELEMENTSINDIRECTPROC,       glMultiDrawElementsIndirect) \
     X(PFNGLMAPNAMEDBUFFERRANGEPROC,             glMapNamedBufferRange) \
-    X(PFNGLDEBUGMESSAGECONTROLPROC,             glDebugMessageControl)
+    X(PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC, glDrawElementsInstancedBaseVertex) \
+    X(PFNGLDEBUGMESSAGECONTROLPROC,             glDebugMessageControl) \
+    X(PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXBASEINSTANCEPROC, glDrawElementsInstancedBaseVertexBaseInstance)
 
 
 

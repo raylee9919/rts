@@ -100,7 +100,7 @@ struct Game_State {
     Animation_Player* first_animation_player;
     Animation_Player* last_animation_player;
 
-    m4x4* skinning_matrices;
+    m3x4* skinning_matrices;
     u32 max_skinning_matrices;
     u32 num_skinning_matrices;
 };

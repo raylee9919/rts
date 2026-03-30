@@ -32,7 +32,7 @@ entity_attach(Entity* child, Entity* parent, s32 joint_id = -1)
     child->parent_joint_id = joint_id;
 }
 
-internal m4x4* get_skinning_matrices(Entity* e)
+internal m3x4* get_skinning_matrices(Entity* e)
 {
     assert(e);
     return game_state->skinning_matrices + e->index_to_my_skinning_matrices;
@@ -942,8 +942,16 @@ entity_update(Entity* entity, const f32 dt)
             Entity *parent = entity->parent;
             s32 joint_id = entity->parent_joint_id;
             Joint *joint = &parent->skeleton->joints[joint_id];
-            m4x4* skinnings = get_skinning_matrices(parent);
-            m4x4 local_transform = skinnings[joint_id] * inverse(joint->inverse_bind_pose);
+            m3x4* skinnings = get_skinning_matrices(parent);
+            m3x4 joint_3x4 = skinnings[joint_id];
+            m4x4 mat;
+            {
+                mat.rows[0] = joint_3x4.rows[0];
+                mat.rows[1] = joint_3x4.rows[1];
+                mat.rows[2] = joint_3x4.rows[2];
+                mat.rows[3] = v4(0, 0, 0, 1);
+            }
+            m4x4 local_transform = mat * inverse(joint->inverse_bind_pose);
             m4x4 world_transform = to_m4x4(parent->position, parent->orientation, parent->scaling) * local_transform;
             entity->transform = world_transform * to_m4x4(entity->position, entity->orientation, entity->scaling);
         } break;

@@ -38,7 +38,7 @@ layout(std430, row_major, binding = 10) readonly buffer Geometry_SSBO
 
 layout(std430, row_major, binding = 8) readonly buffer Skinning_Matrices
 {
-    mat4 skinning_matrices[];
+    mat4x3 skinning_matrices[];
 };
 
 void main()
@@ -47,20 +47,22 @@ void main()
     vec3 model_normal   = vec3(0);
     vec3 model_tangent  = vec3(0);
 
-    Geometry_Param geo = geometry_params[gl_DrawID];
+    //int instance_index = gl_BaseInstance + gl_InstanceID;
+    int instance_index = gl_DrawID;
+    Geometry_Param geo = geometry_params[instance_index];
 
     if (geo.is_skeletal == 0) {
         model_position = vP;
         model_normal   = vN;
         model_tangent  = v_tangent.xyz;
     } else {
-        f32 weights_sum = 0.0;
+        float weights_sum = 0.0;
         for (int i = 0; i < MAX_BONE_PER_VERTEX && bone_ids[i] != -1; i += 1) {
             int bone_id = bone_ids[i];
             float weight = bone_weights[i];
             weights_sum += weight;
 
-            mat4 skinning_matrix = skinning_matrices[geo.index_to_my_skinning_matrices + bone_id];
+            mat4x3 skinning_matrix = skinning_matrices[geo.index_to_my_skinning_matrices + bone_id];
 
             vec3 pose_position = (skinning_matrix * vec4(vP, 1)).xyz;
             model_position += pose_position * weight;
@@ -92,7 +94,7 @@ void main()
     vs_out.fUV = vUV * geo.uv_scale;
     vs_out.fC  = vC;
 
-    vs_out.draw_id = gl_DrawID;
+    vs_out.draw_id = instance_index;
 
     gl_Position = u_view_proj * vec4(model_position, 1);
 }

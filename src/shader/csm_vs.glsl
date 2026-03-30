@@ -21,7 +21,7 @@ layout(std430, row_major, binding = 10) readonly buffer Geometry_SSBO
 
 layout(std430, row_major, binding = 8) readonly buffer Skinning_Matrices
 {
-    mat4 skinning_matrices[];
+    mat4x3 skinning_matrices[];
 };
 
 uniform m4x4 light_view_projs[CSM_COUNT];
@@ -42,7 +42,7 @@ void main()
             float weight = bone_weights[i];
             weights_sum += weight;
 
-            mat4 skinning_matrix = skinning_matrices[geo.index_to_my_skinning_matrices + bone_id];
+            mat4x3 skinning_matrix = skinning_matrices[geo.index_to_my_skinning_matrices + bone_id];
 
             vec3 pose_position = (skinning_matrix * vec4(vP, 1)).xyz;
             model_position += pose_position * weight;
@@ -54,8 +54,9 @@ void main()
         }
     }
 
-    gl_Position = light_view_projs[gl_InstanceID] * geo.world_transform * vec4(model_position, 1.0);
-    gl_Layer = gl_InstanceID;
+    int csm_index = gl_InstanceID;
+    gl_Position = light_view_projs[csm_index] * geo.world_transform * vec4(model_position, 1.0);
+    gl_Layer = csm_index;
 }
 
 )";

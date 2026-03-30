@@ -85,6 +85,15 @@ union m4x4 {
     v4 rows[4];
 };
 
+union m3x4 {
+    struct {
+        f32 _11, _12, _13, _14; 
+        f32 _21, _22, _23, _24; 
+        f32 _31, _32, _33, _34; 
+    };
+    v4 rows[3];
+};
+
 union Quaternion {
     struct { f32 w, x, y, z; };
     __m128 sse;
