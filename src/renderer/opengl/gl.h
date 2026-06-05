@@ -113,6 +113,13 @@ struct Simple_Program
     s32 color;
 };
 
+struct Post_Process_Program {
+    s32 id;
+
+    s32 VP;
+    s32 color;
+};
+
 struct Gl_Uniform
 {
     GLuint id;
@@ -153,7 +160,6 @@ struct GL_Mesh_Buffer {
     GL_Mesh_Buffer* next;
 };
 
-
 struct Opengl
 {
     Platform_Renderer header;
@@ -177,6 +183,7 @@ struct Opengl
     Skybox_Program           skybox_program;
     Shadowmap_Program        shadowmap_program;
     Simple_Program           simple_program;
+    Post_Process_Program     post_process_program;
 
 
     GLuint fbo;

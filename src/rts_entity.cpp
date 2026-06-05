@@ -1239,7 +1239,8 @@ lb_update_children:
     }
 }
 
-struct Update_Animation_Param {
+struct Update_Animation_Param 
+{
     Animation_Player *ap;
     f32 dt;
 };

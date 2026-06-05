@@ -54,6 +54,15 @@ internal void opengl_compile_shaders(Opengl *gl)
     char *simple_fs = 
     #include "shader/simple_fs.glsl"
 
+    {
+        char *post_process_vs = 
+        #include "shader/post_process_vs.glsl"
+        char *post_process_fs = 
+        #include "shader/post_process_fs.glsl"
+
+        gl->post_process_program.id = opengl_program_create_vf(gl, post_process_vs, post_process_fs);
+    }
+
 
     gl->pbr_program.id = opengl_program_create_vf(gl, pbr_vs, pbr_fs);
     GET_UNIFORM_LOCATION(pbr_program, u_view_proj);
@@ -251,7 +260,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             glCreateTextures(GL_TEXTURE_2D, 1, &gl->color_texture);
 
             GLuint tex = gl->color_texture;
-            glTextureStorage2D(tex, 1, GL_RGBA8, render_width, render_height);
+            glTextureStorage2D(tex, 1, GL_RGBA16F, render_width, render_height);
             glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
@@ -262,7 +271,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             glCreateTextures(GL_TEXTURE_2D, 1, &gl->depth_texture);
 
             GLuint tex = gl->depth_texture;
-            glTextureStorage2D(tex, 1, GL_DEPTH24_STENCIL8, render_width, render_height);
+            glTextureStorage2D(tex, 1, GL_DEPTH_COMPONENT32F, render_width, render_height);
             glTextureParameteri(tex, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTextureParameteri(tex, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         }
@@ -388,7 +397,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 max.z = max(max.z, lp.z);
             }
 
-            f32 depth = max.z - min.z; // TODO: Fit z?
+            f32 depth = max.z - min.z; // @Todo: Fit z?
 
             m4x4 light_proj = ortho(min.x, max.x, min.y, max.y, -depth*2.f, depth*2.f);
             light_view_projs[level] = light_proj * light_view;
@@ -417,7 +426,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
     // 
     int num_mesh_types = 0;
-    int num_instances_per_mesh[256];
+    int num_instances_per_mesh[512];
     gl_compute_mesh_type_count_and_instance_count(renderer, &num_mesh_types, num_instances_per_mesh, array_count(num_instances_per_mesh));
 
     // Materials, matrices...
@@ -713,20 +722,22 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             glEnable(GL_DEPTH_TEST);
 #endif
         }
-
     }
 
 
-    // Blit
+    // Post-process
     //
     {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         glViewport(0, 0, window_width, window_height);
-        glEnable(GL_FRAMEBUFFER_SRGB);
-        glBlitNamedFramebuffer(gl->fbo, 0,
-                               0, 0, render_width, render_height,
-                               0, 0, window_width, window_height,
-                               GL_COLOR_BUFFER_BIT, GL_LINEAR);
-        glDisable(GL_FRAMEBUFFER_SRGB);
+
+        auto* p = &gl->post_process_program;
+        glUseProgram(p->id);
+
+        glBindTexture(GL_TEXTURE_2D, gl->color_texture);
+
+        glDrawArrays(GL_TRIANGLES, 0, 3);
     }
 
 
@@ -1264,7 +1275,7 @@ opengl_create_tessellation_geometry_program(Opengl *gl, const char *vs, const ch
         glDeleteShader(gshader);
         glDeleteShader(fshader);
     } else {
-        // TODO: Error-Handling.
+        // @Todo: Error-handling.
     }
     
     return program;
@@ -1387,8 +1398,6 @@ internal GL_Info opengl_get_info(Opengl *gl, b32 modern_context)
     glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &info.max_texture_units);
     glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &info.max_attachment);
     assert(info.max_attachment >= 4);
-
-    
     
     return info;
 }

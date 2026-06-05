@@ -286,7 +286,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
         Asset::init(&game_state->asset_system);
         
-        { // Temporary
+        { // @Temporary
             Temporary_Arena scratch = scratch_begin();
             defer(scratch_end(scratch));
             
@@ -551,7 +551,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             // @Temporary: Create soldier entity.
             //
-            int num_soldiers = 550;
+            int num_soldiers = 32;
             int num_rows = 50;
             f32 dist = 0.8f;
 
@@ -815,7 +815,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
     {
         ProfileScopeNC("update animation players", 0xffc5d3);
 
-        list_for(game_state->first_animation_player, ap) {
+        List_For(game_state->first_animation_player, ap) {
             Update_Animation_Param *param = push_struct(game_state->frame_arena, Update_Animation_Param);
             {
                 param->ap = ap;

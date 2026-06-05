@@ -714,7 +714,8 @@ m4x4 z_rotation(f32 a) {
     return r;
 }
 
-m4x4 transpose(m4x4 m) {
+m4x4 transpose(m4x4 m) 
+{
     m4x4 r;
 
     for (int i = 0; i < 4; ++i)
@@ -821,6 +822,7 @@ m4x4 quaternion_to_m4x4(Quaternion q) {
     return result;
 }
 
+// @Todo: I think it's wrong
 Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
     f32 cr = cosf(roll * 0.5f);
     f32 sr = sinf(roll * 0.5f);
