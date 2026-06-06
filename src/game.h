@@ -16,6 +16,8 @@ struct Game_Assets {
     Mesh   skybox_mesh;
     Asset::Texture skybox_textures[6];
 
+    Asset::Texture height_map;
+
     Model *skeleton_model;
     Skeleton *skeleton_skeleton;
     Animation* skeleton_idle;

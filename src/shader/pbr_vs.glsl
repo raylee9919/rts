@@ -25,10 +25,10 @@ out VS_Out
 
 struct Geometry_Param
 {
-    mat4  world_transform;
-    int   is_skeletal;
-    uint  index_to_my_skinning_matrices;
-    vec2  uv_scale;
+    mat4  world_transform;                  // 0, 64
+    int   is_skeletal;                      // 64, 68
+    uint  index_to_my_skinning_matrices;    // 68, 72
+    vec2  uv_scale;                         // 72, 80
 };
 
 layout(std430, row_major, binding = 10) readonly buffer Geometry_SSBO
@@ -82,8 +82,8 @@ void main()
 
     mat4 world_matrix = geo.world_transform;
     model_position = (world_matrix * vec4(model_position, 1)).xyz;
-    model_normal = (world_matrix * vec4(model_normal, 0)).xyz;
-    model_tangent = (world_matrix * vec4(model_tangent, 0)).xyz;
+    model_normal   = (world_matrix * vec4(model_normal, 0)).xyz;
+    model_tangent  = (world_matrix * vec4(model_tangent, 0)).xyz;
 
     vs_out.fN = normalize(model_normal);
     vs_out.fT = normalize(model_tangent);

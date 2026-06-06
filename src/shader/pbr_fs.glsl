@@ -77,7 +77,9 @@ void main()
     //
     if (true) 
     {
-        vec3 DEBUG_light_radiance = vec3(4.0);
+        float light_intensity = 4.0;
+        vec3 light_color = vec3(1.0, 1.0, 1.0) * light_intensity;
+
         vec3 to_eye = normalize(eye_position - fP);
 
         Material mat = materials[draw_id];
@@ -91,8 +93,8 @@ void main()
         vec3 N = normalize(fN);
         vec3 T = normalize(fT);
         vec3 B = normalize(fSign * cross(fN, fT));
-        n = T*n.x + B*n.y + N*n.z;
-        n = normalize(n);
+        mat3 TBN = mat3(T, B, N);
+        n = normalize(TBN * n);
 
 
         vec3 direct_lighting = vec3(0);
@@ -115,7 +117,7 @@ void main()
         vec3 g = schlick_ggx(ndoti, ndoto, roughness);
         vec3 specular_brdf = (f * d * g) / max(4.0 * ndoti * ndoto, 0.001);
 
-        vec3 radiance = DEBUG_light_radiance;
+        vec3 radiance = light_color;
 
         direct_lighting += (diffuse_brdf + specular_brdf) * radiance * ndoti;
 
@@ -139,19 +141,19 @@ void main()
             frag.xyz = frag.xyz * 0.5 + 0.5;
             vec2 shadowmap_uv = frag.xy;
             float bias = max(0.0005, 0.005*(1.0 - ndoti));; // TODO: Study
-            const v2 poisson_disk[16] = { // [-1,1]
-                v2(-0.942016, -0.399062),  v2( 0.945586, -0.768907),
-                v2(-0.0941841,-0.929388),  v2( 0.344959,  0.293877),
-                v2(-0.915885,  0.457714),  v2(-0.815442, -0.879124),
-                v2(-0.382775,  0.276768),  v2( 0.974843,  0.756483),
-                v2( 0.443233, -0.975115),  v2( 0.537429, -0.473734),
-                v2(-0.264969, -0.418930),  v2( 0.791975,  0.190901),
-                v2(-0.241888,  0.997065),  v2(-0.814099,  0.914375),
-                v2( 0.199841,  0.786413),  v2( 0.143831, -0.141007)
+            const vec2 poisson_disk[16] = { // [-1,1]
+                vec2(-0.942016, -0.399062),  vec2( 0.945586, -0.768907),
+                vec2(-0.0941841,-0.929388),  vec2( 0.344959,  0.293877),
+                vec2(-0.915885,  0.457714),  vec2(-0.815442, -0.879124),
+                vec2(-0.382775,  0.276768),  vec2( 0.974843,  0.756483),
+                vec2( 0.443233, -0.975115),  vec2( 0.537429, -0.473734),
+                vec2(-0.264969, -0.418930),  vec2( 0.791975,  0.190901),
+                vec2(-0.241888,  0.997065),  vec2(-0.814099,  0.914375),
+                vec2( 0.199841,  0.786413),  vec2( 0.143831, -0.141007)
             };
             const float inv_possion_radius = 1.0 / 700; // TODO: Study
             for (int i = 0; i < 16; ++i) {
-                v2 offset = poisson_disk[i] * inv_possion_radius;
+                vec2 offset = poisson_disk[i] * inv_possion_radius;
                 float depth = texture(shadowmaps, vec3(shadowmap_uv + offset, layer)).r;
                 if (frag.z > depth + bias) {
                     shadowness += 0.5;

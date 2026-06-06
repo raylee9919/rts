@@ -869,6 +869,16 @@ m4x4 scale(f32 f) {
     return m;
 }
 
+m4x4 m4x4_scale(f32 x, f32 y, f32 z) {
+    m4x4 m = {
+        x, 0, 0, 0,
+        0, y, 0, 0,
+        0, 0, z, 0,
+        0, 0, 0, 1,
+    };
+    return m;
+}
+
 internal m4x4
 camera_transform(v3 x, v3 y, v3 z, v3 p) 
 {

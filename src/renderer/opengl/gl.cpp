@@ -10,11 +10,10 @@
 //
 global GLuint id_table[4096];
 
-internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
+internal GLuint64 gl_get_bindless_handle(Opengl *gl, Asset::Texture* tex)
 {
     GLuint64 handle = 0;
 
-    auto tex = &mesh->textures[type];
     if (tex->size > 0) {
         auto t = GL::alloc_texture_unique(gl, tex->incremental_id, tex->layout, tex->width, tex->height, tex->data);
         handle = t->handle;
@@ -23,6 +22,11 @@ internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
     }
 
     return handle;
+}
+
+internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
+{
+    return gl_get_bindless_handle(gl, &mesh->textures[type]);
 }
 
 internal void opengl_compile_shaders(Opengl *gl)
@@ -102,7 +106,7 @@ internal Render_Commands* opengl_frame_begin(Opengl *gl, v2u window_dim, v2u ren
     return frame;
 }
 
-internal GLuint opengl_id_from_render_id(Render_Id id)
+internal GLuint gl_id_from_render_id(Render_Id id)
 {
     return id_table[id.e[0]];
 }
@@ -214,9 +218,9 @@ void gl_record_draw_params(Opengl* gl, Renderer* renderer)
 
         auto geo = gl->geometry_params + i;
         {
-            geo->world_transform = piece->world_transform;
-            geo->is_skeletal     = piece->num_joints ? 1 : 0;
-            geo->uv_scale        = piece->uv_scale;
+            geo->world_transform               = piece->world_transform;
+            geo->is_skeletal                   = piece->num_joints > 0 ? 1 : 0;
+            geo->uv_scale                      = piece->uv_scale;
             geo->index_to_my_skinning_matrices = piece->index_to_my_skinning_matrices;
         }
     }
@@ -801,13 +805,13 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
             case RENDER_COMMAND_TYPE_TEXTURE_DESTROY: {
                 Render_Id id = cmd.id;
-                GLuint gl_id = opengl_id_from_render_id(id);
+                GLuint gl_id = gl_id_from_render_id(id);
 
                 glDeleteTextures(1, &gl_id);
             } break;
 
             case RENDER_COMMAND_TYPE_TEXTURE_UPDATE: {
-                GLuint name = opengl_id_from_render_id(cmd.texture.id);
+                GLuint name = gl_id_from_render_id(cmd.texture.id);
                 glTextureSubImage2D(name, 0, 0, 0, cmd.texture.width, cmd.texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cmd.texture.data);
             } break;
 
@@ -862,7 +866,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                             if (texture_id.e[0] == 0) {
                                 glBindTexture(GL_TEXTURE_2D, gl->white_texture);
                             } else { 
-                                GLuint gl_id = opengl_id_from_render_id(texture_id);
+                                GLuint gl_id = gl_id_from_render_id(texture_id);
                                 glBindTextureUnit(0, gl_id);
                             }
 

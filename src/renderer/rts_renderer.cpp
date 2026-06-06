@@ -24,13 +24,14 @@ void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform,
 
     Render_Mesh* piece = r->meshes + r->num_meshes;
     {
-        piece->mesh                  = mesh;
-        piece->world_transform       = world_transform;
-        piece->uv_scale              = uv_scale;
-        piece->tint                  = tint;
-        piece->num_joints = num_joints;
+        piece->mesh                          = mesh;
+        piece->world_transform               = world_transform;
+        piece->uv_scale                      = uv_scale;
+        piece->tint                          = tint;
+        piece->num_joints                    = num_joints;
         piece->index_to_my_skinning_matrices = index_to_my_skinning_matrices;
     }
+
     ++r->num_meshes;
 }
 

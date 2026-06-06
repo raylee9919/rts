@@ -113,9 +113,9 @@ struct Render_Commands
 
     b32         draw_navmesh;
 
-    Mesh*       skybox_mesh;
+    Mesh*           skybox_mesh;
     Asset::Texture* skybox_textures;
-    m4x4        skybox_eye_view_proj;
+    m4x4            skybox_eye_view_proj;
 
     v2          toggled_down_mouse_position;
     u32         toggled_down_entity_id;
@@ -126,6 +126,12 @@ struct Render_Commands
     f32         debug_radius;
 
     m3x4*       skinning_matrices;
+
+    // Terrain
+    Mesh*               ground_mesh;
+    Asset::Texture*     ground_height_map;
+    m4x4                ground_transform;
+    v2                  ground_uv_scale;
 };
 
 internal void push_mesh(Renderer* r, Mesh* mesh, m4x4 world_transform,

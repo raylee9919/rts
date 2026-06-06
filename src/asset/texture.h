@@ -6,7 +6,7 @@ namespace Asset
 {
     struct Texture 
     {
-        // @Todo: Stable ID
+        // @Todo: Stable ID?
         // Unstable ID. May differ every time you play a game.
         u64 incremental_id;
 

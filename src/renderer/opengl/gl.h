@@ -41,6 +41,7 @@ namespace GL
         v2    uv_scale;
     };
 
+    // Layout of this struct is following the specification of OpenGL's MultiDrawIndirect.
     struct Command
     {
         GLuint count;

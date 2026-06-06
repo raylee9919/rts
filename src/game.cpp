@@ -218,6 +218,8 @@ Mesh *mesh_from_name(Model *model, Utf8 name)
     return NULL;
 }
 
+// Main entry of game code.
+//
 extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 {
     ProfileFrameMark;
@@ -303,8 +305,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
                     auto *mesh = mesh_from_name(model, utf8lit("body-lib"));
                     assert(mesh);
                     load_texture(asset_system, &mesh->textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/bodyColor.texture", platform->data_path));
-                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/bodyMetalic.texture", platform->data_path));
                     load_texture(asset_system, &mesh->textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/bodyNormal.texture", platform->data_path));
+                    load_texture(asset_system, &mesh->textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/bodyMetalic.texture", platform->data_path));
                     load_texture(asset_system, &mesh->textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/bodyRoughness.texture", platform->data_path));
                 }
 
@@ -464,7 +466,9 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
             assets->plane_model = push_struct(asset_arena, Model);
             {
-                load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane.triangle_mesh", platform->data_path), v3(100.f)); // @Temporary: Scaled
+                // @Temporary: Scaled 100x, because the exported mesh from Maya is in centimeter atm.
+                load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane_256.triangle_mesh", platform->data_path), v3(100.f));
+
                 load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", platform->data_path));
                 load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.texture", platform->data_path));
                 load_texture(asset_system, &assets->plane_model->meshes[0].textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.texture", platform->data_path));
@@ -492,6 +496,8 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
             for (u32 i = 0; i < 6; ++i) {
                 load_texture(asset_system, assets->skybox_textures + i, utf8f(scratch.arena, "%S/textures/%s.texture", platform->data_path, skybox_filenames[i]));
             }
+
+            load_texture(asset_system, &assets->height_map, utf8f(scratch.arena, "%S/textures/height_map.texture", platform->data_path));
 
             game_state->map_arena     = arena_alloc();
             game_state->chunk_size    = v2(3.f, 3.f);
@@ -614,12 +620,13 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
 
     
     
-    // TEMPORARY: Testing UI
-    //            1. Interact with UI built in last frame.
-    //            2. Build new hierarchy while retaining some data(!!!)
+    // @Temporary: Testing UI
+    //             1. Interact with UI built in last frame.
+    //             2. Build new hierarchy while retaining some data(!!!)
     //
     local_persist f32 light_x = 1.f, light_y = 1.f, light_z = 1.f;
     local_persist b32 draw_chunk_partitions = false;
+#if 1
     ui_begin(actual_dt, platform->window_width, platform->window_height);
     {
 #if BUILD_DEBUG
@@ -672,6 +679,7 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
         }
     }
     ui_end();
+#endif
 
     //
     // Entity selection.
@@ -843,14 +851,14 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
     Mesh* ground_mesh = assets->plane_model->meshes;
     f32 gx = game_state->map_size.x;
     f32 gy = game_state->map_size.y;
-    m4x4 ground_transform = {
-        gx,0, 0, 0,
-        0, 1, 0, 0,
-        0, 0,gy, 0,
-        0, 0, 0, 1,
-    };
+    m4x4 ground_transform = m4x4_scale(gx, 1.f, gy);
     v2 uv_scale = v2(gx, gy) * 0.1f;
     push_mesh(renderer, ground_mesh, ground_transform, 0, 0, uv_scale);
+
+
+    // @Temporary: Draw mesh
+    //
+    Mesh* water = assets->plane_model->meshes;
 
     
     // Draw navmesh

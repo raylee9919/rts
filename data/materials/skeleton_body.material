@@ -1,0 +1,4 @@
+albedo : "textures/bodyColor.texture"
+normal : "textures/bodyNormal.texture"
+roughness : "textures/bodyRoughness.texture"
+metallic : "textures/bodyMetalic.texture"

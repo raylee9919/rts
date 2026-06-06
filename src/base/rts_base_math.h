@@ -227,6 +227,7 @@ internal Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw);
 internal m4x4 scale(m4x4 transform, v3 factor);
 internal m4x4 scale(m4x4 transform, f32 factor);
 internal m4x4 scale(f32 s);
+internal m4x4 m4x4_scale(f32 x, f32 y, f32 z);
 internal m4x4 camera_transform(v3 x, v3 y, v3 z, v3 p);
 internal v3 get_row(m4x4 M, u32 R);
 internal v3 get_column(m4x4 M, u32 C);

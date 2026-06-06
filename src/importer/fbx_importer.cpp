@@ -520,8 +520,8 @@ int main()
 
 
     {
-        Utf8 name     = utf8lit("knight");
-        Utf8 in_file  = utf8f(state->scene_arena, "C:/dev/swl/rts/data/input/%S.fbx", name);
+        Utf8 name     = utf8lit("plane");
+        Utf8 in_file  = utf8f(state->scene_arena, "C:/Users/swl/Desktop/rts_assets/%S.fbx", name);
 
         Utf8 out_mesh = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.triangle_mesh", name);
         Utf8 out_skel = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.skeleton", name);
@@ -548,15 +548,15 @@ int main()
         state->scene = scene;
 
         //fbx_print_nodes(scene->root_node);
-        fbx_fill_bones(state);
+        //fbx_fill_bones(state);
         fbx_fill_meshes(state);
-        fbx_fill_animations(state);
+        //fbx_fill_animations(state);
 
 
 
         // Write skeleton.
         //
-#if 1
+#if 0
         if (state->num_bones > 0) {
             FILE *f = fopen((const char *)out_skel.str, "wb");
             if (!f) {
@@ -688,7 +688,7 @@ int main()
         }
 #endif
 
-        arena_clear(state->scene_arena);
+        //arena_clear(state->scene_arena);
         ufbx_free_scene(scene);
     }
 

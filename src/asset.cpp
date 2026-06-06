@@ -1,7 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-
-
 #define READ(to, type)\
     memory_copy(&to, at, sizeof(type)); \
     at += sizeof(to);
@@ -247,7 +245,7 @@ void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
     assert(model_out);
 
     f32 counter = os->perf_counter();
-    defer(printf("  Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+    defer(printf("  Took %.2f ms.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv * 1000.0f));
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
@@ -340,7 +338,7 @@ void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
     assert(skel_out);
 
     f32 counter = os->perf_counter();
-    defer(printf("  Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+    defer(printf("  Took %.2f ms.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv * 1000.0f));
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
@@ -388,7 +386,7 @@ void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     assert(anim_out);
 
     f32 counter = os->perf_counter();
-    defer(printf("  Took %.6f seconds.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv));
+    defer(printf("  Took %.2f ms.\n", (f32)(os->perf_counter() - counter) * os->perf_counter_freq_inv * 1000.0f));
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
