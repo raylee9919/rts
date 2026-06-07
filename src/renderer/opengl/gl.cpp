@@ -24,9 +24,9 @@ internal GLuint64 gl_get_bindless_handle(Opengl *gl, Asset::Texture* tex)
     return handle;
 }
 
-internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type)
+internal GLuint64 gl_foo(Opengl *gl, Mesh *mesh, PBR_Texture_Type type)
 {
-    return gl_get_bindless_handle(gl, &mesh->textures[type]);
+    return gl_get_bindless_handle(gl, &mesh->material.textures[type]);
 }
 
 internal void opengl_compile_shaders(Opengl *gl)

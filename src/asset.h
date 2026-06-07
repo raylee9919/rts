@@ -112,15 +112,18 @@ struct Vertex {
     f32 node_weights[MAX_BONE_PER_VERTEX];
 };
 
-enum Pbr_Texture_Type 
-{
+enum PBR_Texture_Type {
     PBR_ALBEDO,
     PBR_NORMAL,
-    PBR_METALLIC,
     PBR_ROUGHNESS,
+    PBR_METALLIC,
     PBR_EMISSION,
 
     PBR_COUNT,
+};
+
+struct Material {
+    Asset::Texture textures[PBR_COUNT];
 };
 
 struct Mesh  
@@ -135,15 +138,8 @@ struct Mesh
     u32     num_indices;
     u32*    indices;
 
-    Asset::Texture textures[PBR_COUNT];
+    Material material;
 };
-
-//struct Material 
-//{
-//    v3 color_ambient;
-//    v3 color_diffuse;
-//    v3 color_specular;
-//};
 
 struct Node 
 {

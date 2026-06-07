@@ -258,7 +258,7 @@ internal void opengl_set_flags_for_wireframe_mode(u32 *flags);
 internal void opengl_compile_shaders(Opengl *gl);
 internal Render_Commands *opengl_frame_begin(Opengl *gl, v2u window_dim, v2u render_dim);
 internal void gl_frame_end(Opengl *gl, Render_Commands *frame);
-internal void gl_bind_pbr_texture(Opengl *gl, Mesh *mesh, Pbr_Texture_Type type, int slot, GLuint default_handle);
+internal void gl_bind_pbr_texture(Opengl *gl, Mesh *mesh, PBR_Texture_Type type, int slot, GLuint default_handle);
 
 internal GLuint opengl_program_create_vf(Opengl *gl, char *vsrc, char *fsrc);
 internal Gl_Program opengl_program_vf(Opengl *gl, char *vs_src, char *fs_src);
