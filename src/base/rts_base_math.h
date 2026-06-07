@@ -124,19 +124,24 @@ struct Ray3 {
     v3 direction;
 };
 
-#define absolute(x) ((x) > 0 ? (x) : -(x))
+// Helper functions
+internal f32 abs(f32 x);
 
+// Mapping functions
 internal f32 map(f32 x, f32 min, f32 max);
-internal f32 map01(f32 x, f32 min, f32 max);
-internal f32 map01_binormal(f32 x, f32 min, f32 max);
-internal f32 binormal_to_normal(f32 x);
-internal f32 square_root(f32 f);
-internal f32 rec_square_root(f32 f);
+internal f32 map_unorm(f32 x, f32 min, f32 max);
+internal f32 map_snorm(f32 x, f32 min, f32 max);
 
+// Square roots
+internal f32 square_root(f32 f);
+internal f32 rcp_square_root(f32 f);
+
+// Easing functions
+internal f32 smoothstep(f32 min, f32 max, f32 x);
+internal f32 hermite(f32 min, f32 max, f32 x);
 
 internal f32 lerp(f32 a, f32 t, f32 b);
 
-internal f32 smoothstep(f32 x, f32 min, f32 max);
 internal f32 safe_ratio(f32 a, f32 b);
 internal v2 operator-(const v2 &in);
 internal v2 operator*(f32 A, v2 B);
@@ -146,7 +151,6 @@ internal v2 operator-(v2 A, v2 B);
 internal v2& operator+=(v2& a, v2 b);
 internal v2& operator-=(v2& a, v2 b);
 internal v2& operator*=(v2& a, f32 b);
-internal v2 binormal_to_normal(v2 x);
 
 
 #if SSE_ENABLED
@@ -221,14 +225,17 @@ internal m4x4 transpose(m4x4 m);
 internal m4x4 inverse(m4x4 m);
 internal m4x4 rows(v3 x, v3 y, v3 z);
 internal m4x4 columns(v3 x, v3 y, v3 z);
-internal m4x4 translate(m4x4 m, v3 t);
-internal m4x4 quaternion_to_m4x4(Quaternion q);
+
+internal m4x4 m4x4_translate(f32 x, f32 y, f32 z);
+internal m4x4 m4x4_translate(v3 t);
+internal m4x4 m4x4_translate(m4x4 m, v3 t);
+
+internal m4x4 to_m4x4(Quaternion q);
 internal Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw);
 internal m4x4 scale(m4x4 transform, v3 factor);
 internal m4x4 scale(m4x4 transform, f32 factor);
 internal m4x4 scale(f32 s);
 internal m4x4 m4x4_scale(f32 x, f32 y, f32 z);
-internal m4x4 camera_transform(v3 x, v3 y, v3 z, v3 p);
 internal v3 get_row(m4x4 M, u32 R);
 internal v3 get_column(m4x4 M, u32 C);
 internal Rect2 rect2_min_max(v2 min, v2 max);
@@ -242,8 +249,8 @@ internal m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale);
 internal Quaternion build_quaternion(v3 axis, f32 radian);
 internal Quaternion rotate(Quaternion q0, v3 axis, f32 radian);
 internal v3 project(v3 p, m4x4 view_proj);
-internal m4x4 lookat(v3 eye, v3 center, v3 up_);
-internal m4x4 view_transform(v3 position, Quaternion orientation);
+internal m4x4 look_at_lh(v3 from, v3 at, v3 up);
+internal m4x4 look_at_rh(v3 from, v3 at, v3 up);
 internal m4x4 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 internal f32 radian_from_degree(f32 d);
 

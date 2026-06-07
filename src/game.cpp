@@ -303,7 +303,7 @@ Material load_material(Asset::System* asset_system, Utf8 asset_dir, Utf8 path) {
 
             Token value = {};
             bool valid = false;
-            PBR_Texture_Type slot;
+            PBR_Texture_Type slot = PBR_ALBEDO;
 
             if (string_equal("albedo", str, len)) {
                 value =  p.parse_identifier();
@@ -487,47 +487,47 @@ extern "C" GAME_UPDATE_AND_RENDER(game_update_and_render)
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Helm2"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_helm.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/helm.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Arms"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_arms.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/arms.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Acessories"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_arms.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/arms.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Acessories2"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_arms.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/arms.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Breast_Armor"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_breast_armor.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/breast_armor.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Leegs_Armor1"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_breast_armor.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/breast_armor.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("pants"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_breast_armor.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/breast_armor.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Weapon2"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_sword.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/sword.material", platform->data_path));
                 }
                 {
                     auto *mesh = mesh_from_name(model, utf8lit("Shield"));
                     assert(mesh);
-                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight_shield.material", platform->data_path));
+                    mesh->material = load_material(asset_system, platform->data_path, utf8f(scratch.arena, "%S/materials/knight/shield.material", platform->data_path));
                 }
             }
 

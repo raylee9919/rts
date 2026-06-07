@@ -387,7 +387,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
                 center += frustum_positions[level*4 + i];
             }
             center *= 0.125f;
-            m4x4 light_view = lookat(center + frame->csm_to_light, center, v3{0,1,0}); // TODO: Fit z?
+            m4x4 light_view = look_at_lh(center, center + frame->csm_to_light, v3{0,1,0}); // TODO: Fit z?
 
             v3 min = v3(F32_MAX);
             v3 max = v3(-F32_MAX);
@@ -421,7 +421,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             f32 t = map(k, 0, h);
             v3 c = lerp(AB, t, CD);
 
-            m4x4 light_view = lookat(c + frame->csm_to_light * r, c, v3(0,1,0));
+            m4x4 light_view = look_at_lh(c, c + frame->csm_to_light * r, v3(0,1,0));
             m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // TODO: Constant min and max depths
             light_view_projs[level] = light_proj * light_view;
         }

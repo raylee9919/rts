@@ -144,7 +144,7 @@ internal void
 entity_orient_to(Entity* entity, v3 target, f32 dt)
 {
     const v3 dir = normalize(target - entity->position);
-    const v3 forward = normalize((quaternion_to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
+    const v3 forward = normalize((to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
     const f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
     if (c < 1.0f) {
         f32 radian = dt*8.0f;
@@ -623,7 +623,7 @@ entity_update(Entity* entity, const f32 dt)
                 f32 accel_strength = 50.0f;
                 f32 friction       = 7.0f;
                 f32 max_speed      = 20.0f;
-                m4x4 rotation      = quaternion_to_m4x4(entity->orientation);
+                m4x4 rotation      = to_m4x4(entity->orientation);
                 v3 dir = {};
 
                 if (entity->flags & ENTITY_FLAG_GAME_CAMERA) {
@@ -676,7 +676,7 @@ entity_update(Entity* entity, const f32 dt)
 
                             v2 d = 0.5f * dt * (os->mouse_position_last - mouse_position_last);
                             entity->orientation = build_quaternion(v3{0,1,0}, -d.x) * entity->orientation;
-                            entity->orientation = build_quaternion((quaternion_to_m4x4(entity->orientation)*v4{1,0,0,0}).xyz, -d.y) * entity->orientation;
+                            entity->orientation = build_quaternion((to_m4x4(entity->orientation)*v4{1,0,0,0}).xyz, -d.y) * entity->orientation;
                             mouse_position_last = os->mouse_position_last;
                         }
 
@@ -712,7 +712,13 @@ entity_update(Entity* entity, const f32 dt)
             f32 h_over_w = (f32)game_state->draw_height / (f32)game_state->draw_width;
             entity->height = entity->width * h_over_w;
 
-            m4x4 V = view_transform(entity->position, entity->orientation);
+
+            // Build a view matrix from quaternion.
+            m4x4 R = to_m4x4(entity->orientation);
+            R = transpose(R);
+            v3 T = entity->position;
+            m4x4 view = R * m4x4_translate(-T.x, -T.y, -T.z);
+
             f32 f = entity->focal_length;
             f32 N = entity->N;
             f32 F = entity->F;
@@ -720,16 +726,16 @@ entity_update(Entity* entity, const f32 dt)
             f32 b = safe_ratio(2.0f * f, entity->height);
             f32 c = (N + F) / (N - F);
             f32 d = (2 * N * F) / (N - F);
-            m4x4 P = {{
+            m4x4 proj = {{
                 { a,  0,  0,  0},
                 { 0,  b,  0,  0},
                 { 0,  0,  c,  d},
                 { 0,  0, -1,  0}
             }};
 
-            entity->V = V;
-            entity->P = P;
-            entity->VP = P*V;
+            entity->V  = view;
+            entity->P  = proj;
+            entity->VP = proj * view;
 
         } break;
 
@@ -886,15 +892,15 @@ entity_update(Entity* entity, const f32 dt)
 
 
             // Update position. 
-            const m4x4 rotation = quaternion_to_m4x4(entity->orientation);
+            const m4x4 rotation = to_m4x4(entity->orientation);
             const v3 velocity   = (rotation * V4(0, 0, entity->speed, 0)).xyz;
             entity->position    = entity->position + velocity * dt;
 
 
             // Update speed.
             {
-                const f32 norm_t = map01(entity->speed_t, entity->min_t, entity->max_t);
-                entity->speed = hermite(0.f, norm_t, entity->max_speed);
+                const f32 norm_t = map_unorm(entity->speed_t, entity->min_t, entity->max_t);
+                entity->speed = hermite(0.f, entity->max_speed, norm_t);
             }
 
 
@@ -918,7 +924,7 @@ entity_update(Entity* entity, const f32 dt)
                             ap->channels[0].set_animation(entity->idle_animation, true);
                             ap->channels[1].set_animation(entity->running_animation, true);
 
-                            f32 t = map01(entity->speed, 0.f, entity->max_speed);
+                            f32 t = map_unorm(entity->speed, 0.f, entity->max_speed);
                             ap->blend_weights[0] = 1.f - t;
                             ap->blend_weights[1] = t;
                             ap->blend_weights[2] = clamp(ap->blend_weights[2] - dt * 2.f, 0.f, 1.f);
@@ -1024,7 +1030,7 @@ entity_update(Entity* entity, const f32 dt)
                             f32 dx = clamp(pos.x - other_x, -half, half);
                             f32 dy = clamp(pos.y - other_y, -half, half);
 
-                            if (absolute(dx) < half && absolute(dy) < half) {
+                            if (abs(dx) < half && abs(dy) < half) {
                             } else {
                                 // Point on the edge of a rect that's closest to the circle.
                                 v2 np = other_pos + v2(dx, dy);
@@ -1172,7 +1178,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
                 v2 max = cen + dim;
                 render_quad_c(min - border, max + border, v4{0.2f, 0.2f, 0.2f, 0.2f});
 
-                f32 t = map01(entity->hitpoints, 0.f, entity->max_hitpoints);
+                f32 t = map_unorm(entity->hitpoints, 0.f, entity->max_hitpoints);
                 v2 max2 = min + v2(2.f * dim.x * t, 2.f * dim.y);
                 render_quad_c(min, max2, v4{1.0f, 0.2f, 0.2f, 1.0f});
             }

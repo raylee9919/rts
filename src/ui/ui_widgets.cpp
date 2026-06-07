@@ -126,7 +126,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, Utf8 text)
             // Adjust thumb position according to the target data.
             if (thumb->first_tick != ui_state->tick_current)
             {
-                f32 t = map01(*x, lo, hi);
+                f32 t = map_unorm(*x, lo, hi);
                 f32 xl = slider->position[AXIS2_X];
                 f32 xr = slider->position[AXIS2_X] + slider_size_x - thumb_size_x;
                 thumb->position[AXIS2_X] = lerp(xl, t, xr);
@@ -147,7 +147,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, Utf8 text)
 
                 Ui_Signal slider_signal = ui_signal_from_box(slider);
                 f32 thumb_cen_x = thumb->position[AXIS2_X] + thumb_size_x*0.5f;
-                if (ui_key_match(ui_state->active_key, slider->key) && (absolute(os->mouse_position_last.x - thumb_cen_x) > 1.f))
+                if (ui_key_match(ui_state->active_key, slider->key) && (abs(os->mouse_position_last.x - thumb_cen_x) > 1.f))
                 {
                     f32 delta = (os->mouse_position_last.x > thumb_cen_x) ? 1.f : -1.f;
                     thumb->position[AXIS2_X] += delta;
@@ -158,7 +158,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, Utf8 text)
                 thumb->position[AXIS2_Y] = slider->position[AXIS2_Y] + (slider->computed_size[AXIS2_Y] - thumb->computed_size[AXIS2_Y])*0.5f;
 
                 // Thumb position -> Write to data.
-                t = map01(thumb->position[AXIS2_X], xl, xr);
+                t = map_unorm(thumb->position[AXIS2_X], xl, xr);
                 *x = lerp(lo, t, hi);
 
             }

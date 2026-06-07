@@ -7,6 +7,15 @@
 //        You just use correct builtin/intrinsic from compiler.
 //
 
+
+// Helper functions
+//
+f32 abs(f32 x) {
+    return x > 0 ? x : -x;
+}
+
+// Mapping functions
+//
 f32 map(f32 x, f32 min, f32 max) {
     f32 t;
     f32 range = max - min;
@@ -18,47 +27,46 @@ f32 map(f32 x, f32 min, f32 max) {
     return t;
 }
 
-f32 map01(f32 x, f32 min, f32 max) {
+f32 map_unorm(f32 x, f32 min, f32 max) {
     return clamp01(map(x, min, max));
 }
 
-f32 map01_binormal(f32 x, f32 min, f32 max) {
-    return 2.0f * map01(x, min, max) - 1.0f;
+f32 map_snorm(f32 x, f32 min, f32 max) {
+    return 2.0f * map_unorm(x, min, max) - 1.0f;
 }
 
-f32 binormal_to_normal(f32 x) {
-    return x * 0.5f + 0.5f;
-}
-
+// Square roots
+//
 f32 square_root(f32 f) 
 {
-    // Not much of a perf gain, but it is what it is.
-    // Don't do '_mm_store_ss' to get out float. Use '_mm_cvtss_f32'.
+    // Small perf improvement.
+    // Use '_mm_cvtss_f32' instead of '_mm_store_ss' when extracting a float.
     return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(f)));
 }
 
-// @Study:
-//         1. 16.17 FSQRT SQRTSS (https://www.agner.org/optimize/optimizing_assembly.pdf)
-//         2. Newtonian Iteration (https://stackoverflow.com/questions/14752399/newton-raphson-with-sse2-can-someone-explain-me-these-3-lines)
-f32 rec_square_root(f32 f) {
+f32 rcp_square_root(f32 f) {
+    // @Study: 1. 16.17 FSQRT SQRTSS (https://www.agner.org/optimize/optimizing_assembly.pdf)
+    //         2. Newtonian Iteration (https://stackoverflow.com/questions/14752399/newton-raphson-with-sse2-can-someone-explain-me-these-3-lines)
     return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(f)));
+}
+
+// Easing functions
+//
+f32 smoothstep(f32 min, f32 max, f32 x) {
+    x = map_unorm(x, min, max);
+    return x * x * (3.f - 2.f*x);
+}
+
+f32 hermite(f32 min, f32 max, f32 x) {
+    f32 t2 = x * x;
+    f32 t3 = t2 * x;
+    return lerp(min, t3 * (6 * t2 - 15 * x + 10), max);
 }
 
 f32 lerp(f32 a, f32 t, f32 b) {
     return a + (b - a) * t;
 }
 
-f32 hermite(f32 a, f32 t, f32 b) {
-    f32 t2 = t * t;
-    f32 t3 = t2 * t;
-    return lerp(a, t3 * (6 * t2 - 15 * t + 10), b);
-}
-
-f32 smoothstep(f32 x, f32 min, f32 max) {
-    f32 p = map01(x, min, max);
-    f32 v = p*p*(3.f - 2.f*p);
-    return v;
-}
 
 f32 safe_ratio(f32 a, f32 b) {
     if (b != 0) return a / b;
@@ -126,10 +134,6 @@ v2& operator *= (v2& a, f32 b) {
     return a;
 }
 
-v2 binormal_to_normal(v2 x) {
-    return (0.5f*x) + v2{0.5f, 0.5f};
-}
-
 f32 triarea2(v2 a, v2 b, v2 c) {
     v2 p = c - b;
     v2 q = a - b;
@@ -184,7 +188,7 @@ v2 lerp(v2 a, f32 t, v2 b) {
 }
 
 v2 normalize(v2 v) {
-    f32 d = rec_square_root(v.x * v.x + v.y * v.y);
+    f32 d = rcp_square_root(v.x * v.x + v.y * v.y);
     v.x *= d;
     v.y *= d;
     return v;
@@ -368,7 +372,7 @@ f32 length(v3 v)
 }
 
 v3 normalize(v3 v) {
-    f32 d = rec_square_root(v.x*v.x + v.y*v.y + v.z*v.z);
+    f32 d = rcp_square_root(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x *= d;
     v.y *= d;
     v.z *= d;
@@ -542,7 +546,7 @@ Quaternion operator - (Quaternion q)
 
 Quaternion normalize(Quaternion q) 
 {
-    f32 d = rec_square_root(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+    f32 d = rcp_square_root(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
     __m128 d_ = _mm_set1_ps(d);
     q.sse = _mm_mul_ps(q.sse, d_);
     return q;
@@ -714,15 +718,14 @@ m4x4 z_rotation(f32 a) {
     return r;
 }
 
-m4x4 transpose(m4x4 m) 
-{
-    m4x4 r;
+m4x4 transpose(m4x4 m) {
+    m4x4 n;
 
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            r.e[i][j] = m.e[j][i];
+            n.e[i][j] = m.e[j][i];
 
-    return r;
+    return n;
 }
 
 m4x4 inverse(m4x4 m) {
@@ -793,14 +796,32 @@ m4x4 columns(v3 x, v3 y, v3 z) {
     return r;
 }
 
-m4x4 translate(m4x4 m, v3 t) {
+m4x4 m4x4_translate(f32 x, f32 y, f32 z) {
+    m4x4 m;
+    m.rows[0].sse = _mm_setr_ps(1.f, 0.f, 0.f,   x);
+    m.rows[1].sse = _mm_setr_ps(0.f, 1.f, 0.f,   y);
+    m.rows[2].sse = _mm_setr_ps(0.f, 0.f, 1.f,   z);
+    m.rows[3].sse = _mm_setr_ps(0.f, 0.f, 0.f, 1.f);
+    return m;
+}
+
+m4x4 m4x4_translate(v3 t) {
+    m4x4 m;
+    m.rows[0].sse = _mm_setr_ps(1.f, 0.f, 0.f, t.x);
+    m.rows[1].sse = _mm_setr_ps(0.f, 1.f, 0.f, t.y);
+    m.rows[2].sse = _mm_setr_ps(0.f, 0.f, 1.f, t.z);
+    m.rows[3].sse = _mm_setr_ps(0.f, 0.f, 0.f, 1.f);
+    return m;
+}
+
+m4x4 m4x4_translate(m4x4 m, v3 t) {
     m._14 = t.x;
     m._24 = t.y;
     m._34 = t.z;
     return m;
 }
 
-m4x4 quaternion_to_m4x4(Quaternion q) {
+m4x4 to_m4x4(Quaternion q) {
     m4x4 result = identity();
     f32 w = q.w;
     f32 x = q.x;
@@ -877,15 +898,6 @@ m4x4 m4x4_scale(f32 x, f32 y, f32 z) {
         0, 0, 0, 1,
     };
     return m;
-}
-
-internal m4x4
-camera_transform(v3 x, v3 y, v3 z, v3 p) 
-{
-    m4x4 R = rows(x, y, z);
-    R = translate(R, -(R * V4(p, 0)).xyz);
-
-    return R;
 }
 
 internal v3
@@ -1045,26 +1057,66 @@ V2(v2u v)
     return result;
 }
 
-internal m4x4
-lookat(v3 eye, v3 center, v3 up_) 
-{
-    v3 forward = normalize(center - eye);
-    v3 side    = normalize(cross(normalize(up_), forward));
-    v3 up      = normalize(cross(forward, side));
+m4x4 look_at_lh(v3 from, v3 at, v3 up) {
+    // @Todo: divide-by-zero.
+    v3 Z = normalize(at - from);
+    v3 X = normalize(cross(Z, up));
+    v3 Y = cross(X, Z);
 
-    m4x4 result = camera_transform(-side, up, -forward, eye);
-    return result;
+    m4x4 m;
+
+    m._11 = X.x;
+    m._12 = X.y;
+    m._13 = X.z;
+    m._14 = -dot(from, X);
+
+    m._21 = Y.x;
+    m._22 = Y.y;
+    m._23 = Y.z;
+    m._24 = -dot(from, Y);
+
+    m._31 = Z.x;
+    m._32 = Z.y;
+    m._33 = Z.z;
+    m._34 = -dot(from, Z);
+
+    m._41 = 0.f;
+    m._42 = 0.f;
+    m._43 = 0.f;
+    m._44 = 1.f;
+
+    return m;
 }
 
-internal m4x4
-view_transform(v3 position, Quaternion orientation)
-{
-    m4x4 rotation = quaternion_to_m4x4(orientation);
-    m4x4 result = camera_transform(get_column(rotation, 0),
-                                   get_column(rotation, 1),
-                                   get_column(rotation, 2),
-                                   position);
-    return result;
+m4x4 look_at_rh(v3 from, v3 at, v3 up) {
+    // @Todo: divide-by-zero.
+    v3 Z = normalize(from - at);
+    v3 X = normalize(cross(up, Z));
+    v3 Y = cross(Z, X);
+
+    m4x4 m;
+
+    m._11 = X.x;
+    m._12 = X.y;
+    m._13 = X.z;
+    m._14 = -dot(from, X);
+
+    m._21 = Y.x;
+    m._22 = Y.y;
+    m._23 = Y.z;
+    m._24 = -dot(from, Y);
+
+    m._31 = Z.x;
+    m._32 = Z.y;
+    m._33 = Z.z;
+    m._34 = -dot(from, Z);
+
+    m._41 = 0.f;
+    m._42 = 0.f;
+    m._43 = 0.f;
+    m._44 = 1.f;
+
+    return m;
 }
 
 // @Todo: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
@@ -1201,7 +1253,7 @@ bool ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out) {
     f32 t = 0.f;
     f32 denom = dot(v, n);
 
-    if (absolute(denom) > 0.0001f) {
+    if (abs(denom) > 0.0001f) {
         t = -(dot(o, n) + d) / denom;
         *out = o + t*v;
 
