@@ -45,7 +45,11 @@ struct Navmesh {
 };
 
 struct Game_State {
+    Arena* arena;
     b32 initted;
+
+    Utf8 binary_path;
+    Utf8 data_path;
 
     Os_Handle window_handle;
 

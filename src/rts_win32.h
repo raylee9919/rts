@@ -1,19 +1,13 @@
+// Copyright Seong Woo Lee. All Rights Reserved.
+
 #ifndef RTS_WIN32_H
 #define RTS_WIN32_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
 
 
 #define WIN32_MAX_PATH_LENGTH MAX_PATH
 struct Win32_State 
 {
     Arena *arena;
-    HWND main_hwnd;
 
     Utf8 binary_path;
     Utf8 game_dll_path;
@@ -38,17 +32,6 @@ struct Win32_Code
     char **function_names;
     void **functions;
 };
-
-struct Win32_Game_Function_Table
-{
-    Game_Update_And_Render *update_and_render;
-};
-
-global read_only char *win32_game_function_table_names[] =
-{
-    "game_update_and_render"
-};
-
 
 
 // ----------------------------------------------------

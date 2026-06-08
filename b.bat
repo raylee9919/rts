@@ -18,7 +18,6 @@ where /q cl || (
     exit /b 1
 )
 
-
 :: Unpack Arguments.
 for %%a in (%*) do set "%%a=1"
 if not "%release%"=="1" set debug=1
@@ -27,14 +26,12 @@ if "%release%"=="1" set debug=0 && echo [Release Build]
 
 if "%fbx%"=="1"    set build_fbx=1
 if "%assimp%"=="1" set build_assimp=1
-if "%game%"=="1"   set BuildGame=1
-if "%os%"=="1"     set BuildWin=1
-if "%gl%"=="1"     set BuildGL=1
+if "%rts%"=="1"    set build_rts=1
+if "%gl%"=="1"     set build_gl=1
 
-if not defined build_assimp if not defined build_fbx if not defined BuildGame if not defined BuildWin if not defined BuildGL (
-    set "BuildGame=1"
-    set "BuildWin=1"
-    set "BuildGL=1"
+if not defined build_assimp if not defined build_fbx if not defined build_rts if not defined build_gl (
+    set "build_rts=1"
+    set "build_gl=1"
     echo building all..
 )
 
@@ -81,21 +78,15 @@ REM rts_meta.exe
 :: ---------------------------- Build ---------------------------- ::
 call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
-:: Renderers
-if "%BuildGL%"=="1" (
+:: GL
+if "%build_gl%"=="1" (
     call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link opengl32.lib %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
-:: Game
-if "%BuildGame%"=="1" (
-    call %compiler% %flags_compile% ..\src\game.cpp /Fe:rts_game /LD /link %flags_linker% /PDB:game_%random%.pdb /EXPORT:game_update_and_render
-)
-
-:: Platform
-if "%BuildWin%"=="1" (
+:: RTS
+if "%build_rts%"=="1" (
     call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts /link %flags_linker% logo.res
 )
-
 
 del *.obj *.res >nul
 popd
