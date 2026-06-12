@@ -1,8 +1,8 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
-// ~Todo: 1. Should we support scalable dpi?
-//       2. Verfiy the OS version and load the appropriate libraries.
+// @Todo: 1. Should we support scalable dpi?
+//        2. Verfiy the OS version and load the appropriate libraries.
 //
 
 
@@ -10,7 +10,7 @@
 //
 #include "rts_profiler.h"
 #include "base/rts_base_inc.h"
-#include "os/rts_os.h"
+#include "os/os.h"
 #include "file_system/file.h"
 #include "rts_random.h"
 #include "ds.h"
@@ -39,7 +39,7 @@ global Renderer*    renderer;
 //
 #include "third_party/xxhash3/xxhash.c"
 #include "base/rts_base_inc.cpp"
-#include "os/rts_os.cpp"
+#include "os/os.cpp"
 #include "file_system/file.cpp"
 #include "rts_random.cpp"
 #include "ds.cpp"
@@ -353,14 +353,14 @@ Material load_material(Asset::System* asset_system, Utf8 asset_dir, Utf8 path) {
 
 
 // NOTE: Executables (but not DLLs) exporting this symbol with this value will be
-//         automatically directed to the high-performance GPU on Nvidia Optimus systems
-//         with up-to-date drivers
+//       automatically directed to the high-performance GPU on Nvidia Optimus systems
+//       with up-to-date drivers
 //
 __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
 // NOTE: Executables (but not DLLs) exporting this symbol with this value will be
-//         automatically directed to the high-performance GPU on AMD PowerXpress systems
-//         with up-to-date drivers
+//       automatically directed to the high-performance GPU on AMD PowerXpress systems
+//       with up-to-date drivers
 //
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
@@ -370,240 +370,6 @@ global Win32_State          win32;
 global b32                  g_running = true;
 global b32                  g_show_cursor = true;
 global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
-
-// NOTE: Window
-//
-internal LRESULT 
-win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) 
-{
-    LRESULT result = 0;
-
-    Os_Event *event = NULL;
-
-    Os_Event_Type type  = OS_EVENT_NULL;
-    Os_Key key          = OS_KEY_NULL;
-    v2 axis             = v2{0,0};
-    b32 is_release      = 0;
-
-    switch(msg) 
-    {
-        case WM_CLOSE: 
-        {
-            g_running = false;
-        }break;
-
-        case WM_DESTROY: 
-        {
-            // TODO: Handle this as an error - recreate window?
-            g_running = false;
-        }break;
-
-        // NOTE: Keyboard Events
-        //
-        case WM_SYSKEYDOWN: 
-        case WM_SYSKEYUP: 
-        {
-            DefWindowProcW(hwnd, msg, wparam, lparam);
-        }
-        case WM_KEYDOWN: 
-        case WM_KEYUP:
-        {
-            b32 was_down = !!(lparam & (1 << 30));
-            b32 is_down =   !(lparam & (1 << 31));
-
-            type = is_down ? OS_EVENT_PRESS : OS_EVENT_RELEASE;
-
-            if (wparam < array_count(os->key_table))
-            {
-                key = os->key_table[wparam];
-            }
-
-            event = os_event_alloc();
-            {
-                event->type = type;
-                event->key  = key;
-            }
-            dll_push_back(os->event_first, os->event_last, event);
-        } break;
-
-        // NOTE: Text Input
-        //
-        case WM_CHAR: 
-        case WM_SYSCHAR:
-        {
-            int c = (int)wparam;
-            if (c == '\r') { c = '\n'; }
-
-            if ((c >= 32 && c != 127/*DEL*/) || c == '\t' || c == '\n')
-            {
-                event = os_event_alloc();
-                {
-                    event->type      = OS_EVENT_TEXT;
-                    event->character = c;
-                }
-                dll_push_back(os->event_first, os->event_last, event);
-            }
-        } break;
-
-
-        // --------------------------------------------
-        // NOTE: Mouse
-
-        // NOTE: Mouse Move
-        //
-        case WM_MOUSEMOVE: 
-        {
-            int x = GET_X_LPARAM(lparam);
-            int y = GET_Y_LPARAM(lparam);
-
-            os->mouse_position_last = v2{(f32)x, (f32)y};
-
-            type = OS_EVENT_MOUSE_MOVE;
-
-            event = os_event_alloc();
-            {
-                event->type       = type;
-                event->position.x = (f32)x;
-                event->position.y = (f32)y;
-            }
-            dll_push_back(os->event_first, os->event_last, event);
-        } break;
-
-
-        // NOTE: Mouse Scroll
-        //
-        case WM_MOUSEHWHEEL: 
-        {
-            axis = v2{1,0};
-            goto winproc_mouse_scroll;
-        } break;
-        case WM_MOUSEWHEEL: 
-        {
-            axis = v2{0,1};
-winproc_mouse_scroll:;
-            type = OS_EVENT_MOUSE_SCROLL;
-            f32 delta = (f32)GET_WHEEL_DELTA_WPARAM(wparam);
-
-            POINT p;
-            {
-                p.x = GET_X_LPARAM(lparam);
-                p.y = GET_Y_LPARAM(lparam);
-                ScreenToClient(hwnd, &p);
-            }
-
-            event = os_event_alloc();
-            {
-                event->type       = type;
-                event->delta      = delta*axis;
-                event->position.x = (f32)p.x;
-                event->position.y = (f32)p.y;
-            }
-            dll_push_back(os->event_first, os->event_last, event);
-        } break;
-
-
-
-        // NOTE: Mouse Click
-        //
-        case WM_LBUTTONUP: { ReleaseCapture(); is_release = 1; };
-        case WM_LBUTTONDOWN: {
-            key = OS_KEY_MOUSE_LEFT;
-            goto winproc_mouse;
-       }
-
-        case WM_RBUTTONUP: { ReleaseCapture(); is_release = 1; };
-        case WM_RBUTTONDOWN: {
-            key = OS_KEY_MOUSE_RIGHT;
-            goto winproc_mouse;
-        }
-
-        case WM_MBUTTONUP: { ReleaseCapture(); is_release = 1; };
-        case WM_MBUTTONDOWN: {
-            key = OS_KEY_MOUSE_MIDDLE;
-winproc_mouse:;
-              if (! is_release)
-              {
-                  SetCapture(hwnd);
-              }
-
-              int x = GET_X_LPARAM(lparam);
-              int y = GET_Y_LPARAM(lparam);
-
-              event = os_event_alloc();
-              {
-                  event->type       = is_release ? OS_EVENT_RELEASE : OS_EVENT_PRESS;
-                  event->key        = key;
-                  event->position.x = (f32)x;
-                  event->position.y = (f32)y;
-              }
-            dll_push_back(os->event_first, os->event_last, event);
-        } break;
-
-        case WM_PAINT: {
-            PAINTSTRUCT paint;
-            HDC hdc = BeginPaint(hwnd, &paint);
-            ReleaseDC(hwnd, hdc);
-            EndPaint(hwnd, &paint);
-        }break;
-
-        case WM_SETCURSOR: {
-            if (g_show_cursor) {
-                result = DefWindowProcW(hwnd, msg, wparam, lparam);
-            } else {
-                SetCursor(0);
-            }
-        }break;
-
-        default: {
-            result = DefWindowProcW(hwnd, msg, wparam, lparam);
-        } break;
-    }
-
-    if (event != NULL)
-    {
-        event->modifiers = os->get_modifiers();
-    }
-
-    return result;
-}
-
-internal HWND
-win32_window_create(HINSTANCE hinst) 
-{
-    WNDCLASSEXW wcex = {};
-    {
-        wcex.cbSize         = sizeof(wcex);
-        wcex.style          = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-        wcex.lpfnWndProc    = win32_window_proc;
-        wcex.cbClsExtra     = 0;
-        wcex.cbWndExtra     = 0;
-        wcex.hInstance      = hinst;
-        wcex.hIcon          = LoadIcon(hinst, L"Icon");
-        wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-        wcex.hbrBackground  = (HBRUSH)GetStockObject(BLACK_BRUSH);
-        wcex.lpszMenuName   = NULL;
-        wcex.lpszClassName  = L"Win32WindowClass";
-    }
-
-    if (! RegisterClassExW(&wcex))
-    {
-        assert(! "Win32 couldn't register window class."); 
-    }
-
-    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, wcex.lpszClassName, L"RTS",
-                                WS_THICKFRAME | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_VISIBLE,
-                                CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-                                0, 0, hinst, 0);
-    DragAcceptFiles(hwnd, 1);
-
-    return hwnd;
-}
-
-internal b32
-win32_window_focused(HWND hwnd)
-{
-    return hwnd == GetFocus();
-}
 
 internal v2u
 win32_get_client_size(HWND hwnd)
@@ -730,36 +496,15 @@ win32_code_load(Win32_Code *loaded)
     scratch_end(scratch);
 }
 
-internal void
-win32_code_reload(Win32_Code *loaded)
-{
-    win32_code_unload(loaded);
-    win32_code_load(loaded);
-}
-
-internal b32
-win32_code_modified(Win32_Code *loaded)
-{
-    u64 last_modified = win32_get_last_modified(loaded->dll_path);
-    b32 result = (last_modified != loaded->last_modified);
-    return result;
-}
-
-
-#if 1
-int wmain(int argc, wchar_t *argv[]) 
+int main_entry(int argc, char** argv)
 {
     HINSTANCE hinst = GetModuleHandleW(0);
-#else
-int WINAPI
-wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
-{
-#endif
 
     // Init core.
     //
     os_init();
     thread_init();
+    os_gfx_init();
 
     // Alloc and init game state.
     //
@@ -814,9 +559,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
 
 
-
-
-
     // Init win32 state.
     // 
     {
@@ -830,12 +572,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         win32.lock_path          = utf8f(win32.arena, "%S/lock.tmp", binary_path);
     }
 
-
-    // toggle fullscreen if needed.
-    // 
-#if !BUILD_DEBUG
-    win32_toggle_fullscreen(hwnd);
-#endif
 
     // Alloc and init renderer.
     // 
@@ -871,7 +607,6 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     Platform_Renderer* platform_renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
 
-
     u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
     f32 desired_dt = 1.0f / (f32)monitor_refresh_rate;
 
@@ -879,7 +614,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
     //
     // Main Loop
     //
-    u64 old_counter = os->perf_counter();
+    u64 old_counter = os_counter();
     while (g_running) 
     {
         // Draw resolution.
@@ -919,7 +654,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
         for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
         {
             next = event->next;
-            if (event->type == OS_EVENT_PRESS && (event->modifiers & OS_MODIFIER_ALT) && event->key == OS_KEY_ENTER)
+            if (event->type == OS_EVENT_PRESS && (event->modifiers & OS_MODIFIER_ALT) && event->key == KEY_ENTER)
             {
                 win32_toggle_fullscreen(hwnd);
                 os_event_consume(event);
@@ -929,7 +664,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
 
         // Get dt.
         //
-        u64 new_counter = os->perf_counter();
+        u64 new_counter = os_counter();
         f32 actual_dt = (new_counter - old_counter) * os->perf_counter_freq_inv;
         old_counter = new_counter;
 
@@ -1354,7 +1089,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
                 {
                     next = event->next;
 
-                    if (event->key == OS_KEY_MOUSE_LEFT) {
+                    if (event->key == KEY_MOUSE_LEFT) {
 
                         if (event->type == OS_EVENT_PRESS) {
                             dragging = true;
@@ -1482,7 +1217,7 @@ wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd)
             {
                 ProfileScopeNC("update animation players", 0xffc5d3);
 
-                List_For(game_state->first_animation_player, ap) {
+                list_for(game_state->first_animation_player, ap) {
                     Update_Animation_Param *param = push_struct(game_state->frame_arena, Update_Animation_Param);
                     {
                         param->ap = ap;

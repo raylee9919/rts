@@ -8,7 +8,7 @@
 // .h
 //
 #include "base/rts_base_inc.h"
-#include "os/rts_os.h"
+#include "os/os.h"
 #include "rts_font.h"
 #include "asset/inc.h"
 #include "asset.h"
@@ -21,6 +21,7 @@
 // .cpp
 //
 #include "base/rts_base_inc.cpp"
+#include "os/os.cpp"
 #include "renderer/opengl/gl.cpp"
 
 
@@ -170,7 +171,7 @@ RENDERER_END_FRAME(win32_end_frame)
     assert(SwapBuffers(hdc) && "failed to swap buffer."); 
 }
 
-internal Opengl* win32_init_opengl(HDC dc, umm push_buffer_size, Arena *arena, OS *os_init)
+internal Opengl* win32_init_opengl(HDC dc, umm push_buffer_size, Arena *arena, OS_State *os_init)
 {
     os = os_init;
 

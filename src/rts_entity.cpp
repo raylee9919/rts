@@ -628,10 +628,10 @@ entity_update(Entity* entity, const f32 dt)
 
                 if (entity->flags & ENTITY_FLAG_GAME_CAMERA) {
 
-                    dir += os->key_is_down[OS_KEY_UP]    ? v3( 0, 0,-1) : v3{};
-                    dir += os->key_is_down[OS_KEY_LEFT]  ? v3(-1, 0, 0) : v3{};
-                    dir += os->key_is_down[OS_KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
-                    dir += os->key_is_down[OS_KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
+                    dir += os->key_is_down[KEY_UP]    ? v3( 0, 0,-1) : v3{};
+                    dir += os->key_is_down[KEY_LEFT]  ? v3(-1, 0, 0) : v3{};
+                    dir += os->key_is_down[KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
+                    dir += os->key_is_down[KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
 
                     v2 mouse_pos = os->get_mouse_position(game_state->window_handle);
 
@@ -643,15 +643,15 @@ entity_update(Entity* entity, const f32 dt)
 
                 } else if (entity->flags & ENTITY_FLAG_FREE_CAMERA) {
 
-                    dir += os->key_is_down[OS_KEY_W] ? (rotation * V4( 0,  0, -1, 0)).xyz : v3{};
-                    dir += os->key_is_down[OS_KEY_A] ? (rotation * V4(-1,  0,  0, 0)).xyz : v3{};
-                    dir += os->key_is_down[OS_KEY_S] ? (rotation * V4( 0,  0,  1, 0)).xyz : v3{};
-                    dir += os->key_is_down[OS_KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
-                    dir += os->key_is_down[OS_KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
-                    dir += os->key_is_down[OS_KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[KEY_W] ? (rotation * V4( 0,  0, -1, 0)).xyz : v3{};
+                    dir += os->key_is_down[KEY_A] ? (rotation * V4(-1,  0,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[KEY_S] ? (rotation * V4( 0,  0,  1, 0)).xyz : v3{};
+                    dir += os->key_is_down[KEY_D] ? (rotation * V4( 1,  0,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[KEY_Q] ? (rotation * V4( 0, -1,  0, 0)).xyz : v3{};
+                    dir += os->key_is_down[KEY_E] ? (rotation * V4( 0,  1,  0, 0)).xyz : v3{};
                    
 
-                    if (os->key_is_down[OS_KEY_SHIFT]) {
+                    if (os->key_is_down[KEY_SHIFT]) {
                         accel_strength *= 2.f;
                         max_speed      *= 2.f;
                     }
@@ -664,7 +664,7 @@ entity_update(Entity* entity, const f32 dt)
                     {
                         next = event->next;
 
-                        if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_LEFT)
+                        if (event->type == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT)
                         {
                             os_event_consume(event);
                             mouse_position_last = os->mouse_position_last;
@@ -680,7 +680,7 @@ entity_update(Entity* entity, const f32 dt)
                             mouse_position_last = os->mouse_position_last;
                         }
 
-                        if (event->type == OS_EVENT_RELEASE && event->key == OS_KEY_MOUSE_LEFT) {
+                        if (event->type == OS_EVENT_RELEASE && event->key == KEY_MOUSE_LEFT) {
                             os_event_consume(event);
                             dragging = false;
                         }
@@ -745,7 +745,7 @@ entity_update(Entity* entity, const f32 dt)
                 for (Os_Event* event = os->event_first, *next; event != nullptr; event = next) {
                     next = event->next;
 
-                    if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_RIGHT) {
+                    if (event->type == OS_EVENT_PRESS && event->key == KEY_MOUSE_RIGHT) {
                         // @Hack
                         //os_event_consume(event);
 

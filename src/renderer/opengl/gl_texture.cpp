@@ -4,7 +4,7 @@ namespace GL
 {
     Texture* alloc_texture_unique(Opengl* gl, u64 id, Texture_Layout layout, u32 width, u32 height, void* data)
     {
-        List_For(gl->first_texture, it) {
+        list_for(gl->first_texture, it) {
             if (it->id == id) {
                 return it;
             }
@@ -100,7 +100,7 @@ namespace GL
 
     Texture* get_texture(Opengl* gl, u64 id)
     {
-        List_For(gl->first_texture, it) {
+        list_for(gl->first_texture, it) {
             if (it->id == id) {
                 return it;
             }

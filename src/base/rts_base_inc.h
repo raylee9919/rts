@@ -7,3 +7,4 @@
 #include "rts_base_thread_ctx.h"
 #include "rts_base_string.h"
 #include "rts_base_math.h"
+#include "free_list.h"

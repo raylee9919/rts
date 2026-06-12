@@ -80,12 +80,12 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: GL
 if "%build_gl%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link opengl32.lib %flags_linker% /PDB:win32_opengl_%random%.pdb
+    call %compiler% %flags_compile% /DBUILD_NO_ENTRY=1 ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link opengl32.lib %flags_linker% /PDB:win32_opengl_%random%.pdb
 )
 
 :: RTS
 if "%build_rts%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts_win32.cpp /Fe:rts /link %flags_linker% logo.res
+    call %compiler% %flags_compile% ..\src\rts.cpp /Fe:rts /link %flags_linker% logo.res
 )
 
 del *.obj *.res >nul

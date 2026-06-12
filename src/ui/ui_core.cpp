@@ -539,7 +539,7 @@ ui_signal_from_box(Ui_Box *box)
 
             if (box->flags & UI_BOX_FLAG_MOUSE_CLICKABLE)
             {
-                if (event->type == OS_EVENT_PRESS && event->key == OS_KEY_MOUSE_LEFT)
+                if (event->type == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT)
                 {
                     if (intersects(aabb, event->position))
                     {
@@ -555,7 +555,7 @@ ui_signal_from_box(Ui_Box *box)
                     }
                 }
 
-                if (event->type == OS_EVENT_RELEASE && event->key == OS_KEY_MOUSE_LEFT)
+                if (event->type == OS_EVENT_RELEASE && event->key == KEY_MOUSE_LEFT)
                 {
                     if (ui_key_match(ui_state->active_key, box->key))
                     {

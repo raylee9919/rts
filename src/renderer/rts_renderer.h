@@ -6,6 +6,7 @@
 #define SHADOWMAP_RESOLUTION    2048 // @Todo: If you want to be understaned by all machines...use 1024...?
 #define CSM_COUNT               4    // @Important: Changing it'll break things. Like, uniform buffer block alignment thinggggs.
 
+struct Bitmap;
 struct Renderer;
 struct Render_Commands;
 struct Platform_Renderer;

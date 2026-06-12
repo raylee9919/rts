@@ -1,12 +1,7 @@
+// Copyright Seong Woo Lee. All Rights Reserved.
+
 #ifndef RTS_RECT_PACK_H
 #define RTS_RECT_PACK_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
 
 struct Rpk_Segment
 {

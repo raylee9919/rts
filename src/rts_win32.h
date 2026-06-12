@@ -41,7 +41,6 @@ internal HWND       win32_create_window(HINSTANCE hinst);
 internal int        win32_dpi_scale(int value, UINT dpi);
 internal RECT       win32_titlebar_rect(HWND hwnd);
 internal b32        win32_window_is_maximized(HWND hwnd);
-internal b32        win32_window_focused(HWND hwnd);
 internal void       win32_toggle_fullscreen(HWND window);
 internal v2u        win32_client_size_from_hwnd(HWND hwnd);
 

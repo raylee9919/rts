@@ -1,0 +1,247 @@
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#pragma once
+
+
+// Handle
+//
+struct OS_Handle {
+    u64 e[1];
+};
+
+
+// GFX
+//
+struct OS_Window {
+    OS_Window* next;
+    OS_Window* prev;
+    OS_Handle  handle;
+};
+
+
+// Events
+//
+enum OS_Key : u16 {
+    KEY_NULL,
+
+    KEY_ESC,
+    KEY_TILDE,
+    KEY_MINUS,
+    KEY_EQUAL,
+    KEY_BACKSPACE,
+    KEY_TAB,
+    KEY_SPACE,
+    KEY_RETURN,
+    KEY_CTRL,
+    KEY_SHIFT,
+    KEY_ALT,
+    KEY_UP,
+    KEY_LEFT,
+    KEY_DOWN,
+    KEY_RIGHT,
+    KEY_DELETE,
+    KEY_PAGE_UP,
+    KEY_PAGE_DOWN,
+    KEY_HOME,
+    KEY_END,
+    KEY_SLASH,
+    KEY_BACK_SLASH,
+    KEY_PERIOD,
+    KEY_COMMA,
+    KEY_QUOTE,
+    KEY_LEFT_BRACKET,
+    KEY_RIGHT_BRACKET,
+    KEY_INSERT,
+    KEY_SEMICOLON,
+    KEY_PAUSE,
+    KEY_CAPS_LOCK,
+    KEY_NUMS_LOCK,
+    KEY_SCROLL_LOCK,
+    KEY_MENU,
+
+    // Numpad
+    KEY_NUM_DIVIDE,
+    KEY_NUM_MULTIPLY,
+    KEY_NUM_SUBTRACT,
+    KEY_NUM_ADD,
+    KEY_NUM_DECIMAL,
+
+    // Equivalent to '0'~'9'.
+    KEY_0 = 48,
+    KEY_1 = 49,
+    KEY_2 = 50,
+    KEY_3 = 51,
+    KEY_4 = 52,
+    KEY_5 = 53,
+    KEY_6 = 54,
+    KEY_7 = 55,
+    KEY_8 = 56,
+    KEY_9 = 57,
+
+    // Equivalent to 'A'~'Z'.
+    KEY_A = 65,
+    KEY_B = 66,
+    KEY_C = 67,
+    KEY_D = 68,
+    KEY_E = 69,
+    KEY_F = 70,
+    KEY_G = 71,
+    KEY_H = 72,
+    KEY_I = 73,
+    KEY_J = 74,
+    KEY_K = 75,
+    KEY_L = 76,
+    KEY_M = 77,
+    KEY_N = 78,
+    KEY_O = 79,
+    KEY_P = 80,
+    KEY_Q = 81,
+    KEY_R = 82,
+    KEY_S = 83,
+    KEY_T = 84,
+    KEY_U = 85,
+    KEY_V = 86,
+    KEY_W = 87,
+    KEY_X = 88,
+    KEY_Y = 89,
+    KEY_Z = 90,
+
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_F11,
+    KEY_F12,
+    KEY_F13,
+    KEY_F14,
+    KEY_F15,
+    KEY_F16,
+    KEY_F17,
+    KEY_F18,
+    KEY_F19,
+    KEY_F20,
+    KEY_F21,
+    KEY_F22,
+    KEY_F23,
+    KEY_F24,
+
+    // Mouse
+    KEY_MOUSE_LEFT,
+    KEY_MOUSE_RIGHT,
+    KEY_MOUSE_MIDDLE,
+};
+
+typedef u16 OS_Modifiers;
+enum
+{
+    OS_MODIFIER_CTRL  = 0x1,
+    OS_MODIFIER_SHIFT = 0x2,
+    OS_MODIFIER_ALT   = 0x4,
+};
+
+enum OS_Event_Kind : u16 {
+    OS_EVENT_NULL,
+
+    OS_EVENT_PRESS,
+    OS_EVENT_RELEASE,
+    OS_EVENT_MOUSE_MOVE,
+    OS_EVENT_TEXT,
+    OS_EVENT_SCROLL,
+    OS_EVENT_WINDOW_CLOSE,
+    OS_EVENT_FILE_DROP,
+};
+
+struct OS_Event {
+    OS_Event*       next;
+    OS_Event*       prev;
+
+    OS_Event_Kind   kind;
+    OS_Modifiers    modifiers;
+
+    OS_Handle       window_handle;
+    OS_Key          key;
+    v2              position;
+    v2              delta;
+    u32             codepoint;
+    bool            is_repeat;
+    u16             repeat_count;
+};
+
+
+// Global OS State
+//
+struct OS_State {
+    Arena* arena;
+
+    // Events
+    Arena*      event_arena;
+    OS_Event*   first_event;
+    OS_Event*   last_event;
+    OS_Event*   first_free_event;
+    OS_Event*   last_free_event;
+
+    // Key Table
+    OS_Key      key_table[512];
+    
+    // Counter
+    f64 qpc_rcp_freq64;
+    f32 qpc_rcp_freq32;
+};
+global OS_State* os;
+
+
+// OS Include
+//
+#if OS_WINDOWS
+#  include "os/win32/os_win32.h"
+#else
+#  error Undefined OS
+#endif
+
+
+// Init
+internal void           os_init();
+
+// Memory
+internal void*          os_reserve(u64 size);
+internal bool           os_commit(void* ptr, u64 size);
+internal void           os_decommit(void* ptr, u64 size);
+internal void           os_release(void* ptr, u64 size);
+internal void*          os_heap_alloc(u64 size);
+internal void           os_heap_free(void* ptr);
+
+// System Info.
+internal u32            os_query_core_count();
+internal u32            os_query_page_size();
+internal u32            os_query_caret_blink_time();
+
+// Counter
+u64 os_counter();
+u64 os_counter_freq();
+f32 os_counter_freq_rcp();
+f64 os_counter_freq_rcp64();
+
+// Handle Translation
+internal OS_Handle      os_handle_from_hwnd(HWND hwnd);
+internal HWND           hwnd_from_os_handle(OS_Handle handle);
+internal HANDLE         win32_handle_from_os_handle(OS_Handle handle);
+
+// GFX
+internal void           os_gfx_init();
+internal OS_Handle      os_open_window(int x, int y, int w, int h, Utf8 name);
+
+// Events
+internal OS_Event*      os_push_event();
+internal void           os_remove_event(OS_Event* event);
+internal void           os_clear_events();
+
+// Main Entry
+#if !defined(BUILD_NO_ENTRY) || !BUILD_NO_ENTRY
+int main_entry(int argc, char** argv);
+#endif

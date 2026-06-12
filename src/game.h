@@ -51,7 +51,7 @@ struct Game_State {
     Utf8 binary_path;
     Utf8 data_path;
 
-    Os_Handle window_handle;
+    OS_Handle window_handle;
 
     Asset::System asset_system;
 

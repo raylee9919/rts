@@ -6,7 +6,7 @@ namespace File
     {
         Utf8 result = {};
 
-        Os_Handle file = os->file_open(file_path, OS_FILE_ACCESS_READ);
+        OS_Handle file = os->file_open(file_path, OS_FILE_ACCESS_READ);
         u64 file_size = 0;
         if (os->file_is_valid(file))
         {
