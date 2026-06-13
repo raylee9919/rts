@@ -135,21 +135,21 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, Utf8 text)
 
                 if (thumb_signal.pressed_left)
                 {
-                    thumb->mouse_position_last[AXIS2_X] = os->mouse_position_last.x;
+                    thumb->mouse_position_last[AXIS2_X] = ui_state->current_mouse_position.x;
                 }
 
                 if (thumb_signal.dragging_left)
                 {
-                    f32 delta = os->mouse_position_last.x - thumb->mouse_position_last[AXIS2_X];
+                    f32 delta = ui_state->current_mouse_position.x - thumb->mouse_position_last[AXIS2_X];
                     thumb->position[AXIS2_X] += delta;
-                    thumb->mouse_position_last[AXIS2_X] = os->mouse_position_last.x;
+                    thumb->mouse_position_last[AXIS2_X] = ui_state->current_mouse_position.x;
                 }
 
                 Ui_Signal slider_signal = ui_signal_from_box(slider);
                 f32 thumb_cen_x = thumb->position[AXIS2_X] + thumb_size_x*0.5f;
-                if (ui_key_match(ui_state->active_key, slider->key) && (abs(os->mouse_position_last.x - thumb_cen_x) > 1.f))
+                if (ui_key_match(ui_state->active_key, slider->key) && (abs(ui_state->current_mouse_position.x - thumb_cen_x) > 1.f))
                 {
-                    f32 delta = (os->mouse_position_last.x > thumb_cen_x) ? 1.f : -1.f;
+                    f32 delta = (ui_state->current_mouse_position.x > thumb_cen_x) ? 1.f : -1.f;
                     thumb->position[AXIS2_X] += delta;
                 }
 
@@ -212,20 +212,20 @@ ui_platform_push(Utf8 text)
 
             if (signal.pressed_left)
             {
-                anchor->mouse_position_last[AXIS2_X] = os->mouse_position_last.x;
-                anchor->mouse_position_last[AXIS2_Y] = os->mouse_position_last.y;
+                anchor->mouse_position_last[AXIS2_X] = ui_state->current_mouse_position.x;
+                anchor->mouse_position_last[AXIS2_Y] = ui_state->current_mouse_position.y;
             }
 
             if (signal.dragging_left)
             {
-                platform->position[AXIS2_X] += (os->mouse_position_last.x - anchor->mouse_position_last[AXIS2_X]);
-                platform->position[AXIS2_Y] += (os->mouse_position_last.y - anchor->mouse_position_last[AXIS2_Y]);
+                platform->position[AXIS2_X] += (ui_state->current_mouse_position.x - anchor->mouse_position_last[AXIS2_X]);
+                platform->position[AXIS2_Y] += (ui_state->current_mouse_position.y - anchor->mouse_position_last[AXIS2_Y]);
 
                 platform->position[AXIS2_X] = clamp(platform->position[AXIS2_X], 0.f, ui_state->root->computed_size[AXIS2_X] - anchor->computed_size[AXIS2_X]);
                 platform->position[AXIS2_Y] = clamp(platform->position[AXIS2_Y], 0.f, ui_state->root->computed_size[AXIS2_Y] - anchor->computed_size[AXIS2_Y]);
 
-                anchor->mouse_position_last[AXIS2_X] = os->mouse_position_last.x;
-                anchor->mouse_position_last[AXIS2_Y] = os->mouse_position_last.y;
+                anchor->mouse_position_last[AXIS2_X] = ui_state->current_mouse_position.x;
+                anchor->mouse_position_last[AXIS2_Y] = ui_state->current_mouse_position.y;
             }
         }ui_bg_pop(); ui_hot_bg_pop(); ui_active_bg_pop();
 

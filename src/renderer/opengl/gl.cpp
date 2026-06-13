@@ -89,12 +89,12 @@ internal void opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(simple_program, color);
 }
 
-internal Render_Commands* opengl_frame_begin(Opengl *gl, v2u window_dim, v2u render_dim)
+internal Render_Commands* opengl_frame_begin(Opengl *gl, v2 window_size, v2 render_size)
 {
     Render_Commands *frame = &gl->render_commands;
 
-    frame->window_dim = window_dim;
-    frame->render_dim  = render_dim;
+    frame->window_dim = window_size;
+    frame->render_dim = render_size;
 
     frame->push_buffer_size = gl->push_buffer_size;
     frame->push_buffer_base = gl->push_buffer;
@@ -252,10 +252,10 @@ void gl_record_draw_params(Opengl* gl, Renderer* renderer)
 
 internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
 {
-    u32 window_width  = frame->window_dim.w;
-    u32 window_height = frame->window_dim.h;
-    u32 render_width  = frame->render_dim.w;
-    u32 render_height = frame->render_dim.h;
+    u32 window_width  = (u32)(frame->window_dim.x + 0.5f);
+    u32 window_height = (u32)(frame->window_dim.y + 0.5f);
+    u32 render_width  = (u32)(frame->render_dim.x + 0.5f);
+    u32 render_height = (u32)(frame->render_dim.y + 0.5f);
 
     if (gl->last_draw_width != render_width || gl->last_draw_height != render_height) {
         // Recreate color buffer.

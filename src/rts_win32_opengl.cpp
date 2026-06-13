@@ -158,7 +158,7 @@ internal void get_wgl_functions(Opengl *gl)
 extern "C" __declspec(dllexport)
 RENDERER_BEGIN_FRAME(win32_begin_frame)
 {
-    Render_Commands *result = opengl_frame_begin((Opengl *)renderer, os_window_dim, render_dim);
+    Render_Commands *result = opengl_frame_begin((Opengl *)renderer, window_size, render_size);
     return result;
 }
 

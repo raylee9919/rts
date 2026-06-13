@@ -26,10 +26,13 @@ ui_init(Ui_State *ui)
 }
 
 internal void
-ui_begin(f32 dt, u32 width, u32 height)
+ui_begin(f32 dt, u32 width, u32 height, v2 current_mouse_position)
 {
-    // Receive delta time.
+    // Set delta time.
     ui_state->dt = dt;
+
+    // Set current frame's mouse position.
+    ui_state->current_mouse_position = current_mouse_position;
 
     // Prune stale boxes.
     for (u32 slot = 0; slot < ui_state->box_table_size; ++slot)
@@ -531,19 +534,17 @@ ui_signal_from_box(Ui_Box *box)
     aabb.min = v2{box->position[AXIS2_X], box->position[AXIS2_Y]};
     aabb.max = aabb.min + v2{box->computed_size[AXIS2_X], box->computed_size[AXIS2_Y]};
 
-    if (! ui_box_is_nil(box))
+    if (!ui_box_is_nil(box))
     {
-        for (Os_Event *event = os->event_first, *next; event; event = next)
+        list_for (os->first_event, event) 
         {
-            next = event->next;
-
             if (box->flags & UI_BOX_FLAG_MOUSE_CLICKABLE)
             {
-                if (event->type == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT)
+                if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT)
                 {
                     if (intersects(aabb, event->position))
                     {
-                        os_event_consume(event);
+                        os_remove_event(event);
                         result.pressed_left = true;
 
                         ui_state->active_key = box->key;
@@ -555,20 +556,20 @@ ui_signal_from_box(Ui_Box *box)
                     }
                 }
 
-                if (event->type == OS_EVENT_RELEASE && event->key == KEY_MOUSE_LEFT)
+                if (event->kind == OS_EVENT_RELEASE && event->key == KEY_MOUSE_LEFT)
                 {
                     if (ui_key_match(ui_state->active_key, box->key))
                     {
-                        os_event_consume(event);
+                        os_remove_event(event);
                         ui_state->active_key = ui_key_zero;
                     }
                 }
 
-                if (event->type == OS_EVENT_MOUSE_MOVE)
+                if (event->kind == OS_EVENT_MOUSE_MOVE)
                 {
                     if (ui_key_match(ui_state->active_key, box->key))
                     {
-                        os_event_consume(event);
+                        os_remove_event(event);
                         result.dragging_left = true;
                     }
                 }
@@ -576,7 +577,7 @@ ui_signal_from_box(Ui_Box *box)
         }
     }
 
-    if (intersects(aabb, os->mouse_position_last) &&
+    if (intersects(aabb, ui_state->current_mouse_position) &&
         ui_key_match(ui_state->active_key, ui_key_zero))
     {
         ui_state->hot_key = box->key;

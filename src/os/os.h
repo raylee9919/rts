@@ -1,12 +1,31 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_OS_H
+#define RTS_OS_H
 
 
 // Handle
 //
 struct OS_Handle {
     u64 e[1];
+};
+
+// File
+//
+typedef u32 OS_Access_Flags;
+enum
+{
+    OS_ACCESS_FLAG_READ        =  0x1,
+    OS_ACCESS_FLAG_WRITE       =  0x2,
+    OS_ACCESS_FLAG_APPEND      =  0x4,
+    OS_ACCESS_FLAG_EXECUTE     =  0x8,
+    OS_ACCESS_FLAG_SHARE_READ  = 0x10,
+    OS_ACCESS_FLAG_SHARE_WRITE = 0x20,
+};
+
+struct File_Properties {
+    u64  size;
+    bool is_directory;
 };
 
 
@@ -21,7 +40,7 @@ struct OS_Window {
 
 // Events
 //
-enum OS_Key : u16 {
+enum OS_Key : u32 {
     KEY_NULL,
 
     KEY_ESC,
@@ -137,7 +156,7 @@ enum OS_Key : u16 {
     KEY_MOUSE_MIDDLE,
 };
 
-typedef u16 OS_Modifiers;
+typedef u32 OS_Modifiers;
 enum
 {
     OS_MODIFIER_CTRL  = 0x1,
@@ -145,7 +164,7 @@ enum
     OS_MODIFIER_ALT   = 0x4,
 };
 
-enum OS_Event_Kind : u16 {
+enum OS_Event_Kind : u32 {
     OS_EVENT_NULL,
 
     OS_EVENT_PRESS,
@@ -164,7 +183,7 @@ struct OS_Event {
     OS_Event_Kind   kind;
     OS_Modifiers    modifiers;
 
-    OS_Handle       window_handle;
+    OS_Handle       window;
     OS_Key          key;
     v2              position;
     v2              delta;
@@ -173,6 +192,27 @@ struct OS_Event {
     u16             repeat_count;
 };
 
+// @Temporary
+//
+#define OS_WORK_CALLBACK(name) void name(void *param)
+typedef OS_WORK_CALLBACK(Work_Callback);
+
+struct Work {
+    Work_Callback* callback;
+    void* param;
+};
+
+struct Work_Queue {
+    Work works[4192];
+
+    u32 volatile index_to_write;
+    u32 volatile index_to_read;
+
+    u32 volatile completion_count;
+    u32 volatile completion_goal;
+
+    OS_Handle semaphore;
+};
 
 // Global OS State
 //
@@ -186,12 +226,22 @@ struct OS_State {
     OS_Event*   first_free_event;
     OS_Event*   last_free_event;
 
-    // Key Table
-    OS_Key      key_table[512];
+    // Input
+    OS_Key      vk_to_key[512];
+    b8          key_is_down[512];
+    b8          key_was_down[512];
     
     // Counter
     f64 qpc_rcp_freq64;
     f32 qpc_rcp_freq32;
+
+    // Path
+    Utf8 binary_path;
+    Utf8 initial_path;
+    Utf8 appdata_path;
+
+    // @Temporary
+    Work_Queue work_queue;
 };
 global OS_State* os;
 
@@ -206,42 +256,63 @@ global OS_State* os;
 
 
 // Init
-internal void           os_init();
+internal void               os_init();
 
 // Memory
-internal void*          os_reserve(u64 size);
-internal bool           os_commit(void* ptr, u64 size);
-internal void           os_decommit(void* ptr, u64 size);
-internal void           os_release(void* ptr, u64 size);
-internal void*          os_heap_alloc(u64 size);
-internal void           os_heap_free(void* ptr);
+internal void*              os_reserve(u64 size);
+internal bool               os_commit(void* ptr, u64 size);
+internal void               os_decommit(void* ptr, u64 size);
+internal void               os_release(void* ptr, u64 size);
+internal void*              os_heap_alloc(u64 size);
+internal void               os_heap_free(void* ptr);
 
 // System Info.
-internal u32            os_query_core_count();
-internal u32            os_query_page_size();
-internal u32            os_query_caret_blink_time();
+internal u32                os_query_core_count();
+internal u32                os_query_page_size();
+internal u32                os_query_caret_blink_time();
 
 // Counter
-u64 os_counter();
-u64 os_counter_freq();
-f32 os_counter_freq_rcp();
-f64 os_counter_freq_rcp64();
+internal u64                os_counter();
+internal u64                os_counter_freq();
+internal f32                os_counter_freq_rcp();
+internal f64                os_counter_freq_rcp64();
 
 // Handle Translation
-internal OS_Handle      os_handle_from_hwnd(HWND hwnd);
-internal HWND           hwnd_from_os_handle(OS_Handle handle);
-internal HANDLE         win32_handle_from_os_handle(OS_Handle handle);
+internal bool               operator == (OS_Handle& l, OS_Handle& r);
+internal OS_Handle          os_handle_from_hwnd(HWND hwnd);
+internal OS_Handle          os_handle_from_win32_handle(HANDLE handle);
+internal HWND               hwnd_from_os_handle(OS_Handle handle);
+internal HANDLE             win32_handle_from_os_handle(OS_Handle handle);
+
+// File
+internal OS_Handle          os_open_file(Utf8 path, OS_Access_Flags flags);
+internal void               os_close_file(OS_Handle file);
+internal u64                os_read_file(OS_Handle file, u64 offset, u64 size, void* out);
+internal bool               os_delete_file(Utf8 path);
+internal bool               os_copy_file(Utf8 dst, Utf8 src);
+internal File_Properties    os_get_file_properties(OS_Handle file);
+internal File_Properties    os_get_file_properties(Utf8 path);
+internal u64                os_get_file_size(OS_Handle file);
+internal u64                os_get_file_size(Utf8 path);
+internal bool               os_create_directory(Utf8 path);
+internal bool               os_directory_exists(Utf8 path);
 
 // GFX
-internal void           os_gfx_init();
-internal OS_Handle      os_open_window(int x, int y, int w, int h, Utf8 name);
+internal void               os_gfx_init();
+internal OS_Handle          os_create_window(int x, int y, int w, int h, Utf8 name);
+internal v2                 os_get_window_size(OS_Handle window);
+internal v2                 os_get_mouse_position(OS_Handle window);
 
 // Events
-internal OS_Event*      os_push_event();
-internal void           os_remove_event(OS_Event* event);
-internal void           os_clear_events();
+internal void               os_poll_events();
+internal OS_Event*          os_push_event();
+internal void               os_remove_event(OS_Event* event);
+internal void               os_clear_events();
 
 // Main Entry
 #if !defined(BUILD_NO_ENTRY) || !BUILD_NO_ENTRY
 int main_entry(int argc, char** argv);
 #endif
+
+
+#endif // RTS_OS_H

@@ -1,11 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-
-// @Todo: 1. Should we support scalable dpi?
-//        2. Verfiy the OS version and load the appropriate libraries.
-//
-
-
 // .h
 //
 #include "rts_profiler.h"
@@ -64,375 +58,17 @@ global Renderer*    renderer;
 #include "third_party/stb/stb_image_write.h"
 
 
-// Windows Libs
-//
-#include <windowsx.h>
-#include <psapi.h>
-#include <uxtheme.h>
-#include <vssym32.h>
+#include "temporary.h"
 
-
-Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) 
-{
-    Entity* soldier            = entity_alloc();
-    soldier->type              = ENTITY_TYPE_SOLDIER;
-    soldier->flags             = (ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED |
-                                  ENTITY_FLAG_COLLIDEABLE | ENTITY_FLAG_SHOWS_ON_MINIMAP);
-
-    soldier->team              = team;
-
-    soldier->radius            = 0.4f;
-    soldier->max_speed         = 3.5f;
-
-    soldier->min_t             = 0.0f;
-    soldier->max_t             = 0.5f;
-
-
-    soldier->max_hitpoints     = 40.f;
-    soldier->hitpoints         = soldier->max_hitpoints;
-
-    soldier->find_target_max_t = 0.5f;
-
-    soldier->position          = v3(x, 0.f, z);
-    soldier->orientation       = {};
-    soldier->scaling           = v3(1.f);
-
-    soldier->model             = assets->skeleton_model;
-    soldier->skeleton          = assets->skeleton_skeleton;
-
-    u32 num_joints = soldier->skeleton->num_joints;
-    assert(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
-    soldier->index_to_my_skinning_matrices = game_state->num_skinning_matrices;
-    game_state->num_skinning_matrices += num_joints;
-
-    soldier->idle_animation    = assets->skeleton_idle;
-    soldier->running_animation = assets->skeleton_run;
-    soldier->die_animation     = assets->skeleton_die;
-    soldier->attack_animation  = assets->skeleton_attack;
-
-    // @Todo: sync with anim.
-    soldier->attack_max_t      = assets->skeleton_attack->duration;
-    soldier->damage_t          = 0.5f;
-    assert(soldier->damage_t < soldier->attack_max_t);
-
-    soldier->animation_player = alloc_animation_player();
-    soldier->animation_player->init(soldier->skeleton, &game_state->skinning_matrices[soldier->index_to_my_skinning_matrices]);
-
-    Entity* parent = nullptr;
-    entity_init(soldier, parent);
-
-    return soldier;
-}
-
-Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets) 
-{
-    Entity* e = entity_alloc();
-    e->type   = ENTITY_TYPE_SOLDIER;
-    e->flags  = (ENTITY_FLAG_IS_UNIT | ENTITY_FLAG_CHUNK_PARTITIONED |
-                 ENTITY_FLAG_COLLIDEABLE | ENTITY_FLAG_SHOWS_ON_MINIMAP);
-
-    e->team = team;
-
-    e->radius    = 0.4f;
-    e->max_speed = 3.5f;
-
-    e->min_t = 0.0f;
-    e->max_t = 0.5f;
-
-    e->max_hitpoints = 40.f;
-    e->hitpoints = e->max_hitpoints;
-
-    e->find_target_max_t = 0.5f;
-
-    e->position    = v3(x, 0.f, z);
-    e->orientation = {};
-    e->scaling     = v3(1.f);
-
-    e->model    = assets->knight_model;
-    e->skeleton = assets->knight_skeleton;
-
-    u32 num_joints = e->skeleton->num_joints;
-    assert(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
-    e->index_to_my_skinning_matrices = game_state->num_skinning_matrices;
-    game_state->num_skinning_matrices += num_joints;
-
-    e->idle_animation    = assets->knight_idle;
-    e->running_animation = assets->knight_run;
-    e->die_animation     = assets->knight_die;
-    e->attack_animation  = assets->knight_attack;
-
-    // @Todo: sync with anim.
-    e->attack_max_t      = e->attack_animation->duration;
-    e->damage_t          = 0.5f;
-    assert(e->damage_t < e->attack_max_t);
-
-    e->animation_player = alloc_animation_player();
-    e->animation_player->init(e->skeleton, &game_state->skinning_matrices[e->index_to_my_skinning_matrices]);
-
-    // @Hack:
-
-    Entity* parent = nullptr;
-    entity_init(e, parent);
-
-    return e;
-}
-
-Entity* debug_attach_sword(Entity* entity, Game_Assets* assets) 
-{
-    // Create a sword and attach it to soldier.
-    //
-    Entity* sword = entity_alloc();
-    sword->type              = ENTITY_TYPE_SWORD;
-    sword->position          = v3(0.0f, 0.0f, -50.0f);
-    sword->orientation       = normalize(Quaternion(0.44f, 0.51f, -0.57f, 0.46f));
-
-    // @Todo: Since the current socket's scale is also transformed along the skeleton hierarhcy, the scaling is amplified, hard-coded here.
-    sword->scaling           = v3(70.f);
-    sword->local_position    = v3(0.f, 0.f, 0.f);
-    sword->local_orientation = euler_to_quaternion(radian_from_degree(180.f), 0.f, 0.f);
-    sword->model             = game_state->assets->sword_model;
-    entity_init(sword, entity);
-
-    // @Temporary
-    const s32 joint_id = 47;
-    entity_attach(sword, entity, joint_id);
-
-    return sword;
-}
-
-Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets) 
-{
-    Entity* castle = entity_alloc();
-    castle->type   = ENTITY_TYPE_CASTLE;
-    castle->flags  = ENTITY_FLAG_CHUNK_PARTITIONED | ENTITY_FLAG_SHOWS_ON_MINIMAP;
-
-    castle->position    = v3(x, 0.f, z);
-    castle->orientation = Quaternion(1,0,0,0);
-    castle->scaling     = v3(1.f);
-    castle->model       = assets->castle_model;
-
-    castle->navmesh_scale = 6.f;
-
-    entity_init(castle, nullptr);
-
-    return castle;
-}
-
-Mesh *mesh_from_name(Model *model, Utf8 name)
-{
-    for (u32 i = 0; i < model->num_meshes; ++i) {
-        Mesh *mesh = &model->meshes[i];
-        Utf8 n = mesh->name;
-        if (n == name) {
-            return mesh;
-        }
-    }
-    return NULL;
-}
-
-struct Token {
-    u8 scratch_buffer[64];
-    u8 length;
-};
-
-struct Material_Parser {
-    u8* contents;
-    u64 size;
-    u64 cursor;
-
-    u8 peek() {
-        return contents[cursor];
-    }
-
-    u8 eat() {
-        return contents[cursor++];
-    }
-
-    bool is_whitespace(u8 c) {
-        return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
-    }
-
-    void eat_whitespace() {
-        if (cursor < size) {
-            u8 c = peek();
-
-            while (is_whitespace(c)) {
-                eat();
-                c = peek();
-            }
-        }
-    }
-
-    Token parse_identifier() {
-        if (cursor < size) {
-            eat_whitespace();
-            Token token = {};
-            while (!is_whitespace(peek())) {
-                token.scratch_buffer[token.length++] = eat();
-            }
-            return token;
-        } else {
-            return {};
-        }
-    }
-
-    Token parse_field_identifier() {
-        if (cursor < size) {
-            eat_whitespace();
-            assert(eat() == ';');
-            Token identifier = parse_identifier();
-            return identifier;
-        } else {
-            return {};
-        }
-    }
-};
-
-Material load_material(Asset::System* asset_system, Utf8 asset_dir, Utf8 path) {
-    Temporary_Arena scratch = scratch_begin();
-    defer(scratch_end(scratch));
-
-    Material material = {};
-
-    Utf8 entire_file = File::read_entire_file(scratch.arena, path);
-
-    Material_Parser p;
-    {
-        p.contents = entire_file.str;
-        p.size     = entire_file.len;
-        p.cursor   = 0;
-    }
-
-    while (p.cursor < p.size) {
-        p.eat_whitespace();
-
-        // albedo? normal? ..
-        Token key = p.parse_field_identifier();
-        char* str = (char*)key.scratch_buffer;
-        u64 len = key.length;
-
-        if (p.cursor < p.size) {
-
-            Token value = {};
-            bool valid = false;
-            PBR_Texture_Type slot = PBR_ALBEDO;
-
-            if (string_equal("albedo", str, len)) {
-                value =  p.parse_identifier();
-                valid = true;
-                slot = PBR_ALBEDO;
-            } else if (string_equal("normal", str, len)) {
-                value =  p.parse_identifier();
-                valid = true;
-                slot = PBR_NORMAL;
-            } else if (string_equal("roughness", str, len)) {
-                value =  p.parse_identifier();
-                valid = true;
-                slot = PBR_ROUGHNESS;
-            } else if (string_equal("metallic", str, len)) {
-                value =  p.parse_identifier();
-                valid = true;
-                slot = PBR_METALLIC;
-            } else if (string_equal("emission", str, len)) {
-                value =  p.parse_identifier();
-                valid = true;
-                slot = PBR_EMISSION;
-            } else {
-                assert(!"Unknown field.");
-            }
-
-            if (valid) {
-                Utf8 texture_path = utf8f(scratch.arena, "%S/textures/%s.texture", asset_dir, value);
-                load_texture(asset_system, &material.textures[slot], texture_path);
-            }
-        }
-    }
-
-    return material;
-}
-
-
-// NOTE: Executables (but not DLLs) exporting this symbol with this value will be
-//       automatically directed to the high-performance GPU on Nvidia Optimus systems
-//       with up-to-date drivers
-//
-__declspec(dllexport) DWORD NvOptimusEnablement = 1;
-
-// NOTE: Executables (but not DLLs) exporting this symbol with this value will be
-//       automatically directed to the high-performance GPU on AMD PowerXpress systems
-//       with up-to-date drivers
-//
-__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 // NOTE: Globals
 //
 global Win32_State          win32;
-global b32                  g_running = true;
 global b32                  g_show_cursor = true;
-global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
-
-internal v2u
-win32_get_client_size(HWND hwnd)
-{
-    v2u result = {};
-    RECT rect = {};
-    GetClientRect(hwnd, &rect);
-    result.x = rect.right  - rect.left;
-    result.y = rect.bottom - rect.top;
-    return result;
-}
-
-internal void 
-win32_toggle_fullscreen(HWND window)
-{
-    DWORD style = GetWindowLong(window, GWL_STYLE);
-    if (style & WS_OVERLAPPEDWINDOW) 
-    {
-        MONITORINFO mi = { sizeof(mi) };
-        if (GetWindowPlacement(window, &g_window_placement) &&
-            GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi)) 
-        {
-            SetWindowLong(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
-            SetWindowPos(window, HWND_TOP,
-                         mi.rcMonitor.left, mi.rcMonitor.top,
-                         mi.rcMonitor.right - mi.rcMonitor.left,
-                         mi.rcMonitor.bottom - mi.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        }
-    }
-    else 
-    {
-        SetWindowLong(window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(window, &g_window_placement);
-        SetWindowPos(window, 0, 0, 0, 0, 0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-    }
-}
-
-internal v2u 
-win32_client_size(HWND hwnd) 
-{
-    v2u result = {};
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    result.w = (u32)(rect.right - rect.left);
-    result.h = (u32)(rect.bottom - rect.top);
-    return result;
-}
 
 // NOTE: Code Reloading
 //
-internal u64
-win32_get_last_modified(Utf8 file_path)
-{
-    Os_File_Attributes attr = os->attributes_from_file_path(file_path);
-    u64 result = attr.last_modified;
-    return result;
-}
-
-internal void
-win32_code_unload(Win32_Code *loaded)
+void unload_code(Win32_Code *loaded)
 {
     if (loaded->dll)
     {
@@ -446,23 +82,22 @@ win32_code_unload(Win32_Code *loaded)
     zero_array(loaded->functions, loaded->function_count);
 }
 
-internal void
-win32_code_load(Win32_Code *loaded)
+void load_code(Win32_Code *loaded)
 {
     Temporary_Arena scratch = scratch_begin();
+    defer(scratch_end(scratch));
 
     Utf8 dll_path       = loaded->dll_path;
     Utf8 temp_dll_path  = loaded->temp_dll_path;
     Utf8 lock_path      = loaded->lock_path;
 
-    Os_File_Attributes attr = os->attributes_from_file_path(dll_path);
-
-    if (attr.size > 0)
+    u64 file_size = os_get_file_size(dll_path);
+    if (file_size > 0)
     {
         // load the temporary dll so we could write to the real dll and check the modified time of it.
         loaded->temp_dll_path_prefix = (loaded->temp_dll_path_prefix + 1) % 2;
         temp_dll_path = utf8f(scratch.arena, "%S/%S_%d.dll", win32.binary_path, loaded->temp_dll_name, loaded->temp_dll_path_prefix);
-        os->file_copy(temp_dll_path, dll_path);
+        os_copy_file(temp_dll_path, dll_path);
 
         Utf16 temp_dll_path16 = to_utf16(scratch.arena, temp_dll_path);
         loaded->dll = LoadLibraryW((WCHAR *)temp_dll_path16.str);
@@ -490,24 +125,19 @@ win32_code_load(Win32_Code *loaded)
     // if libary nor proc isn't loaded, unload the code.
     if (! loaded->is_valid) 
     {
-        win32_code_unload(loaded);
+        unload_code(loaded);
     }
-
-    scratch_end(scratch);
 }
 
 int main_entry(int argc, char** argv)
 {
-    HINSTANCE hinst = GetModuleHandleW(0);
-
     // Init core.
-    //
     os_init();
     thread_init();
     os_gfx_init();
 
+
     // Alloc and init game state.
-    //
     {
         Arena* arena = arena_alloc();
         game_state = push_struct(arena, Game_State);
@@ -518,46 +148,25 @@ int main_entry(int argc, char** argv)
             Temporary_Arena scratch = scratch_begin();
             defer(scratch_end(scratch));
 
-            Utf8 binary_path = {};
+            Utf8 binary_path = os->binary_path;
             Utf8 data_path = {};
 
-            binary_path = os->string_from_system_path_kind(scratch.arena, OS_SYSTEM_PATH_KIND_BINARY);
             Utf8 local_data_path = utf8f(scratch.arena, "%S/data", binary_path);
             Utf8 binary_parent_path = utf8_path_chop_last_slash(binary_path);
             Utf8 parent_data_path = utf8f(scratch.arena, "%S/data", binary_parent_path);
 
-            Os_File_Attributes local_data_attr  = os->attributes_from_file_path(local_data_path);
-            Os_File_Attributes parent_data_attr = os->attributes_from_file_path(parent_data_path);
-
-            if (local_data_attr.flags == OS_FILE_FLAG_DIRECTORY) {
+            if (os_directory_exists(local_data_path))
                 data_path = utf8_copy(arena, local_data_path); 
-            } else if (parent_data_attr.flags == OS_FILE_FLAG_DIRECTORY) {
+            else if (os_directory_exists(parent_data_path))
                 data_path = utf8_copy(arena, parent_data_path); 
-            }
 
             game_state->binary_path = binary_path;
             game_state->data_path   = data_path;
         }
 
         // Create main window.
-        {
-            // Call this before creating a window.
-            if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
-                assert(!"Win32: Failed to set dpi awareness context."); 
-            }
-
-            HWND hwnd = win32_window_create(hinst);
-
-            if (!hwnd) {
-                assert(!"Win32: Couldn't create window."); 
-            }
-
-            game_state->window_handle = to_os_handle(hwnd);
-        }
+        game_state->main_window = os_create_window(0, 0, 1920, 1080, utf8lit("rts"));
     }
-
-
-
 
     // Init win32 state.
     // 
@@ -567,7 +176,6 @@ int main_entry(int argc, char** argv)
         Utf8 binary_path = game_state->binary_path;
 
         win32.binary_path        = binary_path;
-        win32.game_dll_path      = utf8f(win32.arena, "%S/rts_game.dll", binary_path);
         win32.renderer_dll_path  = utf8f(win32.arena, "%S/rts_renderer_opengl.dll", binary_path);
         win32.lock_path          = utf8f(win32.arena, "%S/lock.tmp", binary_path);
     }
@@ -583,7 +191,7 @@ int main_entry(int argc, char** argv)
     }
 
 
-    HWND hwnd = to_hwnd(game_state->window_handle);
+    HWND hwnd = hwnd_from_os_handle(game_state->main_window);
     HDC renderer_hdc = GetDC(hwnd);
     b32 renderer_was_reloaded = false;
     Win32_Renderer_Function_Table renderer_functions = {};
@@ -596,9 +204,8 @@ int main_entry(int argc, char** argv)
         renderer_code.function_count = array_count(win32_renderer_function_table_names);
         renderer_code.functions      = (void **)&renderer_functions;
         renderer_code.function_names = win32_renderer_function_table_names;
-        renderer_code.last_modified  = win32_get_last_modified(renderer_code.dll_path);
     }
-    win32_code_load(&renderer_code);
+    load_code(&renderer_code);
     if (!renderer_code.is_valid) {
         assert(!"Couldn't load the renderer code."); 
     }
@@ -607,79 +214,39 @@ int main_entry(int argc, char** argv)
     Platform_Renderer* platform_renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
 
-    u32 monitor_refresh_rate = (u32)GetDeviceCaps(renderer_hdc, VREFRESH);
-    f32 desired_dt = 1.0f / (f32)monitor_refresh_rate;
-
-
-    //
     // Main Loop
     //
     u64 old_counter = os_counter();
-    while (g_running) 
+    while (!game_state->should_close) 
     {
         // Draw resolution.
-        //
-        v2u resolution = {
+        v2 resolution = {
             //960, 540
             //1280, 720
             //1920, 1080,
             2560, 1440,
         };
-        v2u window_dim = win32_client_size(hwnd);
 
-        os_event_list_clear();
-        os->event_poll();
+        // Clear and poll events.
+        os_clear_events();
+        os_poll_events();
 
-
-        // Process Message
-        //
-        for (MSG msg; PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE);)
-        {
-            switch(msg.message) 
-            {
-                case WM_QUIT: {
-                    g_running = false;
-                } break;
-
-                default: {
-                    TranslateMessage(&msg);
-                    DispatchMessage(&msg);
-                } break;
-            }
-        }
-
-
-        // Fullscreen
-        //
-        for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
-        {
-            next = event->next;
-            if (event->type == OS_EVENT_PRESS && (event->modifiers & OS_MODIFIER_ALT) && event->key == KEY_ENTER)
-            {
-                win32_toggle_fullscreen(hwnd);
-                os_event_consume(event);
-            }
-        }
-
-
-        // Get dt.
-        //
+        // Get delta-time.
         u64 new_counter = os_counter();
-        f32 actual_dt = (new_counter - old_counter) * os->perf_counter_freq_inv;
+        f32 actual_dt = (new_counter - old_counter) * os_counter_freq_rcp();
         old_counter = new_counter;
 
         // Get window and render size.
-        v2u window_size   = win32_get_client_size(hwnd);
+        v2 window_size    = os_get_window_size(game_state->main_window);
         u32 window_width  = window_size.x;
         u32 window_height = window_size.y;
-
 
         Render_Commands *render_commands = NULL;
 
         // Render begin.
         //
         if (renderer_code.is_valid) {
-            render_commands = renderer_functions.begin_frame(platform_renderer, window_dim, resolution); 
+            render_commands = renderer_functions.begin_frame(platform_renderer, window_size, resolution); 
         }
 
         // Game
@@ -978,7 +545,6 @@ int main_entry(int argc, char** argv)
 
                     debug_spawn_castle( 0.f,  0.f, TEAM_PLAYER, assets);
                     //debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
-
                 }
             }
 
@@ -1003,6 +569,7 @@ int main_entry(int argc, char** argv)
             auto asset_system = &game_state->asset_system;
 
             Render_Group* render_group = begin_render_group(render_commands, MB(16));
+            v2 current_mouse_position = os_get_mouse_position(game_state->main_window);
 
 
             // Get all triangles in the navmesh
@@ -1021,7 +588,7 @@ int main_entry(int argc, char** argv)
             local_persist f32 light_x = 1.f, light_y = 1.f, light_z = 1.f;
             local_persist b32 draw_chunk_partitions = false;
 #if 1
-            ui_begin(actual_dt, window_width, window_height);
+            ui_begin(actual_dt, window_width, window_height, os_get_mouse_position(game_state->main_window));
             {
 #if BUILD_DEBUG
                 ui_platform(utf8lit("Debug Build"))
@@ -1085,21 +652,19 @@ int main_entry(int argc, char** argv)
                 local_persist bool dragging = false;
                 local_persist v2   drag_start = {};
 
-                for (Os_Event* event = os->event_first, *next; event; event = next)
+                list_for (os->first_event, event)
                 {
-                    next = event->next;
-
                     if (event->key == KEY_MOUSE_LEFT) {
 
-                        if (event->type == OS_EVENT_PRESS) {
+                        if (event->kind == OS_EVENT_PRESS) {
                             dragging = true;
-                            os_event_consume(event);
-                            drag_start = os->mouse_position_last;
+                            os_remove_event(event);
+                            drag_start = current_mouse_position;
                         }
 
-                        if (dragging && event->type == OS_EVENT_RELEASE) {
+                        if (dragging && event->kind == OS_EVENT_RELEASE) {
                             dragging = false;
-                            os_event_consume(event);
+                            os_remove_event(event);
 
                             // get entities
                             Entity* camera = entity_from_id(game_state->game_camera_id);
@@ -1107,13 +672,13 @@ int main_entry(int argc, char** argv)
                             const f32 w = (f32)game_state->window_width;
                             const f32 h = (f32)game_state->window_height;
 
-                            const f32 min_screen_x = min(drag_start.x, os->mouse_position_last.x);
-                            const f32 min_screen_y = min(drag_start.y, os->mouse_position_last.y);
-                            const f32 max_screen_x = max(drag_start.x, os->mouse_position_last.x);
-                            const f32 max_screen_y = max(drag_start.y, os->mouse_position_last.y);
+                            const f32 min_screen_x = min(drag_start.x, current_mouse_position.x);
+                            const f32 min_screen_y = min(drag_start.y, current_mouse_position.y);
+                            const f32 max_screen_x = max(drag_start.x, current_mouse_position.x);
+                            const f32 max_screen_y = max(drag_start.y, current_mouse_position.y);
 
                             Ray3 ray1 = ray_from_screen_position(drag_start, w, h, viewproj);
-                            Ray3 ray2 = ray_from_screen_position(os->mouse_position_last, w, h, viewproj);
+                            Ray3 ray2 = ray_from_screen_position(current_mouse_position, w, h, viewproj);
                             const  v3 n = v3{0,1,0};
                             const f32 d = 0.f;
                             v3 p1 = {};
@@ -1180,10 +745,10 @@ int main_entry(int argc, char** argv)
 
                     const v4 color = v4{1.0f, 1.0f, 1.0f, 0.2f};
                     const f32 thickness = 1.f;
-                    const f32 min_x = min(drag_start.x, os->mouse_position_last.x);
-                    const f32 min_y = min(drag_start.y, os->mouse_position_last.y);
-                    const f32 max_x = max(drag_start.x, os->mouse_position_last.x);
-                    const f32 max_y = max(drag_start.y, os->mouse_position_last.y);
+                    const f32 min_x = min(drag_start.x, current_mouse_position.x);
+                    const f32 min_y = min(drag_start.y, current_mouse_position.y);
+                    const f32 max_x = max(drag_start.x, current_mouse_position.x);
+                    const f32 max_y = max(drag_start.y, current_mouse_position.y);
                     render_quad_c(v2{min_x - thickness, min_y - thickness}, v2{max_x + thickness, min_y}, color);
                     render_quad_c(v2{max_x, min_y}, v2{max_x + thickness, max_y}, color);
                     render_quad_c(v2{min_x - thickness, min_y}, v2{min_x, max_y}, color);
@@ -1223,9 +788,9 @@ int main_entry(int argc, char** argv)
                         param->ap = ap;
                         param->dt = dt;
                     }
-                    os->add_work(&os->work_queue, update_animation_player_work, param);
+                    add_work(&os->work_queue, update_animation_player_work, param);
                 }
-                os->complete_all_work(&os->work_queue);
+                complete_all_work(&os->work_queue);
             }
 
 
@@ -1376,10 +941,24 @@ int main_entry(int argc, char** argv)
             render_end();
         }
 
-        // Render end.
+        // Render Pass
         //
         if (renderer_code.is_valid) {
             renderer_functions.end_frame(platform_renderer, renderer, render_commands);
+        }
+
+        // Close?
+        list_for(os->first_event, event) {
+            // Alt + F4?
+            if (event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT)) {
+                game_state->should_close = true;
+                os_remove_event(event);
+            } 
+            // Close main window triggered?
+            if (event->kind == OS_EVENT_WINDOW_CLOSE && event->window == game_state->main_window) {
+                game_state->should_close = true;
+                os_remove_event(event);
+            }
         }
     }
 

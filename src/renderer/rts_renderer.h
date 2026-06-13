@@ -23,7 +23,7 @@ namespace RHI
 }
 
 
-#define RENDERER_BEGIN_FRAME(NAME) Render_Commands *NAME(Platform_Renderer *renderer, v2u os_window_dim, v2u render_dim)
+#define RENDERER_BEGIN_FRAME(NAME) Render_Commands *NAME(Platform_Renderer *renderer, v2 window_size, v2 render_size)
 typedef RENDERER_BEGIN_FRAME(Renderer_Begin_Frame);
 
 #define RENDERER_END_FRAME(NAME) void NAME(Platform_Renderer *platform_renderer, Renderer *renderer, Render_Commands *frame)
@@ -90,8 +90,8 @@ struct Platform_Renderer
 
 struct Render_Commands 
 {
-    v2u         window_dim;
-    v2u         render_dim;
+    v2          window_dim;
+    v2          render_dim;
     
     u64         push_buffer_size;
     u64         push_buffer_used;

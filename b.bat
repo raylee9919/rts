@@ -28,8 +28,9 @@ if "%fbx%"=="1"    set build_fbx=1
 if "%assimp%"=="1" set build_assimp=1
 if "%rts%"=="1"    set build_rts=1
 if "%gl%"=="1"     set build_gl=1
+if "%test%"=="1"   set build_test=1
 
-if not defined build_assimp if not defined build_fbx if not defined build_rts if not defined build_gl (
+if not defined build_assimp if not defined build_fbx if not defined build_rts if not defined build_gl if not defined test (
     set "build_rts=1"
     set "build_gl=1"
     echo building all..
@@ -86,6 +87,11 @@ if "%build_gl%"=="1" (
 :: RTS
 if "%build_rts%"=="1" (
     call %compiler% %flags_compile% ..\src\rts.cpp /Fe:rts /link %flags_linker% logo.res
+)
+
+:: Test
+if "%build_test%"=="1" (
+    call %compiler% %flags_compile% ..\src\test\test_main.cpp /Fe:test /link %flags_linker%
 )
 
 del *.obj *.res >nul

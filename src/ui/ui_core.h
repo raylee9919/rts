@@ -140,6 +140,7 @@ struct Ui_State {
 
 
     f32             dt;
+    v2              current_mouse_position;
 
 
     Utf8            base_family;
@@ -188,7 +189,7 @@ global read_only Ui_Box ui_nil_box = {
 internal Ui_State      *ui_alloc(void);
 internal void           ui_init(Ui_State *ui);
 
-internal void           ui_begin(f32 dt);
+internal void           ui_begin(f32 dt, u32 width, u32 height, v2 current_mouse_position);
 internal void           ui_end(void);
 
 internal void           ui_parent_push(Ui_Box *box);

@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_OS_WIN32_H
+#define RTS_OS_WIN32_H
 
 #define NOMINMAX
 #define UNICODE
@@ -9,6 +10,9 @@
 #include <windowsx.h>
 #include <shlobj.h>
 #include <Xinput.h>
+#include <psapi.h>
+#include <uxtheme.h>
+#include <vssym32.h>
 
 #pragma comment(lib, "user32")
 #pragma comment(lib, "gdi32")
@@ -16,3 +20,9 @@
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "winmm")
 #pragma comment(lib, "ole32")
+
+
+__declspec(dllexport) DWORD NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+
+#endif // RTS_OS_WIN32_H

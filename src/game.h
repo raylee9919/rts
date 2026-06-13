@@ -47,11 +47,12 @@ struct Navmesh {
 struct Game_State {
     Arena* arena;
     b32 initted;
+    b32 should_close;
 
     Utf8 binary_path;
     Utf8 data_path;
 
-    OS_Handle window_handle;
+    OS_Handle main_window;
 
     Asset::System asset_system;
 

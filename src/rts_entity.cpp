@@ -1,14 +1,11 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
-// @Todo: CLEANUP STATE MACHINE!!!!!!!!!
+// @Cleanup states!!
+// @Cleanup states!!
+// @Cleanup states!!
+// @Cleanup states!!
+// @Cleanup states!!
+// @Cleanup states!!
 
 //
 // Functionalities
@@ -633,7 +630,7 @@ entity_update(Entity* entity, const f32 dt)
                     dir += os->key_is_down[KEY_DOWN]  ? v3( 0, 0, 1) : v3{};
                     dir += os->key_is_down[KEY_RIGHT] ? v3( 1, 0, 0) : v3{};
 
-                    v2 mouse_pos = os->get_mouse_position(game_state->window_handle);
+                    v2 mouse_pos = os_get_mouse_position(game_state->main_window);
 
                     f32 margin = 2.f;
                     if (mouse_pos.x > game_state->window_width - margin)  dir += v3( 1, 0, 0);
@@ -660,28 +657,27 @@ entity_update(Entity* entity, const f32 dt)
                     local_persist v2 mouse_position_last = {};
                     local_persist b32 dragging = false;
 
-                    for (Os_Event *event = os->event_first, *next; event != NULL; event = next)
+                    list_for (os->first_event, event) 
                     {
-                        next = event->next;
-
-                        if (event->type == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT)
-                        {
-                            os_event_consume(event);
-                            mouse_position_last = os->mouse_position_last;
+                        if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT) {
+                            os_remove_event(event);
+                            mouse_position_last = os_get_mouse_position(game_state->main_window);
                             dragging = true;
                         }
 
-                        if (event->type == OS_EVENT_MOUSE_MOVE && dragging) {
-                            os_event_consume(event);
+                        if (event->kind == OS_EVENT_MOUSE_MOVE && dragging) {
+                            os_remove_event(event);
 
-                            v2 d = 0.5f * dt * (os->mouse_position_last - mouse_position_last);
+                            v2 mouse_position = os_get_mouse_position(game_state->main_window);
+
+                            v2 d = 0.5f * dt * (mouse_position - mouse_position_last);
                             entity->orientation = build_quaternion(v3{0,1,0}, -d.x) * entity->orientation;
                             entity->orientation = build_quaternion((to_m4x4(entity->orientation)*v4{1,0,0,0}).xyz, -d.y) * entity->orientation;
-                            mouse_position_last = os->mouse_position_last;
+                            mouse_position_last = mouse_position;
                         }
 
-                        if (event->type == OS_EVENT_RELEASE && event->key == KEY_MOUSE_LEFT) {
-                            os_event_consume(event);
+                        if (event->kind == OS_EVENT_RELEASE && event->key == KEY_MOUSE_LEFT) {
+                            os_remove_event(event);
                             dragging = false;
                         }
                     }
@@ -742,10 +738,8 @@ entity_update(Entity* entity, const f32 dt)
         case ENTITY_TYPE_SOLDIER: {
 
             if ( entity->team == TEAM_PLAYER && !entity_is_dead(entity) && (entity->flags & ENTITY_FLAG_SELECTED) ) {
-                for (Os_Event* event = os->event_first, *next; event != nullptr; event = next) {
-                    next = event->next;
-
-                    if (event->type == OS_EVENT_PRESS && event->key == KEY_MOUSE_RIGHT) {
+                list_for (os->first_event, event) {
+                    if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_RIGHT) {
                         // @Hack
                         //os_event_consume(event);
 
