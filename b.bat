@@ -27,12 +27,10 @@ if "%release%"=="1" set debug=0 && echo [Release Build]
 if "%fbx%"=="1"    set build_fbx=1
 if "%assimp%"=="1" set build_assimp=1
 if "%rts%"=="1"    set build_rts=1
-if "%gl%"=="1"     set build_gl=1
 if "%test%"=="1"   set build_test=1
 
-if not defined build_assimp if not defined build_fbx if not defined build_rts if not defined build_gl if not defined test (
+if not defined build_assimp if not defined build_fbx if not defined build_rts if not defined test (
     set "build_rts=1"
-    set "build_gl=1"
     echo building all..
 )
 
@@ -79,14 +77,9 @@ REM rts_meta.exe
 :: ---------------------------- Build ---------------------------- ::
 call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
-:: GL
-if "%build_gl%"=="1" (
-    call %compiler% %flags_compile% /DBUILD_NO_ENTRY=1 ..\src\rts_win32_opengl.cpp /Fe:rts_renderer_opengl -I../src/third_party/opengl /LD /link opengl32.lib %flags_linker% /PDB:win32_opengl_%random%.pdb
-)
-
 :: RTS
 if "%build_rts%"=="1" (
-    call %compiler% %flags_compile% ..\src\rts.cpp /Fe:rts /link %flags_linker% logo.res
+    call %compiler% %flags_compile% -I../src/third_party/opengl ..\src\rts.cpp /Fe:rts /link opengl32.lib %flags_linker% logo.res
 )
 
 :: Test

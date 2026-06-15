@@ -662,9 +662,7 @@ LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         } break;
 
 
-        case WM_SETCURSOR: {
-            // @Todo:
-        } break;
+        // @Todo: WM_SETCURSOR
 
         case WM_KILLFOCUS: {
             // @Todo:
@@ -682,7 +680,7 @@ LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return result;
 }
 
-void os_gfx_init() {
+void gfx_init() {
     HINSTANCE hinst = GetModuleHandleW(0);
 
     WNDCLASSEXW wcex = {};

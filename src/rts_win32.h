@@ -1,5 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#if 0
+
 #ifndef RTS_WIN32_H
 #define RTS_WIN32_H
 
@@ -45,5 +47,9 @@ typedef BOOL Type_wglChoosePixelFormatARB(HDC hdc,
                                           int *piFormats,
                                           UINT *nNumFormats);
 global Type_wglChoosePixelFormatARB *wglChoosePixelFormatARB;
+
+#endif
+
+
 
 #endif

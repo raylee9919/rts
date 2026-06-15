@@ -298,7 +298,7 @@ internal bool               os_create_directory(Utf8 path);
 internal bool               os_directory_exists(Utf8 path);
 
 // GFX
-internal void               os_gfx_init();
+internal void               gfx_init();
 internal OS_Handle          os_create_window(int x, int y, int w, int h, Utf8 name);
 internal v2                 os_get_window_size(OS_Handle window);
 internal v2                 os_get_mouse_position(OS_Handle window);

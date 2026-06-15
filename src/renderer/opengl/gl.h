@@ -1,7 +1,10 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_GL_H
+#define RTS_GL_H
 
+#define RTS_GL_VERSION_MAJOR 4
+#define RTS_GL_VERSION_MINOR 6
 
 #include <gl/gl.h>
 #include "third_party/opengl/glcorearb.h"
@@ -172,7 +175,7 @@ struct Opengl
     u32 last_draw_width;
     u32 last_draw_height;
 
-    u8 *push_buffer;
+    u8* push_buffer;
     u64 push_buffer_size;
 
     GLuint  vao;
@@ -267,3 +270,6 @@ internal void opengl_program_end(Gl_Program program, Gl_Program_Flags flags);
 #define opengl_program_scope(program, flags) defer_loop(opengl_program_begin(program, flags), opengl_program_end(program, flags))
 
 internal void gl_init(Opengl* gl);
+
+
+#endif // RTS_GL_H

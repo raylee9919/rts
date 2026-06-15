@@ -89,7 +89,7 @@ internal void opengl_compile_shaders(Opengl *gl)
     GET_UNIFORM_LOCATION(simple_program, color);
 }
 
-internal Render_Commands* opengl_frame_begin(Opengl *gl, v2 window_size, v2 render_size)
+internal Render_Commands* gl_begin(Opengl *gl, v2 window_size, v2 render_size)
 {
     Render_Commands *frame = &gl->render_commands;
 
@@ -150,14 +150,14 @@ internal GL_Mesh_Buffer* opengl_get_mesh_buffer(Opengl* gl, Mesh* mesh)
     return node;
 }
 
-void gl_compute_mesh_type_count_and_instance_count(Renderer *renderer, int* num_mesh_types, int* num_instances_per_mesh, int max_types)
+void gl_compute_mesh_type_count_and_instance_count(Renderer *r, int* num_mesh_types, int* num_instances_per_mesh, int max_types)
 {
     int num_types = 0;
 
     // @Temporary; Use ID, and I don't want to compute number of mesh types here.
     void* ptr = NULL;
-    for (u32 i = 0; i < renderer->num_meshes; ++i) {
-        void *mesh = renderer->meshes[i].mesh;
+    for (u32 i = 0; i < r->num_meshes; ++i) {
+        void *mesh = r->meshes[i].mesh;
         if (mesh != ptr) {
             ptr = mesh;
             num_types++;
@@ -172,14 +172,14 @@ void gl_compute_mesh_type_count_and_instance_count(Renderer *renderer, int* num_
     *num_mesh_types = num_types;
 }
 
-void gl_record_commands(Opengl *gl, Renderer *renderer, GLuint num_instances)
+void gl_record_commands(Opengl *gl, Renderer *r, GLuint num_instances)
 {
-    const u32 num_cmd = renderer->num_meshes;
+    const u32 num_cmd = r->num_meshes;
     assert(num_cmd < gl->max_draw_count);
 
     for (u32 i = 0; i < num_cmd; ++i) 
     {
-        Render_Mesh* piece = renderer->meshes + i;
+        Render_Mesh* piece = r->meshes + i;
         Mesh* mesh = piece->mesh;
         auto mbuf = opengl_get_mesh_buffer(gl, mesh);
 
@@ -199,12 +199,12 @@ void gl_record_commands(Opengl *gl, Renderer *renderer, GLuint num_instances)
     gl->num_commands = num_cmd;
 }
 
-void gl_record_draw_params(Opengl* gl, Renderer* renderer)
+void gl_record_draw_params(Opengl* gl, Renderer* r)
 {
     // Record parameters into SSBO.
-    for (u32 i = 0; i < renderer->num_meshes; ++i)
+    for (u32 i = 0; i < r->num_meshes; ++i)
     {
-        Render_Mesh* piece = renderer->meshes + i;
+        Render_Mesh* piece = r->meshes + i;
         Mesh* mesh = piece->mesh;
 
         auto mat = gl->materials + i;
@@ -250,8 +250,10 @@ void gl_record_draw_params(Opengl* gl, Renderer* renderer)
 //    }
 //}
 
-internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *frame)
+internal void gl_end(Opengl *gl, Renderer *r)
 {
+    auto* frame = &gl->render_commands;
+
     u32 window_width  = (u32)(frame->window_dim.x + 0.5f);
     u32 window_height = (u32)(frame->window_dim.y + 0.5f);
     u32 render_width  = (u32)(frame->render_dim.x + 0.5f);
@@ -417,12 +419,12 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
             v3 CD = (C+D)*0.5f;
             f32 h = distance(AB, CD);
             f32 k = (4*h*h + b*b - a*a) / (8*h);
-            f32 r = sqrtf(k*k + a*a*0.25f);
+            f32 R = sqrtf(k*k + a*a*0.25f);
             f32 t = map(k, 0, h);
             v3 c = lerp(AB, t, CD);
 
-            m4x4 light_view = look_at_lh(c, c + frame->csm_to_light * r, v3(0,1,0));
-            m4x4 light_proj = ortho(-r, r, -r, r, -2*r, 2*2*r); // TODO: Constant min and max depths
+            m4x4 light_view = look_at_lh(c, c + frame->csm_to_light * R, v3(0,1,0));
+            m4x4 light_proj = ortho(-R, R, -R, R, -2*R, 2*2*R); // TODO: Constant min and max depths
             light_view_projs[level] = light_proj * light_view;
         }
     }
@@ -431,12 +433,12 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     // 
     int num_mesh_types = 0;
     int num_instances_per_mesh[512];
-    gl_compute_mesh_type_count_and_instance_count(renderer, &num_mesh_types, num_instances_per_mesh, array_count(num_instances_per_mesh));
+    gl_compute_mesh_type_count_and_instance_count(r, &num_mesh_types, num_instances_per_mesh, array_count(num_instances_per_mesh));
 
     // Materials, matrices...
-    gl_record_draw_params(gl, renderer);
+    gl_record_draw_params(gl, r);
 
-    gl_record_commands(gl, renderer, CSM_COUNT);
+    gl_record_commands(gl, r, CSM_COUNT);
 
 
 
@@ -489,7 +491,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 #endif
     }
 
-    gl_record_commands(gl, renderer, 1);
+    gl_record_commands(gl, r, 1);
 
 
 
@@ -618,7 +620,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
 
             glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, (const void*)0, gl->num_commands, 0);
 
-            //gl_draw_instances(gl, renderer, num_mesh_types, num_instances_per_mesh);
+            //gl_draw_instances(gl, r, num_mesh_types, num_instances_per_mesh);
         }
 
         // Triangles
@@ -793,9 +795,9 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     //
     // Process render commands
     //
-    for (u32 i = 0; i < renderer->command_count; ++i)
+    for (u32 i = 0; i < r->command_count; ++i)
     {
-        Render_Command cmd = renderer->commands[i];
+        Render_Command cmd = r->commands[i];
 
         switch(cmd.type)
         {
@@ -827,7 +829,7 @@ internal void gl_frame_end(Opengl *gl, Renderer *renderer, Render_Commands *fram
     for (u32 type = 0; type < RENDER_VERTEX_TYPE_COUNT; type += 1)
     {
 #if 1
-        Render_Buffer *buffer = renderer->buffer + type;
+        Render_Buffer *buffer = r->buffer + type;
         u64 vertex_count = buffer->vertex_count;
         u64 instance_count = buffer->instance_count;
 
@@ -1512,4 +1514,9 @@ internal void gl_init(Opengl *gl)
 
         gl->geometry_params = (GL::Geometry_Param*)glMapNamedBufferRange(gl->geometry_param_buffer, 0, sz, mapping_flags);
     }
+}
+
+internal Render_Commands* get_render_commands(RHI_State* rhi) {
+    Opengl* gl = (Opengl*)rhi->platform;
+    return &gl->render_commands;
 }

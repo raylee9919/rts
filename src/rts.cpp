@@ -23,11 +23,13 @@
 #include "rect_pack/rpk.h"
 #include "font_provider/fp_inc.h"
 #include "third_party/stb/stb_image.h"
+#include "rhi/rhi.h"
 
 // Globals
 //
 global Game_State*  game_state;
 global Renderer*    renderer;
+global RHI_State*   g_rhi_state;
 
 // .cpp
 //
@@ -48,6 +50,7 @@ global Renderer*    renderer;
 #include "ui/ui_inc.cpp"
 #include "rect_pack/rpk.cpp"
 #include "font_provider/fp_inc.cpp"
+#include "rhi/rhi.cpp"
 
 #define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION
@@ -61,81 +64,12 @@ global Renderer*    renderer;
 #include "temporary.h"
 
 
-// NOTE: Globals
-//
-global Win32_State          win32;
-global b32                  g_show_cursor = true;
-
-// NOTE: Code Reloading
-//
-void unload_code(Win32_Code *loaded)
-{
-    if (loaded->dll)
-    {
-        // TODO: Currently, we never unload libraries, because we may still be pointing to strings that are inside them
-        //        (despite our best efforts). Should we just make "never unload" be the policy?
-        // FreeLibrary(loaded->dll);
-        loaded->dll = 0;
-    }
-
-    loaded->is_valid = false;
-    zero_array(loaded->functions, loaded->function_count);
-}
-
-void load_code(Win32_Code *loaded)
-{
-    Temporary_Arena scratch = scratch_begin();
-    defer(scratch_end(scratch));
-
-    Utf8 dll_path       = loaded->dll_path;
-    Utf8 temp_dll_path  = loaded->temp_dll_path;
-    Utf8 lock_path      = loaded->lock_path;
-
-    u64 file_size = os_get_file_size(dll_path);
-    if (file_size > 0)
-    {
-        // load the temporary dll so we could write to the real dll and check the modified time of it.
-        loaded->temp_dll_path_prefix = (loaded->temp_dll_path_prefix + 1) % 2;
-        temp_dll_path = utf8f(scratch.arena, "%S/%S_%d.dll", win32.binary_path, loaded->temp_dll_name, loaded->temp_dll_path_prefix);
-        os_copy_file(temp_dll_path, dll_path);
-
-        Utf16 temp_dll_path16 = to_utf16(scratch.arena, temp_dll_path);
-        loaded->dll = LoadLibraryW((WCHAR *)temp_dll_path16.str);
-
-        // if loaded properly, get proc addresses.
-        if (loaded->dll)
-        {
-            loaded->is_valid = true;
-
-            for (u32 i = 0; i < loaded->function_count; ++i)
-            {
-                void *code = (void *)GetProcAddress(loaded->dll, loaded->function_names[i]);
-                if (code) 
-                {
-                    loaded->functions[i] = code;
-                }
-                else 
-                {
-                    loaded->is_valid = false;
-                }
-            }
-        }
-    }
-
-    // if libary nor proc isn't loaded, unload the code.
-    if (! loaded->is_valid) 
-    {
-        unload_code(loaded);
-    }
-}
-
 int main_entry(int argc, char** argv)
 {
-    // Init core.
+    // Init.
     os_init();
     thread_init();
-    os_gfx_init();
-
+    gfx_init();
 
     // Alloc and init game state.
     {
@@ -168,16 +102,13 @@ int main_entry(int argc, char** argv)
         game_state->main_window = os_create_window(0, 0, 1920, 1080, utf8lit("rts"));
     }
 
-    // Init win32 state.
-    // 
+
+    // Alloc and init RHI.
     {
-        win32.arena = arena_alloc();
-
-        Utf8 binary_path = game_state->binary_path;
-
-        win32.binary_path        = binary_path;
-        win32.renderer_dll_path  = utf8f(win32.arena, "%S/rts_renderer_opengl.dll", binary_path);
-        win32.lock_path          = utf8f(win32.arena, "%S/lock.tmp", binary_path);
+        Arena* arena = arena_alloc();
+        g_rhi_state = push_struct(arena, RHI_State);
+        g_rhi_state->arena = arena;
+        rhi_init(g_rhi_state, game_state->main_window);
     }
 
 
@@ -189,29 +120,6 @@ int main_entry(int argc, char** argv)
         renderer->arena = arena;
         render_init();
     }
-
-
-    HWND hwnd = hwnd_from_os_handle(game_state->main_window);
-    HDC renderer_hdc = GetDC(hwnd);
-    b32 renderer_was_reloaded = false;
-    Win32_Renderer_Function_Table renderer_functions = {};
-    Win32_Code renderer_code = {};
-    {
-        renderer_code.temp_dll_name  = utf8lit("renderer_temp");
-        renderer_code.temp_dll_path  = utf8f(win32.arena, "%S/%S.dll", win32.binary_path, renderer_code.temp_dll_name);
-        renderer_code.dll_path       = win32.renderer_dll_path;
-        renderer_code.lock_path      = win32.lock_path;
-        renderer_code.function_count = array_count(win32_renderer_function_table_names);
-        renderer_code.functions      = (void **)&renderer_functions;
-        renderer_code.function_names = win32_renderer_function_table_names;
-    }
-    load_code(&renderer_code);
-    if (!renderer_code.is_valid) {
-        assert(!"Couldn't load the renderer code."); 
-    }
-
-    Arena* renderer_arena = arena_alloc();
-    Platform_Renderer* platform_renderer = renderer_functions.load_renderer(renderer_hdc, MB(50), renderer_arena, os);
 
 
     // Main Loop
@@ -241,13 +149,11 @@ int main_entry(int argc, char** argv)
         u32 window_width  = window_size.x;
         u32 window_height = window_size.y;
 
-        Render_Commands *render_commands = NULL;
-
         // Render begin.
         //
-        if (renderer_code.is_valid) {
-            render_commands = renderer_functions.begin_frame(platform_renderer, window_size, resolution); 
-        }
+        r_begin(g_rhi_state, window_size, resolution);
+        auto *render_commands = get_render_commands(g_rhi_state);
+
 
         // Game
         //
@@ -804,7 +710,6 @@ int main_entry(int argc, char** argv)
             entity_draw(game_state->root_entity, dt, render_group, render_commands);
 
 
-
             // Draw ground
             //
             Mesh* ground_mesh = assets->plane_model->meshes;
@@ -835,7 +740,7 @@ int main_entry(int argc, char** argv)
                 }
             }
 
-            //
+
             // Draw minimap.
             // @Todo: aspect ratio adjustment..
             //
@@ -943,19 +848,15 @@ int main_entry(int argc, char** argv)
 
         // Render Pass
         //
-        if (renderer_code.is_valid) {
-            renderer_functions.end_frame(platform_renderer, renderer, render_commands);
-        }
+        r_end(g_rhi_state, renderer);
 
         // Close?
         list_for(os->first_event, event) {
             // Alt + F4?
-            if (event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT)) {
-                game_state->should_close = true;
-                os_remove_event(event);
-            } 
-            // Close main window triggered?
-            if (event->kind == OS_EVENT_WINDOW_CLOSE && event->window == game_state->main_window) {
+            bool alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
+            bool window_close_triggered = event->kind == OS_EVENT_WINDOW_CLOSE && event->window == game_state->main_window;
+
+            if (alt_f4_pressed | window_close_triggered) {
                 game_state->should_close = true;
                 os_remove_event(event);
             }
