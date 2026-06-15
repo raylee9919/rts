@@ -702,14 +702,14 @@ void gfx_init() {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 }
 
-OS_Handle os_create_window(int x, int y, int w, int h, Utf8 name) {
+OS_Handle os_create_window(int w, int h, Utf8 name) {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
     HINSTANCE hinst = GetModuleHandleW(0);
 
     HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, L"GFX-Class", (LPCWSTR)to_utf16(scratch.arena, name).str, 
-                                WS_OVERLAPPEDWINDOW | WS_SIZEBOX | WS_VISIBLE, x, y, w, h, 
+                                WS_OVERLAPPEDWINDOW | WS_SIZEBOX | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, w, h, 
                                 0, 0, hinst, 0);
     DragAcceptFiles(hwnd, 1);
 

@@ -47,7 +47,6 @@ struct Navmesh {
 struct Game_State {
     Arena* arena;
     b32 initted;
-    b32 should_close;
 
     Utf8 binary_path;
     Utf8 data_path;
@@ -67,8 +66,6 @@ struct Game_State {
 
     u32 window_width;
     u32 window_height;
-
-    Random_Series random_series;
 
     Arena*      map_arena;
     v2          chunk_size;

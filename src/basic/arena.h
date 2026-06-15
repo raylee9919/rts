@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_ARENA_H
+#define RTS_ARENA_H
 
 
 #define ARENA_DEFAULT_RESERVE_SIZE  MB(64)
@@ -53,3 +54,6 @@ internal Temporary_Arena    temporary_arena_begin(Arena* arena);
 internal void               temporary_arena_end(Temporary_Arena temp);
 internal Temporary_Arena    scratch_begin(void);
 internal void               scratch_end(Temporary_Arena tmp);
+
+
+#endif // RTS_ARENA_H

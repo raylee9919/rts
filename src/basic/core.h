@@ -1,9 +1,10 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_BASIC_CORE_H
+#define RTS_BASIC_CORE_H
 
 
-// NOTE: Define platform.
+// Define platform.
 //
 #ifdef _WIN32
 #  define OS_WINDOWS 1
@@ -13,16 +14,16 @@
 #  define COMPILER_CL 1
 #endif
 
-// NOTE: Check platform.
+// Check validtiy of defined platform.
 //
 #if OS_WINDOWS
 #else
-#  error "Undefined OS"
+#  error UNDEFINED_OS
 #endif
 
 #if COMPILER_CL
 #else
-#  error "Undefined Compiler"
+#  error UNDEFINED_COMPILER
 #endif
 
 // NOTE: Define per-platform stuffs.
@@ -57,7 +58,6 @@
 #  define per_thread __thread
 #endif
 
-#define read_timer_stamp_counter() __rdtsc()
 
 // NOTE: Align Of
 //
@@ -66,7 +66,7 @@
 #elif COMPILER_GCC
 #  define align_of(t) __alignof__(t)
 #else
-#  error align_of is not defined in this compiler.
+#  error ALIGN_OF_NOT_DEFINED_IN_CURRENT_COMPILER
 #endif
 
 // NOTE: Address Sanitizer
@@ -99,7 +99,7 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #  define asan_unpoison(addr, size) ((void)(addr), (void)(size))
 #endif
 
-//
+
 // SSE
 //
 #if defined(_MSC_VER)
@@ -114,8 +114,6 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 
 
 
-
-//
 // 3rd-party include
 //
 #include <stdint.h>
@@ -372,7 +370,6 @@ get_filename_from_filepath(const char *filepath)
 internal u16 to_u16_safe(u32 x);
 internal u32 to_u32_safe(u64 x);
 internal s32 to_s32_safe(s64 x);
-internal umm to_raw(f32 val);
 
 
 
@@ -545,3 +542,6 @@ enum Texture_Layout
     TEXTURE_LAYOUT_RGB8,
     TEXTURE_LAYOUT_R8,
 };
+
+
+#endif // RTS_BASIC_CORE_H

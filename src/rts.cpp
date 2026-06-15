@@ -2,16 +2,16 @@
 
 // .h
 //
-#include "rts_profiler.h"
-#include "base/rts_base_inc.h"
+#include "profiler/profiler.h"
+
+#include "basic/all.h"
+#include "math/math.h"
 #include "os/os.h"
-#include "file_system/file.h"
-#include "rts_random.h"
 #include "ds.h"
 #include "rts_font.h"
 #include "asset/inc.h"
 #include "asset.h"
-#include "animation.h"
+#include "animation/animation.h"
 #include "cdt.h"
 #include "game.h"
 #include "rts_entity.h"
@@ -20,8 +20,11 @@
 #include "ui/ui_inc.h"
 #include "rect_pack/rpk.h"
 #include "font_provider/fp_inc.h"
-#include "third_party/stb/stb_image.h"
 #include "rhi/rhi.h"
+
+#include "third_party/stb/stb_image.h"
+#include "third_party/stb/stb_image_write.h"
+
 
 // Globals
 //
@@ -31,16 +34,18 @@ global RHI_State*   g_rhi_state;
 
 // .cpp
 //
+#include "profiler/profiler.h"
+
 #include "third_party/xxhash3/xxhash.c"
-#include "base/rts_base_inc.cpp"
+
+#include "basic/all.cpp"
+#include "math/math.cpp"
 #include "os/os.cpp"
-#include "file_system/file.cpp"
-#include "rts_random.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
 #include "asset/inc.cpp"
 #include "asset.cpp"
-#include "animation.cpp"
+#include "animation/animation.cpp"
 #include "cdt.cpp"
 #include "rts_entity.cpp"
 #include "renderer/rts_renderer.cpp"
@@ -83,21 +88,22 @@ int main_entry(int argc, char** argv)
             Utf8 binary_path = os->binary_path;
             Utf8 data_path = {};
 
-            Utf8 local_data_path = utf8f(scratch.arena, "%S/data", binary_path);
+            Utf8 local_data_path    = utf8f(scratch.arena, "%S/data", binary_path);
             Utf8 binary_parent_path = utf8_path_chop_last_slash(binary_path);
-            Utf8 parent_data_path = utf8f(scratch.arena, "%S/data", binary_parent_path);
+            Utf8 parent_data_path   = utf8f(scratch.arena, "%S/data", binary_parent_path);
 
-            if (os_directory_exists(local_data_path))
+            if (os_directory_exists(local_data_path)) {
                 data_path = utf8_copy(arena, local_data_path); 
-            else if (os_directory_exists(parent_data_path))
+            } else if (os_directory_exists(parent_data_path)) {
                 data_path = utf8_copy(arena, parent_data_path); 
+            }
 
             game_state->binary_path = binary_path;
             game_state->data_path   = data_path;
         }
 
         // Create main window.
-        game_state->main_window = os_create_window(0, 0, 1920, 1080, utf8lit("rts"));
+        game_state->main_window = os_create_window(1920, 1080, utf8lit("rts"));
     }
 
 
@@ -111,7 +117,6 @@ int main_entry(int argc, char** argv)
 
 
     // Alloc and init renderer.
-    // 
     {
         Arena* arena = arena_alloc();
         renderer = push_struct(arena, Renderer);
@@ -123,7 +128,7 @@ int main_entry(int argc, char** argv)
     // Main Loop
     //
     u64 old_counter = os_counter();
-    while (!game_state->should_close) 
+    for (bool should_close = false; !should_close;)
     {
         // Draw resolution.
         v2 resolution = {
@@ -156,13 +161,10 @@ int main_entry(int argc, char** argv)
         // Game
         //
         {
-            ProfileFrameMark;
-            ProfileScope;
-
             using namespace Asset;
 
             // @Temporary
-            const f32 tick_dt = 1.f / 60.f;
+            f32 tick_dt = 1.f / 60.f;
             local_persist f32 game_speed = 1.f;
             f32 dt = actual_dt * game_speed;
 
@@ -176,8 +178,6 @@ int main_entry(int argc, char** argv)
             if (!game_state->initted) {
                 game_state->initted = true;
 
-                thread_init();
-
                 // Alloc assets
                 //
                 Arena *arena = arena_alloc();
@@ -185,8 +185,6 @@ int main_entry(int argc, char** argv)
                 game_state->assets->arena = arena;
 
                 game_state->frame_arena = arena_alloc();
-
-                game_state->random_series = rand_seed(1219);
 
                 game_state->entity_arena    = arena_alloc();
                 game_state->animation_arena = arena_alloc();
@@ -421,7 +419,7 @@ int main_entry(int argc, char** argv)
 
                     // @Temporary: Create soldier entity.
                     //
-                    int num_soldiers = 32;
+                    int num_soldiers = 8;
                     int num_rows = 50;
                     f32 dist = 0.8f;
 
@@ -491,60 +489,6 @@ int main_entry(int argc, char** argv)
             //
             local_persist f32 light_x = 1.f, light_y = 1.f, light_z = 1.f;
             local_persist b32 draw_chunk_partitions = false;
-#if 1
-            ui_begin(actual_dt, window_width, window_height, os_get_mouse_position(game_state->main_window));
-            {
-#if BUILD_DEBUG
-                ui_platform(utf8lit("Debug Build"))
-#else
-                    ui_platform(utf8lit("Release Build"))
-#endif
-                    {
-                        f32 mspf = actual_dt * 1000.f;
-                        f32 fps = 1.f / actual_dt;
-                        ui_labelf("mspf: %.2f | fps: %.2f", mspf, fps);
-                        ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
-                        if (ui_button(utf8lit("Chunk Partitions")).pressed_left) {
-                            draw_chunk_partitions = !draw_chunk_partitions;
-                        }
-                        if (ui_button(utf8lit("Show Chunk Position")).pressed_left) {
-                            game_state->display_chunk_position = !game_state->display_chunk_position;
-                        }
-                        if (ui_button(utf8lit("Wireframe")).pressed_left) {
-                            render_commands->wireframe_mode = !render_commands->wireframe_mode; 
-                        }
-                        if (ui_button(utf8lit("Navmesh")).pressed_left) {
-                            render_commands->draw_navmesh = !render_commands->draw_navmesh; 
-                        }
-
-                        ui_slider_f32(&game_speed, 0.25f, 3.f, utf8lit("Game Speed"));
-                        ui_slider_f32(&game_state->minimap_size, 1.f, 1000.f, utf8lit("Minimap Size"));
-
-                        if (ui_expander(utf8lit("Shadow"))) {
-                            ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("x"));
-                            ui_slider_f32(&light_y, -1.0f, 1.0f, utf8lit("y"));
-                            ui_slider_f32(&light_z, -1.0f, 1.0f, utf8lit("z"));
-                            if (ui_button(utf8lit("Valient's Method")).pressed_left) {
-                                render_commands->csm_varient_method = !render_commands->csm_varient_method; 
-                            }
-                            if (ui_button(utf8lit("CSM Frustum")).pressed_left) {
-                                render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
-                            }
-                        }
-                        if (ui_expander(utf8lit("Camera"))) {
-                            if (ui_button(utf8lit("Switch Camera")).pressed_left) {
-                                if (game_state->controlling_camera_id == game_state->game_camera_id) {
-                                    game_state->controlling_camera_id = game_state->debug_camera_id;
-                                } else {
-                                    game_state->controlling_camera_id = game_state->game_camera_id;
-                                }
-                            }
-                            ui_slider_f32(&entity_from_id(game_state->controlling_camera_id)->focal_length, 0.001f, 10.0f, utf8lit("Focal Length"));
-                        }
-                    }
-            }
-            ui_end();
-#endif
 
             //
             // Entity selection.
@@ -572,27 +516,27 @@ int main_entry(int argc, char** argv)
 
                             // get entities
                             Entity* camera = entity_from_id(game_state->game_camera_id);
-                            const m4x4 viewproj = camera->VP;
-                            const f32 w = (f32)game_state->window_width;
-                            const f32 h = (f32)game_state->window_height;
+                            m4x4 viewproj = camera->VP;
+                            f32 w = (f32)game_state->window_width;
+                            f32 h = (f32)game_state->window_height;
 
-                            const f32 min_screen_x = min(drag_start.x, current_mouse_position.x);
-                            const f32 min_screen_y = min(drag_start.y, current_mouse_position.y);
-                            const f32 max_screen_x = max(drag_start.x, current_mouse_position.x);
-                            const f32 max_screen_y = max(drag_start.y, current_mouse_position.y);
+                            f32 min_screen_x = min(drag_start.x, current_mouse_position.x);
+                            f32 min_screen_y = min(drag_start.y, current_mouse_position.y);
+                            f32 max_screen_x = max(drag_start.x, current_mouse_position.x);
+                            f32 max_screen_y = max(drag_start.y, current_mouse_position.y);
 
                             Ray3 ray1 = ray_from_screen_position(drag_start, w, h, viewproj);
                             Ray3 ray2 = ray_from_screen_position(current_mouse_position, w, h, viewproj);
-                            const  v3 n = v3{0,1,0};
-                            const f32 d = 0.f;
+                            v3 n = v3{0,1,0};
+                            f32 d = 0.f;
                             v3 p1 = {};
                             v3 p2 = {};
-                            const bool intersects = (ray_plane_intersect(ray1, n, d, &p1) && ray_plane_intersect(ray2, n, d, &p2));
+                            bool intersects = (ray_plane_intersect(ray1, n, d, &p1) && ray_plane_intersect(ray2, n, d, &p2));
                             if (intersects) {
-                                const f32 min_x = min(p1.x, p2.x) - game_state->max_radius;
-                                const f32 min_z = min(p1.z, p2.z) - game_state->max_radius;
-                                const f32 max_x = max(p1.x, p2.x) + game_state->max_radius;
-                                const f32 max_z = max(p1.z, p2.z) + game_state->max_radius;
+                                f32 min_x = min(p1.x, p2.x) - game_state->max_radius;
+                                f32 min_z = min(p1.z, p2.z) - game_state->max_radius;
+                                f32 max_x = max(p1.x, p2.x) + game_state->max_radius;
+                                f32 max_z = max(p1.z, p2.z) + game_state->max_radius;
                                 u16 min_chunk_x, min_chunk_y, max_chunk_x, max_chunk_y;
                                 chunk_position_from_world_position(min_x, min_z, &min_chunk_x, &min_chunk_y); 
                                 chunk_position_from_world_position(max_x, max_z, &max_chunk_x, &max_chunk_y); 
@@ -627,9 +571,9 @@ int main_entry(int argc, char** argv)
                                             continue;
                                         }
 
-                                        const v3 ndc = project(entity->position, camera->VP);
-                                        const f32 x = ( ndc.x * 0.5f + 0.5f) * w;
-                                        const f32 y = (-ndc.y * 0.5f + 0.5f) * h;
+                                        v3 ndc = project(entity->position, camera->VP);
+                                        f32 x = ( ndc.x * 0.5f + 0.5f) * w;
+                                        f32 y = (-ndc.y * 0.5f + 0.5f) * h;
                                         if (x >= min_screen_x && x <= max_screen_x && y >= min_screen_y && y <= max_screen_y) {
                                             game_state->selected_entities.add(entity->id);
                                             entity->flags |= ENTITY_FLAG_SELECTED;
@@ -644,15 +588,15 @@ int main_entry(int argc, char** argv)
                 }
 
                 if (dragging) {
-                    const f32 w = (f32)game_state->window_width;
-                    const f32 h = (f32)game_state->window_height;
+                    f32 w = (f32)game_state->window_width;
+                    f32 h = (f32)game_state->window_height;
 
-                    const v4 color = v4{1.0f, 1.0f, 1.0f, 0.2f};
-                    const f32 thickness = 1.f;
-                    const f32 min_x = min(drag_start.x, current_mouse_position.x);
-                    const f32 min_y = min(drag_start.y, current_mouse_position.y);
-                    const f32 max_x = max(drag_start.x, current_mouse_position.x);
-                    const f32 max_y = max(drag_start.y, current_mouse_position.y);
+                    v4 color = v4{1.0f, 1.0f, 1.0f, 0.2f};
+                    f32 thickness = 1.f;
+                    f32 min_x = min(drag_start.x, current_mouse_position.x);
+                    f32 min_y = min(drag_start.y, current_mouse_position.y);
+                    f32 max_x = max(drag_start.x, current_mouse_position.x);
+                    f32 max_y = max(drag_start.y, current_mouse_position.y);
                     render_quad_c(v2{min_x - thickness, min_y - thickness}, v2{max_x + thickness, min_y}, color);
                     render_quad_c(v2{max_x, min_y}, v2{max_x + thickness, max_y}, color);
                     render_quad_c(v2{min_x - thickness, min_y}, v2{min_x, max_y}, color);
@@ -664,18 +608,18 @@ int main_entry(int argc, char** argv)
             // Draw chunks
             //
             if (draw_chunk_partitions) {
-                const f32 half_dim_x = 0.5f * game_state->chunk_count_x * game_state->chunk_size.x;
-                const f32 half_dim_y = 0.5f * game_state->chunk_count_y * game_state->chunk_size.y;
+                f32 half_dim_x = 0.5f * game_state->chunk_count_x * game_state->chunk_size.x;
+                f32 half_dim_y = 0.5f * game_state->chunk_count_y * game_state->chunk_size.y;
 
-                const f32 alpha = 0.7f;
+                f32 alpha = 0.7f;
 
                 for (int cy = 0; cy < game_state->chunk_count_y; ++cy) {
-                    const f32 y = -half_dim_y + game_state->chunk_size.y * cy;
+                    f32 y = -half_dim_y + game_state->chunk_size.y * cy;
                     draw_line(render_group, v3{-half_dim_x,0.2f,y}, v3{half_dim_x,0.0f,y}, v4{1.f,0.3f,0.3f,alpha});
                 }
 
                 for (int cx = 0; cx < game_state->chunk_count_x; ++cx) {
-                    const f32 x = -half_dim_x + game_state->chunk_size.x * cx;
+                    f32 x = -half_dim_x + game_state->chunk_size.x * cx;
                     draw_line(render_group, v3{x,0.2f,-half_dim_y}, v3{x,0.0f,half_dim_y}, v4{0.3f,0.3f,1.0f,alpha});
                 }
             }
@@ -848,14 +792,14 @@ int main_entry(int argc, char** argv)
         //
         r_end(g_rhi_state, renderer);
 
-        // Close?
+        // Close app if needed
         list_for(os->first_event, event) {
             // Alt + F4?
             bool alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
             bool window_close_triggered = event->kind == OS_EVENT_WINDOW_CLOSE && event->window == game_state->main_window;
 
             if (alt_f4_pressed | window_close_triggered) {
-                game_state->should_close = true;
+                should_close = true;
                 os_remove_event(event);
             }
         }

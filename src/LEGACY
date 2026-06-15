@@ -1,0 +1,55 @@
+
+#if 1
+            ui_begin(actual_dt, window_width, window_height, os_get_mouse_position(game_state->main_window));
+            {
+#if BUILD_DEBUG
+                ui_platform(utf8lit("Debug Build"))
+#else
+                    ui_platform(utf8lit("Release Build"))
+#endif
+                    {
+                        f32 mspf = actual_dt * 1000.f;
+                        f32 fps = 1.f / actual_dt;
+                        ui_labelf("mspf: %.2f | fps: %.2f", mspf, fps);
+                        ui_slider_f32(&ui_state->font_size, 8.f, 30.f, utf8lit("Font Size"));
+                        if (ui_button(utf8lit("Chunk Partitions")).pressed_left) {
+                            draw_chunk_partitions = !draw_chunk_partitions;
+                        }
+                        if (ui_button(utf8lit("Show Chunk Position")).pressed_left) {
+                            game_state->display_chunk_position = !game_state->display_chunk_position;
+                        }
+                        if (ui_button(utf8lit("Wireframe")).pressed_left) {
+                            render_commands->wireframe_mode = !render_commands->wireframe_mode; 
+                        }
+                        if (ui_button(utf8lit("Navmesh")).pressed_left) {
+                            render_commands->draw_navmesh = !render_commands->draw_navmesh; 
+                        }
+
+                        ui_slider_f32(&game_speed, 0.25f, 3.f, utf8lit("Game Speed"));
+                        ui_slider_f32(&game_state->minimap_size, 1.f, 1000.f, utf8lit("Minimap Size"));
+
+                        if (ui_expander(utf8lit("Shadow"))) {
+                            ui_slider_f32(&light_x, -1.0f, 1.0f, utf8lit("x"));
+                            ui_slider_f32(&light_y, -1.0f, 1.0f, utf8lit("y"));
+                            ui_slider_f32(&light_z, -1.0f, 1.0f, utf8lit("z"));
+                            if (ui_button(utf8lit("Valient's Method")).pressed_left) {
+                                render_commands->csm_varient_method = !render_commands->csm_varient_method; 
+                            }
+                            if (ui_button(utf8lit("CSM Frustum")).pressed_left) {
+                                render_commands->draw_csm_frustum = !render_commands->draw_csm_frustum; 
+                            }
+                        }
+                        if (ui_expander(utf8lit("Camera"))) {
+                            if (ui_button(utf8lit("Switch Camera")).pressed_left) {
+                                if (game_state->controlling_camera_id == game_state->game_camera_id) {
+                                    game_state->controlling_camera_id = game_state->debug_camera_id;
+                                } else {
+                                    game_state->controlling_camera_id = game_state->game_camera_id;
+                                }
+                            }
+                            ui_slider_f32(&entity_from_id(game_state->controlling_camera_id)->focal_length, 0.001f, 10.0f, utf8lit("Focal Length"));
+                        }
+                    }
+            }
+            ui_end();
+#endif

@@ -224,7 +224,7 @@ Material load_material(Asset::System* asset_system, Utf8 asset_dir, Utf8 path) {
 
     Material material = {};
 
-    Utf8 entire_file = File::read_entire_file(scratch.arena, path);
+    Utf8 entire_file = read_entire_file(scratch.arena, path);
 
     Material_Parser p;
     {

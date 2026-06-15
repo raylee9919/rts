@@ -1,4 +1,4 @@
-# Handmade RTS Engine
+# Handmade RTS
 ![Status](data/branding/status.png "Status")  
 StarCraft has always held a special place in my heart. It was the game that first inspired me to dream of 
 becoming a game developer. It planted a question in my mind, <i>how does this all work under the hood?</i> 
@@ -14,11 +14,6 @@ Within the root directory of the project, simply run <strong>b.bat</strong>
 If you want release build, run with the following argument:
 ``` console
 > b release
-```
-
-#### Linux
-``` console
-$
 ```
 
 

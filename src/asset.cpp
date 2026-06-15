@@ -247,7 +247,7 @@ void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    Utf8 entire_file = File::read_entire_file(scratch.arena, file_path);
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
@@ -337,7 +337,7 @@ void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    Utf8 entire_file = File::read_entire_file(scratch.arena, file_path);
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
@@ -382,7 +382,7 @@ void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    Utf8 entire_file = File::read_entire_file(scratch.arena, file_path);
+    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;

@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_ANIMATION_H
+#define RTS_ANIMATION_H
 
 
 struct Animation_Player;
@@ -56,3 +57,6 @@ struct Animation_Player {
 
 Animation_Player* alloc_animation_player();
 void release_animation_player(Animation_Player* player);
+
+
+#endif // RTS_ANIMATION_H
