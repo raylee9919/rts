@@ -7,9 +7,8 @@ internal Arena* arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
     u64 cmt_size  = align_pow2(cmt_size_in, page_size);
 
     void *base = os_reserve(rsv_size);
-    os_commit(base, cmt_size);
-
     assert(base != 0);
+    os_commit(base, cmt_size);
 
     Arena *arena = (Arena *)base;
     {
@@ -55,8 +54,8 @@ internal void* arena_push(Arena *arena, u64 size, u64 align)
         Arena *new_block = arena_alloc();
 
         new_block->base_pos = current->base_pos + current->rsv;
-        arena->current = new_block;
         new_block->prev = arena->current;
+        arena->current = new_block;
 
         current = new_block;
         pos_pre = align_pow2(current->pos, align);
