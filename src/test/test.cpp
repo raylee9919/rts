@@ -1,9 +1,11 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#include "base/rts_base_inc.h"
+#include "basic/all.h"
+#include "math/math.h"
 #include "os/os.h"
 
-#include "base/rts_base_inc.cpp"
+#include "basic/all.cpp"
+#include "math/math.cpp"
 #include "os/os.cpp"
 
 struct Foo {
@@ -20,7 +22,7 @@ int main_entry(int argc, char** argv)
 
     // Read file test.
     if (0) {
-        Utf8 path = utf8lit("C:/Users/swl/Desktop/File-5GB.dat");
+        String path = utf8lit("C:/Users/swl/Desktop/File-5GB.dat");
         OS_Handle file = os_open_file(path, OS_ACCESS_FLAG_READ);
         u64 size = os_get_file_size(file);
         u8* ptr = new u8[size];
@@ -47,6 +49,13 @@ int main_entry(int argc, char** argv)
             }
             printf("%d\n", it->x);
         }
+    }
+
+    // Parallel-for test
+    if (0) {
+        parallel_for(0, 100, [&](){
+                     printf("Hello, World\n");
+                     });
     }
 
     return 0;

@@ -11,7 +11,7 @@ namespace Asset
         u64 incremental_id;
 
         // Read
-        Utf8 name;
+        String name;
 
         u32 bytes_per_channel;
         u32 num_channels;
@@ -29,13 +29,13 @@ namespace Asset
     //
     void load_texture(System *sys, Texture *tex, void *memory, u64 size);
 
-    void load_texture(System *sys, Texture *tex, Utf8 file_path);
+    void load_texture(System *sys, Texture *tex, String file_path);
 
-    void import_texture(System *sys, Texture *tex, Utf8 file_path, bool flip);
+    void import_texture(System *sys, Texture *tex, String file_path, bool flip);
 
-    void export_texture(System *sys, Texture *tex, Utf8 file_path);
+    void export_texture(System *sys, Texture *tex, String file_path);
 
-    void store_texture(System *sys, Texture *tex, Utf8 file_path);
+    void store_texture(System *sys, Texture *tex, String file_path);
 
 
     // Internal

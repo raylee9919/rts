@@ -482,7 +482,7 @@ render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max,
 }
 
 internal AABB2
-render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags, AABB2 cull_aabb = aabb2_infinite())
+render_string(Face *face, Render_Id atlas, v2 origin, String string, Render_String_Flags flags, AABB2 cull_aabb = aabb2_infinite())
 {
     AABB2 aabb = {v2{ F32_MAX,  F32_MAX}, v2{-F32_MAX, -F32_MAX}};
 

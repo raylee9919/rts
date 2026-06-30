@@ -191,7 +191,7 @@ dwrite_map_complexity(Arena *arena, IDWriteFontFace *face,
 }
 
 internal Fp_Run *
-dwrite_runs_from_string(Utf8 string, Utf8 base_family8, f32 font_size)
+dwrite_runs_from_string(String string, String base_family8, f32 font_size)
 {
     ProfileScope;
 
@@ -673,7 +673,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
 }
 
 internal Fp_Draw_String_Result
-fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb)
+fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb)
 {
     ProfileScope;
 

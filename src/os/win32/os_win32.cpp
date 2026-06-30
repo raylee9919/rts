@@ -161,8 +161,8 @@ void os_init() {
 
     // Gather paths.
     {
-        Utf8 binary_path = {};
-        Utf8 appdata_path = {};
+        String binary_path = {};
+        String appdata_path = {};
         {
             Temporary_Arena tmp = temporary_arena_begin(os->arena);
 
@@ -299,7 +299,7 @@ HANDLE win32_handle_from_os_handle(OS_Handle handle) {
 
 // File
 //
-OS_Handle os_open_file(Utf8 path, OS_Access_Flags flags) {
+OS_Handle os_open_file(String path, OS_Access_Flags flags) {
     // https://stackoverflow.com/a/14469641
     //                          |                    When the file...
     // This argument:           |             Exists            Does not exist
@@ -387,7 +387,7 @@ u64 os_read_file(OS_Handle file, u64 offset, u64 size, void* out) {
     return result;
 }
 
-bool os_delete_file(Utf8 path) {
+bool os_delete_file(String path) {
     Temporary_Arena scratch = scratch_begin();
     Utf16 path16 = to_utf16(scratch.arena, path);
     bool result = DeleteFileW((WCHAR*)path16.str);
@@ -395,7 +395,7 @@ bool os_delete_file(Utf8 path) {
     return result;
 }
 
-bool os_copy_file(Utf8 dst, Utf8 src) {
+bool os_copy_file(String dst, String src) {
     Temporary_Arena scratch = scratch_begin();
     Utf16 dst16 = to_utf16(scratch.arena, dst);
     Utf16 src16 = to_utf16(scratch.arena, src);
@@ -421,7 +421,7 @@ File_Properties os_get_file_properties(OS_Handle file) {
     return result;
 }
 
-File_Properties os_get_file_properties(Utf8 path) {
+File_Properties os_get_file_properties(String path) {
     Temporary_Arena scratch = scratch_begin();
 
     WIN32_FIND_DATAW find_data = {};
@@ -449,11 +449,11 @@ u64 os_get_file_size(OS_Handle file) {
     return size;
 }
 
-u64 os_get_file_size(Utf8 path) {
+u64 os_get_file_size(String path) {
     return os_get_file_properties(path).size;
 }
 
-bool os_create_directory(Utf8 path) {
+bool os_create_directory(String path) {
     Temporary_Arena scratch = scratch_begin();
 
     bool result = false;
@@ -472,7 +472,7 @@ bool os_create_directory(Utf8 path) {
     return result;
 }
 
-bool os_directory_exists(Utf8 path) {
+bool os_directory_exists(String path) {
     Temporary_Arena scratch = scratch_begin();
     Utf16 path16 = to_utf16(scratch.arena, path);
     DWORD attrib = GetFileAttributesW((WCHAR *)path16.str);
@@ -702,7 +702,7 @@ void gfx_init() {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 }
 
-OS_Handle os_create_window(int w, int h, Utf8 name) {
+OS_Handle os_create_window(int w, int h, String name) {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
@@ -797,6 +797,9 @@ void os_clear_events() {
 //
 #if !BUILD_NO_ENTRY
 int win32_main_entry() {
+    os_init();
+    thread_init();
+    gfx_init();
     return main_entry(0, NULL);
 }
 

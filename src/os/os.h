@@ -236,9 +236,9 @@ struct OS_State {
     f32 qpc_rcp_freq32;
 
     // Path
-    Utf8 binary_path;
-    Utf8 initial_path;
-    Utf8 appdata_path;
+    String binary_path;
+    String initial_path;
+    String appdata_path;
 
     // @Temporary
     Work_Queue work_queue;
@@ -285,21 +285,21 @@ internal HWND               hwnd_from_os_handle(OS_Handle handle);
 internal HANDLE             win32_handle_from_os_handle(OS_Handle handle);
 
 // File
-internal OS_Handle          os_open_file(Utf8 path, OS_Access_Flags flags);
+internal OS_Handle          os_open_file(String path, OS_Access_Flags flags);
 internal void               os_close_file(OS_Handle file);
 internal u64                os_read_file(OS_Handle file, u64 offset, u64 size, void* out);
-internal bool               os_delete_file(Utf8 path);
-internal bool               os_copy_file(Utf8 dst, Utf8 src);
+internal bool               os_delete_file(String path);
+internal bool               os_copy_file(String dst, String src);
 internal File_Properties    os_get_file_properties(OS_Handle file);
-internal File_Properties    os_get_file_properties(Utf8 path);
+internal File_Properties    os_get_file_properties(String path);
 internal u64                os_get_file_size(OS_Handle file);
-internal u64                os_get_file_size(Utf8 path);
-internal bool               os_create_directory(Utf8 path);
-internal bool               os_directory_exists(Utf8 path);
+internal u64                os_get_file_size(String path);
+internal bool               os_create_directory(String path);
+internal bool               os_directory_exists(String path);
 
 // GFX
 internal void               gfx_init();
-internal OS_Handle          os_create_window(int w, int h, Utf8 name);
+internal OS_Handle          os_create_window(int w, int h, String name);
 internal v2                 os_get_window_size(OS_Handle window);
 internal v2                 os_get_mouse_position(OS_Handle window);
 

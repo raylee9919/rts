@@ -4,7 +4,7 @@
 //
 #include "profiler/profiler.h"
 
-#include "basic/all.h"
+#include "basic/includes.h"
 #include "math/math.h"
 #include "os/os.h"
 #include "ds.h"
@@ -35,10 +35,9 @@ global RHI_State*   g_rhi_state;
 // .cpp
 //
 #include "profiler/profiler.h"
-
 #include "third_party/xxhash3/xxhash.c"
 
-#include "basic/all.cpp"
+#include "basic/includes.cpp"
 #include "math/math.cpp"
 #include "os/os.cpp"
 #include "ds.cpp"
@@ -69,11 +68,6 @@ global RHI_State*   g_rhi_state;
 
 int main_entry(int argc, char** argv)
 {
-    // Init.
-    os_init();
-    thread_init();
-    gfx_init();
-
     // Alloc and init game state.
     {
         Arena* arena = arena_alloc();
@@ -82,15 +76,12 @@ int main_entry(int argc, char** argv)
 
         // Get .exe and data (asset) path.
         {
-            Temporary_Arena scratch = scratch_begin();
-            defer(scratch_end(scratch));
+            String binary_path = os->binary_path;
+            String data_path = {};
 
-            Utf8 binary_path = os->binary_path;
-            Utf8 data_path = {};
-
-            Utf8 local_data_path    = utf8f(scratch.arena, "%S/data", binary_path);
-            Utf8 binary_parent_path = utf8_path_chop_last_slash(binary_path);
-            Utf8 parent_data_path   = utf8f(scratch.arena, "%S/data", binary_parent_path);
+            String local_data_path    = tprint("%S/data", binary_path);
+            String binary_parent_path = utf8_path_chop_last_slash(binary_path);
+            String parent_data_path   = tprint("%S/data", binary_parent_path);
 
             if (os_directory_exists(local_data_path)) {
                 data_path = utf8_copy(arena, local_data_path); 
@@ -105,7 +96,6 @@ int main_entry(int argc, char** argv)
         // Create main window.
         game_state->main_window = os_create_window(1920, 1080, utf8lit("rts"));
     }
-
 
     // Alloc and init RHI.
     {
@@ -215,43 +205,44 @@ int main_entry(int argc, char** argv)
                     assets->skeleton_model = push_struct(asset_arena, Model);
                     {
                         auto *model = assets->skeleton_model;
-                        load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/skeleton.triangle_mesh", game_state->data_path));
+                        load_model(asset_arena, model, tprint("%S/mesh/skeleton.triangle_mesh", game_state->data_path));
+                        load_model(asset_arena, model, tprint("%S/mesh/skeleton.triangle_mesh", game_state->data_path));
 
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("body-lib"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/skeleton_body.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/skeleton_body.material", game_state->data_path));
                         }
 
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("helm-lib"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/skeleton_helm.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/skeleton_helm.material", game_state->data_path));
                         }
 
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("scabbard_2-lib"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/skeleton_scabbard.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/skeleton_scabbard.material", game_state->data_path));
                         }
 
 
 
                         assets->skeleton_idle = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->skeleton_idle, utf8f(scratch.arena, "%S/animation/skeleton_lord_idle.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->skeleton_idle, tprint("%S/animation/skeleton_lord_idle.keyframed_animation", game_state->data_path));
 
                         assets->skeleton_run = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->skeleton_run, utf8f(scratch.arena, "%S/animation/skeleton_lord_run.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->skeleton_run, tprint("%S/animation/skeleton_lord_run.keyframed_animation", game_state->data_path));
 
                         assets->skeleton_attack = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->skeleton_attack, utf8f(scratch.arena, "%S/animation/skeleton_lord_attack.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->skeleton_attack, tprint("%S/animation/skeleton_lord_attack.keyframed_animation", game_state->data_path));
 
                         assets->skeleton_die = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->skeleton_die, utf8f(scratch.arena, "%S/animation/skeleton_lord_die.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->skeleton_die, tprint("%S/animation/skeleton_lord_die.keyframed_animation", game_state->data_path));
                     }
 
                     assets->skeleton_skeleton = push_struct(asset_arena, Skeleton);
-                    load_skeleton(asset_arena, assets->skeleton_skeleton, utf8f(scratch.arena, "%S/skeleton/skeleton_lord.skeleton", game_state->data_path));  
+                    load_skeleton(asset_arena, assets->skeleton_skeleton, tprint("%S/skeleton/skeleton_lord.skeleton", game_state->data_path));  
 
 
                     // Knight
@@ -259,107 +250,107 @@ int main_entry(int argc, char** argv)
                     {
                         // Model
                         auto *model = assets->knight_model;
-                        load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/knight.triangle_mesh", game_state->data_path));
+                        load_model(asset_arena, model, tprint("%S/mesh/knight.triangle_mesh", game_state->data_path));
 
                         // Skeleton
                         assets->knight_skeleton = push_struct(asset_arena, Skeleton);
-                        load_skeleton(asset_arena, assets->knight_skeleton, utf8f(scratch.arena, "%S/skeleton/knight.skeleton", game_state->data_path));  
+                        load_skeleton(asset_arena, assets->knight_skeleton, tprint("%S/skeleton/knight.skeleton", game_state->data_path));  
 
                         // Animations
                         assets->knight_idle = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->knight_idle, utf8f(scratch.arena, "%S/animation/knight_idle.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->knight_idle, tprint("%S/animation/knight_idle.keyframed_animation", game_state->data_path));
 
                         assets->knight_run = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->knight_run, utf8f(scratch.arena, "%S/animation/knight_run.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->knight_run, tprint("%S/animation/knight_run.keyframed_animation", game_state->data_path));
 
                         assets->knight_attack = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->knight_attack, utf8f(scratch.arena, "%S/animation/knight_attack.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->knight_attack, tprint("%S/animation/knight_attack.keyframed_animation", game_state->data_path));
 
                         assets->knight_die = push_struct(asset_arena, Animation);
-                        load_animation(asset_arena, assets->knight_die, utf8f(scratch.arena, "%S/animation/knight_die.keyframed_animation", game_state->data_path));
+                        load_animation(asset_arena, assets->knight_die, tprint("%S/animation/knight_die.keyframed_animation", game_state->data_path));
 
                         // @Todo: How do we cope with material that's already loaded? Hash table. I need a solid hash table...
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Helm2"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/helm.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/helm.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Arms"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/arms.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/arms.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Acessories"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/arms.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/arms.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Acessories2"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/arms.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/arms.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Breast_Armor"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/breast_armor.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/breast_armor.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Leegs_Armor1"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/breast_armor.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/breast_armor.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("pants"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/breast_armor.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/breast_armor.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Weapon2"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/sword.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/sword.material", game_state->data_path));
                         }
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Shield"));
                             assert(mesh);
-                            mesh->material = load_material(asset_system, game_state->data_path, utf8f(scratch.arena, "%S/materials/knight/shield.material", game_state->data_path));
+                            mesh->material = load_material(asset_system, game_state->data_path, tprint("%S/materials/knight/shield.material", game_state->data_path));
                         }
                     }
 
                     assets->plane_model = push_struct(asset_arena, Model);
                     {
                         // @Temporary: Scaled 100x, because the exported mesh from Maya is in centimeter atm.
-                        load_model(asset_arena, assets->plane_model, utf8f(scratch.arena, "%S/mesh/plane_256.triangle_mesh", game_state->data_path), v3(100.f));
+                        load_model(asset_arena, assets->plane_model, tprint("%S/mesh/plane_256.triangle_mesh", game_state->data_path), v3(100.f));
 
-                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", game_state->data_path));
-                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_normal-ogl.texture", game_state->data_path));
-                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_roughness.texture", game_state->data_path));
-                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_metallic.texture", game_state->data_path));
+                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_ALBEDO], tprint("%S/textures/wispy-grass-meadow_albedo.texture", game_state->data_path));
+                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_NORMAL], tprint("%S/textures/wispy-grass-meadow_normal-ogl.texture", game_state->data_path));
+                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_ROUGHNESS], tprint("%S/textures/wispy-grass-meadow_roughness.texture", game_state->data_path));
+                        load_texture(asset_system, &assets->plane_model->meshes[0].material.textures[PBR_METALLIC], tprint("%S/textures/wispy-grass-meadow_metallic.texture", game_state->data_path));
                     }
 
                     assets->sword_model = push_struct(asset_arena, Model);
                     {
                         auto* model = assets->sword_model;
-                        load_model(asset_arena, assets->sword_model, utf8f(scratch.arena, "%S/mesh/sword.triangle_mesh", game_state->data_path));
-                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/sword_albedo.texture", game_state->data_path));
-                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_NORMAL], utf8f(scratch.arena, "%S/textures/sword_normal.texture", game_state->data_path));
-                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_METALLIC], utf8f(scratch.arena, "%S/textures/sword_metalic.texture", game_state->data_path));
-                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_ROUGHNESS], utf8f(scratch.arena, "%S/textures/sword_roughness.texture", game_state->data_path));
+                        load_model(asset_arena, assets->sword_model, tprint("%S/mesh/sword.triangle_mesh", game_state->data_path));
+                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_ALBEDO], tprint("%S/textures/sword_albedo.texture", game_state->data_path));
+                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_NORMAL], tprint("%S/textures/sword_normal.texture", game_state->data_path));
+                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_METALLIC], tprint("%S/textures/sword_metalic.texture", game_state->data_path));
+                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_ROUGHNESS], tprint("%S/textures/sword_roughness.texture", game_state->data_path));
                     }
 
                     assets->castle_model = push_struct(asset_arena, Model);
                     {
                         auto* model = assets->castle_model;
-                        load_model(asset_arena, model, utf8f(scratch.arena, "%S/mesh/castle.triangle_mesh", game_state->data_path), v3(8.f));
-                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_ALBEDO], utf8f(scratch.arena, "%S/textures/wispy-grass-meadow_albedo.texture", game_state->data_path));
+                        load_model(asset_arena, model, tprint("%S/mesh/castle.triangle_mesh", game_state->data_path), v3(8.f));
+                        load_texture(asset_system, &model->meshes[0].material.textures[PBR_ALBEDO], tprint("%S/textures/wispy-grass-meadow_albedo.texture", game_state->data_path));
                     }
 
                     char *skybox_filenames[6] = {"right", "left", "top", "bottom", "front", "back"};
                     for (u32 i = 0; i < 6; ++i) {
-                        load_texture(asset_system, assets->skybox_textures + i, utf8f(scratch.arena, "%S/textures/%s.texture", game_state->data_path, skybox_filenames[i]));
+                        load_texture(asset_system, assets->skybox_textures + i, tprint("%S/textures/%s.texture", game_state->data_path, skybox_filenames[i]));
                     }
 
-                    load_texture(asset_system, &assets->height_map, utf8f(scratch.arena, "%S/textures/height_map.texture", game_state->data_path));
+                    load_texture(asset_system, &assets->height_map, tprint("%S/textures/height_map.texture", game_state->data_path));
 
                     game_state->map_arena     = arena_alloc();
                     game_state->chunk_size    = v2(3.f, 3.f);
@@ -803,6 +794,8 @@ int main_entry(int argc, char** argv)
                 os_remove_event(event);
             }
         }
+
+        clear_temporary_storage();
     }
 
     return 0;

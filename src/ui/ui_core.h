@@ -44,7 +44,7 @@ enum {
 };
 
 struct Ui_Text {
-    Utf8    string;
+    String    string;
     AABB2   aabb;
     f32     padding;
 
@@ -65,8 +65,8 @@ struct Ui_Box {
     Ui_Key          key;
     Ui_Box_Flags    flags;
 
-    Utf8            debug_string;
-    Utf8            debug_hash_string;
+    String            debug_string;
+    String            debug_hash_string;
 
     u64             touched_tick;
     u64             first_tick;
@@ -143,7 +143,7 @@ struct Ui_State {
     v2              current_mouse_position;
 
 
-    Utf8            base_family;
+    String            base_family;
     f32             font_size;
 
 
@@ -196,10 +196,10 @@ internal void           ui_parent_push(Ui_Box *box);
 internal void           ui_parent_pop(void);
 
 internal Ui_Box        *ui_box_alloc(void);
-internal Ui_Box        *ui_box_build_from_string(Ui_Box_Flags flags, Utf8 string);
+internal Ui_Box        *ui_box_build_from_string(Ui_Box_Flags flags, String string);
 internal Ui_Box        *ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key);
 
-internal void           ui_equip_text(Ui_Box *box, Utf8 text);
+internal void           ui_equip_text(Ui_Box *box, String text);
 
 internal void           ui_solve_size_independent(Ui_Box *root, Axis2 axis);
 internal void           ui_solve_size_dependent_upward(Ui_Box *root, Axis2 axis);
@@ -212,10 +212,10 @@ internal void           ui_animate(void);
 internal Ui_Signal      ui_signal_from_box(Ui_Box *box);
 
 internal b32            ui_key_match(Ui_Key a, Ui_Key b);
-internal Utf8           ui_text_part_from_key_string(Utf8 string);
-internal Utf8           ui_hash_part_from_key_string(Utf8 string);
+internal String           ui_text_part_from_key_string(String string);
+internal String           ui_hash_part_from_key_string(String string);
 internal Ui_Key         ui_key_from_stringf(Ui_Key seed, char *fmt, ...);
-internal Ui_Key         ui_key_from_string(Ui_Key seed, Utf8 string);
+internal Ui_Key         ui_key_from_string(Ui_Key seed, String string);
 internal b32            ui_box_is_nil(Ui_Box *box);
 internal Ui_Box        *ui_box_from_key(Ui_Key key);
 internal Arena         *ui_build_arena(void);

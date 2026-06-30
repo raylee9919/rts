@@ -84,7 +84,7 @@ if "%build_rts%"=="1" (
 
 :: Test
 if "%build_test%"=="1" (
-    call %compiler% %flags_compile% ..\src\test\test_main.cpp /Fe:test /link %flags_linker%
+    call %compiler% %flags_compile% ..\src\test\test.cpp /Fe:test /link %flags_linker%
 )
 
 del *.obj *.res >nul

@@ -64,10 +64,10 @@ string_equal(char *str1, char *str2)
 
 
 
-internal Utf8
-utf8_copy(Arena *arena, Utf8 utf)
+internal String
+utf8_copy(Arena *arena, String utf)
 {
-    Utf8 result;
+    String result;
     result.len = utf.len;
     result.str = push_array_noz(arena, u8, utf.len + 1);
     memory_copy(result.str, utf.str, utf.len);
@@ -132,21 +132,21 @@ u8 to_forward_slash(u8 c) {
 
 // # Note: String Constructors
 //
-internal Utf8
+internal String
 utf8(u8 *str, u64 len)
 {
-    Utf8 result = {};
+    String result = {};
     result.str = str;
     result.len = len;
     return result;
 }
 
-internal Utf8
+internal String
 utf8c(u8 *ptr)
 {
     u8 *p = ptr;
     for (;*p; ++p);
-    Utf8 result = utf8(ptr, p - ptr);
+    String result = utf8(ptr, p - ptr);
     return result;
 }
 
@@ -312,10 +312,10 @@ utf16_encode(u16 *str, u32 codepoint)
 
 // # Note: Conversion.
 //
-internal Utf8
+internal String
 to_utf8(Arena *arena, Utf16 in)
 {
-    Utf8 result = {};
+    String result = {};
     if (in.len)
     {
         u64 cap = in.len*3;
@@ -337,7 +337,7 @@ to_utf8(Arena *arena, Utf16 in)
 }
 
 internal Utf16
-to_utf16(Arena *arena, Utf8 in)
+to_utf16(Arena *arena, String in)
 {
     Utf16 result = {};
     if (in.len)
@@ -365,7 +365,7 @@ to_utf16(Arena *arena, Utf8 in)
 // # Note: Manipulation.
 //
 internal b32
-utf8_match(Utf8 a, Utf8 b, Str_Match_Flags flags)
+utf8_match(String a, String b, Str_Match_Flags flags)
 {
     b32 result = 0;
     if (a.len == b.len || flags & STR_MATCH_RIGHT_SIDE_SLOPPY)
@@ -392,8 +392,8 @@ utf8_match(Utf8 a, Utf8 b, Str_Match_Flags flags)
     return result;
 }
 
-internal Utf8
-utf8_substr(Utf8 str, u64 min, u64 max)
+internal String
+utf8_substr(String str, u64 min, u64 max)
 {
     if (max > str.len)
     {
@@ -415,7 +415,7 @@ utf8_substr(Utf8 str, u64 min, u64 max)
 }
 
 internal u64
-utf8_find_substr(Utf8 haystack, Utf8 needle, u64 start_pos, Str_Match_Flags flags)
+utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags)
 {
     b32 found = 0;
     u64 found_idx = haystack.len;
@@ -423,7 +423,7 @@ utf8_find_substr(Utf8 haystack, Utf8 needle, u64 start_pos, Str_Match_Flags flag
     {
         if (i + needle.len <= haystack.len)
         {
-            Utf8 substr = utf8_substr(haystack, i, i+needle.len);
+            String substr = utf8_substr(haystack, i, i+needle.len);
             if (utf8_match(substr, needle, flags))
             {
                 found_idx = i;
@@ -436,8 +436,8 @@ utf8_find_substr(Utf8 haystack, Utf8 needle, u64 start_pos, Str_Match_Flags flag
     return found_idx;
 }
 
-internal Utf8
-utf8_path_chop_last_slash(Utf8 string)
+internal String
+utf8_path_chop_last_slash(String string)
 {
     Str_Match_Flags flags = STR_MATCH_SLASH_INSENTISIVE|STR_MATCH_FIND_LAST;
     u64 slash_pos = utf8_find_substr(string, utf8lit("/"), 0, flags);
@@ -448,37 +448,11 @@ utf8_path_chop_last_slash(Utf8 string)
     return string;
 }
 
-internal Utf8
-utf8fv(Arena *arena, char *fmt, va_list args)
-{
-    Utf8 result = {};
-    va_list args2;
-    va_copy(args2, args);
-    u64 needed_bytes = str_vsnprintf(0, 0, fmt, args) + 1;
-    result.str = push_array_noz(arena, u8, needed_bytes);
-    result.len = needed_bytes - 1;
-    str_vsnprintf((char*)result.str, (int)needed_bytes, fmt, args2);
-    va_end(args2);
-    return result;
-}
-
-internal Utf8
-utf8f(Arena* arena, char* fmt, ...)
-{
-    Utf8 result = {};
-    va_list args;
-    va_start(args, fmt);
-    result = utf8fv(arena, fmt, args);
-    va_end(args);
-    return result;
-}
-
-
 // 
 // Chop/Slash Helpers.
 //
-internal Utf8
-utf8_skip_whitespace(Utf8 str)
+internal String
+utf8_skip_whitespace(String str)
 {
     u64 first_non_ws = 0;
     for (u64 idx = 0; idx < str.len; idx += 1)
@@ -496,8 +470,8 @@ utf8_skip_whitespace(Utf8 str)
     return utf8_substr(str, first_non_ws, str.len);
 }
 
-internal Utf8
-utf8_chop_whitespace(Utf8 str)
+internal String
+utf8_chop_whitespace(String str)
 {
     u64 first_ws_at_end = str.len;
     for (u64 idx = str.len - 1; idx < str.len; idx -= 1)
@@ -511,15 +485,13 @@ utf8_chop_whitespace(Utf8 str)
     return utf8_substr(str, 0, first_ws_at_end);
 }
 
-internal Utf8
-utf8_skip_chop_whitespace(Utf8 str)
+internal String
+utf8_skip_chop_whitespace(String str)
 {
     return utf8_skip_whitespace(utf8_chop_whitespace(str));
 }
 
-
-
-bool operator == (Utf8 l, Utf8 r) {
+bool operator == (String l, String r) {
     if (l.len != r.len) {
         return false;
     }
@@ -530,4 +502,25 @@ bool operator == (Utf8 l, Utf8 r) {
         }
     }
     return true;
+}
+
+String tprint(char* fmt, va_list args) {
+    String result = {};
+    va_list args2;
+    va_copy(args2, args);
+    u64 needed_bytes = str_vsnprintf(0, 0, fmt, args) + 1;
+    result.str = (u8*)allocate(&tctx.temp, needed_bytes);
+    result.len = needed_bytes - 1;
+    str_vsnprintf((char*)result.str, (int)needed_bytes, fmt, args2);
+    va_end(args2);
+    return result;
+}
+
+String tprint(char* fmt, ...) {
+    String result = {};
+    va_list args;
+    va_start(args, fmt);
+    result = tprint(fmt, args);
+    va_end(args);
+    return result;
 }

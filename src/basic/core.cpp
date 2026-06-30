@@ -62,8 +62,8 @@ _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*
     scratch_end(scratch);
 }
 
-Utf8 read_entire_file(Arena* arena, Utf8 file_path) {
-    Utf8 result = {};
+String read_entire_file(Arena* arena, String file_path) {
+    String result = {};
 
     OS_Access_Flags flags = OS_ACCESS_FLAG_READ | OS_ACCESS_FLAG_SHARE_READ;
     OS_Handle file = os_open_file(file_path, flags);

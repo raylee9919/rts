@@ -4,7 +4,7 @@
 
 
 
-struct Utf8 {
+struct String {
     u8 *str;
     u64 len;
 };
@@ -44,8 +44,8 @@ enum
 // Constructors.
 //
 #define utf8lit(str) utf8((u8 *)str, sizeof(str) - 1)
-internal Utf8 utf8(u8 *str, u64 len);
-internal Utf8 utf8c(u8 *ptr);
+internal String utf8(u8 *str, u64 len);
+internal String utf8c(u8 *ptr);
 internal Utf16 utf16(u16 *str, u64 len);
 internal Utf16 utf16c(u16 *ptr);
 internal Utf32 utf32(u32 *str, u64 len);
@@ -61,27 +61,25 @@ internal u32 utf16_encode(u16 *str, u32 codepoint);
 //
 // Conversion.
 //
-internal Utf8 to_utf8(Arena *arena, Utf16 in);
-internal Utf16 to_utf16(Arena *arena, Utf8 in);
+internal String to_utf8(Arena *arena, Utf16 in);
+internal Utf16 to_utf16(Arena *arena, String in);
 
 //
 // Manipulation.
 //
-internal b32 utf8_match(Utf8 a, Utf8 b, Str_Match_Flags flags);
-internal Utf8 utf8_substr(Utf8 str, u64 min, u64 max);
-internal u64 utf8_find_substr(Utf8 haystack, Utf8 needle, u64 start_pos, Str_Match_Flags flags);
-internal Utf8 utf8_path_chop_last_slash(Utf8 string);
-internal Utf8 utf8fv(Arena *arena, char *fmt, va_list args);
-internal Utf8 utf8f(Arena *arena, char *fmt, ...);
+internal b32 utf8_match(String a, String b, Str_Match_Flags flags);
+internal String utf8_substr(String str, u64 min, u64 max);
+internal u64 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags);
+internal String utf8_path_chop_last_slash(String string);
 
 //
 // Chop/Slash Helpers.
 //
-internal Utf8 utf8_skip_whitespace(Utf8 str);
-internal Utf8 utf8_chop_whitespace(Utf8 str);
-internal Utf8 utf8_skip_chop_whitespace(Utf8 str);
+internal String utf8_skip_whitespace(String str);
+internal String utf8_chop_whitespace(String str);
+internal String utf8_skip_chop_whitespace(String str);
 
 //
 // Operators
 //
-bool operator == (Utf8 l, Utf8 r);
+bool operator == (String l, String r);

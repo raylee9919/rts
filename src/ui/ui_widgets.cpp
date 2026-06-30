@@ -6,14 +6,14 @@ ui_labelf(char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    Utf8 text = utf8fv(ui_build_arena(), fmt, args);
+    String text = tprint(fmt, args);
     Ui_Signal result = ui_label(text);
     va_end(args);
     return result;
 }
 
 internal Ui_Signal
-ui_label(Utf8 string)
+ui_label(String string)
 {
     Ui_Box *box = ui_box_build_from_string(UI_BOX_FLAG_DRAW_TEXT, string);
     Ui_Signal signal = ui_signal_from_box(box);
@@ -25,14 +25,14 @@ ui_buttonf(char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    Utf8 text = utf8fv(ui_build_arena(), fmt, args);
+    String text = tprint(fmt, args);
     Ui_Signal result = ui_button(text);
     va_end(args);
     return result;
 }
 
 internal Ui_Signal 
-ui_button(Utf8 text)
+ui_button(String text)
 {
     Ui_Box_Flags flags = (UI_BOX_FLAG_MOUSE_CLICKABLE    | 
                           UI_BOX_FLAG_KEYBOARD_CLICKABLE |
@@ -46,7 +46,7 @@ ui_button(Utf8 text)
 }
 
 internal b32
-ui_expander(Utf8 text)
+ui_expander(String text)
 {
     Ui_Box *box = &ui_nil_box;
 
@@ -78,7 +78,7 @@ ui_expander(Utf8 text)
 }
 
 internal void
-ui_slider_f32(f32 *x, f32 lo, f32 hi, Utf8 text)
+ui_slider_f32(f32 *x, f32 lo, f32 hi, String text)
 {
     ui_col()
     {
@@ -189,7 +189,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, Utf8 text)
 }
 
 internal void
-ui_platform_push(Utf8 text)
+ui_platform_push(String text)
 {
     ui_size_push(AXIS2_X, UI_SIZE_TYPE_CHILDREN);
     ui_size_push(AXIS2_Y, UI_SIZE_TYPE_CHILDREN);

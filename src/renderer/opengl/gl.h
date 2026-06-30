@@ -127,7 +127,7 @@ struct Post_Process_Program {
 struct Gl_Uniform
 {
     GLuint id;
-    Utf8 name;
+    String name;
 };
 
 struct Gl_Attrib

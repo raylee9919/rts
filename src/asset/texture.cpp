@@ -31,26 +31,26 @@ namespace Asset
         assert(is_eof(&p));
     }
 
-    void load_texture(System *sys, Texture *tex, Utf8 file_path)
+    void load_texture(System *sys, Texture *tex, String file_path)
     {
         assert(tex);
 
         Temporary_Arena scratch = scratch_begin();
         defer(scratch_end(scratch));
 
-        Utf8 contents = read_entire_file(scratch.arena, file_path);
+        String contents = read_entire_file(scratch.arena, file_path);
 
         load_texture(sys, tex, contents.str, contents.len);
     }
 
-    void import_texture(System *sys, Texture *tex, Utf8 file_path, bool flip)
+    void import_texture(System *sys, Texture *tex, String file_path, bool flip)
     {
         assert(tex);
 
         Temporary_Arena scratch = scratch_begin();
         defer(scratch_end(scratch));
 
-        Utf8 contents = read_entire_file(scratch.arena, file_path);
+        String contents = read_entire_file(scratch.arena, file_path);
 
         stbi_set_flip_vertically_on_load(flip);
         int x, y, num_channels;
@@ -73,13 +73,13 @@ namespace Asset
         stbi_image_free(data);
     }
 
-    void export_texture(System *sys, Texture *tex, Utf8 file_path)
+    void export_texture(System *sys, Texture *tex, String file_path)
     {
         int ok = stbi_write_png((const char *)file_path.str, tex->width, tex->height, tex->num_channels, tex->data, tex->pitch);
         assert(ok);
     }
 
-    void store_texture(System *sys, Texture *tex, Utf8 file_path)
+    void store_texture(System *sys, Texture *tex, String file_path)
     {
         FILE *f = fopen((const char *)file_path.str, "wb");
         if (f) {

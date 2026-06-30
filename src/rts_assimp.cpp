@@ -18,7 +18,7 @@
 // [.h]
 //
 #include "third_party/xxhash3/xxhash.c"
-#include "base/rts_base_inc.h"
+#include "basic/includes.h"
 #include "os/rts_os.h"
 #include "asset.h"
 
@@ -26,7 +26,7 @@
 
 // [.cpp]
 //
-#include "base/rts_base_inc.cpp"
+#include "basic/includes.cpp"
 #include "os/rts_os.cpp"
 
 
@@ -515,7 +515,7 @@ int main(void)
     m4x4 inv1 = inverse(res1);
 
 
-    Utf8 input_file_names[] = {
+    String input_file_names[] = {
         //utf8lit("../data/input/knight.fbx"),
         //utf8lit("../data/input/knight_idle.fbx"),
         //utf8lit("../data/input/knight_run.fbx"),
@@ -537,7 +537,7 @@ int main(void)
         Temporary_Arena scratch = scratch_begin();
         defer(scratch_end(scratch));
 
-        Utf8 in_file_name = input_file_names[file_idx];
+        String in_file_name = input_file_names[file_idx];
         state->scene = (aiScene *)importer.ReadFile((char*)in_file_name.str, (aiProcess_Triangulate |
                                                                               aiProcess_ImproveCacheLocality |
                                                                               aiProcess_CalcTangentSpace |
@@ -554,7 +554,7 @@ int main(void)
                                                                               aiProcess_JoinIdenticalVertices));
         u64 slash_pos = utf8_find_substr(in_file_name, utf8lit("/"), 0, STR_MATCH_FIND_LAST);
         u64 dot_pos = utf8_find_substr(in_file_name, utf8lit("."), 0, STR_MATCH_FIND_LAST);
-        Utf8 file_name_no_ext = utf8f(scratch.arena, "%.*s", dot_pos - slash_pos - 1, in_file_name.str + slash_pos + 1);
+        String file_name_no_ext = tprint("%.*s", dot_pos - slash_pos - 1, in_file_name.str + slash_pos + 1);
 
         // Load scene.
         //
@@ -589,7 +589,7 @@ int main(void)
 
 
             // @Temporary
-            Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.skeleton", file_name_no_ext);
+            String file_name = tprint("C:/dev/rts/data/%S.skeleton", file_name_no_ext);
             FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
@@ -630,7 +630,7 @@ int main(void)
             int ver_patch = 0;
 
             // @Temporary
-            Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.triangle_mesh", file_name_no_ext);
+            String file_name = tprint("C:/dev/rts/data/%S.triangle_mesh", file_name_no_ext);
             FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
@@ -686,7 +686,7 @@ int main(void)
             make_animation(state, anim);
 
             // @Temporary
-            Utf8 file_name = utf8f(scratch.arena, "C:/dev/rts/data/%S.keyframed_animation", file_name_no_ext);
+            String file_name = tprint("C:/dev/rts/data/%S.keyframed_animation", file_name_no_ext);
             FILE *f = fopen((char *)file_name.str, "wb");
             assert(f);
             {
@@ -711,6 +711,7 @@ int main(void)
         }
     }
 
+    clear_temporary_storage();
     printf("*** SUCCESSFUL! ***\n");
     return 0;
 }

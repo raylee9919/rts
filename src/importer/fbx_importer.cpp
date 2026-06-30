@@ -11,8 +11,9 @@
 // .h
 //
 #include "third_party/xxhash3/xxhash.c"
-#include "base/rts_base_inc.h"
-#include "os/rts_os.h"
+#include "basic/includes.h"
+#include "math/math.h"
+#include "os/os.h"
 #include "asset/system.h"
 #include "asset/texture.h"
 #include "asset.h"
@@ -23,8 +24,9 @@
 
 // .cpp
 //
-#include "base/rts_base_inc.cpp"
-#include "os/rts_os.cpp"
+#include "basic/includes.cpp"
+#include "math/math.cpp"
+#include "os/os.cpp"
 
 #pragma warning(push)
 #pragma warning(disable : 4456)
@@ -488,7 +490,6 @@ void mikkt_set_basic(const SMikkTSpaceContext *ctx, const float tangent[], const
     v->tangent.w = sign;
 }
 
-
 int main()
 {
     os_init();
@@ -520,12 +521,12 @@ int main()
 
 
     {
-        Utf8 name     = utf8lit("plane");
-        Utf8 in_file  = utf8f(state->scene_arena, "C:/Users/swl/Desktop/rts_assets/%S.fbx", name);
+        String name     = utf8lit("plane");
+        String in_file  = tprint("C:/Users/swl/Desktop/rts_assets/%S.fbx", name);
 
-        Utf8 out_mesh = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.triangle_mesh", name);
-        Utf8 out_skel = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.skeleton", name);
-        Utf8 out_anim = utf8f(state->scene_arena, "C:/dev/swl/rts/data/%S.keyframed_animation", name);
+        String out_mesh = tprint("C:/dev/swl/rts/data/%S.triangle_mesh", name);
+        String out_skel = tprint("C:/dev/swl/rts/data/%S.skeleton", name);
+        String out_anim = tprint("C:/dev/swl/rts/data/%S.keyframed_animation", name);
 
         ufbx_load_opts opts = {};
         opts.target_axes                 = ufbx_axes_right_handed_y_up;

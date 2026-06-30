@@ -201,9 +201,9 @@ struct Asset_Loader {
         return result;
     }
 
-    Utf8 parse_string_by_length(Arena *arena, u8 length) 
+    String parse_string_by_length(Arena *arena, u8 length) 
     {
-        Utf8 result = {};
+        String result = {};
 
         assert(cursor && cursor < end);
         eat_whitespace();
@@ -217,9 +217,9 @@ struct Asset_Loader {
         return result;
     }
 
-    Utf8 parse_string_until_new_line(Arena *arena) 
+    String parse_string_until_new_line(Arena *arena) 
     {
-        Utf8 result = {};
+        String result = {};
 
         int len = 0;
         for (;;) {
@@ -240,14 +240,14 @@ struct Asset_Loader {
     }
 };
 
-void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
+void load_model(Arena *arena, Model *model_out, String file_path, v3 scale)
 {
     assert(model_out);
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
+    String entire_file = read_entire_file(scratch.arena, file_path);
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
@@ -330,14 +330,14 @@ void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale)
     assert( l.cursor == l.end );
 }
 
-void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path)
+void load_skeleton(Arena *arena, Skeleton *skel_out, String file_path)
 {
     assert(skel_out);
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
+    String entire_file = read_entire_file(scratch.arena, file_path);
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;
@@ -375,14 +375,14 @@ internal u64 hash_joint_id(s32 id)
     return result;
 }
 
-void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path)
+void load_animation(Arena *arena, Animation *anim_out, String file_path)
 {
     assert(anim_out);
 
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
-    Utf8 entire_file = read_entire_file(scratch.arena, file_path);
+    String entire_file = read_entire_file(scratch.arena, file_path);
     Asset_Loader l = {};
     l.cursor = entire_file.str;
     l.end = entire_file.str + entire_file.len;

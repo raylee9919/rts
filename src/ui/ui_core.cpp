@@ -158,17 +158,17 @@ ui_box_build_from_stringf(Ui_Box_Flags flags, char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    Utf8 string = utf8fv(ui_build_arena(), fmt, args);
+    String string = tprint(fmt, args);
     Ui_Box *box = ui_box_build_from_string(flags, string);
     va_end(args);
     return box;
 }
 
 internal Ui_Box *
-ui_box_build_from_string(Ui_Box_Flags flags, Utf8 string)
+ui_box_build_from_string(Ui_Box_Flags flags, String string)
 {
     Ui_Key seed         = ui_seed_top();
-    Utf8 string_to_hash = ui_hash_part_from_key_string(string);
+    String string_to_hash = ui_hash_part_from_key_string(string);
     Ui_Key key          = ui_key_from_string(seed, string_to_hash);
     Ui_Box *box         = ui_box_build_from_key(flags, key);
 
@@ -177,7 +177,7 @@ ui_box_build_from_string(Ui_Box_Flags flags, Utf8 string)
 
     if (flags & UI_BOX_FLAG_DRAW_TEXT)
     {
-        Utf8 text = ui_text_part_from_key_string(string);
+        String text = ui_text_part_from_key_string(string);
         ui_equip_text(box, text);
     }
 
@@ -239,7 +239,7 @@ ui_box_build_from_key(Ui_Box_Flags flags, Ui_Key key)
 }
 
 internal void
-ui_equip_text(Ui_Box *box, Utf8 text)
+ui_equip_text(Ui_Box *box, String text)
 {
     ProfileScope;
 
@@ -599,8 +599,8 @@ ui_key_match(Ui_Key a, Ui_Key b)
     return ( a.e[0] == b.e[0] );
 }
 
-internal Utf8
-ui_text_part_from_key_string(Utf8 string)
+internal String
+ui_text_part_from_key_string(String string)
 {
     u64 double_pound_pos = utf8_find_substr(string, utf8lit("##"), 0, 0);
     if (double_pound_pos < string.len)
@@ -610,8 +610,8 @@ ui_text_part_from_key_string(Utf8 string)
     return string;
 }
 
-internal Utf8
-ui_hash_part_from_key_string(Utf8 string)
+internal String
+ui_hash_part_from_key_string(String string)
 {
     u64 triple_pound_pos = utf8_find_substr(string, utf8lit("###"), 0, 0);
     if (triple_pound_pos < string.len)
@@ -627,7 +627,7 @@ ui_key_from_stringf(Ui_Key seed, char *fmt, ...)
     Temporary_Arena scratch = scratch_begin();
     va_list args;
     va_start(args, fmt);
-    Utf8 string = utf8fv(scratch.arena, fmt, args);
+    String string = tprint(fmt, args);
     Ui_Key result = ui_key_from_string(seed, string);
     va_end(args);
     scratch_end(scratch);
@@ -635,7 +635,7 @@ ui_key_from_stringf(Ui_Key seed, char *fmt, ...)
 }
 
 internal Ui_Key
-ui_key_from_string(Ui_Key seed, Utf8 string)
+ui_key_from_string(Ui_Key seed, String string)
 {
     ProfileScope;
 

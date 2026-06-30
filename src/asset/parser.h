@@ -34,9 +34,9 @@ namespace Asset
 
     Quaternion parse_quaternion(Parser *p);
 
-    Utf8 parse_string_by_line(Parser *p, Arena *arena);
+    String parse_string_by_line(Parser *p, Arena *arena);
 
-    Utf8 parse_string_by_length(Parser *p, u8 length, Arena *arena);
+    String parse_string_by_length(Parser *p, u8 length, Arena *arena);
 
     bool is_eof(Parser *p);
 }

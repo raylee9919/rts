@@ -302,7 +302,7 @@ internal void render_quad_tuvc(Render_Id texture_id, v2 min, v2 max, v2 uv_min, 
 internal void render_quad_tuvc4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11);
 internal void render_quad_tuvc4r4(Render_Id texture_id, v2 min, v2 max, v2 uv_min, v2 uv_max, v4 c00, v4 c10, v4 c01, v4 c11, f32 r00, f32 r10, f32 r01, f32 r11);
 
-internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, Utf8 string, Render_String_Flags flags, AABB2 cull_aabb);
+internal AABB2 render_string(Face *face, Render_Id atlas, v2 origin, String string, Render_String_Flags flags, AABB2 cull_aabb);
 
 
 

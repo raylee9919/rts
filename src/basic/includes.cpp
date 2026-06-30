@@ -2,5 +2,6 @@
 
 #include "./core.cpp"
 #include "./arena.cpp"
-#include "./thread_ctx.cpp"
+#include "./allocator.cpp"
+#include "./context.cpp"
 #include "./string.cpp"

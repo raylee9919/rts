@@ -176,9 +176,9 @@ namespace Asset
         return result;
     }
 
-    Utf8 parse_string_by_line(Parser *p, Arena *arena) 
+    String parse_string_by_line(Parser *p, Arena *arena) 
     {
-        Utf8 result = {};
+        String result = {};
 
         int len = 0;
         for (;;) {
@@ -198,9 +198,9 @@ namespace Asset
         return result;
     }
 
-    Utf8 parse_string_by_length(Parser *p, u8 length, Arena *arena) 
+    String parse_string_by_length(Parser *p, u8 length, Arena *arena) 
     {
-        Utf8 result = {};
+        String result = {};
 
         assert(p->cursor && p->cursor < p->end);
         eat_whitespace(p);

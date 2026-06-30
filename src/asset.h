@@ -128,7 +128,7 @@ struct Material {
 
 struct Mesh  
 {
-    Utf8 name;
+    String name;
 
     m4x4    global_transform;
 
@@ -163,7 +163,7 @@ struct Model {
 // Skeleton
 //
 struct Joint {
-    Utf8 name;
+    String name;
     s32  parent;
 
     m4x4  local_transform;
@@ -198,7 +198,7 @@ struct Animation_Joint_Entry {
 };
 
 struct Animation {
-    Utf8 name;
+    String name;
 
     f32 duration;
     u32 num_keyframes;
@@ -220,9 +220,9 @@ internal u32 get_triangle_count(Model *model);
 internal u64 animation_hash(u32 id, u32 length);
 
 
-internal void load_model(Arena *arena, Model *model_out, Utf8 file_path, v3 scale = v3{1.f,1.f,1.f});
-internal void load_skeleton(Arena *arena, Skeleton *skel_out, Utf8 file_path);
-internal void load_animation(Arena *arena, Animation *anim_out, Utf8 file_path);
+internal void load_model(Arena *arena, Model *model_out, String file_path, v3 scale = v3{1.f,1.f,1.f});
+internal void load_skeleton(Arena *arena, Skeleton *skel_out, String file_path);
+internal void load_animation(Arena *arena, Animation *anim_out, String file_path);
 
 
 #pragma pack(pop)

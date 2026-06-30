@@ -48,8 +48,8 @@ struct Game_State {
     Arena* arena;
     b32 initted;
 
-    Utf8 binary_path;
-    Utf8 data_path;
+    String binary_path;
+    String data_path;
 
     OS_Handle main_window;
 

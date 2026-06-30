@@ -1151,13 +1151,13 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             //
             if (!entity_is_dead(entity) && (game_state->display_chunk_position) && (entity->flags & ENTITY_FLAG_CHUNK_PARTITIONED)) {
 
-                auto aabb = fp_draw_string(utf8f(game_state->frame_arena, "[%llu] %.2f", entity->id, entity->attack_t), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_NO_DRAW | RENDER_STRING_FLAG_COMPUTE_SIZE).aabb;
+                auto aabb = fp_draw_string(tprint("[%llu] %.2f", entity->id, entity->attack_t), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_NO_DRAW | RENDER_STRING_FLAG_COMPUTE_SIZE).aabb;
                 aabb.min -= v2(4.f, 4.f);
                 aabb.max += v2(4.f, 4.f);
                 v4 c = v4{0.12f, 0.12f, 0.12f, 1.f};
                 f32 r = 6.f;
                 render_quad_c4r4(aabb.min, aabb.max, c,c,c,c, r,r,r,r);
-                fp_draw_string(utf8f(game_state->frame_arena, "[%llu] %.2f", entity->id, entity->attack_t), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
+                fp_draw_string(tprint("[%llu] %.2f", entity->id, entity->attack_t), ui_state->base_family, ui_state->font_size, v2(p.x, p.y), RENDER_STRING_FLAG_COMPUTE_SIZE);
             }
 
 

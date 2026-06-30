@@ -608,7 +608,7 @@ STBSP__PUBLICDEF int STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB *callback,
          goto scopy;
 
       case 'S': {
-         Utf8 utf = va_arg(va, Utf8);
+         String utf = va_arg(va, String);
 
          s = (char *)utf.str;
          sn = (const char *)(utf.str + utf.len);

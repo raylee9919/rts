@@ -148,16 +148,16 @@ Entity* debug_spawn_castle(f32 x, f32 z, Team team, Game_Assets* assets)
     return castle;
 }
 
-Mesh *mesh_from_name(Model *model, Utf8 name)
+Mesh *mesh_from_name(Model *model, String name)
 {
     for (u32 i = 0; i < model->num_meshes; ++i) {
         Mesh *mesh = &model->meshes[i];
-        Utf8 n = mesh->name;
+        String n = mesh->name;
         if (n == name) {
             return mesh;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 struct Token {
@@ -218,13 +218,13 @@ struct Material_Parser {
     }
 };
 
-Material load_material(Asset::System* asset_system, Utf8 asset_dir, Utf8 path) {
+Material load_material(Asset::System* asset_system, String asset_dir, String path) {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
     Material material = {};
 
-    Utf8 entire_file = read_entire_file(scratch.arena, path);
+    String entire_file = read_entire_file(scratch.arena, path);
 
     Material_Parser p;
     {
@@ -272,7 +272,7 @@ Material load_material(Asset::System* asset_system, Utf8 asset_dir, Utf8 path) {
             }
 
             if (valid) {
-                Utf8 texture_path = utf8f(scratch.arena, "%S/textures/%s.texture", asset_dir, value);
+                String texture_path = tprint("%S/textures/%s.texture", asset_dir, value);
                 load_texture(asset_system, &material.textures[slot], texture_path);
             }
         }

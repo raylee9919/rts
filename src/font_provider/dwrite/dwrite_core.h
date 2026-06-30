@@ -244,6 +244,6 @@ struct Fp_Draw_String_Result
     f32 max_descent;
 };
 
-internal Fp_Draw_String_Result fp_draw_string(Utf8 string, Utf8 base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb = aabb2_infinite());
+internal Fp_Draw_String_Result fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb = aabb2_infinite());
 
 #endif // RTS_DWRITE_H
