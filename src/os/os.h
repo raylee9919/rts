@@ -309,6 +309,12 @@ internal OS_Event*          os_push_event();
 internal void               os_remove_event(OS_Event* event);
 internal void               os_clear_events();
 
+// Critical Section
+internal void               csection_init(Critical_Section* csection);
+internal void               csection_lock(Critical_Section* csection);
+internal void               csection_unlock(Critical_Section* csection);
+internal void               csection_destroy(Critical_Section* csection);
+
 // Main Entry
 #if !defined(BUILD_NO_ENTRY) || !BUILD_NO_ENTRY
 int main_entry(int argc, char** argv);

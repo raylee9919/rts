@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_DS_H
+#define RTS_DS_H
 
 // @Todo: Item is appended to list via arena/CRT. It is a mess.
 //        They won't agree on things, and things are brittle. Adding 'num' as a member 
@@ -24,31 +25,6 @@ struct List {
     Link <T>* last  = nullptr;
 };
 
-
-
-template <typename T>
-struct Array {
-
-    Array();
-    ~Array();
-
-    void push(T val);
-    bool is_empty();
-    void clear();
-    void release();
-    void reserve_to(int cap_);
-
-    T& operator[](u64 idx);
-    const T& operator[](u64 idx) const;
-
-
-    T* data = nullptr;
-    int num = 0;
-    int cap = 0;
-};
-
-
-
 template <typename K, typename V>
 struct Table {
 
@@ -57,18 +33,6 @@ struct Table {
     V* data = NULL;
     int num = 0;
     int cap = 0;
-};
-
-template <typename T>
-struct Stack {
-    void push(T val);
-    T    pop();
-    int  count();
-    bool empty();
-    void clear();
-
-    T data[256];
-    int top = 0;
 };
 
 template<typename T>
@@ -161,3 +125,8 @@ void heapifyDown(Priority_Queue <T> *pq, size_t index)
         heapifyDown(pq, smallest);
     }
 }
+
+
+
+
+#endif // RTS_DS_H

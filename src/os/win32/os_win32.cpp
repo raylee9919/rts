@@ -792,6 +792,25 @@ void os_clear_events() {
     }
 }
 
+// Critical Section
+//
+void csection_init(Critical_Section* csection) {
+    InitializeCriticalSection(csection);
+}
+
+void csection_lock(Critical_Section* csection) {
+    EnterCriticalSection(csection);
+}
+
+void csection_unlock(Critical_Section* csection) {
+    LeaveCriticalSection(csection);
+}
+
+void csection_destroy(Critical_Section* csection) {
+    DeleteCriticalSection(csection);
+}
+
+
 
 // Main Entry
 //

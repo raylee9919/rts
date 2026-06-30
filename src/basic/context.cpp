@@ -12,11 +12,26 @@ void context_pop() {
     tctx = ts->context_stack[--ts->context_stack_pointer];
 }
 
+// @Temporary
+// @Temporary
+// @Temporary
+// @Temporary
+void* crt_proc(Allocator_Mode mode, u64 size, u64 old_size, void* old_memory, void* data) {
+    auto* arena = (Arena*)data;
 
-// @Temporary
-// @Temporary
-// @Temporary
-// @Temporary
+    if (mode == ALLOCATOR_MODE_ALLOCATE) {
+        return malloc(size);
+    } else if (mode == ALLOCATOR_MODE_RESIZE) {
+        return realloc(old_memory, size);
+    } else if (mode == ALLOCATOR_MODE_FREE) {
+        free(old_memory);
+        return nullptr;
+    } else {
+        assert(!"X");
+        return nullptr;
+    }
+}
+
 void* arena_proc(Allocator_Mode mode, u64 size, u64 old_size, void* old_memory, void* data) {
     auto* arena = (Arena*)data;
 
@@ -42,10 +57,11 @@ void thread_init(void) {
     // @Temporary
     // @Temporary
     // @Temporary
-    // @Temporary
+    tctx.allocator.proc = crt_proc;
+    tctx.allocator.data = nullptr;
+
     tctx.temp.proc = arena_proc;
     tctx.temp.data = arena_alloc();
-    // @Temporary
     // @Temporary
     // @Temporary
     // @Temporary

@@ -17,7 +17,9 @@ struct Allocator {
     void* data;
 };
 
-internal void* allocate(Allocator* allocator, u64 size);
+internal void* alloc(u64 size);
+internal void* realloc(void* memory, u64 size, u64 old_size);
+internal void  Free(void* memory);
 
 
 #endif // RTS_ALLOCATOR_H

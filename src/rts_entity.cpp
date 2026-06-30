@@ -38,10 +38,11 @@ internal m3x4* get_skinning_matrices(Entity* e)
 internal void
 entity_clear_path_data(Entity* entity)
 {
-    entity->waypoint_queue.clear();
-    entity->l_points.clear();
-    entity->r_points.clear();
-    entity->debug_waypoint_queue.clear();
+    auto* e = entity;
+    e->waypoint_queue.clear();
+    array_reset_keeping_memory(&e->l_points);
+    array_reset_keeping_memory(&e->r_points);
+    e->debug_waypoint_queue.clear();
 }
 
 internal List <Entity*>
@@ -359,8 +360,8 @@ entity_find_path(Entity* entity, v3 destination)
     // Gather portal edges' points.
     //
     if (f_costs[dst_idx] != unreachable_dist) {
-        entity->l_points.push(dst);
-        entity->r_points.push(dst);
+        array_add(&entity->l_points, dst);
+        array_add(&entity->r_points, dst);
         if (src_idx != dst_idx) {
             for (int t = dst_idx; t != src_idx; t = parent[t]) {
                 cdt_triangle tri = triangles[t];
@@ -375,11 +376,11 @@ entity_find_path(Entity* entity, v3 destination)
                 l += lr*entity->radius;
                 r += rl*entity->radius;
 
-                entity->l_points.push(l);
-                entity->r_points.push(r);
+                array_add(&entity->l_points, l);
+                array_add(&entity->r_points, r);
             }
-            entity->l_points.push(src);
-            entity->r_points.push(src);
+            array_add(&entity->l_points, src);
+            array_add(&entity->r_points, src);
         }
 
 
@@ -389,7 +390,7 @@ entity_find_path(Entity* entity, v3 destination)
         // @Todo: Can I do better?
         //
 
-        int portal_count = entity->l_points.num;
+        int portal_count = entity->l_points.count;
         int apex_idx = portal_count - 1;
         int l_idx    = portal_count - 1;
         int r_idx    = portal_count - 1;

@@ -5,3 +5,4 @@
 #include "./allocator.cpp"
 #include "./context.cpp"
 #include "./string.cpp"
+#include "./array.cpp"

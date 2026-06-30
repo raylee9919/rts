@@ -33,8 +33,7 @@ void    context_pop();
 internal void thread_init(void);
 
 internal Temporary_Arena scratch_begin(void);
-
-internal void scratch_end(Temporary_Arena tmp);
+internal void            scratch_end(Temporary_Arena tmp);
 
 internal void clear_temporary_storage();
 

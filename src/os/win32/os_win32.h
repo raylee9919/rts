@@ -25,4 +25,9 @@
 __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
+
+typedef CRITICAL_SECTION Critical_Section;
+
+
+
 #endif // RTS_OS_WIN32_H

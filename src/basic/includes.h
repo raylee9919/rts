@@ -8,6 +8,7 @@
 #include "./allocator.h"
 #include "./context.h"
 #include "./string.h"
+#include "./array.h"
 
 
 String read_entire_file(Arena* arena, String file_path);

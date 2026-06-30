@@ -128,14 +128,14 @@ void Animation_Player::init(Skeleton *skel, m3x4 *out_skinning_matrices)
     assert(out_skinning_matrices);
     skinning_matrices = out_skinning_matrices;
 
-    blended_local_transforms.reserve_to(skeleton->num_joints);
+    array_reserve(&blended_local_transforms, skeleton->num_joints);
 
     int num_channels = array_count(channels);
     for (int i = 0; i < num_channels; ++i) {
         auto* channel = &channels[i];
         channel->init(i, this);
         
-        local_transforms[i].reserve_to(skeleton->num_joints);
+        array_reserve(&local_transforms[i], skeleton->num_joints);
 
         blend_weights[i] = 0.f;
     }

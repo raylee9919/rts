@@ -34,88 +34,6 @@ void List <T> :: clear() {
 }
 
 
-//
-// Array
-//
-template <typename T>
-Array <T> :: Array() {
-}
-
-template <typename T>
-Array <T> :: ~Array() {
-    if (data) {
-        delete data;
-    }
-}
-
-template <typename T>
-void Array<T>::push(T val) {
-    if (num == cap) {
-
-        int new_cap = 4;
-
-        if (cap == 0) {
-            data = new T[new_cap];
-        } else {
-            new_cap = cap + (cap >> 1); // x1.5
-            T* ptr = new T[new_cap];
-            memcpy(ptr, data, sizeof(T) * cap);
-            delete data;
-            data = ptr;
-        }
-
-        cap = new_cap;
-    }
-
-    data[num++] = val;
-}
-
-template <typename T>
-bool Array <T>::is_empty() {
-    return num == 0;
-}
-
-template <typename T>
-void Array <T>::clear() {
-    num = 0;
-}
-
-template <typename T>
-void Array <T>::release() {
-    if (data) {
-        delete data;
-    }
-    num = 0;
-    cap = 0;
-}
-
-template <typename T>
-void Array <T> :: reserve_to(int new_cap) {
-    if (cap >= new_cap) {
-        return;
-    }
-
-    T* ptr = new T[new_cap];
-    if (data) {
-        memcpy(ptr, data, sizeof(T) * cap);
-        delete ptr;
-    }
-    data = ptr;
-    cap = new_cap;
-
-    memset(data + num, 0, sizeof(T) * (cap - num));
-}
-
-template<typename T>
-T& Array <T>::operator[](u64 idx) {
-    return data[idx];
-}
-
-template<typename T>
-const T& Array <T>::operator[](u64 idx) const {
-    return data[idx];
-}
-
 
 //
 // Table
@@ -124,39 +42,6 @@ template <typename K, typename V>
 bool Table <K, V> :: find(K key) {
     // @Todo
     return false;
-}
-
-
-//
-// Stack
-//
-template<typename T>
-T Stack<T>::pop() {
-    assert(top > 0);
-    --top;
-    return data[top];
-}
-
-template<typename T>
-void Stack<T>::push(T item) {
-    assert(top < array_count(data));
-    data[top] = item;
-    ++top;
-}
-
-template<typename T>
-int Stack<T>::count() {
-    return top;
-}
-
-template<typename T>
-bool Stack<T>::empty() {
-    return top == 0;
-}
-
-template<typename T>
-void Stack<T>::clear() {
-    top = 0;
 }
 
 

@@ -5,8 +5,9 @@
 #include "profiler/profiler.h"
 
 #include "basic/includes.h"
-#include "math/math.h"
+#include "math/includes.h"
 #include "os/os.h"
+#include "thread/includes.h"
 #include "ds.h"
 #include "rts_font.h"
 #include "asset/inc.h"
@@ -38,8 +39,9 @@ global RHI_State*   g_rhi_state;
 #include "third_party/xxhash3/xxhash.c"
 
 #include "basic/includes.cpp"
-#include "math/math.cpp"
+#include "math/includes.cpp"
 #include "os/os.cpp"
+#include "thread/includes.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
 #include "asset/inc.cpp"
@@ -410,7 +412,7 @@ int main_entry(int argc, char** argv)
 
                     // @Temporary: Create soldier entity.
                     //
-                    int num_soldiers = 8;
+                    int num_soldiers = 64;
                     int num_rows = 50;
                     f32 dist = 0.8f;
 
