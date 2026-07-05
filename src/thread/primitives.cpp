@@ -1,17 +1,17 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-void init(Mutex* m) {
+void mutex_init(Mutex* m) {
     csection_init(&m->csection);
 }
 
-void lock(Mutex* m) {
+void mutex_lock(Mutex* m) {
     csection_lock(&m->csection);
 }
 
-void unlock(Mutex* m) {
+void mutex_unlock(Mutex* m) {
     csection_unlock(&m->csection);
 }
 
-void destroy(Mutex* m) {
+void mutex_destroy(Mutex* m) {
     csection_destroy(&m->csection);
 }

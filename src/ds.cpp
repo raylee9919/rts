@@ -36,16 +36,6 @@ void List <T> :: clear() {
 
 
 //
-// Table
-//
-template <typename K, typename V>
-bool Table <K, V> :: find(K key) {
-    // @Todo
-    return false;
-}
-
-
-//
 // Queue
 //
 template<typename T>

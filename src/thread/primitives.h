@@ -16,10 +16,10 @@ struct Mutex {
     Critical_Section csection;
 };
 
-internal void init(Mutex* m);
-internal void lock(Mutex* m);
-internal void unlock(Mutex* m);
-internal void destroy(Mutex* m);
+internal void mutex_init(Mutex* m);
+internal void mutex_lock(Mutex* m);
+internal void mutex_unlock(Mutex* m);
+internal void mutex_destroy(Mutex* m);
 
 
 

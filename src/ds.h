@@ -25,16 +25,6 @@ struct List {
     Link <T>* last  = nullptr;
 };
 
-template <typename K, typename V>
-struct Table {
-
-    bool find(K key);
-
-    V* data = NULL;
-    int num = 0;
-    int cap = 0;
-};
-
 template<typename T>
 struct Queue {
     void push(T val);
