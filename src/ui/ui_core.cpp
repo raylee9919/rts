@@ -602,7 +602,7 @@ ui_key_match(Ui_Key a, Ui_Key b)
 internal String
 ui_text_part_from_key_string(String string)
 {
-    u64 double_pound_pos = utf8_find_substr(string, utf8lit("##"), 0, 0);
+    s64 double_pound_pos = utf8_find_substr(string, utf8lit("##"), 0, 0);
     if (double_pound_pos < string.len)
     {
         string.len = double_pound_pos;
@@ -613,7 +613,7 @@ ui_text_part_from_key_string(String string)
 internal String
 ui_hash_part_from_key_string(String string)
 {
-    u64 triple_pound_pos = utf8_find_substr(string, utf8lit("###"), 0, 0);
+    s64 triple_pound_pos = utf8_find_substr(string, utf8lit("###"), 0, 0);
     if (triple_pound_pos < string.len)
     {
         string = utf8(string.str + triple_pound_pos + 3, string.len - triple_pound_pos - 3);

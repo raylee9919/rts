@@ -7,7 +7,7 @@
 #define RTS_GL_VERSION_MINOR 6
 
 #include <gl/gl.h>
-#include "third_party/opengl/glcorearb.h"
+#include "ThirdParty/opengl/glcorearb.h"
 
 #include "./gl_x.h"
 #include "./gl_bump_allocator.h"

@@ -147,7 +147,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, String text)
 
                 Ui_Signal slider_signal = ui_signal_from_box(slider);
                 f32 thumb_cen_x = thumb->position[AXIS2_X] + thumb_size_x*0.5f;
-                if (ui_key_match(ui_state->active_key, slider->key) && (abs(ui_state->current_mouse_position.x - thumb_cen_x) > 1.f))
+                if (ui_key_match(ui_state->active_key, slider->key) && (m_abs(ui_state->current_mouse_position.x - thumb_cen_x) > 1.f))
                 {
                     f32 delta = (ui_state->current_mouse_position.x > thumb_cen_x) ? 1.f : -1.f;
                     thumb->position[AXIS2_X] += delta;

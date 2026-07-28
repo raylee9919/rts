@@ -5,8 +5,8 @@
 
 #if BUILD_PROFILE
 #  define TRACY_ENABLE
-#  include "tracy/tracy/Tracy.hpp"
-#  include "tracy/TracyClient.cpp"
+#  include "ThirdParty/tracy/tracy/Tracy.hpp"
+#  include "ThirdParty/tracy/TracyClient.cpp"
 #  define ProfileFrameMark FrameMark
 #  define ProfileScope     ZoneScoped
 #  define ProfileScopeN    ZoneScopedN

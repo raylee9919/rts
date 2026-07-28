@@ -474,7 +474,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
     assert(font_entry);
 
     // @Todo: Think about floating point mathematics.
-    if (abs(font_entry->font_size - font_size) > 0.1f)
+    if (m_abs(font_entry->font_size - font_size) > 0.1f)
     {
         ProfileScopeN("RebuildAtlas");
 

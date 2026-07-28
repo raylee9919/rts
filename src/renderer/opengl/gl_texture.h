@@ -18,11 +18,8 @@ namespace GL
         Texture* prev;
     };
 
-    Texture* alloc_texture_unique(Opengl* gl, u64 id, Texture_Layout layout, u32 width, u32 height, void* data);
-
-    void commit_texture(Opengl*gl, u64 id);
-
-    void decommit_texture(Opengl*gl, u64 id);
-
-    Texture* get_texture(Opengl* gl, u64 id);
+    Texture  *alloc_texture_unique(Opengl* gl, u64 id, Texture_Layout layout, u32 width, u32 height, void* data);
+    void     commit_texture(Opengl*gl, u64 id);
+    void     decommit_texture(Opengl*gl, u64 id);
+    Texture  *get_texture(Opengl* gl, u64 id);
 }

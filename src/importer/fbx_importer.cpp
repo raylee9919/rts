@@ -11,7 +11,7 @@
 // .h
 //
 #include "third_party/xxhash3/xxhash.c"
-#include "basic/includes.h"
+#include "Basic/include.h"
 #include "math/math.h"
 #include "os/os.h"
 #include "asset/system.h"
@@ -24,7 +24,7 @@
 
 // .cpp
 //
-#include "basic/includes.cpp"
+#include "Basic/include.cpp"
 #include "math/math.cpp"
 #include "os/os.cpp"
 
@@ -490,11 +490,8 @@ void mikkt_set_basic(const SMikkTSpaceContext *ctx, const float tangent[], const
     v->tangent.w = sign;
 }
 
-int main()
+int main_entry(int argc, char **argv)
 {
-    os_init();
-    thread_init();
-
     State *state;
     {
         Arena *arena = arena_alloc();

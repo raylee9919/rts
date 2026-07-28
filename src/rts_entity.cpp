@@ -122,7 +122,7 @@ entity_propagate_arrival(Entity* entity)
                 }
 
                 if (other->command == ENTITY_CMD_MOVE) {
-                    if (other->destination == entity->destination) {
+                    if (memcmp(&other->destination, &entity->destination, sizeof(entity->destination)) == 0) {
                         f32 dist = distance(other->position, other->destination);
                         if (dist < too_far_threshold) {
                             other->command = ENTITY_CMD_STOP;
@@ -1025,7 +1025,7 @@ entity_update(Entity* entity, f32 dt)
                             f32 dx = clamp(pos.x - other_x, -half, half);
                             f32 dy = clamp(pos.y - other_y, -half, half);
 
-                            if (abs(dx) < half && abs(dy) < half) {
+                            if (m_abs(dx) < half && m_abs(dy) < half) {
 
                             } else {
                                 // Point on the edge of a rect that's closest to the circle.

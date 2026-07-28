@@ -1,13 +1,24 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+
+#ifndef RTS_STRING_H
+#define RTS_STRING_H
+
+
+// Faster 'sprintf' than stdlib.
+#define STB_SPRINTF_DECORATE(name) str_##name
+#include "basic/vendor/stb_sprintf.h"
 
 
 
+//
+// UTF-8 string.
+//
 struct String {
     u8 *str;
-    u64 len;
+    s64 len;
 };
+
 
 struct Utf16 {
     u16 *str;
@@ -40,10 +51,12 @@ enum
 };
 
 
+
 //
 // Constructors.
 //
 #define utf8lit(str) utf8((u8 *)str, sizeof(str) - 1)
+#define S(str) String{(u8 *)str, sizeof(str) - 1}
 internal String utf8(u8 *str, u64 len);
 internal String utf8c(u8 *ptr);
 internal Utf16 utf16(u16 *str, u64 len);
@@ -68,8 +81,8 @@ internal Utf16 to_utf16(Arena *arena, String in);
 // Manipulation.
 //
 internal b32 utf8_match(String a, String b, Str_Match_Flags flags);
-internal String utf8_substr(String str, u64 min, u64 max);
-internal u64 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags);
+internal String utf8_substr(String str, s64 min, s64 max);
+internal s64 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags);
 internal String utf8_path_chop_last_slash(String string);
 
 //
@@ -83,3 +96,6 @@ internal String utf8_skip_chop_whitespace(String str);
 // Operators
 //
 bool operator == (String l, String r);
+
+
+#endif // RTS_STRING_H

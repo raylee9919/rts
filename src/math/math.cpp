@@ -8,12 +8,40 @@
 //
 
 
-// Helper functions
 //
-f32 abs(f32 x) {
-    return x > 0 ? x : -x;
+// Sloppy
+//
+f32 safe_ratio(f32 l, f32 r) {
+    if (r > -1e-5f && r < 1e-5f) return 0.0f;
+    return l / r;
 }
 
+
+//
+// Absolute
+//
+f32 m_abs(f32 f) { return f > 0.f ? f : -f; }
+f64 m_abs(f64 d) { return d > 0.f ? d : -d; }
+
+
+//
+// Square roots
+//
+f32 m_sqrt(f32 f) {
+    // Use '_mm_cvtss_f32' instead of '_mm_store_ss' to extract a float.
+    return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(f)));
+}
+
+f32 m_rsqrt(f32 f) {
+    // @Study: 1. 16.17 FSQRT SQRTSS (https://www.agner.org/optimize/optimizing_assembly.pdf)
+    //         2. Newtonian Iteration (https://stackoverflow.com/questions/14752399/newton-raphson-with-sse2-can-someone-explain-me-these-3-lines)
+    //
+    // @Todo: afaik, '_mm_rsqrt' does not produce deterministic result?
+    return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(f)));
+}
+
+
+//
 // Mapping functions
 //
 f32 map(f32 x, f32 min, f32 max) {
@@ -35,23 +63,14 @@ f32 map_snorm(f32 x, f32 min, f32 max) {
     return 2.0f * map_unorm(x, min, max) - 1.0f;
 }
 
-// Square roots
+
 //
-f32 square_root(f32 f) 
-{
-    // Small perf improvement.
-    // Use '_mm_cvtss_f32' instead of '_mm_store_ss' when extracting a float.
-    return _mm_cvtss_f32(_mm_sqrt_ss(_mm_set_ss(f)));
-}
-
-f32 rcp_square_root(f32 f) {
-    // @Study: 1. 16.17 FSQRT SQRTSS (https://www.agner.org/optimize/optimizing_assembly.pdf)
-    //         2. Newtonian Iteration (https://stackoverflow.com/questions/14752399/newton-raphson-with-sse2-can-someone-explain-me-these-3-lines)
-    return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(f)));
-}
-
 // Easing functions
 //
+f32 lerp(f32 a, f32 t, f32 b) {
+    return a + (b - a) * t;
+}
+
 f32 smoothstep(f32 min, f32 max, f32 x) {
     x = map_unorm(x, min, max);
     return x * x * (3.f - 2.f*x);
@@ -63,16 +82,10 @@ f32 hermite(f32 min, f32 max, f32 x) {
     return lerp(min, t3 * (6 * t2 - 15 * x + 10), max);
 }
 
-f32 lerp(f32 a, f32 t, f32 b) {
-    return a + (b - a) * t;
-}
 
-
-f32 safe_ratio(f32 a, f32 b) {
-    if (b != 0) return a / b;
-    return 0.0f;
-}
-
+//
+// Vector2
+//
 v2::v2(f32 f) {
     e[0] = f;
     e[1] = f;
@@ -83,7 +96,7 @@ v2::v2(f32 x_, f32 y_) {
     e[1] = y_;
 }
 
-v2 operator - (const v2 &in) {
+v2 operator - (v2& in) {
     v2 V;
     V.x = -in.x;
     V.y = -in.y;
@@ -134,6 +147,15 @@ v2& operator *= (v2& a, f32 b) {
     return a;
 }
 
+v2 operator * (v2 l, v2 r) {
+    v2 v = { l.x * r.x, l.y * r.y };
+    return v;
+}
+
+
+
+
+
 f32 triarea2(v2 a, v2 b, v2 c) {
     v2 p = c - b;
     v2 q = a - b;
@@ -176,7 +198,7 @@ f32 invsqlen(v4 v) {
 }
 
 f32 length(v2 v) {
-    f32 len = square_root(sqlen(v));
+    f32 len = m_sqrt(sqlen(v));
     return len;
 }
 
@@ -188,7 +210,7 @@ v2 lerp(v2 a, f32 t, v2 b) {
 }
 
 v2 normalize(v2 v) {
-    f32 d = rcp_square_root(v.x * v.x + v.y * v.y);
+    f32 d = m_rsqrt(v.x * v.x + v.y * v.y);
     v.x *= d;
     v.y *= d;
     return v;
@@ -211,15 +233,6 @@ v3::v3(v2 xy, f32 z_) {
     e[0] = xy.x;
     e[1] = xy.y;
     e[2] = z_;
-}
-
-internal b32
-operator == (v3 a, v3 b)
-{
-    if (a.x == b.x && a.y == b.y && a.z == b.z) {
-        return true;
-    }
-    return false;
 }
 
 v3 operator - (const v3 &in) {
@@ -249,9 +262,7 @@ v3 operator / (v3 v, f32 f) {
     return v;
 }
 
-internal v3&
-operator /= (v3& a, f32 b) 
-{
+v3& operator /= (v3& a, f32 b) {
     f32 c = (1.0f / b);
     a.x *= c;
     a.y *= c;
@@ -344,11 +355,6 @@ v3 cross(v3 a, v3 b) {
     return v;
 }
 
-v2 hadamard(v2 a, v2 b) {
-    v2 v = { a.x*b.x, a.y*b.y };
-    return v;
-}
-
 v3 hadamard(v3 a, v3 b) {
     v3 v = { a.x*b.x, a.y*b.y, a.z*b.z };
     return v;
@@ -367,12 +373,12 @@ v4 hadamard(v4 a, v4 b) {
 
 f32 length(v3 v) 
 {
-    f32 len = square_root(v.x*v.x + v.y*v.y + v.z*v.z);
+    f32 len = m_sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     return len;
 }
 
 v3 normalize(v3 v) {
-    f32 d = rcp_square_root(v.x*v.x + v.y*v.y + v.z*v.z);
+    f32 d = m_rsqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x *= d;
     v.y *= d;
     v.z *= d;
@@ -391,13 +397,13 @@ f32 distance(v3 a, v3 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
     f32 dz = a.z - b.z;
-    return square_root(dx*dx + dy*dy + dz*dz);
+    return m_sqrt(dx*dx + dy*dy + dz*dz);
 }
 
 f32 distance(v2 a, v2 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
-    return square_root(dx*dx + dy*dy);
+    return m_sqrt(dx*dx + dy*dy);
 }
 
 //
@@ -546,7 +552,7 @@ Quaternion operator - (Quaternion q)
 
 Quaternion normalize(Quaternion q) 
 {
-    f32 d = rcp_square_root(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+    f32 d = m_rsqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
     __m128 d_ = _mm_set1_ps(d);
     q.sse = _mm_mul_ps(q.sse, d_);
     return q;
@@ -1253,7 +1259,7 @@ bool ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out) {
     f32 t = 0.f;
     f32 denom = dot(v, n);
 
-    if (abs(denom) > 0.0001f) {
+    if (m_abs(denom) > 0.0001f) {
         t = -(dot(o, n) + d) / denom;
         *out = o + t*v;
 
@@ -1299,7 +1305,7 @@ Xform to_xform(m4x4 m)
 
     if (trace > 0.0f)
     {
-        float s = 0.5f / sqrtf(trace + 1.0f);
+        float s = 0.5f / m_sqrt(trace + 1.0f);
         rotation.w = 0.25f / s;
         rotation.x = (r._32 - r._23) * s;
         rotation.y = (r._13 - r._31) * s;

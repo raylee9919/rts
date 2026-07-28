@@ -34,8 +34,6 @@ _dll_np(void *node, u64 np)
 internal void
 _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*))
 {
-    Temporary_Arena scratch = scratch_begin();
-
     for (void *end = last; end != first; end = _dll_np(end, prev))
     {
         for (void *it = first; it != end; it = _dll_np(it, next))
@@ -43,8 +41,8 @@ _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*
             void *in = _dll_np(it, next);
             if (cmp(it, in))
             {
-                u8 *tmp1 = (u8 *)push_size(scratch.arena, size);
-                u8 *tmp2 = (u8 *)push_size(scratch.arena, size);
+                u8 *tmp1 = (u8 *)alloc(size, tctx.temp);
+                u8 *tmp2 = (u8 *)alloc(size, tctx.temp);
                 memory_copy(tmp1, it, size);
                 memory_copy(tmp2, in, size);
                 memory_copy(it, tmp2, size);
@@ -58,8 +56,6 @@ _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*
             }
         }
     }
-
-    scratch_end(scratch);
 }
 
 String read_entire_file(Arena* arena, String file_path) {

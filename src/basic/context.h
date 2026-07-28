@@ -3,11 +3,12 @@
 #ifndef RTS_BASE_CONTEXT_H
 #define RTS_BASE_CONTEXT_H
 
+struct Arena;
 
 struct Context {
-    struct Arena *scratch_arena;
+    Arena *scratch_arena;
 
-    struct Arena *temporary_arena;
+    Arena *temporary_arena;
 
     Allocator allocator;
 

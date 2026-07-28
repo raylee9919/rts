@@ -52,8 +52,8 @@ internal void arena_pop(Arena *arena, u64 size);
 
 internal Temporary_Arena    temporary_arena_begin(Arena* arena);
 internal void               temporary_arena_end(Temporary_Arena temp);
-internal Temporary_Arena    scratch_begin(void);
-internal void               scratch_end(Temporary_Arena tmp);
+//internal Temporary_Arena    scratch_begin(void);
+//internal void               scratch_end(Temporary_Arena tmp);
 
 
 #endif // RTS_ARENA_H

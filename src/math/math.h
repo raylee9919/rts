@@ -126,34 +126,42 @@ struct Ray3 {
     v3 direction;
 };
 
-// Helper functions
-internal f32 abs(f32 x);
+// Sloppy
+internal f32        safe_ratio(f32 l, f32 r);
 
-// Mapping functions
-internal f32 map(f32 x, f32 min, f32 max);
-internal f32 map_unorm(f32 x, f32 min, f32 max);
-internal f32 map_snorm(f32 x, f32 min, f32 max);
+// Absolute
+internal f32        m_abs(f32 f);
+internal f64        m_abs(f64 d);
 
 // Square roots
-internal f32 square_root(f32 f);
-internal f32 rcp_square_root(f32 f);
+internal f32        m_sqrt(f32 f);
+internal f32        m_rsqrt(f32 f);
+
+// Mapping functions
+internal f32        map(f32 x, f32 min, f32 max);
+internal f32        map_unorm(f32 x, f32 min, f32 max);
+internal f32        map_snorm(f32 x, f32 min, f32 max);
 
 // Easing functions
-internal f32 smoothstep(f32 min, f32 max, f32 x);
-internal f32 hermite(f32 min, f32 max, f32 x);
+internal f32        lerp(f32 a, f32 t, f32 b);
+internal f32        smoothstep(f32 min, f32 max, f32 x);
+internal f32        hermite(f32 min, f32 max, f32 x);
 
-internal f32 lerp(f32 a, f32 t, f32 b);
+// Vector2
+internal v2         operator  - (v2& in);
+internal v2         operator  * (f32 f,  v2 v);
+internal v2         operator  * (v2  v, f32 f);
+internal v2         operator  + (v2  l,  v2 r);
+internal v2         operator  - (v2  l,  v2 r);
+internal v2&        operator += (v2& l,  v2 r);
+internal v2&        operator -= (v2& l,  v2 r);
+internal v2&        operator *= (v2& v, f32 f);
+internal v2         operator  * (v2  l,  v2 r); // Hadamard product. I'm just following the shader convention.
 
-internal f32 safe_ratio(f32 a, f32 b);
-internal v2 operator-(const v2 &in);
-internal v2 operator*(f32 A, v2 B);
-internal v2 operator*(v2 B, f32 A);
-internal v2 operator+(v2 A, v2 B);
-internal v2 operator-(v2 A, v2 B);
-internal v2& operator+=(v2& a, v2 b);
-internal v2& operator-=(v2& a, v2 b);
-internal v2& operator*=(v2& a, f32 b);
 
+//
+// @Todo: Cleanup below.
+//
 
 #if SSE_ENABLED
 internal f32            dot(__m128 a, __m128 b);
@@ -182,7 +190,6 @@ internal f32            invsqlen(v4 v);
 internal f32            length(v2 A);
 internal v2             normalize(v2 a);
 internal v2             lerp(v2 a, f32 t, v2 b);
-internal b32            operator == (v3 a, v3 b);
 internal v3             operator - (const v3 &in);
 internal v3             operator * (f32 A, v3 B);
 internal v3             operator * (v3 B, f32 A);

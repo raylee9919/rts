@@ -1,9 +1,10 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
+// Faster 'sprintf' than stdlib.
 #define STB_SPRINTF_IMPLEMENTATION
-#define STB_SPRINTF_DECORATE(name) str_##name
 #include "basic/vendor/stb_sprintf.h"
+
 
 //
 // c-string
@@ -132,8 +133,7 @@ u8 to_forward_slash(u8 c) {
 
 // # Note: String Constructors
 //
-internal String
-utf8(u8 *str, u64 len)
+String utf8(u8 *str, u64 len)
 {
     String result = {};
     result.str = str;
@@ -141,8 +141,7 @@ utf8(u8 *str, u64 len)
     return result;
 }
 
-internal String
-utf8c(u8 *ptr)
+String utf8c(u8 *ptr)
 {
     u8 *p = ptr;
     for (;*p; ++p);
@@ -371,7 +370,7 @@ utf8_match(String a, String b, Str_Match_Flags flags)
     if (a.len == b.len || flags & STR_MATCH_RIGHT_SIDE_SLOPPY)
     {
         result = 1;
-        for(u64 i = 0; i < a.len; i += 1)
+        for(s64 i = 0; i < a.len; i += 1)
         {
             b32 match = (a.str[i] == b.str[i]);
             if (flags & STR_MATCH_CASE_INSENSITIVE)
@@ -393,7 +392,7 @@ utf8_match(String a, String b, Str_Match_Flags flags)
 }
 
 internal String
-utf8_substr(String str, u64 min, u64 max)
+utf8_substr(String str, s64 min, s64 max)
 {
     if (max > str.len)
     {
@@ -405,7 +404,7 @@ utf8_substr(String str, u64 min, u64 max)
     }
     if (min > max)
     {
-        u64 swap = min;
+        s64 swap = min;
         min = max;
         max = swap;
     }
@@ -414,12 +413,12 @@ utf8_substr(String str, u64 min, u64 max)
     return str;
 }
 
-internal u64
+internal s64
 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags)
 {
     b32 found = 0;
-    u64 found_idx = haystack.len;
-    for (u64 i = start_pos; i < haystack.len; i += 1)
+    s64 found_idx = haystack.len;
+    for (s64 i = start_pos; i < haystack.len; i += 1)
     {
         if (i + needle.len <= haystack.len)
         {
@@ -440,7 +439,7 @@ internal String
 utf8_path_chop_last_slash(String string)
 {
     Str_Match_Flags flags = STR_MATCH_SLASH_INSENTISIVE|STR_MATCH_FIND_LAST;
-    u64 slash_pos = utf8_find_substr(string, utf8lit("/"), 0, flags);
+    s64 slash_pos = utf8_find_substr(string, utf8lit("/"), 0, flags);
     if(slash_pos < string.len)
     {
         string.len = slash_pos;
@@ -454,8 +453,8 @@ utf8_path_chop_last_slash(String string)
 internal String
 utf8_skip_whitespace(String str)
 {
-    u64 first_non_ws = 0;
-    for (u64 idx = 0; idx < str.len; idx += 1)
+    s64 first_non_ws = 0;
+    for (s64 idx = 0; idx < str.len; idx += 1)
     {
         first_non_ws = idx;
         if (! is_whitespace(str.str[idx]))
@@ -474,7 +473,7 @@ internal String
 utf8_chop_whitespace(String str)
 {
     u64 first_ws_at_end = str.len;
-    for (u64 idx = str.len - 1; idx < str.len; idx -= 1)
+    for (s64 idx = str.len - 1; idx < str.len; idx -= 1)
     {
         if(! is_whitespace(str.str[idx]))
         {
@@ -504,7 +503,7 @@ bool operator == (String l, String r) {
     return true;
 }
 
-String tprint(char* fmt, va_list args) {
+String tprint(char *fmt, va_list args) {
     String result = {};
     va_list args2;
     va_copy(args2, args);
@@ -516,7 +515,7 @@ String tprint(char* fmt, va_list args) {
     return result;
 }
 
-String tprint(char* fmt, ...) {
+String tprint(char *fmt, ...) {
     String result = {};
     va_list args;
     va_start(args, fmt);

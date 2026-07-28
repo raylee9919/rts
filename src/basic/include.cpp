@@ -5,6 +5,7 @@
 #include "./allocator.cpp"
 #include "./context.cpp"
 #include "./string.cpp"
+#include "./log.cpp"
 #include "./array.cpp"
 #include "./hash.cpp"
 #include "./hash_table.cpp"

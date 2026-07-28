@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#include "third_party/stb/stb_image.h"
-#include "third_party/stb/stb_image_write.h"
+#include "ThirdParty/stb/stb_image.h"
+#include "ThirdParty/stb/stb_image_write.h"
 
 namespace Asset
 {

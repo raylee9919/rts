@@ -25,17 +25,16 @@ if "%debug%"=="1" set release=0 && echo [Debug Build]
 if "%release%"=="1" set debug=0 && echo [Release Build]
 
 if "%fbx%"=="1"    set build_fbx=1
-if "%assimp%"=="1" set build_assimp=1
 if "%rts%"=="1"    set build_rts=1
 if "%test%"=="1"   set build_test=1
 
-if not defined build_assimp if not defined build_fbx if not defined build_rts if not defined test (
+if not defined build_fbx if not defined build_rts if not defined test (
     set "build_rts=1"
     echo building all..
 )
 
 set compiler=cl
-set flags_common=-std:c++17 -nologo -FC -Zi -EHsc- -utf-8 -D__DEVELOPER=1 -I..\src -I..\src\vendor
+set flags_common=/std:c++17 /nologo /FC /Zi /EHsc- /utf-8 /I..\src
 set flags_debug=/Od /DBUILD_DEBUG=1
 set flags_release=/O2 /DBUILD_DEBUG=0
 :: 4100: unreferenced formal parameter
@@ -60,14 +59,9 @@ pushd build
 REM if exist *.pdb del *.pdb
 
 :: ---------------------------- Tools ---------------------------- ::
-:: Assimp
-if "%assimp%" == "1" (
-    call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib
-)
-
 :: FBX
 if "%fbx%" == "1" (
-    call %compiler% %flags_compile% ..\src\importer\fbx_importer.cpp ..\src\third_party\meshoptimizer\*.cpp -Fe:fbx.exe -I../src/third_party/ufbx -link %flags_linker%
+    call %compiler% %flags_compile% ..\src\importer\fbx_importer.cpp ..\src\ThirdParty\meshoptimizer\*.cpp -Fe:fbx.exe -I../src/ThirdParty/ufbx -link %flags_linker%
 )
 
 :: Metaprogramming
@@ -79,12 +73,13 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: RTS
 if "%build_rts%"=="1" (
-    call %compiler% %flags_compile% -I../src/third_party/opengl ..\src\rts.cpp /Fe:rts /link opengl32.lib %flags_linker% logo.res
+    call %compiler% %flags_compile% -I../src/ThirdParty/opengl ..\src\rts.cpp /Fe:rts /link opengl32.lib %flags_linker% logo.res
 )
 
 :: Test
 if "%build_test%"=="1" (
-    call %compiler% %flags_compile% ..\src\Test\test.cpp /Fe:test /link %flags_linker%
+    REM call %compiler% %flags_compile% ..\src\Test\test_ds.cpp  /Fe:test_ds  /link %flags_linker%
+    call %compiler% %flags_compile% ..\src\Test\test_rhi.cpp /Fe:test_rhi /link %flags_linker%
 )
 
 del *.obj *.res >nul

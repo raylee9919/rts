@@ -2,11 +2,11 @@
 
 // .h
 //
-#include "profiler/profiler.h"
+#include "Profiler/profiler.h"
 
 #include "Basic/include.h"
-#include "math/includes.h"
-#include "os/os.h"
+#include "Math/include.h"
+#include "OS/include.h"
 #include "thread/includes.h"
 #include "ds.h"
 #include "rts_font.h"
@@ -21,10 +21,10 @@
 #include "ui/ui_inc.h"
 #include "RectPack/include.h"
 #include "font_provider/fp_inc.h"
-#include "rhi/rhi.h"
+#include "rhi/include.h"
 
-#include "third_party/stb/stb_image.h"
-#include "third_party/stb/stb_image_write.h"
+#include "ThirdParty/stb/stb_image.h"
+#include "ThirdParty/stb/stb_image_write.h"
 
 
 // Globals
@@ -35,12 +35,12 @@ global RHI_State  *g_rhi_state;
 
 // .cpp
 //
-#include "profiler/profiler.h"
-#include "third_party/xxhash3/xxhash.c"
+#include "Profiler/profiler.h"
+#include "ThirdParty/xxhash3/xxhash.c"
 
 #include "Basic/include.cpp"
-#include "math/includes.cpp"
-#include "os/os.cpp"
+#include "Math/include.cpp"
+#include "OS/include.cpp"
 #include "thread/includes.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
@@ -54,15 +54,15 @@ global RHI_State  *g_rhi_state;
 #include "ui/ui_inc.cpp"
 #include "RectPack/include.cpp"
 #include "font_provider/fp_inc.cpp"
-#include "rhi/rhi.cpp"
+#include "rhi/include.cpp"
 
 #define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION
-#include "third_party/stb/stb_image.h"
+#include "ThirdParty/stb/stb_image.h"
 
 #define STBIW_ASSERT(x)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "third_party/stb/stb_image_write.h"
+#include "ThirdParty/stb/stb_image_write.h"
 
 
 #include "temporary.h"

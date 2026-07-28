@@ -8,6 +8,7 @@
 #include "./allocator.h"
 #include "./context.h"
 #include "./string.h"
+#include "./log.h"
 #include "./array.h"
 #include "./hash.h"
 #include "./hash_table.h"
