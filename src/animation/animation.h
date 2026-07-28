@@ -23,7 +23,6 @@ struct Pose_Channel {
 
 
 
-
     void init(int channel_index, Animation_Player *player);
     void set_animation(Animation* anim, bool do_loop);
     void accumulate(f32 dt);

@@ -1,7 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-internal Rpk_Segment *
-rpk_alloc_segment(Rpk_Context *ctx)
+static Rpk_Segment *rpk_alloc_segment(Rpk_Context *ctx)
 {
     Assert(ctx->initted);
 
@@ -18,16 +17,14 @@ rpk_alloc_segment(Rpk_Context *ctx)
     return result;
 }
 
-internal void
-rpk_release_segment(Rpk_Context *ctx, Rpk_Segment *segment)
+static void rpk_release_segment(Rpk_Context *ctx, Rpk_Segment *segment)
 {
     Assert(ctx->initted);
 
     sll_push_back(ctx->first_free_segment, ctx->last_free_segment, segment);
 }
 
-internal void
-rpk_init_segment(Rpk_Segment *segment, u32 x, u32 y, u32 w)
+static void rpk_init_segment(Rpk_Segment *segment, u32 x, u32 y, u32 w)
 {
     Assert(segment);
 
@@ -36,8 +33,7 @@ rpk_init_segment(Rpk_Segment *segment, u32 x, u32 y, u32 w)
     segment->w = w;
 }
 
-internal void
-rpk_init(Rpk_Context *ctx, Arena *arena, u32 w, u32 h)
+static void rpk_init(Rpk_Context *ctx, Arena *arena, u32 w, u32 h)
 {
     ctx->initted = true;
     ctx->arena = arena;
@@ -52,8 +48,7 @@ rpk_init(Rpk_Context *ctx, Arena *arena, u32 w, u32 h)
     dll_push_back(ctx->segment_first, ctx->segment_last, sg);
 }
 
-internal int
-rpk_seg_cmp(void *s1, void *s2)
+static int rpk_seg_cmp(void *s1, void *s2)
 {
     Rpk_Segment *a = (Rpk_Segment *)s1;
     Rpk_Segment *b = (Rpk_Segment *)s2;
@@ -64,8 +59,7 @@ rpk_seg_cmp(void *s1, void *s2)
     return false;
 }
 
-internal Rpk_Result
-rpk_do(Rpk_Context *ctx, u32 w, u32 h)
+static Rpk_Result rpk_do(Rpk_Context *ctx, u32 w, u32 h)
 {
     Assert(ctx->initted);
     Rpk_Result result = {};
@@ -96,7 +90,7 @@ rpk_do(Rpk_Context *ctx, u32 w, u32 h)
 
         if (rx <= lim_x)
         {
-            result.fit = true;
+            result.did_fit = 1;
             result.x = lx;
             result.y = y;
 

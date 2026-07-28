@@ -289,57 +289,9 @@ internal void *_dll_np(void *node, u64 np);
 internal void _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
 
 
+// 
+// Defer.
 //
-// Iterator
-//
-
-
-
-// ----------------------------------
-// @Todo: Dynamic Array. Is it a good idea...?
-#define DYNAMIC_ARRAY_DATA(TYPE)\
-    struct {\
-        Arena *arena;\
-        TYPE  *base;\
-        u64   count_cur;\
-        u64   count_max;\
-    }
-
-#define Dynamic_Array(TYPE)\
-    union {\
-        DYNAMIC_ARRAY_DATA(TYPE);\
-        TYPE *payload;\
-    }
-
-#define DAR_RESERVE_INIT 64
-
-#define dar_init(A, ARENA)\
-    (A)->arena = ARENA;\
-    (A)->base = (decltype((A)->payload))push_size(ARENA, sizeof(decltype(*(A)->payload)) * DAR_RESERVE_INIT);\
-    (A)->count_cur = 0;\
-    (A)->count_max = DAR_RESERVE_INIT
-
-// @Todo: Fragmentation.
-#define dar_push(A, ITEM)\
-    if (((A)->count_cur >= (A)->count_max)) {\
-        void *new_base = push_size((A)->arena, sizeof(decltype(*(A)->payload)) * ((A)->count_max << 1));\
-        memory_copy( new_base, (A)->base, sizeof(decltype(*(A)->payload)) * (A)->count_max );\
-        (A)->count_max <<= 1;\
-    }\
-    *(decltype((A)->payload))( ((decltype((A)->payload))((A)->base)) + ((A)->count_cur++) ) = ITEM;
-
-// Sets the length of an array to at least N.
-#define dar_reserve(A, N)\
-    if ((A)->count_max < N) {\
-        void *new_base = push_size( (A)->arena, sizeof(decltype(*(A)->payload)) * N );\
-        memory_copy( new_base, (A)->base, sizeof(decltype(*(A)->payload)) * (A)->count_cur );\
-        (A)->count_max = N; \
-    }
-
-
-
-// -----------------------------------------
-// NOTE: Scope Exit.
 template <typename F>
 struct Scope_Exit {
     Scope_Exit(F f) : f(f) {}
@@ -350,8 +302,7 @@ template <typename F>
 Scope_Exit<F> scope_exit_make(F f) {
     return Scope_Exit<F>(f);
 };
-#define defer(code) \
-    auto CONCAT2(scope_exit_, __LINE__) = scope_exit_make([=](){code;})
+#define defer(code)  auto CONCAT2(scope_exit_, __LINE__) = scope_exit_make([=](){code;})
 
 
 internal const char *
@@ -364,14 +315,6 @@ get_filename_from_filepath(const char *filepath)
     result = result ? result + 1 : 0;
     return result;
 }
-
-// NOTE: Helper Functions
-//
-internal u16 to_u16_safe(u32 x);
-internal u32 to_u32_safe(u64 x);
-internal s32 to_s32_safe(s64 x);
-
-
 
 
 // NOTE: Constants

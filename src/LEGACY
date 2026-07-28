@@ -53,3 +53,47 @@
             }
             ui_end();
 #endif
+
+// ----------------------------------
+// @Todo: Dynamic Array. Is it a good idea...?
+#if 0
+#define DYNAMIC_ARRAY_DATA(TYPE)\
+    struct {\
+        Arena *arena;\
+        TYPE  *base;\
+        u64   count_cur;\
+        u64   count_max;\
+    }
+
+#define Dynamic_Array(TYPE)\
+    union {\
+        DYNAMIC_ARRAY_DATA(TYPE);\
+        TYPE *payload;\
+    }
+
+#define DAR_RESERVE_INIT 64
+
+#define dar_init(A, ARENA)\
+    (A)->arena = ARENA;\
+    (A)->base = (decltype((A)->payload))push_size(ARENA, sizeof(decltype(*(A)->payload)) * DAR_RESERVE_INIT);\
+    (A)->count_cur = 0;\
+    (A)->count_max = DAR_RESERVE_INIT
+
+// @Todo: Fragmentation.
+#define dar_push(A, ITEM)\
+    if (((A)->count_cur >= (A)->count_max)) {\
+        void *new_base = push_size((A)->arena, sizeof(decltype(*(A)->payload)) * ((A)->count_max << 1));\
+        memory_copy( new_base, (A)->base, sizeof(decltype(*(A)->payload)) * (A)->count_max );\
+        (A)->count_max <<= 1;\
+    }\
+    *(decltype((A)->payload))( ((decltype((A)->payload))((A)->base)) + ((A)->count_cur++) ) = ITEM;
+
+// Sets the length of an array to at least N.
+#define dar_reserve(A, N)\
+    if ((A)->count_max < N) {\
+        void *new_base = push_size( (A)->arena, sizeof(decltype(*(A)->payload)) * N );\
+        memory_copy( new_base, (A)->base, sizeof(decltype(*(A)->payload)) * (A)->count_cur );\
+        (A)->count_max = N; \
+    }
+#endif
+

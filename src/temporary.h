@@ -1,7 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-global WINDOWPLACEMENT      g_window_placement = {sizeof(g_window_placement)};
-
 Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets) 
 {
     Entity* soldier            = entity_alloc();

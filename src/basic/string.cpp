@@ -509,7 +509,7 @@ String tprint(char* fmt, va_list args) {
     va_list args2;
     va_copy(args2, args);
     u64 needed_bytes = str_vsnprintf(0, 0, fmt, args) + 1;
-    result.str = (u8*)alloc(needed_bytes);
+    result.str = (u8*)alloc(needed_bytes, tctx.temp);
     result.len = needed_bytes - 1;
     str_vsnprintf((char*)result.str, (int)needed_bytes, fmt, args2);
     va_end(args2);

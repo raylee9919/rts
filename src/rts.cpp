@@ -4,7 +4,7 @@
 //
 #include "profiler/profiler.h"
 
-#include "basic/includes.h"
+#include "Basic/include.h"
 #include "math/includes.h"
 #include "os/os.h"
 #include "thread/includes.h"
@@ -14,12 +14,12 @@
 #include "asset.h"
 #include "animation/animation.h"
 #include "cdt.h"
-#include "game.h"
+#include "rts.h"
 #include "rts_entity.h"
 #include "geogen.h"
 #include "renderer/rts_renderer.h"
 #include "ui/ui_inc.h"
-#include "rect_pack/rpk.h"
+#include "RectPack/include.h"
 #include "font_provider/fp_inc.h"
 #include "rhi/rhi.h"
 
@@ -29,16 +29,16 @@
 
 // Globals
 //
-global Game_State*  game_state;
-global Renderer*    renderer;
-global RHI_State*   g_rhi_state;
+global Game_State *game_state;
+global Renderer   *renderer;
+global RHI_State  *g_rhi_state;
 
 // .cpp
 //
 #include "profiler/profiler.h"
 #include "third_party/xxhash3/xxhash.c"
 
-#include "basic/includes.cpp"
+#include "Basic/include.cpp"
 #include "math/includes.cpp"
 #include "os/os.cpp"
 #include "thread/includes.cpp"
@@ -52,7 +52,7 @@ global RHI_State*   g_rhi_state;
 #include "renderer/rts_renderer.cpp"
 #include "geogen.cpp"
 #include "ui/ui_inc.cpp"
-#include "rect_pack/rpk.cpp"
+#include "RectPack/include.cpp"
 #include "font_provider/fp_inc.cpp"
 #include "rhi/rhi.cpp"
 
@@ -68,7 +68,7 @@ global RHI_State*   g_rhi_state;
 #include "temporary.h"
 
 
-int main_entry(int argc, char** argv)
+int main_entry(int argc, char **argv)
 {
     // Alloc and init game state.
     {
@@ -271,7 +271,7 @@ int main_entry(int argc, char** argv)
                         assets->knight_die = push_struct(asset_arena, Animation);
                         load_animation(asset_arena, assets->knight_die, tprint("%S/animation/knight_die.keyframed_animation", game_state->data_path));
 
-                        // @Todo: How do we cope with material that's already loaded? Hash table. I need a solid hash table...
+                        // @Todo: How do we handle material that's already loaded? Hash table. I need a solid hash table...
                         {
                             auto *mesh = mesh_from_name(model, utf8lit("Helm2"));
                             assert(mesh);
@@ -369,7 +369,7 @@ int main_entry(int argc, char** argv)
                         game_camera->focal_length = 1.1f;
                         game_camera->N            = 0.5f;
                         game_camera->F            = 100000.0f;
-                        game_camera->position     = v3(0.f, 18.f, 20.f);
+                        game_camera->position     = v3(0.f, 15.f, 20.f);
                         game_camera->orientation  = euler_to_quaternion(radian_from_degree(-50.f), 0.f, 0.f);
                         game_camera->flags |= ENTITY_FLAG_GAME_CAMERA;
                         entity_init(game_camera, nullptr);
@@ -412,7 +412,7 @@ int main_entry(int argc, char** argv)
 
                     // @Temporary: Create soldier entity.
                     //
-                    int num_soldiers = 64;
+                    int num_soldiers = 400;
                     int num_rows = 50;
                     f32 dist = 0.8f;
 
@@ -438,7 +438,9 @@ int main_entry(int argc, char** argv)
                     }
 #endif
 
-                    debug_spawn_castle( 0.f,  0.f, TEAM_PLAYER, assets);
+                    debug_spawn_castle(  0.f,   0.f, TEAM_PLAYER, assets);
+                    debug_spawn_castle(  0.f,  10.f, TEAM_PLAYER, assets);
+                    debug_spawn_castle(-10.f,   5.f, TEAM_PLAYER, assets);
                     //debug_spawn_castle( 0.f, -8.f, TEAM_PLAYER, assets);
                 }
             }

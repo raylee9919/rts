@@ -1,7 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
-
 
 // Helper data structure codes
 //

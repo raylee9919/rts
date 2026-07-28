@@ -1,12 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 template<typename T>
-T& Array <T>::operator[](u64 idx) {
+T& Array <T>::operator [] (u64 idx) {
     return data[idx];
 }
 
 template<typename T>
-const T& Array <T>::operator[](u64 idx) const {
+const T& Array <T>::operator [] (u64 idx) const {
     return data[idx];
 }
 
@@ -28,8 +28,8 @@ void array_reserve(Array<T>* arr, u64 desired_count) {
         arr->allocator = tctx.allocator;
     }
 
-    arr->data = (T*)realloc(arr->data, desired_count * sizeof(T), arr->allocated * sizeof(T));
-    assert(arr->data != nullptr);
+    arr->data = (T *)realloc(arr->data, desired_count * sizeof(T), arr->allocated * sizeof(T), arr->allocator);
+    Assert(arr->data != NULL);
 
     arr->allocated = desired_count;
 }
@@ -40,8 +40,8 @@ void array_reset_keeping_memory(Array<T>* arr) {
 }
 
 template <typename T>
-void array_reset(Array<T>* arr) {
-    Free(arr->date);
-    arr->data = nullptr;
+void array_reset(Array<T> *arr) {
+    dealloc(arr->data, arr->allocator);
+    arr->data = NULL;
     arr->count = 0;
 }

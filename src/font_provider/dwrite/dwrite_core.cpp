@@ -1,13 +1,7 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
+// Copyright Seong Woo Lee. All Rights Reserved.
 
 
-// TODO: Seems like COM is leaking our precious memory.
+// @Todo: Seems like COM is leaking our precious memory.
 
 
 internal Fp_State *
@@ -601,7 +595,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
 
                 Rpk_Result rpk_result = rpk_do(atlas->rpk_ctx, bitmap_width, bitmap_height);
 
-                if (rpk_result.fit)
+                if (rpk_result.did_fit)
                 {
                     x1 = rpk_result.x;
                     y1 = rpk_result.y;

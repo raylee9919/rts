@@ -10,16 +10,21 @@ enum Allocator_Mode {
     ALLOCATOR_MODE_FREE     = 2,
 };
 
-typedef void* Allocator_Procedure(Allocator_Mode mode, u64 size, u64 old_size, void* old_memory, void* allocator_data);
+typedef void *Allocator_Procedure(Allocator_Mode mode, u64 size, u64 old_size,
+                                  void *old_memory, void *allocator_data);
 
 struct Allocator {
-    Allocator_Procedure* proc;
-    void* data;
+    Allocator_Procedure *proc;
+    void *data;
 };
 
-internal void* alloc(u64 size);
-internal void* realloc(void* memory, u64 size, u64 old_size);
-internal void  Free(void* memory);
+
+//
+// Each call passes corresponding mode to the allocating procedure.
+//
+static void *alloc(u64 size, Allocator allocator = {});
+static void *realloc(void *memory, u64 size, u64 old_size, Allocator allocator = {});
+static void  dealloc(void *memory, Allocator allocator = {});
 
 
 #endif // RTS_ALLOCATOR_H

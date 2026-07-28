@@ -9,6 +9,8 @@
 #include "./context.h"
 #include "./string.h"
 #include "./array.h"
+#include "./hash.h"
+#include "./hash_table.h"
 
 
 String read_entire_file(Arena* arena, String file_path);

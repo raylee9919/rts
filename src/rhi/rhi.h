@@ -16,6 +16,7 @@ internal void r_end(RHI_State* rhi, Renderer* r);
 
 
 #include "./gl/rhi_gl.h"
+//#include "./d3d12/rhi_d3d12.h"
 
 
 #endif // RTS_RHI_H

@@ -69,14 +69,14 @@ entites_from_position_and_radius(v3 position, f32 radius, Arena* arena)
 {
     List<Entity*> result = {};
     
-    const f32 x = position.x;
-    const f32 y = position.z;
-    const v2 pos = v2(x, y);
+    f32 x = position.x;
+    f32 y = position.z;
+    v2 pos = v2(x, y);
 
-    const f32 min_x = x - radius;
-    const f32 max_x = x + radius;
-    const f32 min_y = y - radius;
-    const f32 max_y = y + radius;
+    f32 min_x = x - radius;
+    f32 max_x = x + radius;
+    f32 min_y = y - radius;
+    f32 max_y = y + radius;
 
     u16 min_cx, max_cx, min_cy, max_cy;
     chunk_position_from_world_position(min_x, min_y, &min_cx, &min_cy);
@@ -91,17 +91,17 @@ internal void
 entity_propagate_arrival(Entity* entity)
 {
     // Propagate radius
-    const f32 r = 1.5f;
-    const f32 too_far_threshold = 9.0f;
+    f32 r = 1.5f;
+    f32 too_far_threshold = 9.0f;
 
-    const f32 x = entity->position.x;
-    const f32 y = entity->position.z;
-    const v2 pos = v2(x, y);
+    f32 x = entity->position.x;
+    f32 y = entity->position.z;
+    v2 pos = v2(x, y);
 
-    const f32 min_x = x - r;
-    const f32 max_x = x + r;
-    const f32 min_y = y - r;
-    const f32 max_y = y + r;
+    f32 min_x = x - r;
+    f32 max_x = x + r;
+    f32 min_y = y - r;
+    f32 max_y = y + r;
 
     u16 min_cx, max_cx, min_cy, max_cy;
     chunk_position_from_world_position(min_x, min_y, &min_cx, &min_cy);
@@ -141,9 +141,9 @@ entity_propagate_arrival(Entity* entity)
 internal void
 entity_orient_to(Entity* entity, v3 target, f32 dt)
 {
-    const v3 dir = normalize(target - entity->position);
-    const v3 forward = normalize((to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
-    const f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
+    v3 dir = normalize(target - entity->position);
+    v3 forward = normalize((to_m4x4(entity->orientation) * v4{0,0,1,0}).xyz);
+    f32 c = safe_ratio(dot(forward, dir), length(forward)*length(dir));
     if (c < 1.0f) {
         f32 radian = dt*8.0f;
         if (cross(forward, dir).y < 0.0f) {
@@ -561,10 +561,10 @@ entity_init(Entity* entity, Entity* parent)
         // @Todo: Cursed coordinate..
         //
         if (entity->navmesh_scale > 0.f) {
-            const u64 id = entity->id;
-            const f32 x = entity->position.z;
-            const f32 y = entity->position.x;
-            const f32 f = entity->navmesh_scale * 0.5f;
+            u64 id = entity->id;
+            f32 x = entity->position.z;
+            f32 y = entity->position.x;
+            f32 f = entity->navmesh_scale * 0.5f;
             cdt_insert(&game_state->navmesh.ctx, id, x-f,y+f,x-f,y-f);
             cdt_insert(&game_state->navmesh.ctx, id, x-f,y-f,x+f,y-f);
             cdt_insert(&game_state->navmesh.ctx, id, x+f,y-f,x+f,y+f);
@@ -600,7 +600,7 @@ void entity_release(u64 id)
 }
 
 internal void 
-entity_update(Entity* entity, const f32 dt) 
+entity_update(Entity* entity, f32 dt) 
 {
     ProfileScopeNC("entity_update", 0x5F96F7);
     
@@ -784,17 +784,17 @@ entity_update(Entity* entity, const f32 dt)
             }
 
             if (entity->command == ENTITY_CMD_STOP) {
-                const f32 aggro_radius = 8.f;
+                f32 aggro_radius = 8.f;
                 entity_find_target(entity, aggro_radius, scratch.arena);
             } else if (entity->command == ENTITY_CMD_MOVE) {
-                const f32 arrival_threshold = 1.0f;
+                f32 arrival_threshold = 1.0f;
                 if (entity->waypoint_queue.empty()) {
                     entity->command = ENTITY_CMD_STOP;
                     entity_propagate_arrival(entity);
                 }
             } else if (entity->command == ENTITY_CMD_ATTACK) {
-                const f32 attackable_dist = 1.0f;
-                const f32 chase_dist      = 16.f;
+                f32 attackable_dist = 1.0f;
+                f32 chase_dist      = 16.f;
 
                 Entity* other = entity_from_id(entity->target_id);
                 if (other) {
@@ -806,22 +806,22 @@ entity_update(Entity* entity, const f32 dt)
                             entity_orient_to(entity, other->position, dt);
 
                             // Do damage to the target.
-                            const f32 damage    = 8.f;   // Damage per hit
-                            const f32 damage_t  = entity->damage_t;
-                            const f32 period    = entity->attack_max_t;
+                            f32 damage    = 8.f;   // Damage per hit
+                            f32 damage_t  = entity->damage_t;
+                            f32 period    = entity->attack_max_t;
 
-                            const f32 prev_t = entity->prev_attack_t;
-                            const f32 curr_t = prev_t + dt;
+                            f32 prev_t = entity->prev_attack_t;
+                            f32 curr_t = prev_t + dt;
 
                             assert(damage_t < period);
 
                             // Count crossings
-                            const u32 hits =
+                            u32 hits =
                                 (u32)floor((curr_t - damage_t) / period) -
                                 (u32)floor((prev_t - damage_t) / period);
 
                             if (hits > 0) {
-                                const f32 total_damage = (f32)hits * damage;
+                                f32 total_damage = (f32)hits * damage;
                                 other->hitpoints = max(other->hitpoints - total_damage, 0.f);
 
                                 other->recent_attacker_id = entity->id;
@@ -829,7 +829,7 @@ entity_update(Entity* entity, const f32 dt)
                         } else {
                             if (entity->find_target_t > entity->find_target_max_t) {
                                 entity->find_target_t = 0;
-                                const f32 aggro_radius = 8.f;
+                                f32 aggro_radius = 8.f;
                                 entity_find_target(entity, aggro_radius, scratch.arena);
                             } else if (dist < chase_dist) {
                                 entity_clear_path_data(entity);
@@ -867,9 +867,9 @@ entity_update(Entity* entity, const f32 dt)
                 entity_clear_path_data(entity);
                 entity->speed_t = max(entity->speed_t - dt, entity->min_t);
             } else {
-                const v3 waypoint = entity->waypoint_queue.front();
-                const f32 dist = distance(entity->position, waypoint);
-                const f32 arrival_threshold = 1.0f;
+                v3 waypoint = entity->waypoint_queue.front();
+                f32 dist = distance(entity->position, waypoint);
+                f32 arrival_threshold = 1.0f;
 
                 // Check if entity has reached the waypoint.
                 if (dist < arrival_threshold) {
@@ -887,14 +887,14 @@ entity_update(Entity* entity, const f32 dt)
 
 
             // Update position. 
-            const m4x4 rotation = to_m4x4(entity->orientation);
-            const v3 velocity   = (rotation * V4(0, 0, entity->speed, 0)).xyz;
+            m4x4 rotation = to_m4x4(entity->orientation);
+            v3 velocity   = (rotation * V4(0, 0, entity->speed, 0)).xyz;
             entity->position    = entity->position + velocity * dt;
 
 
             // Update speed.
             {
-                const f32 norm_t = map_unorm(entity->speed_t, entity->min_t, entity->max_t);
+                f32 norm_t = map_unorm(entity->speed_t, entity->min_t, entity->max_t);
                 entity->speed = hermite(0.f, entity->max_speed, norm_t);
             }
 
@@ -967,16 +967,16 @@ entity_update(Entity* entity, const f32 dt)
     if (entity->flags & ENTITY_FLAG_COLLIDEABLE) {
         if (entity->radius > 0.f) {
             // @Temporary
-            const f32 margin_radius = game_state->max_radius;
-            const f32 r = entity->radius + margin_radius;
-            const f32 x = entity->position.x;
-            const f32 y = entity->position.z;
-            const v2 pos = v2(x, y);
+            f32 margin_radius = game_state->max_radius;
+            f32 r = entity->radius + margin_radius;
+            f32 x = entity->position.x;
+            f32 y = entity->position.z;
+            v2 pos = v2(x, y);
 
-            const f32 min_x = x - r;
-            const f32 max_x = x + r;
-            const f32 min_y = y - r;
-            const f32 max_y = y + r;
+            f32 min_x = x - r;
+            f32 max_x = x + r;
+            f32 min_y = y - r;
+            f32 max_y = y + r;
 
             u16 min_cx, max_cx, min_cy, max_cy;
             chunk_position_from_world_position(min_x, min_y, &min_cx, &min_cy);
@@ -992,20 +992,20 @@ entity_update(Entity* entity, const f32 dt)
                             continue;
                         }
 
-                        const f32 other_x      = other->position.x;
-                        const f32 other_y      = other->position.z;
-                        const v2 other_pos     = v2(other_x, other_y);
-                        const f32 epsilon      = 0.001f;
+                        f32 other_x      = other->position.x;
+                        f32 other_y      = other->position.z;
+                        v2 other_pos     = v2(other_x, other_y);
+                        f32 epsilon      = 0.001f;
 
                         if (other->flags & ENTITY_FLAG_COLLIDEABLE) {
-                            const f32 other_radius = other->radius;
-                            const f32 dist         = distance(pos, other_pos);
-                            const f32 radii        = entity->radius + other_radius + epsilon;
+                            f32 other_radius = other->radius;
+                            f32 dist         = distance(pos, other_pos);
+                            f32 radii        = entity->radius + other_radius + epsilon;
 
                             // colliding
                             if (dist < radii) {
-                                const v2 normal = normalize(other_pos - pos); // @Fix: This can give a bogus number!
-                                const f32 depth = radii - dist;
+                                v2 normal = normalize(other_pos - pos); // @Fix: This can give a bogus number!
+                                f32 depth = radii - dist;
 
                                 if (can_push(entity, other)) {
                                     entity->position.x -= normal.x*depth*0.5f;
@@ -1026,6 +1026,7 @@ entity_update(Entity* entity, const f32 dt)
                             f32 dy = clamp(pos.y - other_y, -half, half);
 
                             if (abs(dx) < half && abs(dy) < half) {
+
                             } else {
                                 // Point on the edge of a rect that's closest to the circle.
                                 v2 np = other_pos + v2(dx, dy);
@@ -1162,11 +1163,11 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
             }
 
 
-            // Draw hitpoints.
+            // Draw hitpoints(hp).
             //
             if ( (entity->flags & ENTITY_FLAG_SELECTED) && (entity->hitpoints > 0.f) ) {
                 v2 cen = v2(p.x, p.y);
-                v2 dim = v2(18.f, 2.f);
+                v2 dim = v2(10.f, 2.f);
                 v2 border = v2(1.f);
 
                 v2 min = cen - dim;
