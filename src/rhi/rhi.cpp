@@ -1,12 +1,13 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
-bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug) {
+bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning) {
+    memset(device, 0, sizeof(*device));
     device->kind = kind;
 
     switch (kind) {
         case RHI_KIND_D3D12:
-        return d3d12_device_init(device, debug);
+        return d3d12_device_init(device, debug, break_on_warning);
 
         default:
         Assert(0);

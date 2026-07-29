@@ -3,7 +3,6 @@
 #ifndef RTS_BASIC_CORE_H
 #define RTS_BASIC_CORE_H
 
-
 // Define platform.
 //
 #ifdef _WIN32

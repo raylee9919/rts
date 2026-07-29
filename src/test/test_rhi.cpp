@@ -13,7 +13,7 @@
 int main_entry(int argc, char **argv)
 {
     RHI_Device *rhi_device = (RHI_Device *)alloc(sizeof(RHI_Device));
-    rhi_device_init(rhi_device, RHI_KIND_D3D12, true);
+    Assert(rhi_device_init(rhi_device, RHI_KIND_D3D12, true, true));
 
     rhi_device_deinit(rhi_device);
 

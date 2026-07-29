@@ -4,7 +4,8 @@
 #define RTS_LOG_H
 
 
-internal void log(String fmt, ...);
+#define log(fmt, ...) _log(fmt, S(__FILE__), __LINE__,  ##__VA_ARGS__)
+internal void _log(String fmt, String file, int line, ...);
 
 
 #endif // RTS_LOG_H

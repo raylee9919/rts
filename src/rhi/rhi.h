@@ -43,7 +43,7 @@ struct RHI_Device {
 };
 
 
-internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug);
+internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
 internal void rhi_device_deinit(RHI_Device *device);
 
 
