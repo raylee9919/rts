@@ -2,11 +2,11 @@
 
 #include "Basic/include.h"
 #include "Math/include.h"
-#include "os/os.h"
+#include "OS/os.h"
 
 #include "Basic/include.cpp"
 #include "Math/include.cpp"
-#include "os/os.cpp"
+#include "OS/os.cpp"
 
 static void test_array();
 static void test_table();

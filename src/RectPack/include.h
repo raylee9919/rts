@@ -1,5 +1,9 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+//
+// Skyline-based rectangle packing.
+//
+
 #ifndef RTS_RECT_PACK_H
 #define RTS_RECT_PACK_H
 
