@@ -21,7 +21,7 @@
 #include "ui/ui_inc.h"
 #include "RectPack/include.h"
 #include "font_provider/fp_inc.h"
-#include "rhi/include.h"
+#include "RHI/include.h"
 
 #include "ThirdParty/stb/stb_image.h"
 #include "ThirdParty/stb/stb_image_write.h"
@@ -54,7 +54,7 @@ global RHI_State  *g_rhi_state;
 #include "ui/ui_inc.cpp"
 #include "RectPack/include.cpp"
 #include "font_provider/fp_inc.cpp"
-#include "rhi/include.cpp"
+#include "RHI/include.cpp"
 
 #define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION

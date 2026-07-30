@@ -23,6 +23,7 @@ internal void r_end(RHI_State* rhi, struct Renderer *r);
 
 // ------------------------------------------------------------------------ //
 
+typedef struct D3D12_Device D3D12_Device;
 
 typedef u8 RHI_Kind;
 enum {
@@ -42,9 +43,20 @@ struct RHI_Device {
     };
 };
 
+struct RHI_Command_List {
+    RHI_Kind kind;
+
+    union {
+        D3D12_Command_List d3d12;
+    };
+};
+
 
 internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
 internal void rhi_device_deinit(RHI_Device *device);
+
+internal bool rhi_command_list_init(RHI_Device *device, RHI_Command_List *list, RHI_Command_Type type);
+internal void rhi_command_list_deinit(RHI_Command_List *list);
 
 
 #endif // RTS_RHI_H
