@@ -3,7 +3,7 @@
 
 void _log(String fmt, String file, int line, ...) {
     {
-        char *file_line_fmt = "%S : %d\n";
+        char *file_line_fmt = "[%S: %d]  ";
         String file_line = tprint(file_line_fmt, file, line);
         printf("%s", file_line.str);
     }
@@ -14,6 +14,8 @@ void _log(String fmt, String file, int line, ...) {
         String str = tprint((char *)fmt.str, args);
         va_end(args);
 
-        printf("%s\n\n", str.str);
+        printf("%s", str.str);
     }
+
+    printf("\n");
 }

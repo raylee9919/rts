@@ -11,14 +11,29 @@
 #include "rhi/include.cpp"
 
 OS_Handle window;
-bool should_close = false;
+bool should_close    = false;
+u32 surface_width    = 1920;
+u32 surface_height   = 1080;
+u32 num_back_buffers = 3;
 
 int main_entry(int argc, char **argv)
 {
-    window = os_create_window(1920, 1080, utf8lit("rhi"));
+    window = os_window_create(1920, 1080, utf8lit("rhi"));
+    HWND hwnd = hwnd_from_os_handle(window);
 
     auto *rhi_device = (RHI_Device *)alloc(sizeof(RHI_Device));
     Assert(rhi_device_init(rhi_device, RHI_KIND_D3D12, true, true));
+
+    RHI_Surface_Desc surface_desc = {};
+    {
+        surface_desc.native_window_handle = (void *)hwnd;
+        surface_desc.width = surface_width;
+        surface_desc.height = surface_height;
+        surface_desc.num_back_buffers = num_back_buffers;
+    }
+    auto *rhi_surface = (RHI_Surface *)alloc(sizeof(RHI_Surface));
+    Assert(rhi_surface_init(rhi_device, rhi_surface, surface_desc));
+
 
     auto *rhi_list = (RHI_Command_List *)alloc(sizeof(RHI_Command_List));
     Assert(rhi_command_list_init(rhi_device, rhi_list, RHI_COMMAND_TYPE_GRAPHICS));
@@ -34,10 +49,22 @@ int main_entry(int argc, char **argv)
             bool alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
             bool window_close_triggered = event->kind == OS_EVENT_WINDOW_CLOSE && event->window == window;
 
+
             if (alt_f4_pressed | window_close_triggered) {
                 should_close = true;
                 os_remove_event(event);
             }
+
+            // Fullscreen
+            bool alt_enter_pressed = event->kind == OS_EVENT_PRESS && event->key == KEY_RETURN && (event->modifiers & OS_MODIFIER_ALT);
+            if (alt_enter_pressed) {
+                os_window_toggle_fullscreen(window);
+            }
+        }
+
+        // Render
+        {
+            rhi_surface_present(rhi_surface);
         }
 
         clear_temporary_storage();

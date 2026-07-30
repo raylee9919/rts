@@ -49,5 +49,22 @@ extern "C"
 typedef CRITICAL_SECTION Critical_Section;
 
 
+struct Win32_Window {
+    Win32_Window *next;
+    Win32_Window *prev;
+    HWND handle;
+    WINDOWPLACEMENT placement;
+};
+
+struct Win32_State {
+    Arena *window_arena;
+    Win32_Window *window_first;
+    Win32_Window *window_last;
+    Win32_Window *window_free_first;
+    Win32_Window *window_free_last;
+};
+
+
+
 
 #endif // RTS_OS_WIN32_H

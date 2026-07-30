@@ -51,12 +51,24 @@ struct RHI_Command_List {
     };
 };
 
+struct RHI_Surface {
+    RHI_Kind kind;
+    RHI_Surface_Desc desc;
+
+    union {
+        D3D12_Surface d3d12;
+    };
+};
+
 
 internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
 internal void rhi_device_deinit(RHI_Device *device);
 
 internal bool rhi_command_list_init(RHI_Device *device, RHI_Command_List *list, RHI_Command_Type type);
 internal void rhi_command_list_deinit(RHI_Command_List *list);
+
+internal bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc desc);
+internal void rhi_surface_present(RHI_Surface *surface);
 
 
 #endif // RTS_RHI_H

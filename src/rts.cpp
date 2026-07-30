@@ -96,7 +96,7 @@ int main_entry(int argc, char **argv)
         }
 
         // Create main window.
-        game_state->main_window = os_create_window(1920, 1080, utf8lit("rts"));
+        game_state->main_window = os_window_create(1920, 1080, utf8lit("rts"));
     }
 
     // Alloc and init RHI.
@@ -140,7 +140,7 @@ int main_entry(int argc, char **argv)
         old_counter = new_counter;
 
         // Get window and render size.
-        v2 window_size    = os_get_window_size(game_state->main_window);
+        v2 window_size    = os_window_size(game_state->main_window);
         u32 window_width  = window_size.x;
         u32 window_height = window_size.y;
 

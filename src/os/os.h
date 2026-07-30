@@ -32,8 +32,9 @@ struct File_Properties {
 // GFX
 //
 struct OS_Window {
-    OS_Window* next;
-    OS_Window* prev;
+    OS_Window *next;
+    OS_Window *prev;
+
     OS_Handle  handle;
 };
 
@@ -217,7 +218,10 @@ struct Work_Queue {
 // Global OS State
 //
 struct OS_State {
-    Arena* arena;
+    Arena *arena;
+
+    // Platform-specific
+    void *native;
 
     // Events
     Arena*      event_arena;
@@ -299,8 +303,9 @@ internal bool               os_directory_exists(String path);
 
 // GFX
 internal void               gfx_init();
-internal OS_Handle          os_create_window(int w, int h, String name);
-internal v2                 os_get_window_size(OS_Handle window);
+internal OS_Handle          os_window_create(int w, int h, String name);
+internal void               os_window_toggle_fullscreen(OS_Handle window);
+internal v2                 os_window_size(OS_Handle window);
 internal v2                 os_get_mouse_position(OS_Handle window);
 
 // Events

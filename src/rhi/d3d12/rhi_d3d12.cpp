@@ -126,12 +126,12 @@ static bool d3d12_queue_init(D3D12_Device *device, D3D12_Command_Queue *queue, D
 
     HRESULT hr = device->device_0->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue->queue_0));
     if (FAILED(hr)) {
-        log(S("HRESULT: %x. ID3D12Device::CreateCommandQueue failed."), hr);
+        log(S("HRESULT: %S, %x. ID3D12Device::CreateCommandQueue failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
     queue->type = type;
-    log(S("Initted d3d12 command queue."));
+    log(S("Initialized d3d12 command queue."));
     return true;
 }
 
@@ -139,9 +139,130 @@ static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
     if (queue) {
         safe_release(&queue->queue_0);
     }
-    log(S("Deinitted d3d12 command queue."));
+    log(S("Deinitialized d3d12 command queue."));
 }
 
+//
+// Descriptor
+//
+static bool d3d12_descriptor_heap_init(D3D12_Device *device, 
+                                       D3D12_Descriptor_Heap *heap, 
+                                       D3D12_DESCRIPTOR_HEAP_TYPE type, 
+                                       UINT minimum_descriptors) {
+    static_assert(D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES == 4);
+
+    heap->type = type;
+
+    D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)     flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+    // Align to 64 for our free list.
+    u32 allocated = align_up(minimum_descriptors, 64u);
+
+    D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
+    {
+        heap_desc.Type           = type;
+        heap_desc.NumDescriptors = allocated;
+        heap_desc.Flags          = flags;
+        heap_desc.NodeMask       = NODE_MASK;
+    }
+
+    // Create descriptor heap.
+    HRESULT hr = device->device_0->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&heap->heap_0));
+    if (FAILED(hr)) {
+        log(S("HRESULT: %S, %x. ID3D12Device::CreateDescriptorHeap failed."), win32_string_from_hresult(hr), hr);
+        return false;
+    }
+
+    // Get base CPU and GPU handle.
+    heap->base_cpu_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->heap_0->GetCPUDescriptorHandleForHeapStart());
+    if (flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) {
+        heap->base_gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->heap_0->GetGPUDescriptorHandleForHeapStart());
+    }
+
+    // Get descriptor size.
+    heap->descriptor_size = device->device_0->GetDescriptorHandleIncrementSize(type);
+
+    // Make a free list.
+    u32 n = allocated / 64u;
+    u64 *free_list = (u64 *)alloc(sizeof(u64) * n);
+    memset(free_list, 0xff, sizeof(u64) * n);
+    heap->free_list = free_list;
+    heap->free_list_node_count = n;
+    
+    heap->allocated = allocated;
+    heap->count     = 0;
+
+    // Log
+    String type_str = S("N/A");
+    if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) type_str = S("CBV_SRV_UAV");
+    else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)     type_str = S("SAMPLER");
+    else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)         type_str = S("RTV");
+    else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)         type_str = S("DSV");
+
+    log(S("Initialized d3d12 '%S' heap."), type_str);
+    return true;
+}
+
+static void d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap) {
+    if (heap) {
+        safe_release(&heap->heap_0);
+        dealloc(heap->free_list);
+    }
+}
+
+static D3D12_Descriptor d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) {
+    int index = -1;
+
+    // @Todo: One option to make it faster is making it hierarchical.
+    for (u32 i = 0; i < heap->free_list_node_count; ++i) {
+        u64 bits = heap->free_list[i];
+        u64 b = tzcnt64(bits);
+        if (b < 64) {
+            bits ^= (1ull << b);
+            index = i * 64 + b;
+            heap->free_list[i] = bits;
+            break;
+        }
+    }
+
+    // @Todo: grow?
+    Assert(index != -1);
+
+    int offset = index * heap->descriptor_size;
+
+    D3D12_Descriptor desc = {};
+
+    desc.index = index;
+
+    desc.my_heap = heap;
+
+    desc.cpu_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->base_cpu_handle, offset);
+    auto type = heap->type;
+    if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) desc.gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->base_gpu_handle, offset);
+    else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)     desc.gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->base_gpu_handle, offset);
+
+    heap->count += 1;
+
+    return desc;
+}
+
+static void d3d12_descriptor_dealloc(D3D12_Descriptor descriptor) {
+    u64 a = descriptor.index / 64llu;
+    u64 b = descriptor.index % 64llu;
+    
+    auto *heap = descriptor.my_heap;
+
+    Assert((heap->free_list[a] & (1ull << b)) == 0);
+    heap->free_list[a] |= (1ull << b);
+
+    heap->count -= 1;
+}
+
+//
+// Device
+//
 bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     HRESULT hr = S_OK;
     auto *d3d12 = &device->d3d12;
@@ -218,7 +339,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         D3D_FEATURE_LEVEL minimum_feature_level = D3D_FEATURE_LEVEL_12_0;
         hr = D3D12CreateDevice(adapter_1, minimum_feature_level, IID_PPV_ARGS(&device_0));
         if (FAILED(hr)) {
-            log(S("HRESULT: %x. ''D3D12CreateDevice()'' failed."), hr);
+            log(S("HRESULT: %x. D3D12CreateDevice() failed."), hr);
             return false;
         }
     }
@@ -273,7 +394,9 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
         D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
         device_0->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
-        if (options.ResourceBindingTier < D3D12_RESOURCE_BINDING_TIER_3) {
+        if (options.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3) {
+            log(S("Resource binding tier: %d"), options.ResourceBindingTier);
+        } else {
             log(S("The device should have resource binding tier 3 or greater."));
             return false;
         }
@@ -295,6 +418,12 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     d3d12->dxgi_debug       = dxgi_debug;
 
 
+    // Create RTV and DSV heap.
+    // @Todo: grow...?
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 2048)) return false;
+
+
     // Create command queues.
     for (RHI_Command_Type type = (RHI_COMMAND_TYPE_INVALID + 1); type < RHI_COMMAND_TYPE_COUNT; ++type) {
         d3d12_queue_init(d3d12, &d3d12->queues[type], d3d12_translate_queue_type(type));
@@ -305,7 +434,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     safe_release(&adapter_1);
 
 
-    log(S("Initted d3d12 device."));
+    log(S("Initialized d3d12 device."));
     return true;
 }
 
@@ -347,9 +476,12 @@ void d3d12_device_deinit(RHI_Device *device) {
     }
 
 
-    log(S("Deinitted d3d12 device"));
+    log(S("Deinitialized d3d12 device"));
 }
 
+//
+// Command List
+//
 bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type) {
     auto native_type = d3d12_translate_queue_type(type);
     list->type = native_type;
@@ -359,6 +491,7 @@ bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command
         log(S("HRESULT: %x. ID3D12Device4::CreateCommandList1 failed."), hr);
         return false;
     }
+    list->closed = true; // CreateCommandList1() sets the state to closed.
 
     hr = list->list_0->QueryInterface(IID_PPV_ARGS(&list->list_7));
     if (FAILED(hr)) {
@@ -366,7 +499,7 @@ bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command
         return false;
     }
 
-    log(S("Initted d3d12 command list."));
+    log(S("Initialized d3d12 command list."));
     return true;
 }
 
@@ -375,4 +508,66 @@ void d3d12_list_deinit(D3D12_Command_List *list) {
         safe_release(&list->list_0);
         safe_release(&list->list_7);
     }
+}
+
+//
+// Surface
+//
+bool d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surface_Desc desc) {
+    HWND hwnd = (HWND)desc.native_window_handle;
+
+    // @Note: Thank you Martins. 
+    // (https://gist.github.com/mmozeiko/5e727f845db182d468a34d524508ad5f#file-win32_d3d11-c-L184-L185)
+    DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
+    {
+        swap_chain_desc.Width  = desc.width;
+        swap_chain_desc.Height = desc.height;
+
+        swap_chain_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // @Temporary
+
+        swap_chain_desc.Stereo = RHI_D3D12_SWAP_CHAIN_STEREO;
+
+        swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
+        swap_chain_desc.BufferCount = desc.num_back_buffers,
+        swap_chain_desc.Scaling     = DXGI_SCALING_NONE;
+
+        // Windows 10 allows to use DXGI_SWAP_EFFECT_FLIP_DISCARD.
+        // For Windows 8 compatibility use DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL.
+        // For Windows 7 compatibility use DXGI_SWAP_EFFECT_DISCARD.
+        swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+
+        // FLIP presentation model does not allow MSAA framebuffer.
+        // If you want MSAA then you'll need to render offscreen and manually
+        // resolve to non-MSAA framebuffer.
+        swap_chain_desc.SampleDesc = { 1, 0 },
+
+        swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+
+        // @Todo: Allow tearing?
+        swap_chain_desc.Flags = {}; 
+    }
+
+    DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;
+    IDXGIOutput *monitor = NULL;
+
+    HRESULT hr = device->dxgi_factory_6->CreateSwapChainForHwnd(device->queues[RHI_COMMAND_TYPE_GRAPHICS].queue_0,
+                                                                hwnd, &swap_chain_desc, fullscreen_desc, 
+                                                                monitor, &surface->swap_chain_1);
+
+    if (FAILED(hr)) {
+        log(S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
+        return false;
+    }
+
+    // Disable Alt + Enter changing monitor resolution to match window size.
+    device->dxgi_factory_6->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+
+    log(S("Initialized d3d12 surface."));
+    return true;
+}
+
+void d3d12_surface_present(D3D12_Surface *surface) {
+    // @Temporary
+    //surface->swap_chain_1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+    surface->swap_chain_1->Present(1, 0);
 }

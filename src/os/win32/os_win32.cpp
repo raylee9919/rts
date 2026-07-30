@@ -84,6 +84,11 @@ void os_init() {
     os = push_struct(arena, OS_State);
     os->arena = arena;
 
+    // Win32 State
+    os->native = push_struct(arena, Win32_State);
+    Win32_State *win32 = (Win32_State *)os->native;
+    win32->window_arena = arena_alloc();
+
     // Events
     os->event_arena = arena_alloc();
 
@@ -702,7 +707,41 @@ void gfx_init() {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 }
 
-OS_Handle os_create_window(int w, int h, String name) {
+static Win32_Window *win32_window_from_handle(OS_Handle handle) {
+    Win32_State *state = (Win32_State *)os->native;
+    HWND hwnd = hwnd_from_os_handle(handle);
+
+    list_for (state->window_first, it) {
+        if (it->handle == hwnd) return it;
+    }
+
+    return NULL;
+}
+
+static Win32_Window *win32_window_alloc() {
+    Win32_State *state = (Win32_State *)os->native;
+    Win32_Window *window = state->window_free_first;
+
+    if (window == NULL) {
+        window = push_struct(state->window_arena, Win32_Window);
+    } else {
+        sll_pop_front(state->window_free_first, state->window_free_last);
+        memset(window, 0, sizeof(*window));
+    }
+
+    dll_push_back(state->window_first, state->window_last, window);
+
+    return window;
+}
+
+void os_window_dealloc(OS_Handle handle) {
+    Win32_State *state = (Win32_State *)os->native;
+    auto *window = win32_window_from_handle(handle);
+    dll_remove(state->window_first, state->window_last, window);
+    sll_push_back(state->window_free_first, state->window_free_last, window);
+}
+
+OS_Handle os_window_create(int w, int h, String name) {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 
@@ -713,11 +752,48 @@ OS_Handle os_create_window(int w, int h, String name) {
                                 0, 0, hinst, 0);
     DragAcceptFiles(hwnd, 1);
 
-    OS_Handle result = os_handle_from_hwnd(hwnd);
-    return result;
+    auto *window = win32_window_alloc();
+    window->handle = hwnd;
+    window->placement = { sizeof(window->placement) };
+
+    OS_Handle handle = os_handle_from_hwnd(hwnd);
+    return handle;
 }
 
-v2 os_get_window_size(OS_Handle window) {
+//
+// Thanks, Raymond Chen.
+// (https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353)
+//
+void os_window_toggle_fullscreen(OS_Handle window_handle) {
+    auto *window = win32_window_from_handle(window_handle);
+    if (window) {
+        HWND hwnd = window->handle;
+        DWORD dwStyle = GetWindowLong(hwnd, GWL_STYLE);
+        if (dwStyle & WS_OVERLAPPEDWINDOW) {
+            MONITORINFO mi = { sizeof(mi) };
+            if (GetWindowPlacement(hwnd, &window->placement) &&
+                GetMonitorInfo(MonitorFromWindow(hwnd,
+                                                 MONITOR_DEFAULTTOPRIMARY), &mi)) {
+                SetWindowLong(hwnd, GWL_STYLE,
+                              dwStyle & ~WS_OVERLAPPEDWINDOW);
+                SetWindowPos(hwnd, HWND_TOP,
+                             mi.rcMonitor.left, mi.rcMonitor.top,
+                             mi.rcMonitor.right - mi.rcMonitor.left,
+                             mi.rcMonitor.bottom - mi.rcMonitor.top,
+                             SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            }
+        } else {
+            SetWindowLong(hwnd, GWL_STYLE,
+                          dwStyle | WS_OVERLAPPEDWINDOW);
+            SetWindowPlacement(hwnd, &window->placement);
+            SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+}
+
+v2 os_window_size(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
     RECT rect;
     GetClientRect(hwnd, &rect);
@@ -792,6 +868,7 @@ void os_clear_events() {
     }
 }
 
+//
 // Critical Section
 //
 void csection_init(Critical_Section* csection) {
@@ -808,6 +885,59 @@ void csection_unlock(Critical_Section* csection) {
 
 void csection_destroy(Critical_Section* csection) {
     DeleteCriticalSection(csection);
+}
+
+//
+// Utilities
+//
+String win32_string_from_hresult(HRESULT hr) {
+
+#define X(code) \
+    case code: \
+        return S(#code);
+
+    switch (hr) {
+        // Common
+        X(S_OK);
+        X(E_ABORT);
+        X(E_ACCESSDENIED);
+        X(E_FAIL);
+        X(E_HANDLE);
+        X(E_INVALIDARG);
+        X(E_NOINTERFACE);
+        X(E_NOTIMPL);
+        X(E_OUTOFMEMORY);
+        X(E_POINTER);
+
+        // DXGI
+        X(DXGI_ERROR_ACCESS_DENIED)
+        X(DXGI_ERROR_ACCESS_LOST)
+        X(DXGI_ERROR_ALREADY_EXISTS)
+        X(DXGI_ERROR_CANNOT_PROTECT_CONTENT)
+        X(DXGI_ERROR_DEVICE_HUNG)
+        X(DXGI_ERROR_DEVICE_REMOVED)
+        X(DXGI_ERROR_DEVICE_RESET)
+        X(DXGI_ERROR_DRIVER_INTERNAL_ERROR)
+        X(DXGI_ERROR_FRAME_STATISTICS_DISJOINT)
+        X(DXGI_ERROR_GRAPHICS_VIDPN_SOURCE_IN_USE)
+        X(DXGI_ERROR_INVALID_CALL)
+        X(DXGI_ERROR_MORE_DATA)
+        X(DXGI_ERROR_NAME_ALREADY_EXISTS)
+        X(DXGI_ERROR_NONEXCLUSIVE)
+        X(DXGI_ERROR_NOT_CURRENTLY_AVAILABLE)
+        X(DXGI_ERROR_NOT_FOUND)
+        X(DXGI_ERROR_REMOTE_CLIENT_DISCONNECTED)
+        X(DXGI_ERROR_REMOTE_OUTOFMEMORY)
+        X(DXGI_ERROR_RESTRICT_TO_OUTPUT_STALE)
+        X(DXGI_ERROR_SDK_COMPONENT_MISSING)
+        X(DXGI_ERROR_SESSION_DISCONNECTED)
+        X(DXGI_ERROR_UNSUPPORTED)
+        X(DXGI_ERROR_WAIT_TIMEOUT)
+        X(DXGI_ERROR_WAS_STILL_DRAWING)
+
+        default: return S("N/A");
+    }
+#undef X
 }
 
 

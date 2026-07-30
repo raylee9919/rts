@@ -4,6 +4,7 @@
 #define RTS_RHI_D3D12_H
 
 #define NODE_MASK 0 // @Todo: Multiple GPUs?
+#define RHI_D3D12_SWAP_CHAIN_STEREO 0
 
 extern "C"
 {
@@ -20,9 +21,38 @@ struct D3D12_Command_Queue {
 
 struct D3D12_Command_List {
     D3D12_COMMAND_LIST_TYPE type;
+
     ID3D12GraphicsCommandList *list_0;
     ID3D12GraphicsCommandList *list_7;
+
+    bool closed;
 };
+
+struct D3D12_Descriptor_Heap {
+    D3D12_DESCRIPTOR_HEAP_TYPE type;
+
+    ID3D12DescriptorHeap *heap_0;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE base_cpu_handle;
+    D3D12_GPU_DESCRIPTOR_HANDLE base_gpu_handle; // valid if visible on gpu.
+
+    u32 descriptor_size;
+
+    // set bit means it's free.
+    u64 *free_list; 
+    u32 free_list_node_count;
+
+    u32 allocated;  // number of every slots.
+    u32 count;      // number of active descriptors.
+};
+
+struct D3D12_Descriptor {
+    u64 index; // index in free list.
+    D3D12_Descriptor_Heap *my_heap;
+    D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
+    D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
+};
+
 
 struct D3D12_Device {
     IDXGIFactory6           *dxgi_factory_6;
@@ -37,6 +67,13 @@ struct D3D12_Device {
     DWORD                   callback_cookie;
 
     D3D12_Command_Queue     queues[RHI_COMMAND_TYPE_COUNT];
+
+    D3D12_Descriptor_Heap   rtv_heap;
+    D3D12_Descriptor_Heap   dsv_heap;
+};
+
+struct D3D12_Surface {
+    IDXGISwapChain1 *swap_chain_1;
 };
 
 internal bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
@@ -44,5 +81,8 @@ internal void d3d12_device_deinit(RHI_Device *device);
 
 internal bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type);
 internal void d3d12_list_deinit(D3D12_Command_List *list);
+
+internal bool d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surface_Desc desc);
+internal void d3d12_surface_present(D3D12_Surface *surface);
 
 #endif // RTS_RHI_D3D12_H

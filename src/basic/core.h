@@ -486,4 +486,33 @@ enum Texture_Layout
 };
 
 
+
+
+inline u8 align_up(u8 x, u8 alignment) {
+    Assert((alignment & (alignment - 1)) == 0);
+    return ((x + alignment - 1) & (~(alignment - 1)));
+}
+
+inline u16 align_up(u16 x, u16 alignment) {
+    Assert((alignment & (alignment - 1)) == 0);
+    return ((x + alignment - 1) & (~(alignment - 1)));
+}
+
+inline u32 align_up(u32 x, u32 alignment) {
+    Assert((alignment & (alignment - 1)) == 0);
+    return ((x + alignment - 1) & (~(alignment - 1)));
+}
+
+inline u64 align_up(u64 x, u64 alignment) {
+    Assert((alignment & (alignment - 1)) == 0);
+    return ((x + alignment - 1) & (~(alignment - 1)));
+}
+
+
+// Returns 64 if there's no set bit. That's why TZCNT is better than BSF.
+inline u64 tzcnt64(u64 x) {
+    return _tzcnt_u64(x);
+}
+
+
 #endif // RTS_BASIC_CORE_H
