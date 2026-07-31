@@ -96,10 +96,13 @@ static D3D12_COMMAND_LIST_TYPE d3d12_translate_queue_type(RHI_Command_Type type)
     switch (type) {
         case RHI_COMMAND_TYPE_GRAPHICS:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
+
         case RHI_COMMAND_TYPE_COMPUTE:
             return D3D12_COMMAND_LIST_TYPE_COMPUTE;
+
         case RHI_COMMAND_TYPE_TRANSFER:
             return D3D12_COMMAND_LIST_TYPE_COPY;
+
         default: 
             return D3D12_COMMAND_LIST_TYPE_NONE;
     }
@@ -237,17 +240,18 @@ static D3D12_Descriptor d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) {
     return desc;
 }
 
-static void d3d12_descriptor_dealloc(D3D12_Descriptor descriptor) {
-    u64 a = descriptor.index / 64llu;
-    u64 b = descriptor.index % 64llu;
+static void d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) {
+    u64 a = descriptor->index / 64llu;
+    u64 b = descriptor->index % 64llu;
     
-    auto *heap = descriptor.my_heap;
+    auto *heap = descriptor->my_heap;
 
     Assert((heap->free_list[a] & (1ull << b)) == 0);
     heap->free_list[a] |= (1ull << b);
 
     heap->count -= 1;
 }
+
 
 //
 // Device
@@ -479,16 +483,21 @@ void d3d12_device_deinit(RHI_Device *device) {
 //
 // Command List
 //
-bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type) {
+bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type) {
     auto native_type = d3d12_translate_queue_type(type);
     list->type = native_type;
 
-    HRESULT hr = device->device_10->CreateCommandList1(NODE_MASK, native_type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&list->list_0));
+    HRESULT hr = device->device_10->CreateCommandAllocator(native_type, IID_PPV_ARGS(&list->allocator));
     if (FAILED(hr)) {
-        log(S("HRESULT: %x. ID3D12Device4::CreateCommandList1 failed."), hr);
+        log(S("HRESULT: %x. CreateCommandAllocator failed."), hr);
         return false;
     }
-    list->closed = true; // CreateCommandList1() sets the state to closed.
+
+    hr = device->device_10->CreateCommandList1(NODE_MASK, native_type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&list->list_0));
+    if (FAILED(hr)) {
+        log(S("HRESULT: %x. CreateCommandList1 failed."), hr);
+        return false;
+    }
 
     hr = list->list_0->QueryInterface(IID_PPV_ARGS(&list->list_7));
     if (FAILED(hr)) {
@@ -500,100 +509,18 @@ bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command
     return true;
 }
 
-void d3d12_list_deinit(D3D12_Command_List *list) {
+void d3d12_command_list_deinit(D3D12_Command_List *list) {
     if (list) {
         RHI_SAFE_RELEASE(&list->list_0);
         RHI_SAFE_RELEASE(&list->list_7);
     }
 }
 
-//
-// Surface
-//
-bool d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surface_Desc desc) {
-    HWND hwnd = (HWND)desc.native_window_handle;
-
-    // @Note: Thank you Martins. 
-    // (https://gist.github.com/mmozeiko/5e727f845db182d468a34d524508ad5f#file-win32_d3d11-c-L184-L185)
-    DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
-    {
-        swap_chain_desc.Width  = desc.width;
-        swap_chain_desc.Height = desc.height;
-
-        swap_chain_desc.Format = RHI_D3D12_SURFACE_FORMAT; // @Temporary
-
-        swap_chain_desc.Stereo = RHI_D3D12_SWAP_CHAIN_STEREO;
-
-        swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
-        swap_chain_desc.BufferCount = desc.num_back_buffers,
-        swap_chain_desc.Scaling     = DXGI_SCALING_NONE;
-
-        // Windows 10 allows to use DXGI_SWAP_EFFECT_FLIP_DISCARD.
-        // For Windows 8 compatibility use DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL.
-        // For Windows 7 compatibility use DXGI_SWAP_EFFECT_DISCARD.
-        swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-
-        // FLIP presentation model does not allow MSAA framebuffer.
-        // If you want MSAA then you'll need to render offscreen and manually
-        // resolve to non-MSAA framebuffer.
-        swap_chain_desc.SampleDesc = { 1, 0 },
-
-        swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-
-        // @Todo: Allow tearing?
-        swap_chain_desc.Flags = {}; 
-    }
-
-    DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;
-    IDXGIOutput *monitor = NULL;
-
-    HRESULT hr = device->dxgi_factory_6->CreateSwapChainForHwnd(device->queues[RHI_COMMAND_TYPE_GRAPHICS].queue_0,
-                                                                hwnd, &swap_chain_desc, fullscreen_desc, 
-                                                                monitor, &surface->swap_chain_1);
-
-    if (FAILED(hr)) {
-        log(S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
-        return false;
-    }
-
-
-    // Disable Alt + Enter changing monitor resolution to match window size.
-    device->dxgi_factory_6->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
-
-
-    // Get resources from the swap chain and create render target views.
-    for (u32 i = 0; i < desc.num_back_buffers; ++i) {
-        hr = surface->swap_chain_1->GetBuffer(i, IID_PPV_ARGS(&surface->resources[i]));
-        if (FAILED(hr)) {
-            log(S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
-            return false;
-        }
-
-        auto rtv = d3d12_descriptor_alloc(&device->rtv_heap);
-
-        D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-        rtv_desc.Format        = RHI_D3D12_SURFACE_FORMAT;
-        rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-        rtv_desc.Texture2D     = { 0, 0 };
-
-        device->device_10->CreateRenderTargetView(surface->resources[i], &rtv_desc, rtv.cpu_handle);
-    }
-
-    log(S("Initialized d3d12 surface."));
-    return true;
-}
-
-void d3d12_surface_present(D3D12_Surface *surface) {
-    // @Temporary
-    //surface->swap_chain_1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-    surface->swap_chain_1->Present(1, 0);
-}
-
 
 //
 // Render Pass
 //
-void d3d12_render_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass) {
+void d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
     auto *list = cmd_buffer->d3d12.list_7;
 
     D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = {};
@@ -601,27 +528,25 @@ void d3d12_render_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pa
 
     Assert(pass->num_color_attachments <= RHI_MAX_COLOR_ATTACHMENTS);
 
-#if 0
     for (u32 i = 0; i < pass->num_color_attachments; ++i) {
         auto attachment = pass->color_attachments[i]; 
-        rtv_handles[i] = attachment.renderTarget->descriptor.cpuHandle;
+        rtv_handles[i] = attachment.view.d3d12.cpu_handle;
         if (attachment.load_op == RHI_LOAD_OP_CLEAR) {
             list->ClearRenderTargetView(rtv_handles[i], attachment.clear_color, 0, NULL);
         }
     }
 
     if (pass->has_depth_attachment) {
-        dsv_handle = pass->depth_attachment.renderTarget->descriptor.cpuHandle;
+        dsv_handle = pass->depth_attachment.view.d3d12.cpu_handle;
         if (pass->depth_attachment.load_op == RHI_LOAD_OP_CLEAR) {
             list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, pass->depth_attachment.clear_depth, 0, 0, NULL);
         }
     }
 
     list->OMSetRenderTargets(pass->num_color_attachments, rtv_handles, FALSE, pass->has_depth_attachment ? &dsv_handle : NULL);
-#endif
 }
 
-void d3d12_render_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass) {
+void d3d12_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
 
 }
 
@@ -629,7 +554,7 @@ void d3d12_render_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass
 //
 // Texture
 //
-static DXGI_FORMAT d3d12_texture_format_from_rhi(RHI_Texture_Format format) {
+static DXGI_FORMAT d3d12_texture_format(RHI_Texture_Format format) {
     switch (format) {
         case RHI_TEXTURE_FORMAT_UNKNOWN:
             return DXGI_FORMAT_UNKNOWN;
@@ -738,7 +663,7 @@ static D3D12_RESOURCE_DIMENSION d3d12_resource_dimension_from_rhi_texture_type(R
     }
 }
 
-static D3D12_RESOURCE_FLAGS d3d12_resource_flags_from_rhi_texture_usage(RHI_Texture_Usage usage) {
+static D3D12_RESOURCE_FLAGS d3d12_resource_flags_from_texture_usage(RHI_Texture_Usage usage) {
     D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE; // 0
 
     if (usage & RHI_TEXTURE_USAGE_STORAGE)                  flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -757,10 +682,10 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
         resource_desc.Height            = desc->height;
         resource_desc.DepthOrArraySize  = desc->depth;
         resource_desc.MipLevels         = desc->mip_levels;
-        resource_desc.Format            = d3d12_texture_format_from_rhi(desc->format);
+        resource_desc.Format            = d3d12_texture_format(desc->format);
         resource_desc.SampleDesc        = { 1, 0 };
         resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        resource_desc.Flags             = d3d12_resource_flags_from_rhi_texture_usage(desc->usage);
+        resource_desc.Flags             = d3d12_resource_flags_from_texture_usage(desc->usage);
     }
 
     if (heap) {
@@ -783,5 +708,333 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
 }
 
 void d3d12_texture_destroy(RHI_Texture *texture) {
+    // Make sure the texture isn't in flight!
     RHI_SAFE_RELEASE(&texture->d3d12.resource);
+    log(S("Destroyed d3d12 texture."));
+}
+
+static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
+    D3D12_SHADER_RESOURCE_VIEW_DESC result = {};
+    result.Format = d3d12_texture_format(desc->format);
+    result.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    switch (desc->dimension) {
+        case RHI_TEXTURE_TYPE_1D: {
+            auto *t = &result.Texture1D;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE1D;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D: {
+            auto *t = &result.Texture2D;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2D;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D_ARRAY: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        case RHI_TEXTURE_TYPE_3D: {
+            auto *t = &result.Texture3D;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE3D;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        case RHI_TEXTURE_TYPE_CUBE: {
+            auto *t = &result.TextureCube;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURECUBE;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        default: {
+            Assert(!"Unknown texture dimension.");
+        } break;
+    }
+
+    return result;
+}
+
+static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc(RHI_Texture_View_Desc *desc) {
+    D3D12_UNORDERED_ACCESS_VIEW_DESC result = {};
+    result.Format = d3d12_texture_format(desc->format);
+
+    switch (desc->dimension) {
+        case RHI_TEXTURE_TYPE_1D: {
+            auto *t = &result.Texture1D;
+            result.ViewDimension    = D3D12_UAV_DIMENSION_TEXTURE1D;
+            t->MipSlice             = desc->base_mip_level;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D: {
+            auto *t = &result.Texture2D;
+            result.ViewDimension    = D3D12_UAV_DIMENSION_TEXTURE2D;
+            t->MipSlice             = desc->base_mip_level;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D_ARRAY: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        case RHI_TEXTURE_TYPE_3D: {
+            // @Todo: Not sure of WSlice and WSize.
+            auto *t = &result.Texture3D;
+            result.ViewDimension    = D3D12_UAV_DIMENSION_TEXTURE3D;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstWSlice          = desc->base_array_slice;
+            t->WSize                = desc->depth;
+        } break;
+
+        case RHI_TEXTURE_TYPE_CUBE: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        default: {
+            Assert(!"Unknown texture dimension.");
+        } break;
+    }
+
+    return result;
+}
+
+static D3D12_RENDER_TARGET_VIEW_DESC d3d12_rtv_desc(RHI_Texture_View_Desc *desc) {
+    D3D12_RENDER_TARGET_VIEW_DESC result = {};
+    result.Format = d3d12_texture_format(desc->format);
+
+    switch (desc->dimension) {
+        case RHI_TEXTURE_TYPE_1D: {
+            auto *t = &result.Texture1D;
+            result.ViewDimension    = D3D12_RTV_DIMENSION_TEXTURE1D;
+            t->MipSlice             = desc->base_mip_level;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D: {
+            auto *t = &result.Texture2D;
+            result.ViewDimension    = D3D12_RTV_DIMENSION_TEXTURE2D;
+            t->MipSlice             = desc->base_mip_level;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D_ARRAY: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        case RHI_TEXTURE_TYPE_3D: {
+            // @Todo: Not sure of WSlice and WSize.
+            auto *t = &result.Texture3D;
+            result.ViewDimension    = D3D12_RTV_DIMENSION_TEXTURE3D;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstWSlice          = desc->base_array_slice;
+            t->WSize                = desc->depth;
+        } break;
+
+        case RHI_TEXTURE_TYPE_CUBE: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        default: {
+            Assert(!"Unknown texture dimension.");
+        } break;
+    }
+
+    return result;
+}
+
+static D3D12_DEPTH_STENCIL_VIEW_DESC d3d12_dsv_desc(RHI_Texture_View_Desc *desc) {
+    D3D12_DEPTH_STENCIL_VIEW_DESC result = {};
+    result.Format = d3d12_texture_format(desc->format);
+
+    switch (desc->dimension) {
+        case RHI_TEXTURE_TYPE_1D: {
+            auto *t = &result.Texture1D;
+            result.ViewDimension    = D3D12_DSV_DIMENSION_TEXTURE1D;
+            t->MipSlice             = desc->base_mip_level;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D: {
+            auto *t = &result.Texture2D;
+            result.ViewDimension    = D3D12_DSV_DIMENSION_TEXTURE2D;
+            t->MipSlice             = desc->base_mip_level;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D_ARRAY: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+            t->MipSlice             = desc->base_mip_level;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        default: {
+            Assert(!"Invalid texture dimension.");
+        } break;
+    }
+
+    return result;
+}
+
+void d3d12_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc) {
+    ID3D12Resource *resource = texture->d3d12.resource;
+
+    switch (desc->type) {
+        case RHI_TEXTURE_VIEW_TYPE_SAMPLED: {
+            if (texture->desc.usage & RHI_TEXTURE_USAGE_SAMPLED) {
+                view->d3d12 = d3d12_descriptor_alloc(&device->d3d12.resource_heap);
+                auto srv_desc = d3d12_srv_desc(desc);
+                device->d3d12.device_10->CreateShaderResourceView(resource, &srv_desc, view->d3d12.cpu_handle);
+            } else {
+                Assert(!"Texture doesn't have a sampled usage flag.");
+            }
+        } break;
+
+        case RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS: {
+            if (texture->desc.usage & RHI_TEXTURE_USAGE_STORAGE) {
+                view->d3d12 = d3d12_descriptor_alloc(&device->d3d12.resource_heap);
+                auto uav_desc = d3d12_uav_desc(desc);
+                device->d3d12.device_10->CreateUnorderedAccessView(resource, NULL, &uav_desc, view->d3d12.cpu_handle);
+            } else {
+                Assert(!"Texture doesn't have a storage usage flag.");
+            }
+        } break;
+
+        case RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET: {
+            if (texture->desc.usage & RHI_TEXTURE_USAGE_COLOR_ATTACHMENT) {
+                view->d3d12 = d3d12_descriptor_alloc(&device->d3d12.rtv_heap);
+                auto rtv_desc = d3d12_rtv_desc(desc);
+                device->d3d12.device_10->CreateRenderTargetView(resource, &rtv_desc, view->d3d12.cpu_handle);
+            } else {
+                Assert(!"Texture doesn't have a color attachment usage flag.");
+            }
+        } break;
+
+        case RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL: {
+            if (texture->desc.usage & RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT) {
+                view->d3d12 = d3d12_descriptor_alloc(&device->d3d12.dsv_heap);
+                auto dsv_desc = d3d12_dsv_desc(desc);
+                device->d3d12.device_10->CreateDepthStencilView(resource, &dsv_desc, view->d3d12.cpu_handle);
+            } else {
+                Assert(!"Texture doesn't have a depth stencil usage flag.");
+            }
+        } break;
+
+        default:
+            Assert(!"Unknown view type.");
+    }
+}
+
+void d3d12_texture_view_destroy(RHI_Texture_View *view) {
+    d3d12_descriptor_dealloc(&view->d3d12);
+    memset(view, 0, sizeof(*view));
+}
+
+
+//
+// Surface
+//
+bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc) {
+    HWND hwnd = (HWND)desc->native_window_handle;
+
+    //
+    // @Note: Thank you Martins. 
+    // (https://gist.github.com/mmozeiko/5e727f845db182d468a34d524508ad5f#file-win32_d3d11-c-L184-L185)
+    //
+    DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
+    {
+        swap_chain_desc.Width  = desc->width;
+        swap_chain_desc.Height = desc->height;
+
+        swap_chain_desc.Format = RHI_D3D12_SURFACE_FORMAT; // @Temporary
+
+        swap_chain_desc.Stereo = RHI_D3D12_SWAP_CHAIN_STEREO;
+
+        swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
+        swap_chain_desc.BufferCount = desc->num_back_buffers,
+        swap_chain_desc.Scaling     = DXGI_SCALING_STRETCH;
+
+        // Windows 10 allows to use DXGI_SWAP_EFFECT_FLIP_DISCARD.
+        // For Windows 8 compatibility use DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL.
+        // For Windows 7 compatibility use DXGI_SWAP_EFFECT_DISCARD.
+        swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+
+        // FLIP presentation model does not allow MSAA framebuffer.
+        // If you want MSAA then you'll need to render offscreen and manually
+        // resolve to non-MSAA framebuffer.
+        swap_chain_desc.SampleDesc = { 1, 0 },
+
+        swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+
+        // @Todo: Allow tearing?
+        swap_chain_desc.Flags = {}; 
+    }
+
+    DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;
+    IDXGIOutput *monitor = NULL;
+
+    HRESULT hr = device->d3d12.dxgi_factory_6->CreateSwapChainForHwnd(device->d3d12.queues[RHI_COMMAND_TYPE_GRAPHICS].queue_0,
+                                                                      hwnd, &swap_chain_desc, fullscreen_desc,  
+                                                                      monitor, &surface->d3d12.swap_chain_1);
+
+    if (FAILED(hr)) {
+        log(S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
+        return false;
+    }
+
+
+    // Disable Alt + Enter changing monitor resolution to match window size.
+    device->d3d12.dxgi_factory_6->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+
+
+    // Get resources from the swap chain and create render target views.
+    for (u32 i = 0; i < desc->num_back_buffers; ++i) {
+        auto *tex = &surface->textures[i];
+
+        hr = surface->d3d12.swap_chain_1->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
+        if (FAILED(hr)) {
+            log(S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
+            return false;
+        }
+
+        tex->kind = RHI_KIND_D3D12;
+        tex->desc.type       = RHI_TEXTURE_TYPE_2D;
+        tex->desc.format     = RHI_SURFACE_FORMAT;
+        tex->desc.usage      = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT;
+        tex->desc.width      = desc->width;
+        tex->desc.height     = desc->height;
+        tex->desc.mip_levels = 1;
+        tex->desc.depth      = 1;
+
+    }
+
+    log(S("Initialized d3d12 surface."));
+    return true;
+}
+
+void d3d12_surface_present(D3D12_Surface *surface) {
+    // @Temporary
+    //surface->swap_chain_1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+    surface->swap_chain_1->Present(1, 0);
 }

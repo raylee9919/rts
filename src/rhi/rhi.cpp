@@ -33,7 +33,7 @@ bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI
 
     switch (kind) {
         case RHI_KIND_D3D12:
-            return d3d12_list_init(&device->d3d12, &buffer->d3d12, type);
+            return d3d12_command_list_init(&device->d3d12, &buffer->d3d12, type);
 
         default:
             Assert(0);
@@ -45,7 +45,7 @@ bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI
 void rhi_command_buffer_deinit(RHI_Command_Buffer *buffer) {
     switch (buffer->kind) {
         case RHI_KIND_D3D12:
-            d3d12_list_deinit(&buffer->d3d12);
+            d3d12_command_list_deinit(&buffer->d3d12);
             break;
 
         default:
@@ -53,19 +53,19 @@ void rhi_command_buffer_deinit(RHI_Command_Buffer *buffer) {
     }
 }
 
-bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc desc) {
+bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc) {
     memset(surface, 0, sizeof(*surface));
     RHI_Kind kind = device->kind;
     surface->kind = kind;
-    surface->desc = desc;
+    surface->desc = *desc;
 
-    if (!(desc.num_back_buffers > 0 && desc.num_back_buffers <= RHI_MAX_BACK_BUFFER)) {
+    if (!(desc->num_back_buffers > 0 && desc->num_back_buffers <= RHI_MAX_BACK_BUFFERS)) {
         return false;
     }
 
     switch (kind) {
         case RHI_KIND_D3D12:
-            return d3d12_surface_init(&device->d3d12, &surface->d3d12, desc);
+            return d3d12_surface_init(device, surface, desc);
 
         default:
             Assert(0);
@@ -78,34 +78,6 @@ void rhi_surface_present(RHI_Surface *surface) {
     switch (surface->kind) {
         case RHI_KIND_D3D12:
             d3d12_surface_present(&surface->d3d12);
-            break;
-
-        default:
-            Assert(0);
-            break;
-    }
-}
-
-
-//
-// Render Pass
-//
-void rhi_render_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *render_pass) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_render_pass_begin(cmd_buffer, render_pass);
-            break;
-
-        default:
-            Assert(0);
-            break;
-    }
-}
-
-void rhi_render_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *render_pass) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_render_pass_end(cmd_buffer, render_pass);
             break;
 
         default:
@@ -135,6 +107,61 @@ void rhi_texture_destroy(RHI_Texture *texture) {
     switch (texture->kind) {
         case RHI_KIND_D3D12:
             d3d12_texture_destroy(texture);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc) {
+    view->kind = device->kind;
+    view->desc = *desc;
+
+    switch (device->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_texture_view_create(device, view, texture, desc);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_texture_view_destroy(RHI_Texture_View *view) {
+    switch (view->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_texture_view_destroy(view);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+
+//
+// Render Pass
+//
+void rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_pass_begin(cmd_buffer, render_pass);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_pass_end(cmd_buffer, render_pass);
             break;
 
         default:

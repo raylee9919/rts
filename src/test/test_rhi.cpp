@@ -21,22 +21,33 @@ int main_entry(int argc, char **argv)
     window = os_window_create(1920, 1080, utf8lit("rhi"));
     HWND hwnd = hwnd_from_os_handle(window);
 
-    auto *rhi_device = (RHI_Device *)alloc(sizeof(RHI_Device));
-    Assert(rhi_device_init(rhi_device, RHI_KIND_D3D12, true, true));
+    auto *device = (RHI_Device *)alloc(sizeof(RHI_Device));
+    Assert(rhi_device_init(device, RHI_KIND_D3D12, true, true));
 
     RHI_Surface_Desc surface_desc = {};
     {
         surface_desc.native_window_handle = (void *)hwnd;
-        surface_desc.width = surface_width;
-        surface_desc.height = surface_height;
-        surface_desc.num_back_buffers = num_back_buffers;
+        surface_desc.width                = surface_width;
+        surface_desc.height               = surface_height;
+        surface_desc.num_back_buffers     = num_back_buffers;
     }
-    auto *rhi_surface = (RHI_Surface *)alloc(sizeof(RHI_Surface));
-    Assert(rhi_surface_init(rhi_device, rhi_surface, surface_desc));
+    auto *surface = (RHI_Surface *)alloc(sizeof(RHI_Surface));
+    Assert(rhi_surface_init(device, surface, &surface_desc));
 
+    RHI_Texture_View view = {};
+    {
+        RHI_Texture_View_Desc view_desc = {};
+        {
+            view_desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
+            view_desc.dimension         = RHI_TEXTURE_TYPE_2D;
+            view_desc.format            = surface->textures[0].desc.format;
+            view_desc.base_mip_level    = 0;
+        }
+        rhi_texture_view_create(device, &view, &surface->textures[0], &view_desc);
+    }
 
-    auto *rhi_cmd_buffer = (RHI_Command_Buffer *)alloc(sizeof(RHI_Command_Buffer));
-    Assert(rhi_command_buffer_init(rhi_device, rhi_cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
+    auto *cmd_buffer = (RHI_Command_Buffer *)alloc(sizeof(RHI_Command_Buffer));
+    Assert(rhi_command_buffer_init(device, cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
 
 
     while (!should_close) {
@@ -63,16 +74,31 @@ int main_entry(int argc, char **argv)
             }
         }
 
+
         // Render
+        RHI_Pass pass = {};
         {
-            rhi_surface_present(rhi_surface);
+            pass.num_color_attachments = 1;
+            pass.color_attachments[0].view    = view;
+            pass.color_attachments[0].load_op = RHI_LOAD_OP_CLEAR;
+            float color[4] = { 1.f, 0.f, 1.f, 1.f };
+            memcpy(pass.color_attachments[0].clear_color, color, sizeof(color));
         }
+
+        rhi_pass_begin(cmd_buffer, &pass);
+        {
+        }
+        rhi_pass_end(cmd_buffer, &pass);
+
+
+        rhi_surface_present(surface);
+
 
         clear_temporary_storage();
     }
 
-    rhi_command_buffer_deinit(rhi_cmd_buffer);
-    rhi_device_deinit(rhi_device);
+    rhi_command_buffer_deinit(cmd_buffer);
+    rhi_device_deinit(device);
 
     return 0;
 }

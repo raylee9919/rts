@@ -164,6 +164,7 @@ enum
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #undef assert
+#define ASSERT(exp)  if (!(exp)) do { break_debugger(); } while(0)
 #define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
 #define assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
 #define assume(exp)  assert(exp)

@@ -16,6 +16,7 @@ internal void r_end(RHI_State* rhi, struct Renderer *r);
 
 // ------------------------------------------------------------------------ //
 
+
 typedef struct D3D12_Device D3D12_Device;
 
 enum RHI_Kind : u8 {
@@ -33,16 +34,9 @@ struct RHI_Device {
 
 struct RHI_Command_Buffer {
     RHI_Kind kind;
+    bool is_recording;
     union {
         D3D12_Command_List d3d12;
-    };
-};
-
-struct RHI_Surface {
-    RHI_Kind kind;
-    RHI_Surface_Desc desc;
-    union {
-        D3D12_Surface d3d12;
     };
 };
 
@@ -119,7 +113,7 @@ struct RHI_Texture_Desc {
     u32 width;
     u32 height;
     u32 mip_levels;
-    u32 depth; // or length array length.
+    u32 depth; // or array length.
 };
 
 struct RHI_Texture {
@@ -127,6 +121,60 @@ struct RHI_Texture {
     RHI_Texture_Desc desc;
     union {
         D3D12_Texture d3d12;
+    };
+};
+
+enum RHI_Texture_View_Type {
+    RHI_TEXTURE_VIEW_TYPE_SAMPLED,
+    RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS,
+    RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET,
+    RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL
+};
+
+struct RHI_Texture_View_Desc {
+    RHI_Texture_View_Type type;
+    RHI_Texture_Type      dimension;
+    RHI_Texture_Format    format;
+    u32 base_mip_level;
+    u32 base_array_slice;
+    u32 mip_levels;
+    u32 depth; // or array length.
+};
+
+struct RHI_Texture_View {
+    RHI_Kind kind;
+    RHI_Texture_View_Desc desc;
+    union {
+        D3D12_Descriptor d3d12;
+    };
+};
+
+
+//
+// Buffer
+//
+
+struct RHI_Buffer_View {
+
+};
+
+
+//
+// Surface
+//
+struct RHI_Surface_Desc {
+    void *native_window_handle; // This isn't a pointer to the handle. It's a handle itself.
+    u32   width;
+    u32   height;
+    u32   num_back_buffers;
+};
+
+struct RHI_Surface {
+    RHI_Kind kind;
+    RHI_Surface_Desc desc;
+    RHI_Texture textures[RHI_MAX_BACK_BUFFERS];
+    union {
+        D3D12_Surface d3d12;
     };
 };
 
@@ -146,7 +194,7 @@ enum RHI_Store_Op {
 };
 
 struct RHI_Attachment {
-    RHI_Texture *texture;
+    RHI_Texture_View view;
     RHI_Load_Op  load_op;
     RHI_Store_Op store_op;
     union {
@@ -155,28 +203,35 @@ struct RHI_Attachment {
     };
 };
 
-struct RHI_Render_Pass {
+struct RHI_Pass {
     RHI_Attachment color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
     RHI_Attachment depth_attachment;
-    u32 num_color_attachments;
-    b32 has_depth_attachment;
+    u32            num_color_attachments;
+    b32            has_depth_attachment;
 };
 
 
+//
+// API
+//
 internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
 internal void rhi_device_deinit(RHI_Device *device);
 
 internal bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *cmd, RHI_Command_Type type);
 internal void rhi_command_buffer_deinit(RHI_Command_Buffer *cmd);
 
-internal bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc desc);
+internal bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void rhi_surface_present(RHI_Surface *surface);
-
-internal void rhi_render_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *render_pass);
-internal void rhi_render_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *render_pass);
 
 internal bool rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
 internal void rhi_texture_destroy(RHI_Texture *texture);
+
+internal void rhi_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
+internal void rhi_texture_view_destroy(RHI_Texture_View *view);
+
+internal void rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
+internal void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
+
 
 
 #endif // RTS_RHI_H
