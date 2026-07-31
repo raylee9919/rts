@@ -1,12 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-template <class T> void safe_release(T **ppT) {
-    if (*ppT) {
-        (*ppT)->Release();
-        *ppT = NULL;
-    }
-}
-
 static void d3d12_log_message(D3D12_MESSAGE_SEVERITY severity, LPCSTR description) {
     String s = {};
 
@@ -99,6 +92,7 @@ static void d3d12_message_callback(D3D12_MESSAGE_CATEGORY category,
 }
 
 static D3D12_COMMAND_LIST_TYPE d3d12_translate_queue_type(RHI_Command_Type type) {
+    static_assert(RHI_COMMAND_TYPE_COUNT == 3);
     switch (type) {
         case RHI_COMMAND_TYPE_GRAPHICS:
             return D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -106,10 +100,6 @@ static D3D12_COMMAND_LIST_TYPE d3d12_translate_queue_type(RHI_Command_Type type)
             return D3D12_COMMAND_LIST_TYPE_COMPUTE;
         case RHI_COMMAND_TYPE_TRANSFER:
             return D3D12_COMMAND_LIST_TYPE_COPY;
-        case RHI_COMMAND_TYPE_VIDEO_DECODE:
-            return D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE;
-        case RHI_COMMAND_TYPE_VIDEO_ENCODE:
-            return D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE;
         default: 
             return D3D12_COMMAND_LIST_TYPE_NONE;
     }
@@ -137,7 +127,7 @@ static bool d3d12_queue_init(D3D12_Device *device, D3D12_Command_Queue *queue, D
 
 static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
     if (queue) {
-        safe_release(&queue->queue_0);
+        RHI_SAFE_RELEASE(&queue->queue_0);
     }
     log(S("Deinitialized d3d12 command queue."));
 }
@@ -207,7 +197,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
 
 static void d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap) {
     if (heap) {
-        safe_release(&heap->heap_0);
+        RHI_SAFE_RELEASE(&heap->heap_0);
         dealloc(heap->free_list);
     }
 }
@@ -233,9 +223,8 @@ static D3D12_Descriptor d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) {
     int offset = index * heap->descriptor_size;
 
     D3D12_Descriptor desc = {};
-
+    desc.type = heap->type;
     desc.index = index;
-
     desc.my_heap = heap;
 
     desc.cpu_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->base_cpu_handle, offset);
@@ -292,13 +281,13 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
                 debug_interface_5->SetEnableGPUBasedValidation(true);
                 debug_interface_5->SetEnableSynchronizedCommandQueueValidation(true);
 
-                safe_release(&debug_interface_5);
+                RHI_SAFE_RELEASE(&debug_interface_5);
             } else {
                 log(S("HRESULT: %x. Failed to query interface 'ID3D12Debug5'. 'Windows 10 Build 20348' is the minimum supported version."), hr);
                 return false;
             }
 
-            safe_release(&debug_interface);
+            RHI_SAFE_RELEASE(&debug_interface);
         } else {
             log(S("HRESULT: %x. Failed to get 'ID3D12Debug' interface."), hr);
             return false;
@@ -369,7 +358,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
                 info_queue_0->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING,    break_on_warning);
             }
 
-            safe_release(&info_queue_0);
+            RHI_SAFE_RELEASE(&info_queue_0);
         } else {
             log(S("HRESULT: %x. ID3D12Device::QueryInterface(ID3D12InfoQueue *) failed."), hr);
         }
@@ -419,19 +408,21 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
 
     // Create RTV and DSV heap.
-    // @Todo: grow...?
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2048)) return false;
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 2048)) return false;
+    // @Todo: growable.
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         2048)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_DSV,         2048)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->resource_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2048)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->sampler_heap,  D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     2048)) return false;
 
 
     // Create command queues.
-    for (RHI_Command_Type type = (RHI_COMMAND_TYPE_INVALID + 1); type < RHI_COMMAND_TYPE_COUNT; ++type) {
+    for (RHI_Command_Type type = RHI_COMMAND_TYPE_GRAPHICS; type < RHI_COMMAND_TYPE_COUNT; ++type) {
         d3d12_queue_init(d3d12, &d3d12->queues[type], d3d12_translate_queue_type(type));
     }
 
 
     // Cleanup
-    safe_release(&adapter_1);
+    RHI_SAFE_RELEASE(&adapter_1);
 
 
     log(S("Initialized d3d12 device."));
@@ -444,13 +435,19 @@ void d3d12_device_deinit(RHI_Device *device) {
     D3D12_Device *d = &device->d3d12;
 
     // Destroy command queues.
-    for (RHI_Command_Type type = (RHI_COMMAND_TYPE_INVALID + 1); type < RHI_COMMAND_TYPE_COUNT; ++type) {
+    for (RHI_Command_Type type = RHI_COMMAND_TYPE_GRAPHICS; type < RHI_COMMAND_TYPE_COUNT; ++type) {
         d3d12_queue_deinit(&d->queues[type]);
     }
 
-    safe_release(&d->dxgi_factory_6);
-    safe_release(&d->device_10);
-    safe_release(&d->device_0);
+    // Destroy heaps.
+    d3d12_descriptor_heap_deinit(&d->rtv_heap);
+    d3d12_descriptor_heap_deinit(&d->dsv_heap);
+    d3d12_descriptor_heap_deinit(&d->resource_heap);
+    d3d12_descriptor_heap_deinit(&d->sampler_heap);
+
+    RHI_SAFE_RELEASE(&d->dxgi_factory_6);
+    RHI_SAFE_RELEASE(&d->device_10);
+    RHI_SAFE_RELEASE(&d->device_0);
 
     if (d->info_queue_1 && d->callback_cookie != 0) {
         d->info_queue_1->UnregisterMessageCallback(d->callback_cookie);
@@ -460,12 +457,12 @@ void d3d12_device_deinit(RHI_Device *device) {
     if (d->dxgi_debug) {
         // @Todo: Since info_queue_1 isn't released, there's a log saying there's a leak.
         d->dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
-        safe_release(&d->dxgi_debug);
+        RHI_SAFE_RELEASE(&d->dxgi_debug);
     }
 
     if (d->info_queue_1) {
         d3d12_flush_messages(d->info_queue_1);
-        safe_release(&d->info_queue_1);
+        RHI_SAFE_RELEASE(&d->info_queue_1);
     }
 
 
@@ -505,8 +502,8 @@ bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command
 
 void d3d12_list_deinit(D3D12_Command_List *list) {
     if (list) {
-        safe_release(&list->list_0);
-        safe_release(&list->list_7);
+        RHI_SAFE_RELEASE(&list->list_0);
+        RHI_SAFE_RELEASE(&list->list_7);
     }
 }
 
@@ -523,7 +520,7 @@ bool d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surfac
         swap_chain_desc.Width  = desc.width;
         swap_chain_desc.Height = desc.height;
 
-        swap_chain_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // @Temporary
+        swap_chain_desc.Format = RHI_D3D12_SURFACE_FORMAT; // @Temporary
 
         swap_chain_desc.Stereo = RHI_D3D12_SWAP_CHAIN_STEREO;
 
@@ -559,8 +556,28 @@ bool d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surfac
         return false;
     }
 
+
     // Disable Alt + Enter changing monitor resolution to match window size.
     device->dxgi_factory_6->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+
+
+    // Get resources from the swap chain and create render target views.
+    for (u32 i = 0; i < desc.num_back_buffers; ++i) {
+        hr = surface->swap_chain_1->GetBuffer(i, IID_PPV_ARGS(&surface->resources[i]));
+        if (FAILED(hr)) {
+            log(S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
+            return false;
+        }
+
+        auto rtv = d3d12_descriptor_alloc(&device->rtv_heap);
+
+        D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+        rtv_desc.Format        = RHI_D3D12_SURFACE_FORMAT;
+        rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        rtv_desc.Texture2D     = { 0, 0 };
+
+        device->device_10->CreateRenderTargetView(surface->resources[i], &rtv_desc, rtv.cpu_handle);
+    }
 
     log(S("Initialized d3d12 surface."));
     return true;
@@ -570,4 +587,201 @@ void d3d12_surface_present(D3D12_Surface *surface) {
     // @Temporary
     //surface->swap_chain_1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     surface->swap_chain_1->Present(1, 0);
+}
+
+
+//
+// Render Pass
+//
+void d3d12_render_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass) {
+    auto *list = cmd_buffer->d3d12.list_7;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = {};
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[RHI_MAX_COLOR_ATTACHMENTS] = {};
+
+    Assert(pass->num_color_attachments <= RHI_MAX_COLOR_ATTACHMENTS);
+
+#if 0
+    for (u32 i = 0; i < pass->num_color_attachments; ++i) {
+        auto attachment = pass->color_attachments[i]; 
+        rtv_handles[i] = attachment.renderTarget->descriptor.cpuHandle;
+        if (attachment.load_op == RHI_LOAD_OP_CLEAR) {
+            list->ClearRenderTargetView(rtv_handles[i], attachment.clear_color, 0, NULL);
+        }
+    }
+
+    if (pass->has_depth_attachment) {
+        dsv_handle = pass->depth_attachment.renderTarget->descriptor.cpuHandle;
+        if (pass->depth_attachment.load_op == RHI_LOAD_OP_CLEAR) {
+            list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, pass->depth_attachment.clear_depth, 0, 0, NULL);
+        }
+    }
+
+    list->OMSetRenderTargets(pass->num_color_attachments, rtv_handles, FALSE, pass->has_depth_attachment ? &dsv_handle : NULL);
+#endif
+}
+
+void d3d12_render_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass) {
+
+}
+
+
+//
+// Texture
+//
+static DXGI_FORMAT d3d12_texture_format_from_rhi(RHI_Texture_Format format) {
+    switch (format) {
+        case RHI_TEXTURE_FORMAT_UNKNOWN:
+            return DXGI_FORMAT_UNKNOWN;
+
+        case RHI_TEXTURE_FORMAT_R8_UNORM:
+            return DXGI_FORMAT_R8_UNORM;
+
+        case RHI_TEXTURE_FORMAT_RG8_UNORM:
+            return DXGI_FORMAT_R8G8_UNORM;
+
+        case RHI_TEXTURE_FORMAT_RGBA8_UNORM:
+            return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+        case RHI_TEXTURE_FORMAT_BGRA8_UNORM:
+            return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+        case RHI_TEXTURE_FORMAT_RGBA8_UNORM_SRGB:
+            return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
+        case RHI_TEXTURE_FORMAT_BGRA8_UNORM_SRGB:
+            return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+
+        case RHI_TEXTURE_FORMAT_R16_UNORM:
+            return DXGI_FORMAT_R16_UNORM;
+
+        case RHI_TEXTURE_FORMAT_RG16_UNORM:
+            return DXGI_FORMAT_R16G16_UNORM;
+
+        case RHI_TEXTURE_FORMAT_RGBA16_UNORM:
+            return DXGI_FORMAT_R16G16B16A16_UNORM;
+
+        case RHI_TEXTURE_FORMAT_R16F:
+            return DXGI_FORMAT_R16_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_RG16F:
+            return DXGI_FORMAT_R16G16_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_RGBA16F:
+            return DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_R32F:
+            return DXGI_FORMAT_R32_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_RG32F:
+            return DXGI_FORMAT_R32G32_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_RGBA32F:
+            return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_D32F:
+            return DXGI_FORMAT_D32_FLOAT;
+
+        case RHI_TEXTURE_FORMAT_BC1_UNORM:
+            return DXGI_FORMAT_BC1_UNORM;
+
+        case RHI_TEXTURE_FORMAT_BC1_UNORM_SRGB:
+            return DXGI_FORMAT_BC1_UNORM_SRGB;
+
+        case RHI_TEXTURE_FORMAT_BC3_UNORM:
+            return DXGI_FORMAT_BC3_UNORM;
+
+        case RHI_TEXTURE_FORMAT_BC3_UNORM_SRGB:
+            return DXGI_FORMAT_BC3_UNORM_SRGB;
+
+        case RHI_TEXTURE_FORMAT_BC4_UNORM:
+            return DXGI_FORMAT_BC4_UNORM;
+
+        case RHI_TEXTURE_FORMAT_BC5_UNORM:
+            return DXGI_FORMAT_BC5_UNORM;
+
+        case RHI_TEXTURE_FORMAT_BC6H_UFLOAT:
+            return DXGI_FORMAT_BC6H_UF16;
+
+        case RHI_TEXTURE_FORMAT_BC7_UNORM:
+            return DXGI_FORMAT_BC7_UNORM;
+
+        case RHI_TEXTURE_FORMAT_BC7_UNORM_SRGB:
+            return DXGI_FORMAT_BC7_UNORM_SRGB;
+
+        default:
+            Assert(!"Unknown texture format.");
+            return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
+static D3D12_RESOURCE_DIMENSION d3d12_resource_dimension_from_rhi_texture_type(RHI_Texture_Type type) {
+    switch (type) {
+        case RHI_TEXTURE_TYPE_1D:
+            return D3D12_RESOURCE_DIMENSION_TEXTURE1D;
+
+        case RHI_TEXTURE_TYPE_2D:
+            return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+        case RHI_TEXTURE_TYPE_2D_ARRAY:
+            return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+        case RHI_TEXTURE_TYPE_3D:
+            return D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+
+        case RHI_TEXTURE_TYPE_CUBE:
+            return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+        default:
+            Assert(!"Unknown texture type.");
+            return D3D12_RESOURCE_DIMENSION_UNKNOWN;
+    }
+}
+
+static D3D12_RESOURCE_FLAGS d3d12_resource_flags_from_rhi_texture_usage(RHI_Texture_Usage usage) {
+    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE; // 0
+
+    if (usage & RHI_TEXTURE_USAGE_STORAGE)                  flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    if (usage & RHI_TEXTURE_USAGE_COLOR_ATTACHMENT)         flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    if (usage & RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT) flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+    return flags;
+}
+
+bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
+    D3D12_RESOURCE_DESC resource_desc = {};
+    {
+        resource_desc.Dimension         = d3d12_resource_dimension_from_rhi_texture_type(desc->type);
+        resource_desc.Alignment         = 0; // effectively 64KB.
+        resource_desc.Width             = desc->width;
+        resource_desc.Height            = desc->height;
+        resource_desc.DepthOrArraySize  = desc->depth;
+        resource_desc.MipLevels         = desc->mip_levels;
+        resource_desc.Format            = d3d12_texture_format_from_rhi(desc->format);
+        resource_desc.SampleDesc        = { 1, 0 };
+        resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        resource_desc.Flags             = d3d12_resource_flags_from_rhi_texture_usage(desc->usage);
+    }
+
+    if (heap) {
+        Assert(!"User heap not supported at the moment.");
+    } else {
+        D3D12_HEAP_PROPERTIES heap_prop = {};
+        heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE, 
+                                                                      &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
+                                                                      NULL, IID_PPV_ARGS(&texture->d3d12.resource));
+        if (FAILED(hr)) {
+            log(S("HRESULT: %S, %x. CreateCommittedResource failed."), win32_string_from_hresult(hr), hr);
+            return false;
+        }
+    }
+
+    log(S("Created d3d12 texture."));
+    return true;
+}
+
+void d3d12_texture_destroy(RHI_Texture *texture) {
+    RHI_SAFE_RELEASE(&texture->d3d12.resource);
 }

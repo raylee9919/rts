@@ -510,6 +510,7 @@ inline u64 align_up(u64 x, u64 alignment) {
 
 
 // Returns 64 if there's no set bit. That's why TZCNT is better than BSF.
+// @Todo: Some old chips might not support tzcnt
 inline u64 tzcnt64(u64 x) {
     return _tzcnt_u64(x);
 }

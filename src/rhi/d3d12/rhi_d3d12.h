@@ -3,8 +3,11 @@
 #ifndef RTS_RHI_D3D12_H
 #define RTS_RHI_D3D12_H
 
-#define NODE_MASK 0 // @Todo: Multiple GPUs?
-#define RHI_D3D12_SWAP_CHAIN_STEREO 0
+#define NODE_MASK                       0 // @Todo: Multiple GPUs?
+#define RHI_D3D12_SWAP_CHAIN_STEREO     0
+#define RHI_D3D12_SURFACE_FORMAT        DXGI_FORMAT_R8G8B8A8_UNORM // @Temporary
+
+#define RHI_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
 
 extern "C"
 {
@@ -13,6 +16,11 @@ extern "C"
 }
 
 struct RHI_Device;
+struct RHI_Command_Buffer;
+struct RHI_Render_Pass;
+struct RHI_Texture;
+struct RHI_Texture_Desc;
+struct RHI_Heap;
 
 struct D3D12_Command_Queue {
     D3D12_COMMAND_LIST_TYPE type;
@@ -47,12 +55,16 @@ struct D3D12_Descriptor_Heap {
 };
 
 struct D3D12_Descriptor {
-    u64 index; // index in free list.
+    D3D12_DESCRIPTOR_HEAP_TYPE type;
+    u64 index; // index in the free list.
     D3D12_Descriptor_Heap *my_heap;
     D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
     D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
 };
 
+struct D3D12_Heap {
+
+};
 
 struct D3D12_Device {
     IDXGIFactory6           *dxgi_factory_6;
@@ -70,19 +82,33 @@ struct D3D12_Device {
 
     D3D12_Descriptor_Heap   rtv_heap;
     D3D12_Descriptor_Heap   dsv_heap;
+    D3D12_Descriptor_Heap   resource_heap;
+    D3D12_Descriptor_Heap   sampler_heap;
 };
 
 struct D3D12_Surface {
     IDXGISwapChain1 *swap_chain_1;
+    ID3D12Resource  *resources[RHI_MAX_BACK_BUFFER];
+    D3D12_Descriptor rtvs[RHI_MAX_BACK_BUFFER];
 };
 
-internal bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
-internal void d3d12_device_deinit(RHI_Device *device);
+struct D3D12_Texture {
+    ID3D12Resource *resource;
+};
 
-internal bool d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type);
-internal void d3d12_list_deinit(D3D12_Command_List *list);
+internal bool       d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
+internal void       d3d12_device_deinit(RHI_Device *device);
 
-internal bool d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surface_Desc desc);
-internal void d3d12_surface_present(D3D12_Surface *surface);
+internal bool       d3d12_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type);
+internal void       d3d12_list_deinit(D3D12_Command_List *list);
+
+internal bool       d3d12_surface_init(D3D12_Device *device, D3D12_Surface *surface, RHI_Surface_Desc desc);
+internal void       d3d12_surface_present(D3D12_Surface *surface);
+
+internal void       d3d12_render_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass);
+internal void       d3d12_render_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Render_Pass *pass);
+
+internal bool       d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
+internal void       d3d12_texture_destroy(RHI_Texture *texture);
 
 #endif // RTS_RHI_D3D12_H

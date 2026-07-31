@@ -35,8 +35,9 @@ int main_entry(int argc, char **argv)
     Assert(rhi_surface_init(rhi_device, rhi_surface, surface_desc));
 
 
-    auto *rhi_list = (RHI_Command_List *)alloc(sizeof(RHI_Command_List));
-    Assert(rhi_command_list_init(rhi_device, rhi_list, RHI_COMMAND_TYPE_GRAPHICS));
+    auto *rhi_cmd_buffer = (RHI_Command_Buffer *)alloc(sizeof(RHI_Command_Buffer));
+    Assert(rhi_command_buffer_init(rhi_device, rhi_cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
+
 
     while (!should_close) {
         // Clear and poll events.
@@ -70,7 +71,7 @@ int main_entry(int argc, char **argv)
         clear_temporary_storage();
     }
 
-    rhi_command_list_deinit(rhi_list);
+    rhi_command_buffer_deinit(rhi_cmd_buffer);
     rhi_device_deinit(rhi_device);
 
     return 0;
