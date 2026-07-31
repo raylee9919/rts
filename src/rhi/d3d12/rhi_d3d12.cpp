@@ -513,6 +513,44 @@ void d3d12_command_list_deinit(D3D12_Command_List *list) {
     if (list) {
         RHI_SAFE_RELEASE(&list->list_0);
         RHI_SAFE_RELEASE(&list->list_7);
+        RHI_SAFE_RELEASE(&list->allocator);
+    }
+}
+
+void d3d12_command_list_begin(D3D12_Command_List *list) {
+    // Although an ID3D12GraphicsCommandList can be reset immediately after
+    // execution (provided it is associated with a different allocator, or the
+    // current allocator is no longer in use by the GPU), our abstraction keeps a
+    // 1:1 relationship between a command list and its allocator.
+    //
+    // Therefore, the caller must ensure the GPU has finished executing commands
+    // recorded with this allocator before calling d3d12_command_list_begin().
+    //
+    if (!list->is_recording) {
+        list->allocator->Reset();
+        list->list_7->Reset(list->allocator, NULL);
+        list->is_recording = true;
+    } else {
+        log(S("Command list wasn't closed."));
+    }
+}
+
+void d3d12_command_list_end(D3D12_Command_List *list) {
+    if (list->is_recording) {
+        list->list_7->Close();
+        list->is_recording = false;
+    } else {
+        log(S("Command list was already closed."));
+    }
+}
+
+void d3d12_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffer) { 
+    auto **cmd_lists = (ID3D12CommandList **)alloc(sizeof(ID3D12CommandList *)*count, tctx.temp);
+
+    // @Todo: Is it slow?
+    for (u32 i = 0; i < count; ++i) {
+        auto *queue = device->d3d12.queues[cmd_buffer[i]->type].queue_0;
+        queue->ExecuteCommandLists(1, (ID3D12CommandList **)&cmd_buffer[i]->d3d12.list_7);
     }
 }
 

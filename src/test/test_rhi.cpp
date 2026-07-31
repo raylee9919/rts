@@ -46,9 +46,9 @@ int main_entry(int argc, char **argv)
         rhi_texture_view_create(device, &view, &surface->textures[0], &view_desc);
     }
 
+
     auto *cmd_buffer = (RHI_Command_Buffer *)alloc(sizeof(RHI_Command_Buffer));
     Assert(rhi_command_buffer_init(device, cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
-
 
     while (!should_close) {
         // Clear and poll events.
@@ -76,22 +76,29 @@ int main_entry(int argc, char **argv)
 
 
         // Render
-        RHI_Pass pass = {};
         {
-            pass.num_color_attachments = 1;
-            pass.color_attachments[0].view    = view;
-            pass.color_attachments[0].load_op = RHI_LOAD_OP_CLEAR;
-            float color[4] = { 1.f, 0.f, 1.f, 1.f };
-            memcpy(pass.color_attachments[0].clear_color, color, sizeof(color));
+            rhi_command_buffer_begin(cmd_buffer);
+
+            RHI_Pass pass = {};
+            {
+                pass.num_color_attachments = 1;
+                pass.color_attachments[0].view    = view;
+                pass.color_attachments[0].load_op = RHI_LOAD_OP_CLEAR;
+                float color[4] = { 1.f, 0.f, 1.f, 1.f };
+                memcpy(pass.color_attachments[0].clear_color, color, sizeof(color));
+            }
+
+            rhi_pass_begin(cmd_buffer, &pass);
+            {
+            }
+            rhi_pass_end(cmd_buffer, &pass);
+
+            rhi_command_buffer_end(cmd_buffer);
+
+            rhi_submit(device, 1, &cmd_buffer);
+
+            rhi_surface_present(surface);
         }
-
-        rhi_pass_begin(cmd_buffer, &pass);
-        {
-        }
-        rhi_pass_end(cmd_buffer, &pass);
-
-
-        rhi_surface_present(surface);
 
 
         clear_temporary_storage();

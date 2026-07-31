@@ -34,7 +34,7 @@ struct RHI_Device {
 
 struct RHI_Command_Buffer {
     RHI_Kind kind;
-    bool is_recording;
+    RHI_Command_Type type;
     union {
         D3D12_Command_List d3d12;
     };
@@ -218,7 +218,11 @@ internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, boo
 internal void rhi_device_deinit(RHI_Device *device);
 
 internal bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *cmd, RHI_Command_Type type);
-internal void rhi_command_buffer_deinit(RHI_Command_Buffer *cmd);
+internal void rhi_command_buffer_deinit(RHI_Command_Buffer *cmd_buffer);
+internal void rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer);
+internal void rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer);
+
+internal void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
 
 internal bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void rhi_surface_present(RHI_Surface *surface);

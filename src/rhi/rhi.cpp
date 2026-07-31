@@ -30,6 +30,7 @@ bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI
     memset(buffer, 0, sizeof(*buffer));
     RHI_Kind kind = device->kind;
     buffer->kind = kind;
+    buffer->type = type;
 
     switch (kind) {
         case RHI_KIND_D3D12:
@@ -53,6 +54,47 @@ void rhi_command_buffer_deinit(RHI_Command_Buffer *buffer) {
     }
 }
 
+void rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_command_list_begin(&cmd_buffer->d3d12);
+            break;
+
+        default:
+            Assert(0);
+    }
+}
+
+void rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_command_list_end(&cmd_buffer->d3d12);
+            break;
+
+        default:
+            Assert(0);
+    }
+}
+
+
+//
+// Submit
+//
+void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers) {
+    switch (device->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_submit(device, count, cmd_buffers);
+            break;
+
+        default:
+            Assert(0);
+    }
+}
+
+
+//
+// Surface
+//
 bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc) {
     memset(surface, 0, sizeof(*surface));
     RHI_Kind kind = device->kind;

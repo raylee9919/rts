@@ -27,6 +27,8 @@ struct D3D12_Command_List {
     ID3D12GraphicsCommandList *list_7;
     
     ID3D12CommandAllocator *allocator;
+
+    b32 is_recording;
 };
 
 struct D3D12_Descriptor_Heap {
@@ -92,6 +94,10 @@ internal void d3d12_device_deinit(RHI_Device *device);
 
 internal bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type);
 internal void d3d12_command_list_deinit(D3D12_Command_List *list);
+internal void d3d12_command_list_begin(D3D12_Command_List *list);
+internal void d3d12_command_list_end(D3D12_Command_List *list);
+
+internal void d3d12_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
 
 internal void d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass);
 internal void d3d12_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass);
