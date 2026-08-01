@@ -2,8 +2,10 @@
 
 
 void _log(String fmt, String file, int line, ...) {
+    printf("[\033[31mLog\033[0m] ");
+
     {
-        char *file_line_fmt = "[%S: %d]  ";
+        char *file_line_fmt = "%S(%d)  ";
         String file_line = tprint(file_line_fmt, file, line);
         printf("%s", file_line.str);
     }
