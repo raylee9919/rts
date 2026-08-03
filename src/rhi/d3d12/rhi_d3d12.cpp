@@ -587,6 +587,7 @@ void d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
     for (u32 i = 0; i < pass->num_color_attachments; ++i) {
         auto attachment = pass->color_attachments[i]; 
         rtv_handles[i] = attachment.view.d3d12.cpu_handle;
+
         if (attachment.load_op == RHI_LOAD_OP_CLEAR) {
             list->ClearRenderTargetView(rtv_handles[i], attachment.clear_color, 0, NULL);
         }
@@ -1050,15 +1051,22 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;
     IDXGIOutput *monitor = NULL;
 
+    IDXGISwapChain1 *swap_chain_1 = NULL;
+
     HRESULT hr = device->d3d12.dxgi_factory_6->CreateSwapChainForHwnd(device->d3d12.queues[RHI_COMMAND_TYPE_GRAPHICS].queue_0,
                                                                       hwnd, &swap_chain_desc, fullscreen_desc,  
-                                                                      monitor, &surface->d3d12.swap_chain_1);
+                                                                      monitor, &swap_chain_1);
 
     if (FAILED(hr)) {
         log(S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
+    hr = swap_chain_1->QueryInterface(IID_PPV_ARGS(&surface->d3d12.swap_chain_4));
+    if (FAILED(hr)) {
+        log(S("HRESULT: %S, %x. QueryInterface(IDXGISwapChain4 *) failed."), win32_string_from_hresult(hr), hr);
+        return false;
+    }
 
     // Disable Alt + Enter changing monitor resolution to match window size.
     device->d3d12.dxgi_factory_6->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
@@ -1068,7 +1076,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
     for (u32 i = 0; i < desc->num_back_buffers; ++i) {
         auto *tex = &surface->textures[i];
 
-        hr = surface->d3d12.swap_chain_1->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
+        hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
         if (FAILED(hr)) {
             log(S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
             return false;
@@ -1082,24 +1090,26 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
         tex->desc.height     = desc->height;
         tex->desc.mip_levels = 1;
         tex->desc.depth      = 1;
-
     }
+
+    surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 
     log(S("Initialized d3d12 surface."));
     return true;
 }
 
-void d3d12_surface_present(D3D12_Surface *surface) {
+void d3d12_surface_present(RHI_Surface *surface) {
     // @Temporary
-    //surface->swap_chain_1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-    surface->swap_chain_1->Present(1, 0);
+    //surface->swap_chain_4->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+    surface->d3d12.swap_chain_4->Present(1, 0);
+    surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }
 
 
 //
 // Fence
 //
-bool d3d12_fence_create(RHI_Device *device, RHI_Fence *fence) {
+bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
     UINT64 initial_value = 0;
     D3D12_FENCE_FLAGS flags = D3D12_FENCE_FLAG_NONE;
 
@@ -1116,7 +1126,7 @@ bool d3d12_fence_create(RHI_Device *device, RHI_Fence *fence) {
     return true;
 }
 
-void d3d12_fence_destroy(RHI_Fence *fence) {
+void d3d12_fence_destroy(RHI_Semaphore *fence) {
     RHI_SAFE_RELEASE(&fence->d3d12.fence_0);
     if (fence->d3d12.event) {
         CloseHandle(fence->d3d12.event);
@@ -1126,33 +1136,148 @@ void d3d12_fence_destroy(RHI_Fence *fence) {
     log(S("Destroyed d3d12 fence."));
 }
 
-void d3d12_fence_wait(RHI_Fence *fence, u64 value, u64 timeout) {
+void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout) {
     if (fence->d3d12.fence_0->GetCompletedValue() < value) {
         fence->d3d12.fence_0->SetEventOnCompletion(value, fence->d3d12.event);
-        WaitForSingleObject(fence->d3d12.event, (DWORD)timeout);
+        WaitForSingleObject(fence->d3d12.event, (timeout == RHI_INFINITE) ? INFINITE : (DWORD)timeout);
     }
-}
-
-void d3d12_fence_signal(RHI_Fence *fence, u64 value) {
-    fence->d3d12.fence_0->Signal(value);
 }
 
 
 //
 // Commands
 //
-void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture) {
+static D3D12_BARRIER_LAYOUT d3d12_barrier_layout_from_rhi(RHI_Resource_State state) {
+    switch (state) {
+        case RHI_RESOURCE_STATE_COMMON:
+            return D3D12_BARRIER_LAYOUT_COMMON;
+        case RHI_RESOURCE_STATE_RENDER_TARGET:
+            return D3D12_BARRIER_LAYOUT_RENDER_TARGET;
+        case RHI_RESOURCE_STATE_UNORDERED_ACCESS:
+            return D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS;
+        case RHI_RESOURCE_STATE_DEPTH_WRITE:
+            return D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE;
+        case RHI_RESOURCE_STATE_DEPTH_READ:
+            return D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ;
+        case RHI_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
+        case RHI_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
+        case RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE:
+            return D3D12_BARRIER_LAYOUT_SHADER_RESOURCE;
+        case RHI_RESOURCE_STATE_COPY_DEST:
+            return D3D12_BARRIER_LAYOUT_COPY_DEST;
+        case RHI_RESOURCE_STATE_COPY_SOURCE:
+            return D3D12_BARRIER_LAYOUT_COPY_SOURCE;
+        case RHI_RESOURCE_STATE_GENERIC_READ:
+            return D3D12_BARRIER_LAYOUT_GENERIC_READ;
+        case RHI_RESOURCE_STATE_PRESENT:
+            return D3D12_BARRIER_LAYOUT_PRESENT;
+        default:
+            return D3D12_BARRIER_LAYOUT_COMMON;
+    }
+}
+
+static D3D12_BARRIER_SYNC d3d12_barrier_sync_from_rhi(RHI_Resource_State state) {
+    switch (state) {
+        case RHI_RESOURCE_STATE_COMMON:
+            return D3D12_BARRIER_SYNC_ALL;
+        case RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER:
+            return D3D12_BARRIER_SYNC_ALL_SHADING;
+        case RHI_RESOURCE_STATE_INDEX_BUFFER:
+            return D3D12_BARRIER_SYNC_INDEX_INPUT;
+        case RHI_RESOURCE_STATE_RENDER_TARGET:
+            return D3D12_BARRIER_SYNC_RENDER_TARGET;
+        case RHI_RESOURCE_STATE_UNORDERED_ACCESS:
+            return D3D12_BARRIER_SYNC_ALL_SHADING;
+        case RHI_RESOURCE_STATE_DEPTH_WRITE:
+        case RHI_RESOURCE_STATE_DEPTH_READ:
+            return D3D12_BARRIER_SYNC_DEPTH_STENCIL;
+        case RHI_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
+            return D3D12_BARRIER_SYNC_NON_PIXEL_SHADING;
+        case RHI_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
+            return D3D12_BARRIER_SYNC_PIXEL_SHADING;
+        case RHI_RESOURCE_STATE_INDIRECT_ARGUMENT:
+            return D3D12_BARRIER_SYNC_EXECUTE_INDIRECT;
+        case RHI_RESOURCE_STATE_COPY_DEST:
+        case RHI_RESOURCE_STATE_COPY_SOURCE:
+            return D3D12_BARRIER_SYNC_COPY;
+        case RHI_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE:
+            return D3D12_BARRIER_SYNC_RAYTRACING | D3D12_BARRIER_SYNC_BUILD_RAYTRACING_ACCELERATION_STRUCTURE | D3D12_BARRIER_SYNC_COPY_RAYTRACING_ACCELERATION_STRUCTURE;
+        case RHI_RESOURCE_STATE_GENERIC_READ:
+            return D3D12_BARRIER_SYNC_ALL_SHADING | D3D12_BARRIER_SYNC_INDEX_INPUT | D3D12_BARRIER_SYNC_EXECUTE_INDIRECT | D3D12_BARRIER_SYNC_COPY;
+        case RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE:
+            return D3D12_BARRIER_SYNC_ALL_SHADING;
+        case RHI_RESOURCE_STATE_PRESENT:
+            return D3D12_BARRIER_SYNC_ALL;
+        default:
+            return D3D12_BARRIER_SYNC_ALL;
+    }
+}
+
+static D3D12_BARRIER_ACCESS d3d12_barrier_access_from_rhi(RHI_Resource_State state) {
+    switch (state) {
+        case RHI_RESOURCE_STATE_COMMON:
+            return D3D12_BARRIER_ACCESS_COMMON;
+        case RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER:
+            return D3D12_BARRIER_ACCESS_VERTEX_BUFFER | D3D12_BARRIER_ACCESS_CONSTANT_BUFFER;
+        case RHI_RESOURCE_STATE_INDEX_BUFFER:
+            return D3D12_BARRIER_ACCESS_INDEX_BUFFER;
+        case RHI_RESOURCE_STATE_RENDER_TARGET:
+            return D3D12_BARRIER_ACCESS_RENDER_TARGET;
+        case RHI_RESOURCE_STATE_UNORDERED_ACCESS:
+            return D3D12_BARRIER_ACCESS_UNORDERED_ACCESS;
+        case RHI_RESOURCE_STATE_DEPTH_WRITE:
+            return D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE;
+        case RHI_RESOURCE_STATE_DEPTH_READ:
+            return D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ;
+        case RHI_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
+        case RHI_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
+        case RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE:
+            return D3D12_BARRIER_ACCESS_SHADER_RESOURCE;
+        case RHI_RESOURCE_STATE_INDIRECT_ARGUMENT:
+            return D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT;
+        case RHI_RESOURCE_STATE_COPY_DEST:
+            return D3D12_BARRIER_ACCESS_COPY_DEST;
+        case RHI_RESOURCE_STATE_COPY_SOURCE:
+            return D3D12_BARRIER_ACCESS_COPY_SOURCE;
+        case RHI_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE:
+            return D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE;
+        case RHI_RESOURCE_STATE_GENERIC_READ:
+            return D3D12_BARRIER_ACCESS_VERTEX_BUFFER | D3D12_BARRIER_ACCESS_CONSTANT_BUFFER | D3D12_BARRIER_ACCESS_INDEX_BUFFER |
+                   D3D12_BARRIER_ACCESS_SHADER_RESOURCE | D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT | D3D12_BARRIER_ACCESS_COPY_SOURCE;
+        case RHI_RESOURCE_STATE_PRESENT:
+            return D3D12_BARRIER_ACCESS_COMMON;
+        default:
+            return D3D12_BARRIER_ACCESS_COMMON;
+    }
+}
+
+void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, 
+                               RHI_Resource_State before, RHI_Resource_State after,
+                               u32 mip, u32 slice) {
+
     D3D12_TEXTURE_BARRIER barrier = {};
     {
-        barrier.SyncBefore      = ;
-        barrier.SyncAfter       = ;
-        barrier.AccessBefore    = ;
-        barrier.AccessAfter     = ;
-        barrier.LayoutBefore    = ;
-        barrier.LayoutAfter     = ;
+        barrier.SyncBefore      = d3d12_barrier_sync_from_rhi(before);
+        barrier.SyncAfter       = d3d12_barrier_sync_from_rhi(after);
+        barrier.AccessBefore    = d3d12_barrier_access_from_rhi(before);
+        barrier.AccessAfter     = d3d12_barrier_access_from_rhi(after);
+        barrier.LayoutBefore    = d3d12_barrier_layout_from_rhi(before);
+        barrier.LayoutAfter     = d3d12_barrier_layout_from_rhi(after);
         barrier.pResource       = texture->d3d12.resource;
-        barrier.Subresources    = ;
         barrier.Flags           = D3D12_TEXTURE_BARRIER_FLAG_NONE;
+    }
+
+    bool all_mips   = (  mip == RHI_ALL_MIP_LEVELS  ) ? true : false;
+    bool all_slices = (slice == RHI_ALL_ARRAY_SLICES) ? true : false;
+
+    if (all_mips && all_slices) {
+        barrier.Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(0xffffffff);
+    } else if (!all_mips && !all_slices) {
+        barrier.Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(D3D12CalcSubresource(mip, slice, 0, texture->desc.mip_levels, texture->desc.depth));
+    } else if (all_mips) {
+        barrier.Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(0, texture->desc.mip_levels, slice, 1);
+    } else {
+        barrier.Subresources = CD3DX12_BARRIER_SUBRESOURCE_RANGE(mip, 1, 0, texture->desc.depth);
     }
 
     D3D12_BARRIER_GROUP group = {};
@@ -1163,4 +1288,14 @@ void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *text
     }
 
     cmd_buffer->d3d12.list_7->Barrier(1, &group);
+}
+
+void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
+    auto *queue = &device->d3d12.queues[queue_type];
+    queue->queue_0->Signal(semaphore->d3d12.fence_0, value);
+}
+
+void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
+    auto *queue = &device->d3d12.queues[queue_type];
+    queue->queue_0->Wait(semaphore->d3d12.fence_0, value);
 }

@@ -132,13 +132,13 @@ enum RHI_Texture_View_Type {
 };
 
 struct RHI_Texture_View_Desc {
-    RHI_Texture_View_Type type;
-    RHI_Texture_Type      dimension;
-    RHI_Texture_Format    format;
-    u32 base_mip_level;
-    u32 base_array_slice;
-    u32 mip_levels;
-    u32 depth; // or array length.
+    RHI_Texture_View_Type   type;
+    RHI_Texture_Type        dimension;
+    RHI_Texture_Format      format;
+    u32                     base_mip_level;
+    u32                     base_array_slice;
+    u32                     mip_levels;
+    u32                     depth; // or array length.
 };
 
 struct RHI_Texture_View {
@@ -172,6 +172,7 @@ struct RHI_Surface_Desc {
 struct RHI_Surface {
     RHI_Kind kind;
     RHI_Surface_Desc desc;
+    u32 current_frame_index;
     RHI_Texture textures[RHI_MAX_BACK_BUFFERS];
     union {
         D3D12_Surface d3d12;
@@ -195,8 +196,8 @@ enum RHI_Store_Op {
 
 struct RHI_Attachment {
     RHI_Texture_View view;
-    RHI_Load_Op  load_op;
-    RHI_Store_Op store_op;
+    RHI_Load_Op      load_op;
+    RHI_Store_Op     store_op;
     union {
         f32 clear_color[4];
         f32 clear_depth;
@@ -212,9 +213,9 @@ struct RHI_Pass {
 
 
 //
-// Fence
+// Semaphore
 //
-struct RHI_Fence { 
+struct RHI_Semaphore { 
     RHI_Kind kind;
     union {
         D3D12_Fence d3d12;
@@ -247,11 +248,12 @@ internal void rhi_texture_view_destroy(RHI_Texture_View *view);
 internal void rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 internal void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 
-internal bool rhi_fence_create(RHI_Device *device, RHI_Fence *fence);
-internal void rhi_fence_destroy(RHI_Fence *fence);
-internal void rhi_fence_wait(RHI_Fence *fence, u64 value, u64 timeout); // Pass 0xffffffff for inifinite timeout.
-internal void rhi_fence_signal(RHI_Fence *fence, u64 value);
+internal bool rhi_semaphore_create(RHI_Device *device, RHI_Semaphore *semaphore);
+internal void rhi_semaphore_destroy(RHI_Semaphore *semaphore);
+internal void rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout);
+internal void rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+internal void rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 
-
+internal void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice);
 
 #endif // RTS_RHI_H

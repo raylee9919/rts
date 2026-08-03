@@ -82,7 +82,7 @@ struct D3D12_Device {
 };
 
 struct D3D12_Surface {
-    IDXGISwapChain1 *swap_chain_1;
+    IDXGISwapChain4 *swap_chain_4;
 };
 
 struct D3D12_Texture {
@@ -114,13 +114,15 @@ internal void d3d12_texture_view_create(RHI_Device *device, RHI_Texture_View *vi
 internal void d3d12_texture_view_destroy(RHI_Texture_View *view);
 
 internal bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
-internal void d3d12_surface_present(D3D12_Surface *surface);
+internal void d3d12_surface_present(RHI_Surface *surface);
 
-internal bool d3d12_fence_create(RHI_Device *device, RHI_Fence *fence);
-internal void d3d12_fence_destroy(RHI_Fence *fence);
-internal void d3d12_fence_wait(RHI_Fence *fence, u64 value, u64 timeout);
-internal void d3d12_fence_signal(RHI_Fence *fence, u64 value); // Sets the fence to the specified value.
+internal bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence);
+internal void d3d12_fence_destroy(RHI_Semaphore *fence);
+internal void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout);
 
-internal void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture);
+internal void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+internal void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+
+internal void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip_level, u32 array_slice);
 
 #endif // RTS_RHI_D3D12_H

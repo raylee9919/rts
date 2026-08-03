@@ -9,8 +9,8 @@
 #define RTS_HASH_TABLE_H
 
 
-#define TABLE_SIZE_MIN 32
-#define TABLE_LOAD_FACTOR_PERCENT 70 // @Temporary
+#define TABLE_SIZE_MIN              32
+#define TABLE_LOAD_FACTOR_PERCENT   70 // @Temporary
 
 
 #define HASH_NEVER_OCCUPIED 0

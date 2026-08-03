@@ -119,7 +119,7 @@ bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc
 void rhi_surface_present(RHI_Surface *surface) {
     switch (surface->kind) {
         case RHI_KIND_D3D12:
-            d3d12_surface_present(&surface->d3d12);
+            d3d12_surface_present(surface);
             break;
 
         default:
@@ -216,12 +216,12 @@ void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass) {
 //
 // Fence
 //
-bool rhi_fence_create(RHI_Device *device, RHI_Fence *fence) {
-    fence->kind = device->kind;
+bool rhi_semaphore_create(RHI_Device *device, RHI_Semaphore *semaphore) {
+    semaphore->kind = device->kind;
 
-    switch (fence->kind) {
+    switch (semaphore->kind) {
         case RHI_KIND_D3D12:
-            return d3d12_fence_create(device, fence);
+            return d3d12_fence_create(device, semaphore);
 
         default:
             Assert(0);
@@ -229,10 +229,10 @@ bool rhi_fence_create(RHI_Device *device, RHI_Fence *fence) {
     }
 }
 
-void rhi_fence_destroy(RHI_Fence *fence) {
-    switch (fence->kind) {
+void rhi_semaphore_destroy(RHI_Semaphore *semaphore) {
+    switch (semaphore->kind) {
         case RHI_KIND_D3D12:
-            d3d12_fence_destroy(fence);
+            d3d12_fence_destroy(semaphore);
             break;
 
         default:
@@ -241,10 +241,10 @@ void rhi_fence_destroy(RHI_Fence *fence) {
     }
 }
 
-void rhi_fence_wait(RHI_Fence *fence, u64 value, u64 timeout) {
-    switch (fence->kind) {
+void rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout) {
+    switch (semaphore->kind) {
         case RHI_KIND_D3D12:
-            d3d12_fence_wait(fence, value, timeout);
+            d3d12_fence_wait(semaphore, value, timeout);
             break;
 
         default:
@@ -253,10 +253,38 @@ void rhi_fence_wait(RHI_Fence *fence, u64 value, u64 timeout) {
     }
 }
 
-void rhi_fence_signal(RHI_Fence *fence, u64 value) {
-    switch (fence->kind) {
+void rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
+    switch (device->kind) {
         case RHI_KIND_D3D12:
-            d3d12_fence_signal(fence, value);
+            d3d12_queue_signal(device, queue_type, semaphore, value);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
+    switch (device->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_queue_wait(device, queue_type, semaphore, value);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+
+//
+// Commands
+//
+void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_texture_barrier(cmd_buffer, texture, before, after, mip, slice);
             break;
 
         default:
