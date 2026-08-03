@@ -23,8 +23,8 @@ struct D3D12_Command_Queue {
 struct D3D12_Command_List {
     D3D12_COMMAND_LIST_TYPE type;
 
-    ID3D12GraphicsCommandList *list_0;
-    ID3D12GraphicsCommandList *list_7;
+    ID3D12GraphicsCommandList  *list_0;
+    ID3D12GraphicsCommandList7 *list_7;
     
     ID3D12CommandAllocator *allocator;
 
@@ -89,6 +89,11 @@ struct D3D12_Texture {
     ID3D12Resource *resource;
 };
 
+struct D3D12_Fence {
+    ID3D12Fence *fence_0;
+    HANDLE       event;
+};
+
 internal bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
 internal void d3d12_device_deinit(RHI_Device *device);
 
@@ -111,5 +116,11 @@ internal void d3d12_texture_view_destroy(RHI_Texture_View *view);
 internal bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void d3d12_surface_present(D3D12_Surface *surface);
 
+internal bool d3d12_fence_create(RHI_Device *device, RHI_Fence *fence);
+internal void d3d12_fence_destroy(RHI_Fence *fence);
+internal void d3d12_fence_wait(RHI_Fence *fence, u64 value, u64 timeout);
+internal void d3d12_fence_signal(RHI_Fence *fence, u64 value); // Sets the fence to the specified value.
+
+internal void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture);
 
 #endif // RTS_RHI_D3D12_H

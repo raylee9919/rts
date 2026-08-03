@@ -244,22 +244,6 @@ enum
 #define list_for(f, it) list_for_n(f, it, next)
 
 
-// ---------------------------------------
-// NOTE: Doubly Linked List
-//            You don't use a sentinel, and you pass 'item_first' pointer as a parameter to a function.
-//        In the function, you remove the first item. What happens next? When you pop out of the function, 
-//        you lost track of the 'actual' first item in the list. Maybe you can resolve this by double pointer macro though.
-//            I'm using sentinel for now. Sentinel is always there, which is good. You won't lost the state of the list.
-//        The phase(?) when you push or remove is always the same, and it makes implementation easeier, but I dont' consider 
-//        this a critical gain. It just makes your life easier for a short time. The problem I face with sentinel is that, 
-//        you need to allocate and initialize to use it. Before you start using it, you have to check if the sentinel is null (allocation), 
-//        and you have to check if sentinel's next, prev pointer is pointing itself (initialization). Allocating goes through arena, which 
-//        will init to zero. Thus, if next and prev pointers are zero, it means it isn't initted. Then the API will initialze it. What about
-//        push_noz? Ah...
-//            I may want composible data structure, even though I don't know what it is at this point. To achieve such thing, 
-//        initialization might be a constraint. I don't know. Must do some study and experiments.
-//
-
 
 #define dll_insert_npz(f,l,p,n,next,prev,zchk,zset) \
     (zchk(f) ? (((f) = (l) = (n)), zset((n)->next), zset((n)->prev)) :\
@@ -411,72 +395,6 @@ read_only global const u64 bitmask61 = 0x1fffffffffffffffull;
 read_only global const u64 bitmask62 = 0x3fffffffffffffffull;
 read_only global const u64 bitmask63 = 0x7fffffffffffffffull;
 read_only global const u64 bitmask64 = 0xffffffffffffffffull;
-
-read_only global const u32 bit1  = (1<<0);
-read_only global const u32 bit2  = (1<<1);
-read_only global const u32 bit3  = (1<<2);
-read_only global const u32 bit4  = (1<<3);
-read_only global const u32 bit5  = (1<<4);
-read_only global const u32 bit6  = (1<<5);
-read_only global const u32 bit7  = (1<<6);
-read_only global const u32 bit8  = (1<<7);
-read_only global const u32 bit9  = (1<<8);
-read_only global const u32 bit10 = (1<<9);
-read_only global const u32 bit11 = (1<<10);
-read_only global const u32 bit12 = (1<<11);
-read_only global const u32 bit13 = (1<<12);
-read_only global const u32 bit14 = (1<<13);
-read_only global const u32 bit15 = (1<<14);
-read_only global const u32 bit16 = (1<<15);
-read_only global const u32 bit17 = (1<<16);
-read_only global const u32 bit18 = (1<<17);
-read_only global const u32 bit19 = (1<<18);
-read_only global const u32 bit20 = (1<<19);
-read_only global const u32 bit21 = (1<<20);
-read_only global const u32 bit22 = (1<<21);
-read_only global const u32 bit23 = (1<<22);
-read_only global const u32 bit24 = (1<<23);
-read_only global const u32 bit25 = (1<<24);
-read_only global const u32 bit26 = (1<<25);
-read_only global const u32 bit27 = (1<<26);
-read_only global const u32 bit28 = (1<<27);
-read_only global const u32 bit29 = (1<<28);
-read_only global const u32 bit30 = (1<<29);
-read_only global const u32 bit31 = (1<<30);
-read_only global const u32 bit32 = (u32)(1<<31);
-read_only global const u64 bit33 = (1ull<<32);
-read_only global const u64 bit34 = (1ull<<33);
-read_only global const u64 bit35 = (1ull<<34);
-read_only global const u64 bit36 = (1ull<<35);
-read_only global const u64 bit37 = (1ull<<36);
-read_only global const u64 bit38 = (1ull<<37);
-read_only global const u64 bit39 = (1ull<<38);
-read_only global const u64 bit40 = (1ull<<39);
-read_only global const u64 bit41 = (1ull<<40);
-read_only global const u64 bit42 = (1ull<<41);
-read_only global const u64 bit43 = (1ull<<42);
-read_only global const u64 bit44 = (1ull<<43);
-read_only global const u64 bit45 = (1ull<<44);
-read_only global const u64 bit46 = (1ull<<45);
-read_only global const u64 bit47 = (1ull<<46);
-read_only global const u64 bit48 = (1ull<<47);
-read_only global const u64 bit49 = (1ull<<48);
-read_only global const u64 bit50 = (1ull<<49);
-read_only global const u64 bit51 = (1ull<<50);
-read_only global const u64 bit52 = (1ull<<51);
-read_only global const u64 bit53 = (1ull<<52);
-read_only global const u64 bit54 = (1ull<<53);
-read_only global const u64 bit55 = (1ull<<54);
-read_only global const u64 bit56 = (1ull<<55);
-read_only global const u64 bit57 = (1ull<<56);
-read_only global const u64 bit58 = (1ull<<57);
-read_only global const u64 bit59 = (1ull<<58);
-read_only global const u64 bit60 = (1ull<<59);
-read_only global const u64 bit61 = (1ull<<60);
-read_only global const u64 bit62 = (1ull<<61);
-read_only global const u64 bit63 = (1ull<<62);
-read_only global const u64 bit64 = (1ull<<63);
-
 
 enum Texture_Layout
 {

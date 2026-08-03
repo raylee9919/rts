@@ -261,22 +261,22 @@ utf8_encode(u8 *str, u32 codepoint)
     else if (codepoint <= 0x7FF) 
     {
         str[0] = (bitmask2 << 6) | ((codepoint >> 6) & bitmask5);
-        str[1] = bit8 | (codepoint & bitmask6);
+        str[1] = 0x80 | (codepoint & bitmask6);
         inc = 2;
     }
     else if (codepoint <= 0xFFFF) 
     {
         str[0] = (bitmask3 << 5) | ((codepoint >> 12) & bitmask4);
-        str[1] = bit8 | ((codepoint >> 6) & bitmask6);
-        str[2] = bit8 | ( codepoint       & bitmask6);
+        str[1] = 0x80 | ((codepoint >> 6) & bitmask6);
+        str[2] = 0x80 | ( codepoint       & bitmask6);
         inc = 3;
     }
     else if (codepoint <= 0x10FFFF) 
     {
         str[0] = (bitmask4 << 4) | ((codepoint >> 18) & bitmask3);
-        str[1] = bit8 | ((codepoint >> 12) & bitmask6);
-        str[2] = bit8 | ((codepoint >>  6) & bitmask6);
-        str[3] = bit8 | ( codepoint        & bitmask6);
+        str[1] = 0x80 | ((codepoint >> 12) & bitmask6);
+        str[2] = 0x80 | ((codepoint >>  6) & bitmask6);
+        str[3] = 0x80 | ( codepoint        & bitmask6);
         inc = 4;
     }
     else 

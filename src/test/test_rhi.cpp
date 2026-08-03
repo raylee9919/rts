@@ -24,6 +24,9 @@ int main_entry(int argc, char **argv)
     auto *device = (RHI_Device *)alloc(sizeof(RHI_Device));
     Assert(rhi_device_init(device, RHI_KIND_D3D12, true, true));
 
+    RHI_Fence fence = {};
+    Assert(rhi_fence_create(device, &fence));
+
     RHI_Surface_Desc surface_desc = {};
     {
         surface_desc.native_window_handle = (void *)hwnd;

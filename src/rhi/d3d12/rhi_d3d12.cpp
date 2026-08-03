@@ -338,7 +338,6 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     }
 
 
-
     if (debug) {
         ID3D12InfoQueue *info_queue_0 = NULL;
 
@@ -391,6 +390,25 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
             log(S("Resource binding tier: %d"), options.ResourceBindingTier);
         } else {
             log(S("The device should have resource binding tier 3 or greater."));
+            return false;
+        }
+    }
+
+
+    {
+        //
+        // Check for enhanced barrier feature support.
+        //
+        D3D12_FEATURE_DATA_D3D12_OPTIONS12 options12 = {};
+        hr = device_0->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12));
+
+        if (FAILED(hr)) {
+            log(S("HRESULT: %S, %x. CheckFeatureSupport failed."), win32_string_from_hresult(hr), hr);
+            return false;
+        }
+
+        if (!options12.EnhancedBarriersSupported) {
+            log(S("Enhanced barrier is not supported on this device."));
             return false;
         }
     }
@@ -1075,4 +1093,74 @@ void d3d12_surface_present(D3D12_Surface *surface) {
     // @Temporary
     //surface->swap_chain_1->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     surface->swap_chain_1->Present(1, 0);
+}
+
+
+//
+// Fence
+//
+bool d3d12_fence_create(RHI_Device *device, RHI_Fence *fence) {
+    UINT64 initial_value = 0;
+    D3D12_FENCE_FLAGS flags = D3D12_FENCE_FLAG_NONE;
+
+    HRESULT hr = device->d3d12.device_10->CreateFence(initial_value, flags, IID_PPV_ARGS(&fence->d3d12.fence_0));
+
+    if (FAILED(hr)) {
+        log(S("HRESULT: %S, %x. CreateFence failed."), win32_string_from_hresult(hr), hr);
+        return false;
+    }
+
+    fence->d3d12.event = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+    log(S("Created d3d12 fence."));
+    return true;
+}
+
+void d3d12_fence_destroy(RHI_Fence *fence) {
+    RHI_SAFE_RELEASE(&fence->d3d12.fence_0);
+    if (fence->d3d12.event) {
+        CloseHandle(fence->d3d12.event);
+        fence->d3d12.event = {};
+    }
+
+    log(S("Destroyed d3d12 fence."));
+}
+
+void d3d12_fence_wait(RHI_Fence *fence, u64 value, u64 timeout) {
+    if (fence->d3d12.fence_0->GetCompletedValue() < value) {
+        fence->d3d12.fence_0->SetEventOnCompletion(value, fence->d3d12.event);
+        WaitForSingleObject(fence->d3d12.event, (DWORD)timeout);
+    }
+}
+
+void d3d12_fence_signal(RHI_Fence *fence, u64 value) {
+    fence->d3d12.fence_0->Signal(value);
+}
+
+
+//
+// Commands
+//
+void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture) {
+    D3D12_TEXTURE_BARRIER barrier = {};
+    {
+        barrier.SyncBefore      = ;
+        barrier.SyncAfter       = ;
+        barrier.AccessBefore    = ;
+        barrier.AccessAfter     = ;
+        barrier.LayoutBefore    = ;
+        barrier.LayoutAfter     = ;
+        barrier.pResource       = texture->d3d12.resource;
+        barrier.Subresources    = ;
+        barrier.Flags           = D3D12_TEXTURE_BARRIER_FLAG_NONE;
+    }
+
+    D3D12_BARRIER_GROUP group = {};
+    {
+        group.Type             = D3D12_BARRIER_TYPE_TEXTURE;
+        group.NumBarriers      = 1;
+        group.pTextureBarriers = &barrier;
+    }
+
+    cmd_buffer->d3d12.list_7->Barrier(1, &group);
 }

@@ -211,3 +211,56 @@ void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass) {
             break;
     }
 }
+
+
+//
+// Fence
+//
+bool rhi_fence_create(RHI_Device *device, RHI_Fence *fence) {
+    fence->kind = device->kind;
+
+    switch (fence->kind) {
+        case RHI_KIND_D3D12:
+            return d3d12_fence_create(device, fence);
+
+        default:
+            Assert(0);
+            return false;
+    }
+}
+
+void rhi_fence_destroy(RHI_Fence *fence) {
+    switch (fence->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_fence_destroy(fence);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_fence_wait(RHI_Fence *fence, u64 value, u64 timeout) {
+    switch (fence->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_fence_wait(fence, value, timeout);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_fence_signal(RHI_Fence *fence, u64 value) {
+    switch (fence->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_fence_signal(fence, value);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}

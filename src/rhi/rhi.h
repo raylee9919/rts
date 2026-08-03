@@ -212,6 +212,17 @@ struct RHI_Pass {
 
 
 //
+// Fence
+//
+struct RHI_Fence { 
+    RHI_Kind kind;
+    union {
+        D3D12_Fence d3d12;
+    };
+};
+
+
+//
 // API
 //
 internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
@@ -235,6 +246,11 @@ internal void rhi_texture_view_destroy(RHI_Texture_View *view);
 
 internal void rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 internal void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
+
+internal bool rhi_fence_create(RHI_Device *device, RHI_Fence *fence);
+internal void rhi_fence_destroy(RHI_Fence *fence);
+internal void rhi_fence_wait(RHI_Fence *fence, u64 value, u64 timeout); // Pass 0xffffffff for inifinite timeout.
+internal void rhi_fence_signal(RHI_Fence *fence, u64 value);
 
 
 

@@ -19,6 +19,7 @@ struct RHI_Texture_View_Desc;
 struct RHI_Heap;
 struct RHI_Surface;
 struct RHI_Surface_Desc;
+struct RHI_Fence;
 
 
 typedef u8 RHI_Command_Type;
@@ -28,6 +29,14 @@ enum {
     RHI_COMMAND_TYPE_TRANSFER,
 
     RHI_COMMAND_TYPE_COUNT
+};
+
+enum RHI_Resource_State {
+    RHI_RESOURCE_STATE_COMMON,
+    RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+    RHI_RESOURCE_STATE_INDEX_BUFFER,
+    RHI_RESOURCE_STATE_RENDER_TARGET,
+    RHI_RESOURCE_STATE_UNORDERED_ACCESS,
 };
 
 
