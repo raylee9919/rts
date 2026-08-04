@@ -153,6 +153,9 @@ struct RHI_Texture_View {
 //
 // Buffer
 //
+struct RHI_Buffer {
+
+};
 
 struct RHI_Buffer_View {
 
@@ -224,6 +227,59 @@ struct RHI_Semaphore {
 
 
 //
+// Pipeline
+//
+struct RHI_Pipeline_Desc {
+    RHI_Pipeline_Type   type;
+
+    // Cache
+    void               *cache;
+    u64                 cache_size;
+
+    // Depth Stencil
+    b32                 depth_enabled;
+    RHI_Compare_Op      depth_compare_op;
+    RHI_Texture_Format  depth_format;
+
+    // Color attachments
+    u32                 num_color_attachments;
+    RHI_Texture_Format  color_attachment_formats[RHI_MAX_COLOR_ATTACHMENTS];
+    b32                 blend_enabled[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Factor    blend_factor_color_src[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Factor    blend_factor_color_dst[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Op        blend_op_color[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Factor    blend_factor_alpha_src[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Factor    blend_factor_alpha_dst[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Op        blend_op_alpha[RHI_MAX_COLOR_ATTACHMENTS];
+
+    // Raster State
+    b32                 front_face_ccw;
+    RHI_Fill_Mode       fill_mode;
+    RHI_Cull_Mode       cull_mode;
+    b32                 depth_clip;
+    b32                 conservative_raster;
+
+    // Topology
+    RHI_Topology        topology;
+
+    // Binaries
+    void               *vs_data;
+    u64                 vs_size;
+
+    void               *ps_data;
+    u64                 ps_size;
+};
+
+struct RHI_Pipeline {
+    RHI_Kind kind;
+    RHI_Pipeline_Desc desc;
+    union {
+        D3D12_Pipeline d3d12;
+    };
+};
+
+
+//
 // API
 //
 internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
@@ -255,6 +311,10 @@ internal void rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeou
 internal void rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 internal void rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 
+internal bool rhi_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
+internal void rhi_pipeline_deinit(RHI_Pipeline *pipeline);
+
 internal void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice);
+internal void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 
 #endif // RTS_RHI_H

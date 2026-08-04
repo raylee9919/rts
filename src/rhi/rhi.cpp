@@ -292,12 +292,53 @@ void rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semapho
 
 
 //
+// Pipeline
+//
+bool rhi_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc) {
+    pipeline->kind = device->kind;
+
+    switch (device->kind) {
+        case RHI_KIND_D3D12:
+            return d3d12_pipeline_init(device, pipeline, desc);
+
+        default:
+            Assert(0);
+            return false;
+    }
+}
+
+void rhi_pipeline_deinit(RHI_Pipeline *pipeline) {
+    switch (pipeline->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_pipeline_deinit(pipeline);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+
+//
 // Commands
 //
 void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice) {
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
             d3d12_cmd_texture_barrier(cmd_buffer, texture, before, after, mip, slice);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_draw(cmd_buffer, num_vertices, num_instances, first_vertex, first_instance);
             break;
 
         default:

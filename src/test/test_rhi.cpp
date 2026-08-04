@@ -52,7 +52,7 @@ String shader_source = S(R"(
         return result;
     }
     
-    float4 main_ps(PS_Input input) {
+    float4 main_ps(PS_Input input) : SV_TARGET {
         return input.color;
     }
 )");
@@ -103,16 +103,57 @@ int main_entry(int argc, char **argv)
     Assert(rhi_command_buffer_init(device, cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
 
 
-    Shader_Compile_Result compile_result = {};
-    Shader_Compile_Options options = {};
+    RHI_Pipeline pipeline = {};
+    Shader_Compile_Result vs = {};
+    Shader_Compile_Result ps = {};
     {
-        // @Temporary
-        options.stage  = SHADER_STAGE_VS;
-        options.entry  = S("main_vs");
-        options.source = shader_source;
-        options.debug  = true;
+        // @Todo: Should I compile twice..?
+        {
+            Shader_Compile_Options vs_opts = {};
+            {
+                // @Temporary
+                vs_opts.stage  = SHADER_STAGE_VS;
+                vs_opts.entry  = S("main_vs");
+                vs_opts.source = shader_source;
+                vs_opts.debug  = true;
+            }
+            Assert(shader_compile(compiler, vs_opts, &vs, tctx.allocator));
+
+
+            Shader_Compile_Options ps_opts = {};
+            {
+                // @Temporary
+                ps_opts.stage  = SHADER_STAGE_PS;
+                ps_opts.entry  = S("main_ps");
+                ps_opts.source = shader_source;
+                ps_opts.debug  = true;
+            }
+            Assert(shader_compile(compiler, ps_opts, &ps, tctx.allocator));
+        }
+
+        {
+            RHI_Pipeline_Desc desc = {};
+            desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
+
+            // @Temporary
+            desc.num_color_attachments       = 1;
+            desc.color_attachment_formats[0] = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+
+            desc.front_face_ccw = true;
+            desc.fill_mode      = RHI_FILL_MODE_SOLID;
+            desc.cull_mode      = RHI_CULL_MODE_BACK;
+
+            desc.topology       = RHI_TOPOLOGY_TRIANGLES;
+
+            desc.vs_data        = vs.data;
+            desc.vs_size        = vs.size;
+
+            desc.ps_data        = ps.data;
+            desc.ps_size        = ps.size;
+
+            rhi_pipeline_init(device, &pipeline, &desc);
+        }
     }
-    Assert(shader_compile(compiler, options, &compile_result, tctx.allocator));
 
 
     while (!should_close) {

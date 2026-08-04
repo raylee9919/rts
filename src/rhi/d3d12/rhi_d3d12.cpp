@@ -126,7 +126,7 @@ static bool d3d12_queue_init(D3D12_Device *device, D3D12_Command_Queue *queue, D
 
     HRESULT hr = device->device_0->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue->queue_0));
     if (FAILED(hr)) {
-        log(LOG_ERROR, S("HRESULT: %S, %x. ID3D12Device::CreateCommandQueue failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. ID3D12Device::CreateCommandQueue failed."), string_from_hresult(hr), hr);
         return false;
     }
 
@@ -171,7 +171,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
     // Create descriptor heap.
     HRESULT hr = device->device_0->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&heap->heap_0));
     if (FAILED(hr)) {
-        log(LOG_ERROR, S("HRESULT: %S, %x. ID3D12Device::CreateDescriptorHeap failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. ID3D12Device::CreateDescriptorHeap failed."), string_from_hresult(hr), hr);
         return false;
     }
 
@@ -412,7 +412,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         hr = device_0->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12));
 
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. CheckFeatureSupport failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. CheckFeatureSupport failed."), string_from_hresult(hr), hr);
             return false;
         }
 
@@ -472,14 +472,14 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
         hr = D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob);
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. D3D12SerializeRootSignature failed. Error blob says %s."), win32_string_from_hresult(hr), hr, error_blob ? error_blob->GetBufferPointer() : "none");
+            log(LOG_ERROR, S("HRESULT: %S, %x. D3D12SerializeRootSignature failed. Error blob says %s."), string_from_hresult(hr), hr, error_blob ? error_blob->GetBufferPointer() : "none");
             return false;
         }
 
         hr = device->d3d12.device_10->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&device->d3d12.global_root_signature));
 
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. CreateRootSignature failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. CreateRootSignature failed."), string_from_hresult(hr), hr);
             goto lb_fail;
         }
     }
@@ -657,7 +657,7 @@ void d3d12_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
 //
 // Texture
 //
-static DXGI_FORMAT d3d12_texture_format(RHI_Texture_Format format) {
+static DXGI_FORMAT dxgi_texture_format_from_rhi(RHI_Texture_Format format) {
     switch (format) {
         case RHI_TEXTURE_FORMAT_UNKNOWN:
             return DXGI_FORMAT_UNKNOWN;
@@ -785,7 +785,7 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
         resource_desc.Height            = desc->height;
         resource_desc.DepthOrArraySize  = desc->depth;
         resource_desc.MipLevels         = desc->mip_levels;
-        resource_desc.Format            = d3d12_texture_format(desc->format);
+        resource_desc.Format            = dxgi_texture_format_from_rhi(desc->format);
         resource_desc.SampleDesc        = { 1, 0 };
         resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_UNKNOWN;
         resource_desc.Flags             = d3d12_resource_flags_from_texture_usage(desc->usage);
@@ -801,7 +801,7 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
                                                                       &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
                                                                       NULL, IID_PPV_ARGS(&texture->d3d12.resource));
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), string_from_hresult(hr), hr);
             return false;
         }
     }
@@ -818,7 +818,7 @@ void d3d12_texture_destroy(RHI_Texture *texture) {
 
 static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
     D3D12_SHADER_RESOURCE_VIEW_DESC result = {};
-    result.Format = d3d12_texture_format(desc->format);
+    result.Format = dxgi_texture_format_from_rhi(desc->format);
     result.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
     switch (desc->dimension) {
@@ -869,7 +869,7 @@ static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *des
 
 static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc(RHI_Texture_View_Desc *desc) {
     D3D12_UNORDERED_ACCESS_VIEW_DESC result = {};
-    result.Format = d3d12_texture_format(desc->format);
+    result.Format = dxgi_texture_format_from_rhi(desc->format);
 
     switch (desc->dimension) {
         case RHI_TEXTURE_TYPE_1D: {
@@ -919,7 +919,7 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc(RHI_Texture_View_Desc *de
 
 static D3D12_RENDER_TARGET_VIEW_DESC d3d12_rtv_desc(RHI_Texture_View_Desc *desc) {
     D3D12_RENDER_TARGET_VIEW_DESC result = {};
-    result.Format = d3d12_texture_format(desc->format);
+    result.Format = dxgi_texture_format_from_rhi(desc->format);
 
     switch (desc->dimension) {
         case RHI_TEXTURE_TYPE_1D: {
@@ -969,7 +969,7 @@ static D3D12_RENDER_TARGET_VIEW_DESC d3d12_rtv_desc(RHI_Texture_View_Desc *desc)
 
 static D3D12_DEPTH_STENCIL_VIEW_DESC d3d12_dsv_desc(RHI_Texture_View_Desc *desc) {
     D3D12_DEPTH_STENCIL_VIEW_DESC result = {};
-    result.Format = d3d12_texture_format(desc->format);
+    result.Format = dxgi_texture_format_from_rhi(desc->format);
 
     switch (desc->dimension) {
         case RHI_TEXTURE_TYPE_1D: {
@@ -1104,13 +1104,13 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
                                                                       monitor, &swap_chain_1);
 
     if (FAILED(hr)) {
-        log(LOG_ERROR, S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), string_from_hresult(hr), hr);
         return false;
     }
 
     hr = swap_chain_1->QueryInterface(IID_PPV_ARGS(&surface->d3d12.swap_chain_4));
     if (FAILED(hr)) {
-        log(LOG_ERROR, S("HRESULT: %S, %x. QueryInterface(IDXGISwapChain4 *) failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. QueryInterface(IDXGISwapChain4 *) failed."), string_from_hresult(hr), hr);
         return false;
     }
 
@@ -1124,7 +1124,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), string_from_hresult(hr), hr);
             return false;
         }
 
@@ -1182,7 +1182,7 @@ bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
     HRESULT hr = device->d3d12.device_10->CreateFence(initial_value, flags, IID_PPV_ARGS(&fence->d3d12.fence_0));
 
     if (FAILED(hr)) {
-        log(LOG_ERROR, S("HRESULT: %S, %x. CreateFence failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. CreateFence failed."), string_from_hresult(hr), hr);
         return false;
     }
 
@@ -1394,6 +1394,10 @@ void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *text
     cmd_buffer->d3d12.list_7->Barrier(1, &group);
 }
 
+void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance) {
+    cmd_buffer->d3d12.list_7->DrawInstanced(num_vertices, num_instances, first_vertex, first_instance);
+}
+
 void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
     auto *queue = &device->d3d12.queues[queue_type];
     queue->queue_0->Signal(semaphore->d3d12.fence_0, value);
@@ -1402,4 +1406,205 @@ void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Sem
 void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
     auto *queue = &device->d3d12.queues[queue_type];
     queue->queue_0->Wait(semaphore->d3d12.fence_0, value);
+}
+
+
+//
+// Pipeline
+//
+static D3D12_COMPARISON_FUNC d3d12_comparison_func_from_rhi_compare_op(RHI_Compare_Op op) {
+    switch (op) {
+        case RHI_COMPARE_OP_NONE:                   return D3D12_COMPARISON_FUNC_NONE;
+        case RHI_COMPARE_OP_NEVER:                  return D3D12_COMPARISON_FUNC_NEVER;
+        case RHI_COMPARE_OP_LESS:                   return D3D12_COMPARISON_FUNC_LESS;
+        case RHI_COMPARE_OP_EQUAL:                  return D3D12_COMPARISON_FUNC_EQUAL;
+        case RHI_COMPARE_OP_LESS_EQUAL:             return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        case RHI_COMPARE_OP_GREATER:                return D3D12_COMPARISON_FUNC_GREATER;
+        case RHI_COMPARE_OP_NOT_EQUAL:              return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        case RHI_COMPARE_OP_GREATER_EQUAL:          return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        case RHI_COMPARE_OP_ALWAYS:                 return D3D12_COMPARISON_FUNC_ALWAYS;
+        default:                                    Assert(!"Undefined compare op."); return {};
+    }
+}
+
+static D3D12_PRIMITIVE_TOPOLOGY_TYPE d3d12_primitive_topology_from_rhi(RHI_Topology topology) {
+    switch (topology) {
+        case RHI_TOPOLOGY_TRIANGLES:                return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        case RHI_TOPOLOGY_LINES:                    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+        case RHI_TOPOLOGY_POINTS:                   return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+        default:                                    Assert(!"Undefined topology."); return {};
+    }
+}
+
+static D3D12_BLEND d3d12_blend_factor_from_rhi(RHI_Blend_Factor blend_factor) {
+    switch (blend_factor) {
+        case RHI_BLEND_FACTOR_ZERO:                 return D3D12_BLEND_ZERO;
+        case RHI_BLEND_FACTOR_ONE:                  return D3D12_BLEND_ONE;
+
+        case RHI_BLEND_FACTOR_SRC_COLOR:            return D3D12_BLEND_SRC_COLOR;
+        case RHI_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:  return D3D12_BLEND_INV_SRC_COLOR;
+        case RHI_BLEND_FACTOR_DST_COLOR:            return D3D12_BLEND_DEST_COLOR;
+        case RHI_BLEND_FACTOR_ONE_MINUS_DST_COLOR:  return D3D12_BLEND_INV_DEST_COLOR;
+
+        case RHI_BLEND_FACTOR_SRC_ALPHA:            return D3D12_BLEND_SRC_ALPHA;
+        case RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:  return D3D12_BLEND_INV_SRC_ALPHA;
+        case RHI_BLEND_FACTOR_DST_ALPHA:            return D3D12_BLEND_DEST_ALPHA;
+        case RHI_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:  return D3D12_BLEND_INV_DEST_ALPHA;
+
+        default:                                    Assert(!"Undefined blend factor."); return {};
+    }
+}
+
+static D3D12_BLEND_OP d3d12_blend_op_from_rhi(RHI_Blend_Op blend_op) {
+    switch (blend_op) {
+        case RHI_BLEND_OP_ADD:                      return D3D12_BLEND_OP_ADD;
+        case RHI_BLEND_OP_SUBTRACT:                 return D3D12_BLEND_OP_SUBTRACT;
+        case RHI_BLEND_OP_SUBTRACT_REVERSE:         return D3D12_BLEND_OP_REV_SUBTRACT;
+        case RHI_BLEND_OP_MIN:                      return D3D12_BLEND_OP_MIN;
+        case RHI_BLEND_OP_MAX:                      return D3D12_BLEND_OP_MAX;
+        default:                                    Assert(!"Undefined blend op."); return {};
+    }
+}
+
+static D3D12_FILL_MODE d3d12_fill_mode_from_rhi(RHI_Fill_Mode mode) {
+    switch (mode) {
+        case RHI_FILL_MODE_SOLID:                   return D3D12_FILL_MODE_SOLID;
+        case RHI_FILL_MODE_WIREFRAME:               return D3D12_FILL_MODE_WIREFRAME;
+        default:                                    Assert(!"Undefined fill mode."); return {};
+    }
+}
+
+static D3D12_CULL_MODE d3d12_cull_mode_from_rhi(RHI_Cull_Mode mode) {
+    switch (mode) {
+        case RHI_CULL_MODE_NONE:                    return D3D12_CULL_MODE_NONE;
+        case RHI_CULL_MODE_FRONT:                   return D3D12_CULL_MODE_FRONT;
+        case RHI_CULL_MODE_BACK:                    return D3D12_CULL_MODE_BACK;
+        default:                                    Assert(!"Undefined cull mode."); return {};
+    }
+}
+
+bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc) {
+    HRESULT hr = S_OK;
+
+    pipeline->desc = *desc;
+
+    switch (desc->type) {
+        case RHI_PIPELINE_TYPE_GRAPHICS: {
+            if (desc->num_color_attachments > 8) { 
+                log(LOG_ERROR, S("Color attachment count must be less or equal than 8."));
+                return false;
+            }
+
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {};
+            pipeline_desc.pRootSignature = device->d3d12.global_root_signature; // :)
+
+            // No DS, HS, GS. They are failed experiments. No SO atm.
+            pipeline_desc.VS.pShaderBytecode = desc->vs_data;
+            pipeline_desc.VS.BytecodeLength  = desc->vs_size;
+
+            pipeline_desc.PS.pShaderBytecode = desc->ps_data;
+            pipeline_desc.PS.BytecodeLength  = desc->ps_size;
+
+            { // Blend State
+                pipeline_desc.BlendState.AlphaToCoverageEnable  = FALSE; 
+                pipeline_desc.BlendState.IndependentBlendEnable = TRUE;
+
+                for (u32 i = 0; i < desc->num_color_attachments; ++i) {
+                    auto bs = &pipeline_desc.BlendState.RenderTarget[i];
+                    {
+                        bs->BlendEnable            = desc->blend_enabled[i];
+
+                        if (desc->blend_enabled[i]) {
+                            bs->SrcBlend               = d3d12_blend_factor_from_rhi(desc->blend_factor_color_src[i]);
+                            bs->DestBlend              = d3d12_blend_factor_from_rhi(desc->blend_factor_color_dst[i]);
+                            bs->BlendOp                = d3d12_blend_op_from_rhi(desc->blend_op_color[i]);
+
+                            bs->SrcBlendAlpha          = d3d12_blend_factor_from_rhi(desc->blend_factor_alpha_src[i]);
+                            bs->DestBlendAlpha         = d3d12_blend_factor_from_rhi(desc->blend_factor_alpha_dst[i]);
+                            bs->BlendOpAlpha           = d3d12_blend_op_from_rhi(desc->blend_op_alpha[i]);
+
+                            bs->LogicOpEnable          = FALSE;
+                            bs->LogicOp                = D3D12_LOGIC_OP_NOOP;
+
+                            bs->RenderTargetWriteMask  = D3D12_COLOR_WRITE_ENABLE_ALL;
+                        }
+                    }
+                }
+
+                pipeline_desc.SampleMask = 0xffffffff;
+            }
+
+            { // Raster State
+                auto *rs = &pipeline_desc.RasterizerState;
+                rs->FillMode                = d3d12_fill_mode_from_rhi(desc->fill_mode);
+                rs->CullMode                = d3d12_cull_mode_from_rhi(desc->cull_mode);
+                rs->FrontCounterClockwise   = desc->front_face_ccw;
+                rs->DepthBias               = 0;
+                rs->DepthBiasClamp          = 0.f;
+                rs->SlopeScaledDepthBias    = 0.f;
+                rs->DepthClipEnable         = desc->depth_clip;
+                rs->MultisampleEnable       = FALSE;
+                rs->AntialiasedLineEnable   = FALSE;
+                rs->ForcedSampleCount       = 0;
+                rs->ConservativeRaster      = desc->conservative_raster ? D3D12_CONSERVATIVE_RASTERIZATION_MODE_ON : D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+            }
+
+            { // Depth Stencil
+                auto *ds = &pipeline_desc.DepthStencilState;
+                ds->DepthEnable    = desc->depth_enabled;
+                if (desc->depth_enabled) {
+                    ds->DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+                    ds->DepthFunc      = d3d12_comparison_func_from_rhi_compare_op(desc->depth_compare_op);
+                }
+                ds->StencilEnable  = FALSE;
+            }
+
+            // Modern GPUs have fast raw load paths. We simply remove vertex buffer bindings.
+            pipeline_desc.InputLayout           = { NULL, 0 };
+
+            pipeline_desc.PrimitiveTopologyType = d3d12_primitive_topology_from_rhi(desc->topology);
+
+            pipeline_desc.NumRenderTargets      = desc->num_color_attachments;
+
+            for (u32 i = 0; i < desc->num_color_attachments; ++i) {
+                pipeline_desc.RTVFormats[i] = dxgi_texture_format_from_rhi(desc->color_attachment_formats[i]);
+            }
+
+            pipeline_desc.DSVFormat  = dxgi_texture_format_from_rhi(desc->depth_format);
+
+            pipeline_desc.SampleDesc = { 1, 0 };
+
+            pipeline_desc.NodeMask   = NODE_MASK;
+
+            // PSO Cache
+            if (desc->cache && desc->cache_size > 0) {
+                pipeline_desc.CachedPSO.pCachedBlob           = desc->cache;
+                pipeline_desc.CachedPSO.CachedBlobSizeInBytes = desc->cache_size;
+            }
+
+            pipeline_desc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+            hr = device->d3d12.device_10->CreateGraphicsPipelineState(&pipeline_desc, IID_PPV_ARGS(&pipeline->d3d12.state));
+            if (FAILED(hr)) {
+                log(LOG_ERROR, S("CreateGraphicsPipelineState failed: %S, %x"), string_from_hresult(hr), hr);
+                return false;
+            }
+        } break;
+
+        case RHI_PIPELINE_TYPE_COMPUTE: {
+            Assert(!"Under construction.");
+        } break;
+
+        default: {
+            Assert(!"Undefined pipeline type.");
+        } break;
+    }
+
+    log(LOG_INFO, S("Created d3d12 pipeline."));
+    return true;
+}
+
+void d3d12_pipeline_deinit(RHI_Pipeline *pipeline) {
+    SAFE_RELEASE(&pipeline->d3d12.state);
+    log(LOG_INFO, S("Destroyed d3d12 pipeline."));
 }

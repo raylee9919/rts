@@ -94,6 +94,10 @@ struct D3D12_Fence {
     HANDLE       event;
 };
 
+struct D3D12_Pipeline {
+    ID3D12PipelineState *state;
+};
+
 internal bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
 internal void d3d12_device_deinit(RHI_Device *device);
 
@@ -125,5 +129,9 @@ internal void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type
 internal void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 
 internal void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip_level, u32 array_slice);
+internal void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
+
+internal bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
+internal void d3d12_pipeline_deinit(RHI_Pipeline *pipeline);
 
 #endif // RTS_RHI_D3D12_H

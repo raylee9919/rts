@@ -51,6 +51,7 @@ void shader_compiler_deinit(Shader_Compiler *compiler) {
     log(LOG_INFO, S("Deinitialized DXC."));
 }
 
+// @Todo: Proper cleanup when failed.
 bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, 
                     Shader_Compile_Result *out_result, Allocator allocator) {
     HRESULT hr = S_OK;
@@ -60,7 +61,7 @@ bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options,
     IDxcBlob *shader_blob      = NULL;
 
 
-    // @Todo: Not fan of this. Should I just init an arena inside of the compiler?
+    // @Todo: Not fan of this. Should I just init an arena in the compiler?
     Utf16 profile16 = to_utf16(tctx.temp, shader_profile_from_stage(options.stage));
     Utf16 entry16   = to_utf16(tctx.temp, options.entry);
 
@@ -154,6 +155,6 @@ bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options,
     SAFE_RELEASE(&compile_result);
 
 
-    log(LOG_INFO, S("Shader Compiled."));
+    log(LOG_INFO, S("Compiled shader."));
     return true;
 }

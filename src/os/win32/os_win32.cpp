@@ -890,7 +890,7 @@ void csection_destroy(Critical_Section* csection) {
 //
 // Utilities
 //
-String win32_string_from_hresult(HRESULT hr) {
+String string_from_hresult(HRESULT hr) {
 
 #define X(code) \
     case code: \
