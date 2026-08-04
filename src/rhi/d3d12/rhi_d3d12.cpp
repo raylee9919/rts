@@ -4,33 +4,39 @@
 
 static void d3d12_log_message(D3D12_MESSAGE_SEVERITY severity, LPCSTR description) {
     String s = S("N/A");
+    Log_Level level = LOG_INFO;
 
     switch (severity) {
         case D3D12_MESSAGE_SEVERITY_CORRUPTION:
             s = S("Corruption");
+            level = LOG_ERROR;
             break;
 
         case D3D12_MESSAGE_SEVERITY_ERROR:
             s = S("Error");
+            level = LOG_ERROR;
             break;
 
         case D3D12_MESSAGE_SEVERITY_WARNING:
             s = S("Warning");
+            level = LOG_WARNING;
             break;
 
         case D3D12_MESSAGE_SEVERITY_INFO:
             s = S("Info");
+            level = LOG_INFO;
             break;
 
         case D3D12_MESSAGE_SEVERITY_MESSAGE:
             s = S("Message");
+            level = LOG_INFO;
             break;
 
         default:
             break;
     }
 
-    log(S("[%S] %s"), s, description);
+    log(level, S("[%S] %s"), s, description);
 }
 
 static void d3d12_flush_messages(ID3D12InfoQueue1 *info_queue) {
@@ -120,12 +126,12 @@ static bool d3d12_queue_init(D3D12_Device *device, D3D12_Command_Queue *queue, D
 
     HRESULT hr = device->device_0->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue->queue_0));
     if (FAILED(hr)) {
-        log(S("HRESULT: %S, %x. ID3D12Device::CreateCommandQueue failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. ID3D12Device::CreateCommandQueue failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
     queue->type = type;
-    log(S("Initialized d3d12 command queue."));
+    log(LOG_INFO, S("Initialized d3d12 command queue."));
     return true;
 }
 
@@ -133,7 +139,7 @@ static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
     if (queue) {
         RHI_SAFE_RELEASE(&queue->queue_0);
     }
-    log(S("Deinitialized d3d12 command queue."));
+    log(LOG_INFO, S("Deinitialized d3d12 command queue."));
 }
 
 //
@@ -165,7 +171,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
     // Create descriptor heap.
     HRESULT hr = device->device_0->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&heap->heap_0));
     if (FAILED(hr)) {
-        log(S("HRESULT: %S, %x. ID3D12Device::CreateDescriptorHeap failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. ID3D12Device::CreateDescriptorHeap failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
@@ -195,7 +201,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
     else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)         type_str = S("RTV");
     else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)         type_str = S("DSV");
 
-    log(S("Initialized d3d12 '%S' heap."), type_str);
+    log(LOG_INFO, S("Initialized d3d12 '%S' heap."), type_str);
     return true;
 }
 
@@ -293,13 +299,13 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
                 RHI_SAFE_RELEASE(&debug_interface_5);
             } else {
-                log(S("HRESULT: %x. Failed to query interface 'ID3D12Debug5'. 'Windows 10 Build 20348' is the minimum supported version."), hr);
+                log(LOG_ERROR, S("HRESULT: %x. Failed to query interface 'ID3D12Debug5'. 'Windows 10 Build 20348' is the minimum supported version."), hr);
                 return false;
             }
 
             RHI_SAFE_RELEASE(&debug_interface);
         } else {
-            log(S("HRESULT: %x. Failed to get 'ID3D12Debug' interface."), hr);
+            log(LOG_ERROR, S("HRESULT: %x. Failed to get 'ID3D12Debug' interface."), hr);
             return false;
         }
     }
@@ -315,7 +321,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
         hr = CreateDXGIFactory2(flags, IID_PPV_ARGS(&dxgi_factory_6));
         if (FAILED(hr)) {
-            log(S("HRESULT: %x. 'CreateDXGIFactory2' failed on 'IDXGIFactory6'. 'IDXGIFactory6' is supported from Windows 10, version 1803."), hr);
+            log(LOG_ERROR, S("HRESULT: %x. 'CreateDXGIFactory2' failed on 'IDXGIFactory6'. 'IDXGIFactory6' is supported from Windows 10, version 1803."), hr);
             return false;
         }
     }
@@ -327,7 +333,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         DXGI_GPU_PREFERENCE preference = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE;
         hr = dxgi_factory_6->EnumAdapterByGpuPreference(adapter_index, preference, IID_PPV_ARGS(&adapter_1));
         if (FAILED(hr)) {
-            log(S("HRESULT: %x. 'IDXGIFactory6::EnumAdapterByGpuPreference()' failed."), hr);
+            log(LOG_ERROR, S("HRESULT: %x. 'IDXGIFactory6::EnumAdapterByGpuPreference()' failed."), hr);
             return false;
         }
     }
@@ -338,7 +344,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         D3D_FEATURE_LEVEL minimum_feature_level = D3D_FEATURE_LEVEL_12_0;
         hr = D3D12CreateDevice(adapter_1, minimum_feature_level, IID_PPV_ARGS(&device_0));
         if (FAILED(hr)) {
-            log(S("HRESULT: %x. D3D12CreateDevice() failed."), hr);
+            log(LOG_ERROR, S("HRESULT: %x. D3D12CreateDevice() failed."), hr);
             return false;
         }
     }
@@ -357,10 +363,10 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
                 d3d12_flush_messages(info_queue_1);
 
                 if (d3d12->callback_cookie == 0) {
-                    log(S("ID3D12InfoQueue1::RegisterMessageCallback failed."));
+                    log(LOG_ERROR, S("ID3D12InfoQueue1::RegisterMessageCallback failed."));
                 }
             } else {
-                log(S("HRESULT: %x. ID3D12InfoQueue::QueryInterface(ID3D12InfoQueue1 *) failed."), hr);
+                log(LOG_ERROR, S("HRESULT: %x. ID3D12InfoQueue::QueryInterface(ID3D12InfoQueue1 *) failed."), hr);
 
                 info_queue_0->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
                 info_queue_0->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR,      true);
@@ -369,7 +375,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
             RHI_SAFE_RELEASE(&info_queue_0);
         } else {
-            log(S("HRESULT: %x. ID3D12Device::QueryInterface(ID3D12InfoQueue *) failed."), hr);
+            log(LOG_ERROR, S("HRESULT: %x. ID3D12Device::QueryInterface(ID3D12InfoQueue *) failed."), hr);
         }
     }
 
@@ -386,16 +392,16 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
         device_0->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &sm, sizeof(sm));
         if (sm.HighestShaderModel < D3D_SHADER_MODEL_6_6) {
-            log(S("The device doesn't support shader model 6.6."));
+            log(LOG_ERROR, S("The device doesn't support shader model 6.6."));
             return false;
         }
 
         D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
         device_0->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &options, sizeof(options));
         if (options.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3) {
-            log(S("Resource binding tier: %d"), options.ResourceBindingTier);
+            log(LOG_INFO, S("Resource binding tier: %d"), options.ResourceBindingTier);
         } else {
-            log(S("The device should have resource binding tier 3 or greater."));
+            log(LOG_ERROR, S("The device should have resource binding tier 3 or greater."));
             return false;
         }
     }
@@ -406,12 +412,12 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         hr = device_0->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12));
 
         if (FAILED(hr)) {
-            log(S("HRESULT: %S, %x. CheckFeatureSupport failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. CheckFeatureSupport failed."), win32_string_from_hresult(hr), hr);
             return false;
         }
 
         if (!options12.EnhancedBarriersSupported) {
-            log(S("Enhanced barrier is not supported on this device."));
+            log(LOG_ERROR, S("Enhanced barrier is not supported on this device."));
             return false;
         }
     }
@@ -419,7 +425,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
     ID3D12Device12 *device_10 = NULL;
     if (FAILED(device_0->QueryInterface(IID_PPV_ARGS(&device_10)))) {
-        log(S("QueryInterface() for ID3D12Device10 failed. Requires DirectX 12 Agility SDK 1.7 or later."));
+        log(LOG_ERROR, S("QueryInterface() for ID3D12Device10 failed. Requires DirectX 12 Agility SDK 1.7 or later."));
         return false;
     }
 
@@ -466,19 +472,19 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
         hr = D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob);
         if (FAILED(hr)) {
-            log(S("HRESULT: %S, %x. D3D12SerializeRootSignature failed. Error blob says %s."), win32_string_from_hresult(hr), hr, error_blob ? error_blob->GetBufferPointer() : "none");
+            log(LOG_ERROR, S("HRESULT: %S, %x. D3D12SerializeRootSignature failed. Error blob says %s."), win32_string_from_hresult(hr), hr, error_blob ? error_blob->GetBufferPointer() : "none");
             return false;
         }
 
         hr = device->d3d12.device_10->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&device->d3d12.global_root_signature));
 
         if (FAILED(hr)) {
-            log(S("HRESULT: %S, %x. CreateRootSignature failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. CreateRootSignature failed."), win32_string_from_hresult(hr), hr);
             goto lb_fail;
         }
     }
 
-    log(S("Initialized d3d12 device."));
+    log(LOG_INFO, S("Initialized d3d12 device."));
     result = true;
 
 lb_fail:
@@ -535,7 +541,7 @@ void d3d12_device_deinit(RHI_Device *device) {
     }
 
 
-    log(S("Deinitialized d3d12 device"));
+    log(LOG_INFO, S("Deinitialized d3d12 device"));
 }
 
 //
@@ -547,23 +553,23 @@ bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI
 
     HRESULT hr = device->device_10->CreateCommandAllocator(native_type, IID_PPV_ARGS(&list->allocator));
     if (FAILED(hr)) {
-        log(S("HRESULT: %x. CreateCommandAllocator failed."), hr);
+        log(LOG_ERROR, S("HRESULT: %x. CreateCommandAllocator failed."), hr);
         return false;
     }
 
     hr = device->device_10->CreateCommandList1(NODE_MASK, native_type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&list->list_0));
     if (FAILED(hr)) {
-        log(S("HRESULT: %x. CreateCommandList1 failed."), hr);
+        log(LOG_ERROR, S("HRESULT: %x. CreateCommandList1 failed."), hr);
         return false;
     }
 
     hr = list->list_0->QueryInterface(IID_PPV_ARGS(&list->list_7));
     if (FAILED(hr)) {
-        log(S("HRESULT: %x. Failed to query interface for ID3D12GraphicsCommandList7. Requires the DirectX 12 Agility SDK 1.7 or later."), hr);
+        log(LOG_ERROR, S("HRESULT: %x. Failed to query interface for ID3D12GraphicsCommandList7. Requires the DirectX 12 Agility SDK 1.7 or later."), hr);
         return false;
     }
 
-    log(S("Initialized d3d12 command list."));
+    log(LOG_INFO, S("Initialized d3d12 command list."));
     return true;
 }
 
@@ -589,7 +595,7 @@ void d3d12_command_list_begin(D3D12_Command_List *list) {
         list->list_7->Reset(list->allocator, NULL);
         list->is_recording = true;
     } else {
-        log(S("Command list wasn't closed."));
+        log(LOG_WARNING, S("Command list wasn't closed."));
     }
 }
 
@@ -598,7 +604,7 @@ void d3d12_command_list_end(D3D12_Command_List *list) {
         list->list_7->Close();
         list->is_recording = false;
     } else {
-        log(S("Command list was already closed."));
+        log(LOG_WARNING, S("Command list was already closed."));
     }
 }
 
@@ -795,19 +801,19 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
                                                                       &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
                                                                       NULL, IID_PPV_ARGS(&texture->d3d12.resource));
         if (FAILED(hr)) {
-            log(S("HRESULT: %S, %x. CreateCommittedResource failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), win32_string_from_hresult(hr), hr);
             return false;
         }
     }
 
-    log(S("Created d3d12 texture."));
+    log(LOG_INFO, S("Created d3d12 texture."));
     return true;
 }
 
 void d3d12_texture_destroy(RHI_Texture *texture) {
     // Make sure the texture isn't in flight!
     RHI_SAFE_RELEASE(&texture->d3d12.resource);
-    log(S("Destroyed d3d12 texture."));
+    log(LOG_INFO, S("Destroyed d3d12 texture."));
 }
 
 static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
@@ -1098,13 +1104,13 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
                                                                       monitor, &swap_chain_1);
 
     if (FAILED(hr)) {
-        log(S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. IDXGIFactory6::CreateSwapChainForHwnd failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
     hr = swap_chain_1->QueryInterface(IID_PPV_ARGS(&surface->d3d12.swap_chain_4));
     if (FAILED(hr)) {
-        log(S("HRESULT: %S, %x. QueryInterface(IDXGISwapChain4 *) failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. QueryInterface(IDXGISwapChain4 *) failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
@@ -1118,7 +1124,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
         if (FAILED(hr)) {
-            log(S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), win32_string_from_hresult(hr), hr);
             return false;
         }
 
@@ -1134,7 +1140,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 
-    log(S("Initialized d3d12 surface."));
+    log(LOG_INFO, S("Initialized d3d12 surface."));
     return true;
 }
 
@@ -1176,13 +1182,13 @@ bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
     HRESULT hr = device->d3d12.device_10->CreateFence(initial_value, flags, IID_PPV_ARGS(&fence->d3d12.fence_0));
 
     if (FAILED(hr)) {
-        log(S("HRESULT: %S, %x. CreateFence failed."), win32_string_from_hresult(hr), hr);
+        log(LOG_ERROR, S("HRESULT: %S, %x. CreateFence failed."), win32_string_from_hresult(hr), hr);
         return false;
     }
 
     fence->d3d12.event = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    log(S("Initialized d3d12 fence."));
+    log(LOG_INFO, S("Initialized d3d12 fence."));
     return true;
 }
 
@@ -1193,7 +1199,7 @@ void d3d12_fence_destroy(RHI_Semaphore *fence) {
         fence->d3d12.event = {};
     }
 
-    log(S("Deinitialized d3d12 fence."));
+    log(LOG_INFO, S("Deinitialized d3d12 fence."));
 }
 
 void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout) {

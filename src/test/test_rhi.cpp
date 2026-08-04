@@ -4,11 +4,13 @@
 #include "math/include.h"
 #include "os/include.h"
 #include "rhi/include.h"
+#include "shader/include.h"
 
 #include "basic/include.cpp"
 #include "math/include.cpp"
 #include "os/include.cpp"
 #include "rhi/include.cpp"
+#include "shader/include.cpp"
 
 OS_Handle window;
 bool should_close       = false;

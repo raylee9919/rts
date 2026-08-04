@@ -7,6 +7,4 @@
 #include "./d3d12/rhi_d3d12.h"
 #include "./rhi.h"
 
-#include "./rhi_shader.h"
-
 #endif // RTS_RHI_INCLUDE_H

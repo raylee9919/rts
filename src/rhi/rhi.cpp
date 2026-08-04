@@ -102,7 +102,7 @@ bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc
     surface->desc = *desc;
 
     if (!(desc->num_back_buffers > 0 && desc->num_back_buffers <= RHI_MAX_BACK_BUFFERS)) {
-        log(S("Number of backbuffers must be less or equal than %d."), RHI_MAX_BACK_BUFFERS);
+        log(LOG_ERROR, S("Number of backbuffers must be less or equal than %d."), RHI_MAX_BACK_BUFFERS);
         return false;
     }
 
