@@ -4,7 +4,8 @@
 #define RTS_SHADER_INCLUDE_H
 
 
-
+#include "./shader.h"
+#include "./dxc/dxc.h"
 
 
 #endif // RTS_SHADER_INCLUDE_H

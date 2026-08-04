@@ -63,6 +63,9 @@ int main_entry(int argc, char **argv)
     window = os_window_create(1920, 1080, utf8lit("rhi"));
     HWND hwnd = hwnd_from_os_handle(window);
 
+    auto *compiler = (Shader_Compiler *)alloc(sizeof(Shader_Compiler));
+    Assert(shader_compiler_init(compiler));
+
     auto *device = (RHI_Device *)alloc(sizeof(RHI_Device));
     Assert(rhi_device_init(device, RHI_KIND_D3D12, true, true));
 
@@ -98,6 +101,18 @@ int main_entry(int argc, char **argv)
 
     auto *cmd_buffer = (RHI_Command_Buffer *)alloc(sizeof(RHI_Command_Buffer));
     Assert(rhi_command_buffer_init(device, cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
+
+
+    Shader_Compile_Result compile_result = {};
+    Shader_Compile_Options options = {};
+    {
+        // @Temporary
+        options.stage  = SHADER_STAGE_VS;
+        options.entry  = S("main_vs");
+        options.source = shader_source;
+        options.debug  = true;
+    }
+    Assert(shader_compile(compiler, options, &compile_result, tctx.allocator));
 
 
     while (!should_close) {

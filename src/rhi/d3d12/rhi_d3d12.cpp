@@ -137,7 +137,7 @@ static bool d3d12_queue_init(D3D12_Device *device, D3D12_Command_Queue *queue, D
 
 static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
     if (queue) {
-        RHI_SAFE_RELEASE(&queue->queue_0);
+        SAFE_RELEASE(&queue->queue_0);
     }
     log(LOG_INFO, S("Deinitialized d3d12 command queue."));
 }
@@ -207,7 +207,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
 
 static void d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap) {
     if (heap) {
-        RHI_SAFE_RELEASE(&heap->heap_0);
+        SAFE_RELEASE(&heap->heap_0);
         dealloc(heap->free_list);
     }
 }
@@ -297,13 +297,13 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
                 debug_interface_5->SetEnableGPUBasedValidation(true);
                 debug_interface_5->SetEnableSynchronizedCommandQueueValidation(true);
 
-                RHI_SAFE_RELEASE(&debug_interface_5);
+                SAFE_RELEASE(&debug_interface_5);
             } else {
                 log(LOG_ERROR, S("HRESULT: %x. Failed to query interface 'ID3D12Debug5'. 'Windows 10 Build 20348' is the minimum supported version."), hr);
                 return false;
             }
 
-            RHI_SAFE_RELEASE(&debug_interface);
+            SAFE_RELEASE(&debug_interface);
         } else {
             log(LOG_ERROR, S("HRESULT: %x. Failed to get 'ID3D12Debug' interface."), hr);
             return false;
@@ -373,7 +373,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
                 info_queue_0->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING,    break_on_warning);
             }
 
-            RHI_SAFE_RELEASE(&info_queue_0);
+            SAFE_RELEASE(&info_queue_0);
         } else {
             log(LOG_ERROR, S("HRESULT: %x. ID3D12Device::QueryInterface(ID3D12InfoQueue *) failed."), hr);
         }
@@ -488,9 +488,9 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     result = true;
 
 lb_fail:
-    RHI_SAFE_RELEASE(&signature_blob);
-    RHI_SAFE_RELEASE(&error_blob);
-    RHI_SAFE_RELEASE(&adapter_1);
+    SAFE_RELEASE(&signature_blob);
+    SAFE_RELEASE(&error_blob);
+    SAFE_RELEASE(&adapter_1);
 
     return result;
 }
@@ -511,9 +511,9 @@ void d3d12_device_deinit(RHI_Device *device) {
     d3d12_descriptor_heap_deinit(&d->resource_heap);
     d3d12_descriptor_heap_deinit(&d->sampler_heap);
 
-    RHI_SAFE_RELEASE(&d->dxgi_factory_6);
-    RHI_SAFE_RELEASE(&d->device_10);
-    RHI_SAFE_RELEASE(&d->device_0);
+    SAFE_RELEASE(&d->dxgi_factory_6);
+    SAFE_RELEASE(&d->device_10);
+    SAFE_RELEASE(&d->device_0);
 
     if (d->info_queue_1 && d->callback_cookie != 0) {
         d->info_queue_1->UnregisterMessageCallback(d->callback_cookie);
@@ -523,16 +523,16 @@ void d3d12_device_deinit(RHI_Device *device) {
     if (d->dxgi_debug) {
         // @Todo: Since info_queue_1 isn't released, there's a log saying there's a leak.
         d->dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_FLAGS(DXGI_DEBUG_RLO_DETAIL | DXGI_DEBUG_RLO_IGNORE_INTERNAL));
-        RHI_SAFE_RELEASE(&d->dxgi_debug);
+        SAFE_RELEASE(&d->dxgi_debug);
     }
 
     if (d->info_queue_1) {
         d3d12_flush_messages(d->info_queue_1);
-        RHI_SAFE_RELEASE(&d->info_queue_1);
+        SAFE_RELEASE(&d->info_queue_1);
     }
 
 
-    RHI_SAFE_RELEASE(&d->global_root_signature);
+    SAFE_RELEASE(&d->global_root_signature);
 
 
     if (d->dxgi_debug_dll_handle) {
@@ -575,9 +575,9 @@ bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI
 
 void d3d12_command_list_deinit(D3D12_Command_List *list) {
     if (list) {
-        RHI_SAFE_RELEASE(&list->list_0);
-        RHI_SAFE_RELEASE(&list->list_7);
-        RHI_SAFE_RELEASE(&list->allocator);
+        SAFE_RELEASE(&list->list_0);
+        SAFE_RELEASE(&list->list_7);
+        SAFE_RELEASE(&list->allocator);
     }
 }
 
@@ -812,7 +812,7 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
 
 void d3d12_texture_destroy(RHI_Texture *texture) {
     // Make sure the texture isn't in flight!
-    RHI_SAFE_RELEASE(&texture->d3d12.resource);
+    SAFE_RELEASE(&texture->d3d12.resource);
     log(LOG_INFO, S("Destroyed d3d12 texture."));
 }
 
@@ -1153,7 +1153,7 @@ void d3d12_surface_present(RHI_Surface *surface) {
 
 void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
     for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
-        RHI_SAFE_RELEASE(&surface->textures[i].d3d12.resource);
+        SAFE_RELEASE(&surface->textures[i].d3d12.resource);
     }
 
     DXGI_SWAP_CHAIN_DESC1 desc = {};
@@ -1193,7 +1193,7 @@ bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
 }
 
 void d3d12_fence_destroy(RHI_Semaphore *fence) {
-    RHI_SAFE_RELEASE(&fence->d3d12.fence_0);
+    SAFE_RELEASE(&fence->d3d12.fence_0);
     if (fence->d3d12.event) {
         CloseHandle(fence->d3d12.event);
         fence->d3d12.event = {};

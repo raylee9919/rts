@@ -7,8 +7,6 @@
 #define RHI_D3D12_SWAP_CHAIN_STEREO     0
 #define RHI_D3D12_SURFACE_FORMAT        DXGI_FORMAT_R8G8B8A8_UNORM // @Temporary
 
-#define RHI_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
-
 extern "C"
 {
     __declspec(dllexport) extern const u32 D3D12SDKVersion = 619;
