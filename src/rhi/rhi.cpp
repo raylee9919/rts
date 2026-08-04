@@ -34,7 +34,7 @@ bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI
 
     switch (kind) {
         case RHI_KIND_D3D12:
-            return d3d12_command_list_init(&device->d3d12, &buffer->d3d12, type);
+            return d3d12_command_list_init(device, buffer, type);
 
         default:
             Assert(0);
@@ -43,10 +43,10 @@ bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI
     return false;
 }
 
-void rhi_command_buffer_deinit(RHI_Command_Buffer *buffer) {
-    switch (buffer->kind) {
+void rhi_command_buffer_deinit(RHI_Command_Buffer *cmd_buffer) {
+    switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
-            d3d12_command_list_deinit(&buffer->d3d12);
+            d3d12_command_list_deinit(cmd_buffer);
             break;
 
         default:
@@ -57,7 +57,7 @@ void rhi_command_buffer_deinit(RHI_Command_Buffer *buffer) {
 void rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer) {
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
-            d3d12_command_list_begin(&cmd_buffer->d3d12);
+            d3d12_command_list_begin(cmd_buffer);
             break;
 
         default:
@@ -327,6 +327,18 @@ void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *textur
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
             d3d12_cmd_texture_barrier(cmd_buffer, texture, before, after, mip, slice);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_set_pipeline(cmd_buffer, pipeline);
             break;
 
         default:

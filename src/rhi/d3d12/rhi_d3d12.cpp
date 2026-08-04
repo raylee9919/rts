@@ -2,6 +2,90 @@
 
 // @Todo: Allocator
 
+//
+// Translation
+//
+static D3D12_COMPARISON_FUNC d3d12_comparison_func_from_rhi_compare_op(RHI_Compare_Op op) {
+    switch (op) {
+        case RHI_COMPARE_OP_NONE:                   return D3D12_COMPARISON_FUNC_NONE;
+        case RHI_COMPARE_OP_NEVER:                  return D3D12_COMPARISON_FUNC_NEVER;
+        case RHI_COMPARE_OP_LESS:                   return D3D12_COMPARISON_FUNC_LESS;
+        case RHI_COMPARE_OP_EQUAL:                  return D3D12_COMPARISON_FUNC_EQUAL;
+        case RHI_COMPARE_OP_LESS_EQUAL:             return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        case RHI_COMPARE_OP_GREATER:                return D3D12_COMPARISON_FUNC_GREATER;
+        case RHI_COMPARE_OP_NOT_EQUAL:              return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        case RHI_COMPARE_OP_GREATER_EQUAL:          return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        case RHI_COMPARE_OP_ALWAYS:                 return D3D12_COMPARISON_FUNC_ALWAYS;
+        default:                                    Assert(!"Undefined compare op."); return {};
+    }
+}
+
+static D3D12_PRIMITIVE_TOPOLOGY_TYPE d3d12_primitive_topology_type_from_rhi(RHI_Topology topology) {
+    switch (topology) {
+        case RHI_TOPOLOGY_TRIANGLES:                return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        case RHI_TOPOLOGY_LINES:                    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+        case RHI_TOPOLOGY_POINTS:                   return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+        default:                                    Assert(!"Undefined topology."); return {};
+    }
+}
+
+static D3D12_PRIMITIVE_TOPOLOGY d3d12_primitive_topology_from_rhi(RHI_Topology topology) {
+    switch (topology) {
+        case RHI_TOPOLOGY_TRIANGLES:                return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        case RHI_TOPOLOGY_LINES:                    return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+        case RHI_TOPOLOGY_POINTS:                   return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
+        default:                                    Assert(!"Undefined topology."); return {};
+    }
+}
+
+static D3D12_BLEND d3d12_blend_factor_from_rhi(RHI_Blend_Factor blend_factor) {
+    switch (blend_factor) {
+        case RHI_BLEND_FACTOR_ZERO:                 return D3D12_BLEND_ZERO;
+        case RHI_BLEND_FACTOR_ONE:                  return D3D12_BLEND_ONE;
+
+        case RHI_BLEND_FACTOR_SRC_COLOR:            return D3D12_BLEND_SRC_COLOR;
+        case RHI_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:  return D3D12_BLEND_INV_SRC_COLOR;
+        case RHI_BLEND_FACTOR_DST_COLOR:            return D3D12_BLEND_DEST_COLOR;
+        case RHI_BLEND_FACTOR_ONE_MINUS_DST_COLOR:  return D3D12_BLEND_INV_DEST_COLOR;
+
+        case RHI_BLEND_FACTOR_SRC_ALPHA:            return D3D12_BLEND_SRC_ALPHA;
+        case RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:  return D3D12_BLEND_INV_SRC_ALPHA;
+        case RHI_BLEND_FACTOR_DST_ALPHA:            return D3D12_BLEND_DEST_ALPHA;
+        case RHI_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:  return D3D12_BLEND_INV_DEST_ALPHA;
+
+        default:                                    Assert(!"Undefined blend factor."); return {};
+    }
+}
+
+static D3D12_BLEND_OP d3d12_blend_op_from_rhi(RHI_Blend_Op blend_op) {
+    switch (blend_op) {
+        case RHI_BLEND_OP_ADD:                      return D3D12_BLEND_OP_ADD;
+        case RHI_BLEND_OP_SUBTRACT:                 return D3D12_BLEND_OP_SUBTRACT;
+        case RHI_BLEND_OP_SUBTRACT_REVERSE:         return D3D12_BLEND_OP_REV_SUBTRACT;
+        case RHI_BLEND_OP_MIN:                      return D3D12_BLEND_OP_MIN;
+        case RHI_BLEND_OP_MAX:                      return D3D12_BLEND_OP_MAX;
+        default:                                    Assert(!"Undefined blend op."); return {};
+    }
+}
+
+static D3D12_FILL_MODE d3d12_fill_mode_from_rhi(RHI_Fill_Mode mode) {
+    switch (mode) {
+        case RHI_FILL_MODE_SOLID:                   return D3D12_FILL_MODE_SOLID;
+        case RHI_FILL_MODE_WIREFRAME:               return D3D12_FILL_MODE_WIREFRAME;
+        default:                                    Assert(!"Undefined fill mode."); return {};
+    }
+}
+
+static D3D12_CULL_MODE d3d12_cull_mode_from_rhi(RHI_Cull_Mode mode) {
+    switch (mode) {
+        case RHI_CULL_MODE_NONE:                    return D3D12_CULL_MODE_NONE;
+        case RHI_CULL_MODE_FRONT:                   return D3D12_CULL_MODE_FRONT;
+        case RHI_CULL_MODE_BACK:                    return D3D12_CULL_MODE_BACK;
+        default:                                    Assert(!"Undefined cull mode."); return {};
+    }
+}
+
+
 static void d3d12_log_message(D3D12_MESSAGE_SEVERITY severity, LPCSTR description) {
     String s = S("N/A");
     Log_Level level = LOG_INFO;
@@ -547,23 +631,24 @@ void d3d12_device_deinit(RHI_Device *device) {
 //
 // Command List
 //
-bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type) {
+bool d3d12_command_list_init(RHI_Device *device, RHI_Command_Buffer *cmd_buffer, RHI_Command_Type type) {
     auto native_type = d3d12_translate_queue_type(type);
-    list->type = native_type;
+    cmd_buffer->type = native_type;
+    cmd_buffer->my_device = device;
 
-    HRESULT hr = device->device_10->CreateCommandAllocator(native_type, IID_PPV_ARGS(&list->allocator));
+    HRESULT hr = device->d3d12.device_10->CreateCommandAllocator(native_type, IID_PPV_ARGS(&cmd_buffer->d3d12.allocator));
     if (FAILED(hr)) {
         log(LOG_ERROR, S("HRESULT: %x. CreateCommandAllocator failed."), hr);
         return false;
     }
 
-    hr = device->device_10->CreateCommandList1(NODE_MASK, native_type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&list->list_0));
+    hr = device->d3d12.device_10->CreateCommandList1(NODE_MASK, native_type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&cmd_buffer->d3d12.list_0));
     if (FAILED(hr)) {
         log(LOG_ERROR, S("HRESULT: %x. CreateCommandList1 failed."), hr);
         return false;
     }
 
-    hr = list->list_0->QueryInterface(IID_PPV_ARGS(&list->list_7));
+    hr = cmd_buffer->d3d12.list_0->QueryInterface(IID_PPV_ARGS(&cmd_buffer->d3d12.list_7));
     if (FAILED(hr)) {
         log(LOG_ERROR, S("HRESULT: %x. Failed to query interface for ID3D12GraphicsCommandList7. Requires the DirectX 12 Agility SDK 1.7 or later."), hr);
         return false;
@@ -573,15 +658,16 @@ bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI
     return true;
 }
 
-void d3d12_command_list_deinit(D3D12_Command_List *list) {
-    if (list) {
-        SAFE_RELEASE(&list->list_0);
-        SAFE_RELEASE(&list->list_7);
-        SAFE_RELEASE(&list->allocator);
+void d3d12_command_list_deinit(RHI_Command_Buffer *cmd_buffer) {
+    if (cmd_buffer) {
+        cmd_buffer->my_device = NULL;
+        SAFE_RELEASE(&cmd_buffer->d3d12.list_0);
+        SAFE_RELEASE(&cmd_buffer->d3d12.list_7);
+        SAFE_RELEASE(&cmd_buffer->d3d12.allocator);
     }
 }
 
-void d3d12_command_list_begin(D3D12_Command_List *list) {
+void d3d12_command_list_begin(RHI_Command_Buffer *cmd_buffer) {
     // Although an ID3D12GraphicsCommandList can be reset immediately after
     // execution (provided it is associated with a different allocator, or the
     // current allocator is no longer in use by the GPU), our abstraction keeps a
@@ -590,12 +676,21 @@ void d3d12_command_list_begin(D3D12_Command_List *list) {
     // Therefore, the caller must ensure the GPU has finished executing commands
     // recorded with this allocator before calling d3d12_command_list_begin().
     //
+    auto *device = &cmd_buffer->my_device->d3d12;
+    auto *list   = &cmd_buffer->d3d12;
+
     if (!list->is_recording) {
         list->allocator->Reset();
         list->list_7->Reset(list->allocator, NULL);
         list->is_recording = true;
     } else {
         log(LOG_WARNING, S("Command list wasn't closed."));
+    }
+
+    // [0] for resource, [1] for sampler.
+    if (cmd_buffer->type != RHI_COMMAND_TYPE_TRANSFER) {
+        ID3D12DescriptorHeap* heaps[] = { device->resource_heap.heap_0, device->sampler_heap.heap_0 };
+        list->list_7->SetDescriptorHeaps(2, heaps);
     }
 }
 
@@ -1354,7 +1449,6 @@ static D3D12_BARRIER_ACCESS d3d12_barrier_access_from_rhi(RHI_Resource_State sta
             return D3D12_BARRIER_ACCESS_COMMON;
     }
 }
-
 void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, 
                                RHI_Resource_State before, RHI_Resource_State after,
                                u32 mip, u32 slice) {
@@ -1394,6 +1488,12 @@ void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *text
     cmd_buffer->d3d12.list_7->Barrier(1, &group);
 }
 
+void d3d12_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline) {
+	cmd_buffer->d3d12.list_7->SetGraphicsRootSignature(cmd_buffer->my_device->d3d12.global_root_signature);
+    cmd_buffer->d3d12.list_7->SetPipelineState(pipeline->d3d12.state);
+    cmd_buffer->d3d12.list_7->IASetPrimitiveTopology(d3d12_primitive_topology_from_rhi(pipeline->desc.topology));
+}
+
 void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance) {
     cmd_buffer->d3d12.list_7->DrawInstanced(num_vertices, num_instances, first_vertex, first_instance);
 }
@@ -1412,77 +1512,6 @@ void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semap
 //
 // Pipeline
 //
-static D3D12_COMPARISON_FUNC d3d12_comparison_func_from_rhi_compare_op(RHI_Compare_Op op) {
-    switch (op) {
-        case RHI_COMPARE_OP_NONE:                   return D3D12_COMPARISON_FUNC_NONE;
-        case RHI_COMPARE_OP_NEVER:                  return D3D12_COMPARISON_FUNC_NEVER;
-        case RHI_COMPARE_OP_LESS:                   return D3D12_COMPARISON_FUNC_LESS;
-        case RHI_COMPARE_OP_EQUAL:                  return D3D12_COMPARISON_FUNC_EQUAL;
-        case RHI_COMPARE_OP_LESS_EQUAL:             return D3D12_COMPARISON_FUNC_LESS_EQUAL;
-        case RHI_COMPARE_OP_GREATER:                return D3D12_COMPARISON_FUNC_GREATER;
-        case RHI_COMPARE_OP_NOT_EQUAL:              return D3D12_COMPARISON_FUNC_NOT_EQUAL;
-        case RHI_COMPARE_OP_GREATER_EQUAL:          return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-        case RHI_COMPARE_OP_ALWAYS:                 return D3D12_COMPARISON_FUNC_ALWAYS;
-        default:                                    Assert(!"Undefined compare op."); return {};
-    }
-}
-
-static D3D12_PRIMITIVE_TOPOLOGY_TYPE d3d12_primitive_topology_from_rhi(RHI_Topology topology) {
-    switch (topology) {
-        case RHI_TOPOLOGY_TRIANGLES:                return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        case RHI_TOPOLOGY_LINES:                    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-        case RHI_TOPOLOGY_POINTS:                   return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-        default:                                    Assert(!"Undefined topology."); return {};
-    }
-}
-
-static D3D12_BLEND d3d12_blend_factor_from_rhi(RHI_Blend_Factor blend_factor) {
-    switch (blend_factor) {
-        case RHI_BLEND_FACTOR_ZERO:                 return D3D12_BLEND_ZERO;
-        case RHI_BLEND_FACTOR_ONE:                  return D3D12_BLEND_ONE;
-
-        case RHI_BLEND_FACTOR_SRC_COLOR:            return D3D12_BLEND_SRC_COLOR;
-        case RHI_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:  return D3D12_BLEND_INV_SRC_COLOR;
-        case RHI_BLEND_FACTOR_DST_COLOR:            return D3D12_BLEND_DEST_COLOR;
-        case RHI_BLEND_FACTOR_ONE_MINUS_DST_COLOR:  return D3D12_BLEND_INV_DEST_COLOR;
-
-        case RHI_BLEND_FACTOR_SRC_ALPHA:            return D3D12_BLEND_SRC_ALPHA;
-        case RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:  return D3D12_BLEND_INV_SRC_ALPHA;
-        case RHI_BLEND_FACTOR_DST_ALPHA:            return D3D12_BLEND_DEST_ALPHA;
-        case RHI_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:  return D3D12_BLEND_INV_DEST_ALPHA;
-
-        default:                                    Assert(!"Undefined blend factor."); return {};
-    }
-}
-
-static D3D12_BLEND_OP d3d12_blend_op_from_rhi(RHI_Blend_Op blend_op) {
-    switch (blend_op) {
-        case RHI_BLEND_OP_ADD:                      return D3D12_BLEND_OP_ADD;
-        case RHI_BLEND_OP_SUBTRACT:                 return D3D12_BLEND_OP_SUBTRACT;
-        case RHI_BLEND_OP_SUBTRACT_REVERSE:         return D3D12_BLEND_OP_REV_SUBTRACT;
-        case RHI_BLEND_OP_MIN:                      return D3D12_BLEND_OP_MIN;
-        case RHI_BLEND_OP_MAX:                      return D3D12_BLEND_OP_MAX;
-        default:                                    Assert(!"Undefined blend op."); return {};
-    }
-}
-
-static D3D12_FILL_MODE d3d12_fill_mode_from_rhi(RHI_Fill_Mode mode) {
-    switch (mode) {
-        case RHI_FILL_MODE_SOLID:                   return D3D12_FILL_MODE_SOLID;
-        case RHI_FILL_MODE_WIREFRAME:               return D3D12_FILL_MODE_WIREFRAME;
-        default:                                    Assert(!"Undefined fill mode."); return {};
-    }
-}
-
-static D3D12_CULL_MODE d3d12_cull_mode_from_rhi(RHI_Cull_Mode mode) {
-    switch (mode) {
-        case RHI_CULL_MODE_NONE:                    return D3D12_CULL_MODE_NONE;
-        case RHI_CULL_MODE_FRONT:                   return D3D12_CULL_MODE_FRONT;
-        case RHI_CULL_MODE_BACK:                    return D3D12_CULL_MODE_BACK;
-        default:                                    Assert(!"Undefined cull mode."); return {};
-    }
-}
-
 bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc) {
     HRESULT hr = S_OK;
 
@@ -1562,7 +1591,7 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
             // Modern GPUs have fast raw load paths. We simply remove vertex buffer bindings.
             pipeline_desc.InputLayout           = { NULL, 0 };
 
-            pipeline_desc.PrimitiveTopologyType = d3d12_primitive_topology_from_rhi(desc->topology);
+            pipeline_desc.PrimitiveTopologyType = d3d12_primitive_topology_type_from_rhi(desc->topology);
 
             pipeline_desc.NumRenderTargets      = desc->num_color_attachments;
 

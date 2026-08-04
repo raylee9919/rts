@@ -101,9 +101,9 @@ struct D3D12_Pipeline {
 internal bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
 internal void d3d12_device_deinit(RHI_Device *device);
 
-internal bool d3d12_command_list_init(D3D12_Device *device, D3D12_Command_List *list, RHI_Command_Type type);
-internal void d3d12_command_list_deinit(D3D12_Command_List *list);
-internal void d3d12_command_list_begin(D3D12_Command_List *list);
+internal bool d3d12_command_list_init(RHI_Device *device, RHI_Command_Buffer *cmd_buffer, RHI_Command_Type type);
+internal void d3d12_command_list_deinit(RHI_Command_Buffer *cmd_buffer);
+internal void d3d12_command_list_begin(RHI_Command_Buffer *cmd_buffer);
 internal void d3d12_command_list_end(D3D12_Command_List *list);
 
 internal void d3d12_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
@@ -129,6 +129,7 @@ internal void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type
 internal void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 
 internal void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip_level, u32 array_slice);
+internal void d3d12_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline);
 internal void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 
 internal bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);

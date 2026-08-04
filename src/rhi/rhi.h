@@ -35,6 +35,7 @@ struct RHI_Device {
 struct RHI_Command_Buffer {
     RHI_Kind kind;
     RHI_Command_Type type;
+    RHI_Device *my_device;
     union {
         D3D12_Command_List d3d12;
     };
@@ -315,6 +316,7 @@ internal bool rhi_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_
 internal void rhi_pipeline_deinit(RHI_Pipeline *pipeline);
 
 internal void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice);
+internal void rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline);
 internal void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 
 #endif // RTS_RHI_H

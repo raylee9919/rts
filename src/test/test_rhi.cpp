@@ -198,7 +198,7 @@ int main_entry(int argc, char **argv)
 
             rhi_pass_begin(cmd_buffer, &pass);
             {
-
+                rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
             }
             rhi_pass_end(cmd_buffer, &pass);
 
@@ -208,6 +208,7 @@ int main_entry(int argc, char **argv)
 
             rhi_submit(device, 1, &cmd_buffer);
 
+            // @Temporary
             rhi_semaphore_signal(device, RHI_COMMAND_TYPE_GRAPHICS, &semaphore, current_frame_index);
             rhi_semaphore_wait(&semaphore, current_frame_index, RHI_INFINITE);
             current_frame_index += 1;
