@@ -34,7 +34,7 @@ if not defined build_fbx if not defined build_rts if not defined test (
 )
 
 set compiler=cl
-set flags_common=/std:c++17 /nologo /FC /Zi /EHsc- /utf-8 /I..\src
+set flags_common=/std:c++14 /nologo /FC /Zi /EHsc- /utf-8 /I..\src
 set flags_debug=/Od /DBUILD_DEBUG=1
 set flags_release=/O2 /DBUILD_DEBUG=0
 :: 4100: unreferenced formal parameter

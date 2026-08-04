@@ -523,3 +523,12 @@ String tprint(char *fmt, ...) {
     va_end(args);
     return result;
 }
+
+String tprint(String fmt, ...) {
+    String result = {};
+    va_list args;
+    va_start(args, fmt);
+    result = tprint((char *)fmt.str, args);
+    va_end(args);
+    return result;
+}

@@ -11,12 +11,50 @@
 #include "rhi/include.cpp"
 
 OS_Handle window;
-bool should_close    = false;
-u32 surface_width    = 1920;
-u32 surface_height   = 1080;
-u32 num_back_buffers = 3;
-
+bool should_close       = false;
+u32 surface_width       = 1920;
+u32 surface_height      = 1080;
+u32 num_back_buffers    = 3;
 u64 current_frame_index = 0;
+
+
+String shader_source = S(R"(
+    // Copyright Seong Woo Lee. All Rights Reserved.
+
+    struct Push_Constants {
+        uint vertex_buffer_id;
+    };
+    ConstantBuffer<Push_Constants> push : register(b0);
+
+    struct Vertex {
+        float3 position;
+        float4 color;
+    };
+    
+    struct PS_Input {
+        float4 sv_position : SV_POSITION;
+        float3 position    : POSITION;
+        float4 color       : COLOR;
+    };
+    
+    PS_Input main_vs(uint vertex_id : SV_VertexID) {
+        PS_Input result;
+
+        StructuredBuffer<Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
+        Vertex vert = vertex_buffer[vertex_id];
+
+        result.sv_position = float4(vert.position, 1.0);
+        result.position    = vert.position;
+        result.color       = vert.color;
+
+        return result;
+    }
+    
+    float4 main_ps(PS_Input input) {
+        return input.color;
+    }
+)");
+
 
 int main_entry(int argc, char **argv)
 {
@@ -29,27 +67,30 @@ int main_entry(int argc, char **argv)
     RHI_Semaphore semaphore = {};
     Assert(rhi_semaphore_create(device, &semaphore));
 
-    RHI_Surface_Desc surface_desc = {};
-    {
-        surface_desc.native_window_handle = (void *)hwnd;
-        surface_desc.width                = surface_width;
-        surface_desc.height               = surface_height;
-        surface_desc.num_back_buffers     = num_back_buffers;
-    }
     auto *surface = (RHI_Surface *)alloc(sizeof(RHI_Surface));
-    Assert(rhi_surface_init(device, surface, &surface_desc));
-
+    {
+        RHI_Surface_Desc surface_desc = {};
+        {
+            surface_desc.native_window_handle = (void *)hwnd;
+            surface_desc.width                = surface_width;
+            surface_desc.height               = surface_height;
+            surface_desc.num_back_buffers     = num_back_buffers;
+        }
+        Assert(rhi_surface_init(device, surface, &surface_desc));
+    }
 
     RHI_Texture_View views[RHI_MAX_BACK_BUFFERS] = {};
-    for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) {
-        RHI_Texture_View_Desc view_desc = {};
-        {
-            view_desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
-            view_desc.dimension         = RHI_TEXTURE_TYPE_2D;
-            view_desc.format            = surface->textures[i].desc.format;
-            view_desc.base_mip_level    = 0;
+    {
+        for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) {
+            RHI_Texture_View_Desc view_desc = {};
+            {
+                view_desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
+                view_desc.dimension         = RHI_TEXTURE_TYPE_2D;
+                view_desc.format            = surface->textures[i].desc.format;
+                view_desc.base_mip_level    = 0;
+            }
+            rhi_texture_view_create(device, &views[i], &surface->textures[i], &view_desc);
         }
-        rhi_texture_view_create(device, &views[i], &surface->textures[i], &view_desc);
     }
 
 
@@ -86,7 +127,7 @@ int main_entry(int argc, char **argv)
         {
             rhi_command_buffer_begin(cmd_buffer);
 
-            RHI_Pass pass = {};
+            RHI_Pass pass = {}; // transient
             {
                 pass.num_color_attachments = 1;
                 pass.color_attachments[0].view    = views[surface->current_frame_index];
@@ -99,6 +140,7 @@ int main_entry(int argc, char **argv)
 
             rhi_pass_begin(cmd_buffer, &pass);
             {
+
             }
             rhi_pass_end(cmd_buffer, &pass);
 
@@ -114,7 +156,6 @@ int main_entry(int argc, char **argv)
 
             rhi_surface_present(surface);
         }
-
 
         clear_temporary_storage();
     }

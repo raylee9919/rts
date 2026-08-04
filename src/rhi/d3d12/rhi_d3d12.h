@@ -62,14 +62,14 @@ struct D3D12_Heap {
 };
 
 struct D3D12_Device {
-    IDXGIFactory6           *dxgi_factory_6;
-    ID3D12Device            *device_0;
-    ID3D12Device10          *device_10;
+    IDXGIFactory6          *dxgi_factory_6;
+    ID3D12Device           *device_0;
+    ID3D12Device10         *device_10;
 
     HMODULE                 dxgi_debug_dll_handle;
-    IDXGIDebug              *dxgi_debug;
+    IDXGIDebug             *dxgi_debug;
 
-    ID3D12InfoQueue1        *info_queue_1;
+    ID3D12InfoQueue1       *info_queue_1;
     bool                    break_on_warning;
     DWORD                   callback_cookie;
 
@@ -79,6 +79,8 @@ struct D3D12_Device {
     D3D12_Descriptor_Heap   dsv_heap;
     D3D12_Descriptor_Heap   resource_heap;
     D3D12_Descriptor_Heap   sampler_heap;
+
+    ID3D12RootSignature    *global_root_signature;
 };
 
 struct D3D12_Surface {
@@ -115,6 +117,7 @@ internal void d3d12_texture_view_destroy(RHI_Texture_View *view);
 
 internal bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void d3d12_surface_present(RHI_Surface *surface);
+internal void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height);
 
 internal bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence);
 internal void d3d12_fence_destroy(RHI_Semaphore *fence);

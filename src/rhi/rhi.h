@@ -238,6 +238,7 @@ internal void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd
 
 internal bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void rhi_surface_present(RHI_Surface *surface);
+internal void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height);
 
 internal bool rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
 internal void rhi_texture_destroy(RHI_Texture *texture);

@@ -102,6 +102,7 @@ bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc
     surface->desc = *desc;
 
     if (!(desc->num_back_buffers > 0 && desc->num_back_buffers <= RHI_MAX_BACK_BUFFERS)) {
+        log(S("Number of backbuffers must be less or equal than %d."), RHI_MAX_BACK_BUFFERS);
         return false;
     }
 
@@ -120,6 +121,18 @@ void rhi_surface_present(RHI_Surface *surface) {
     switch (surface->kind) {
         case RHI_KIND_D3D12:
             d3d12_surface_present(surface);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
+    switch (surface->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_surface_resize(surface, width, height);
             break;
 
         default:

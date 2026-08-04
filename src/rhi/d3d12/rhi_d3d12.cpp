@@ -1,7 +1,9 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+// @Todo: Allocator
+
 static void d3d12_log_message(D3D12_MESSAGE_SEVERITY severity, LPCSTR description) {
-    String s = {};
+    String s = S("N/A");
 
     switch (severity) {
         case D3D12_MESSAGE_SEVERITY_CORRUPTION:
@@ -32,7 +34,6 @@ static void d3d12_log_message(D3D12_MESSAGE_SEVERITY severity, LPCSTR descriptio
 }
 
 static void d3d12_flush_messages(ID3D12InfoQueue1 *info_queue) {
-    // @Todo: Use temp allocator?
     if (info_queue) {
         D3D12_MESSAGE *msg = NULL;
         u64 num = info_queue->GetNumStoredMessagesAllowedByRetrievalFilter();
@@ -257,6 +258,8 @@ static void d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) {
 // Device
 //
 bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
+    // @Todo: Cleanup on failure.
+    bool result = false;
     HRESULT hr = S_OK;
     auto *d3d12 = &device->d3d12;
 
@@ -264,6 +267,9 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     ID3D12Debug      *debug_interface   = NULL;
     ID3D12Debug5     *debug_interface_5 = NULL;
     ID3D12InfoQueue1 *info_queue_1      = NULL;
+    ID3DBlob         *signature_blob    = NULL;
+    ID3DBlob         *error_blob        = NULL;
+
 
     d3d12->break_on_warning = break_on_warning;
 
@@ -395,10 +401,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     }
 
 
-    {
-        //
-        // Check for enhanced barrier feature support.
-        //
+    { // Check for enhanced barrier feature support.
         D3D12_FEATURE_DATA_D3D12_OPTIONS12 options12 = {};
         hr = device_0->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &options12, sizeof(options12));
 
@@ -443,12 +446,47 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     }
 
 
-    // Cleanup
-    RHI_SAFE_RELEASE(&adapter_1);
+    { // Create bindless global root signature.
+        D3D12_ROOT_PARAMETER root_params[1] = {};
+        {
+            root_params[0].ParameterType            = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+            root_params[0].Constants.Num32BitValues = 32; // 128-bytes
+            root_params[0].Constants.RegisterSpace  = 0;
+            root_params[0].Constants.ShaderRegister = 0;
+        }
 
+        D3D12_ROOT_SIGNATURE_DESC root_signature_desc = {};
+        {
+            root_signature_desc.NumParameters = array_count(root_params);
+            root_signature_desc.pParameters   = root_params;
+            root_signature_desc.Flags         = (D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED | 
+                                                 D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED     | 
+                                                 D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+        }
+
+        hr = D3D12SerializeRootSignature(&root_signature_desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature_blob, &error_blob);
+        if (FAILED(hr)) {
+            log(S("HRESULT: %S, %x. D3D12SerializeRootSignature failed. Error blob says %s."), win32_string_from_hresult(hr), hr, error_blob ? error_blob->GetBufferPointer() : "none");
+            return false;
+        }
+
+        hr = device->d3d12.device_10->CreateRootSignature(0, signature_blob->GetBufferPointer(), signature_blob->GetBufferSize(), IID_PPV_ARGS(&device->d3d12.global_root_signature));
+
+        if (FAILED(hr)) {
+            log(S("HRESULT: %S, %x. CreateRootSignature failed."), win32_string_from_hresult(hr), hr);
+            goto lb_fail;
+        }
+    }
 
     log(S("Initialized d3d12 device."));
-    return true;
+    result = true;
+
+lb_fail:
+    RHI_SAFE_RELEASE(&signature_blob);
+    RHI_SAFE_RELEASE(&error_blob);
+    RHI_SAFE_RELEASE(&adapter_1);
+
+    return result;
 }
 
 void d3d12_device_deinit(RHI_Device *device) {
@@ -487,6 +525,8 @@ void d3d12_device_deinit(RHI_Device *device) {
         RHI_SAFE_RELEASE(&d->info_queue_1);
     }
 
+
+    RHI_SAFE_RELEASE(&d->global_root_signature);
 
 
     if (d->dxgi_debug_dll_handle) {
@@ -1105,6 +1145,26 @@ void d3d12_surface_present(RHI_Surface *surface) {
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }
 
+void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
+    for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
+        RHI_SAFE_RELEASE(&surface->textures[i].d3d12.resource);
+    }
+
+    DXGI_SWAP_CHAIN_DESC1 desc = {};
+    surface->d3d12.swap_chain_4->GetDesc1(&desc);
+    surface->d3d12.swap_chain_4->ResizeBuffers(surface->desc.num_back_buffers, width, height, desc.Format, desc.Flags);
+
+    for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
+        surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&surface->textures[i].d3d12.resource));
+        surface->textures[i].desc.width  = width;
+        surface->textures[i].desc.height = height;
+    }
+
+    surface->desc.width          = width;
+    surface->desc.height         = height;
+    surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
+}
+
 
 //
 // Fence
@@ -1122,7 +1182,7 @@ bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
 
     fence->d3d12.event = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    log(S("Created d3d12 fence."));
+    log(S("Initialized d3d12 fence."));
     return true;
 }
 
@@ -1133,7 +1193,7 @@ void d3d12_fence_destroy(RHI_Semaphore *fence) {
         fence->d3d12.event = {};
     }
 
-    log(S("Destroyed d3d12 fence."));
+    log(S("Deinitialized d3d12 fence."));
 }
 
 void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout) {
@@ -1151,26 +1211,36 @@ static D3D12_BARRIER_LAYOUT d3d12_barrier_layout_from_rhi(RHI_Resource_State sta
     switch (state) {
         case RHI_RESOURCE_STATE_COMMON:
             return D3D12_BARRIER_LAYOUT_COMMON;
+
         case RHI_RESOURCE_STATE_RENDER_TARGET:
             return D3D12_BARRIER_LAYOUT_RENDER_TARGET;
+
         case RHI_RESOURCE_STATE_UNORDERED_ACCESS:
             return D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS;
+
         case RHI_RESOURCE_STATE_DEPTH_WRITE:
             return D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_WRITE;
+
         case RHI_RESOURCE_STATE_DEPTH_READ:
             return D3D12_BARRIER_LAYOUT_DEPTH_STENCIL_READ;
+
         case RHI_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
         case RHI_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
         case RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE:
             return D3D12_BARRIER_LAYOUT_SHADER_RESOURCE;
+
         case RHI_RESOURCE_STATE_COPY_DEST:
             return D3D12_BARRIER_LAYOUT_COPY_DEST;
+
         case RHI_RESOURCE_STATE_COPY_SOURCE:
             return D3D12_BARRIER_LAYOUT_COPY_SOURCE;
+
         case RHI_RESOURCE_STATE_GENERIC_READ:
             return D3D12_BARRIER_LAYOUT_GENERIC_READ;
+
         case RHI_RESOURCE_STATE_PRESENT:
             return D3D12_BARRIER_LAYOUT_PRESENT;
+
         default:
             return D3D12_BARRIER_LAYOUT_COMMON;
     }
@@ -1180,34 +1250,48 @@ static D3D12_BARRIER_SYNC d3d12_barrier_sync_from_rhi(RHI_Resource_State state) 
     switch (state) {
         case RHI_RESOURCE_STATE_COMMON:
             return D3D12_BARRIER_SYNC_ALL;
+
         case RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER:
             return D3D12_BARRIER_SYNC_ALL_SHADING;
+
         case RHI_RESOURCE_STATE_INDEX_BUFFER:
             return D3D12_BARRIER_SYNC_INDEX_INPUT;
+
         case RHI_RESOURCE_STATE_RENDER_TARGET:
             return D3D12_BARRIER_SYNC_RENDER_TARGET;
+
         case RHI_RESOURCE_STATE_UNORDERED_ACCESS:
             return D3D12_BARRIER_SYNC_ALL_SHADING;
+
         case RHI_RESOURCE_STATE_DEPTH_WRITE:
         case RHI_RESOURCE_STATE_DEPTH_READ:
             return D3D12_BARRIER_SYNC_DEPTH_STENCIL;
+
         case RHI_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
             return D3D12_BARRIER_SYNC_NON_PIXEL_SHADING;
+
         case RHI_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
             return D3D12_BARRIER_SYNC_PIXEL_SHADING;
+
         case RHI_RESOURCE_STATE_INDIRECT_ARGUMENT:
             return D3D12_BARRIER_SYNC_EXECUTE_INDIRECT;
+
         case RHI_RESOURCE_STATE_COPY_DEST:
         case RHI_RESOURCE_STATE_COPY_SOURCE:
             return D3D12_BARRIER_SYNC_COPY;
+
         case RHI_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE:
             return D3D12_BARRIER_SYNC_RAYTRACING | D3D12_BARRIER_SYNC_BUILD_RAYTRACING_ACCELERATION_STRUCTURE | D3D12_BARRIER_SYNC_COPY_RAYTRACING_ACCELERATION_STRUCTURE;
+
         case RHI_RESOURCE_STATE_GENERIC_READ:
             return D3D12_BARRIER_SYNC_ALL_SHADING | D3D12_BARRIER_SYNC_INDEX_INPUT | D3D12_BARRIER_SYNC_EXECUTE_INDIRECT | D3D12_BARRIER_SYNC_COPY;
+
         case RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE:
             return D3D12_BARRIER_SYNC_ALL_SHADING;
+
         case RHI_RESOURCE_STATE_PRESENT:
             return D3D12_BARRIER_SYNC_ALL;
+
         default:
             return D3D12_BARRIER_SYNC_ALL;
     }
@@ -1217,35 +1301,49 @@ static D3D12_BARRIER_ACCESS d3d12_barrier_access_from_rhi(RHI_Resource_State sta
     switch (state) {
         case RHI_RESOURCE_STATE_COMMON:
             return D3D12_BARRIER_ACCESS_COMMON;
+
         case RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER:
             return D3D12_BARRIER_ACCESS_VERTEX_BUFFER | D3D12_BARRIER_ACCESS_CONSTANT_BUFFER;
+
         case RHI_RESOURCE_STATE_INDEX_BUFFER:
             return D3D12_BARRIER_ACCESS_INDEX_BUFFER;
+
         case RHI_RESOURCE_STATE_RENDER_TARGET:
             return D3D12_BARRIER_ACCESS_RENDER_TARGET;
+
         case RHI_RESOURCE_STATE_UNORDERED_ACCESS:
             return D3D12_BARRIER_ACCESS_UNORDERED_ACCESS;
+
         case RHI_RESOURCE_STATE_DEPTH_WRITE:
             return D3D12_BARRIER_ACCESS_DEPTH_STENCIL_WRITE;
+
         case RHI_RESOURCE_STATE_DEPTH_READ:
             return D3D12_BARRIER_ACCESS_DEPTH_STENCIL_READ;
+
         case RHI_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
         case RHI_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
         case RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE:
             return D3D12_BARRIER_ACCESS_SHADER_RESOURCE;
+
         case RHI_RESOURCE_STATE_INDIRECT_ARGUMENT:
             return D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT;
+
         case RHI_RESOURCE_STATE_COPY_DEST:
             return D3D12_BARRIER_ACCESS_COPY_DEST;
+
         case RHI_RESOURCE_STATE_COPY_SOURCE:
             return D3D12_BARRIER_ACCESS_COPY_SOURCE;
+
         case RHI_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE:
             return D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_READ | D3D12_BARRIER_ACCESS_RAYTRACING_ACCELERATION_STRUCTURE_WRITE;
+
         case RHI_RESOURCE_STATE_GENERIC_READ:
             return D3D12_BARRIER_ACCESS_VERTEX_BUFFER | D3D12_BARRIER_ACCESS_CONSTANT_BUFFER | D3D12_BARRIER_ACCESS_INDEX_BUFFER |
                    D3D12_BARRIER_ACCESS_SHADER_RESOURCE | D3D12_BARRIER_ACCESS_INDIRECT_ARGUMENT | D3D12_BARRIER_ACCESS_COPY_SOURCE;
+
         case RHI_RESOURCE_STATE_PRESENT:
             return D3D12_BARRIER_ACCESS_COMMON;
+
         default:
             return D3D12_BARRIER_ACCESS_COMMON;
     }
