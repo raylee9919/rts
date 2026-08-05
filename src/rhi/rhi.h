@@ -54,6 +54,39 @@ struct RHI_Heap {
 
 
 //
+// Buffer
+//
+struct RHI_Buffer_Desc {
+    RHI_Memory_Type memory_type;
+    u64             size;
+};
+
+struct RHI_Buffer {
+    RHI_Kind kind;
+    RHI_Buffer_Desc desc;
+    union {
+        D3D12_Buffer d3d12;
+    };
+};
+
+struct RHI_Buffer_View_Desc {
+    RHI_Buffer_View_Type type;
+    b32 writable; // things might be adjusted when tons of threads write simultaneously
+    u64 stride;   // for structured buffer
+    u64 offset;   // offset of first element in the buffer
+    u64 size;     // portion of the buffer
+};
+
+struct RHI_Buffer_View {
+    RHI_Kind kind;
+    RHI_Buffer_View_Desc desc;
+    union {
+        D3D12_Descriptor d3d12;
+    };
+};
+
+
+//
 // Texture
 //
 enum RHI_Texture_Type {
@@ -152,18 +185,6 @@ struct RHI_Texture_View {
 
 
 //
-// Buffer
-//
-struct RHI_Buffer {
-
-};
-
-struct RHI_Buffer_View {
-
-};
-
-
-//
 // Surface
 //
 struct RHI_Surface_Desc {
@@ -207,6 +228,7 @@ struct RHI_Attachment {
         f32 clear_depth;
     };
 };
+
 
 struct RHI_Pass {
     RHI_Attachment color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
@@ -254,7 +276,6 @@ struct RHI_Pipeline_Desc {
     RHI_Blend_Op        blend_op_alpha[RHI_MAX_COLOR_ATTACHMENTS];
 
     // Raster State
-    b32                 front_face_ccw;
     RHI_Fill_Mode       fill_mode;
     RHI_Cull_Mode       cull_mode;
     b32                 depth_clip;
@@ -283,40 +304,53 @@ struct RHI_Pipeline {
 //
 // API
 //
-internal bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
-internal void rhi_device_deinit(RHI_Device *device);
+internal bool  rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
+internal void  rhi_device_deinit(RHI_Device *device);
 
-internal bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *cmd, RHI_Command_Type type);
-internal void rhi_command_buffer_deinit(RHI_Command_Buffer *cmd_buffer);
-internal void rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer);
-internal void rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer);
+internal bool  rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *cmd, RHI_Command_Type type);
+internal void  rhi_command_buffer_deinit(RHI_Command_Buffer *cmd_buffer);
+internal void  rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer);
+internal void  rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer);
 
-internal void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
+internal void  rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
 
-internal bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
-internal void rhi_surface_present(RHI_Surface *surface);
-internal void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height);
+internal bool  rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
+internal void  rhi_surface_present(RHI_Surface *surface);
+internal void  rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height);
 
-internal bool rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-internal void rhi_texture_destroy(RHI_Texture *texture);
+internal bool  rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap);
+internal void  rhi_buffer_deinit(RHI_Buffer *buffer);
+internal void *rhi_buffer_map(RHI_Buffer *buffer);
+internal void  rhi_buffer_unmap(RHI_Buffer *buffer);
+internal void  rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc);
+internal void  rhi_buffer_view_deinit(RHI_Buffer_View *view);
 
-internal void rhi_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
-internal void rhi_texture_view_destroy(RHI_Texture_View *view);
+internal bool  rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
+internal void  rhi_texture_destroy(RHI_Texture *texture);
 
-internal void rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
-internal void rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
+internal bool  rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
+internal void  rhi_texture_destroy(RHI_Texture *texture);
 
-internal bool rhi_semaphore_create(RHI_Device *device, RHI_Semaphore *semaphore);
-internal void rhi_semaphore_destroy(RHI_Semaphore *semaphore);
-internal void rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout);
-internal void rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
-internal void rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+internal void  rhi_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
+internal void  rhi_texture_view_destroy(RHI_Texture_View *view);
 
-internal bool rhi_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
-internal void rhi_pipeline_deinit(RHI_Pipeline *pipeline);
+internal void  rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
+internal void  rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 
-internal void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice);
-internal void rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline);
-internal void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
+internal bool  rhi_semaphore_create(RHI_Device *device, RHI_Semaphore *semaphore);
+internal void  rhi_semaphore_destroy(RHI_Semaphore *semaphore);
+internal void  rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout);
+internal void  rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+internal void  rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+
+internal bool  rhi_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
+internal void  rhi_pipeline_deinit(RHI_Pipeline *pipeline);
+
+internal void  rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice);
+internal void  rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline);
+internal void  rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, float y, float width, float height, float min_depth, float max_depth);
+internal void  rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height);
+internal void  rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
+internal void  rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size);
 
 #endif // RTS_RHI_H

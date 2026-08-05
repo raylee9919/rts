@@ -16,6 +16,10 @@
 struct RHI_Device;
 struct RHI_Command_Buffer;
 struct RHI_Pass;
+struct RHI_Buffer;
+struct RHI_Buffer_Desc;
+struct RHI_Buffer_View;
+struct RHI_Buffer_View_Desc;
 struct RHI_Texture;
 struct RHI_Texture_Desc;
 struct RHI_Texture_View;
@@ -37,6 +41,14 @@ enum {
     RHI_COMMAND_TYPE_COUNT
 };
 
+enum RHI_Memory_Type {
+    RHI_MEMORY_TYPE_INVALID = 0,
+
+    RHI_MEMORY_TYPE_GPU_ONLY,   // Suitable for the fastest GPU access.
+    RHI_MEMORY_TYPE_CPU_TO_GPU, // Suitable for per-frame data upload to GPU.
+    RHI_MEMORY_TYPE_GPU_TO_CPU, // Suitable for read back from GPU.
+};
+
 enum RHI_Resource_State {
     RHI_RESOURCE_STATE_COMMON,
     RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
@@ -56,8 +68,17 @@ enum RHI_Resource_State {
     RHI_RESOURCE_STATE_PRESENT
 };
 
+enum RHI_Buffer_View_Type {
+    RHI_BUFFER_VIEW_TYPE_INVALID = 0,
+
+    RHI_BUFFER_VIEW_TYPE_RAW,
+    RHI_BUFFER_VIEW_TYPE_STRUCTURED,
+    RHI_BUFFER_VIEW_TYPE_CONSTANT,
+};
+
 enum RHI_Pipeline_Type {
-    RHI_PIPELINE_TYPE_INVALID = 0,
+    // We want pipeline type to be explicitly set.
+    RHI_PIPELINE_TYPE_INVALID = 0, 
 
     RHI_PIPELINE_TYPE_GRAPHICS,
     RHI_PIPELINE_TYPE_COMPUTE,
@@ -113,14 +134,14 @@ enum RHI_Blend_Op {
 };
 
 enum RHI_Fill_Mode {
-    RHI_FILL_MODE_SOLID,
-    RHI_FILL_MODE_WIREFRAME,
+    RHI_FILL_SOLID = 0,
+    RHI_FILL_WIREFRAME,
 };
 
 enum RHI_Cull_Mode {
-    RHI_CULL_MODE_NONE,
-    RHI_CULL_MODE_FRONT,
-    RHI_CULL_MODE_BACK,
+    RHI_CULL_NONE = 0,
+    RHI_CULL_CW,
+    RHI_CULL_CCW,
 };
 
 #endif // RHI_ENUM

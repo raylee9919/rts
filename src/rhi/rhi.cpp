@@ -143,6 +143,86 @@ void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
 
 
 //
+// Buffer
+//
+bool rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap) {
+    buffer->kind = device->kind;
+    buffer->desc = *desc;
+
+    switch (device->kind) {
+        case RHI_KIND_D3D12:
+            return d3d12_buffer_init(device, buffer, desc, heap);
+
+        default:
+            Assert(0);
+            return false;
+    }
+}
+
+void rhi_buffer_deinit(RHI_Buffer *buffer) {
+    switch (buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_buffer_deinit(buffer);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void *rhi_buffer_map(RHI_Buffer *buffer) {
+    switch (buffer->kind) {
+        case RHI_KIND_D3D12:
+            return d3d12_buffer_map(buffer);
+
+        default:
+            Assert(0);
+            return NULL;
+    }
+}
+
+void rhi_buffer_unmap(RHI_Buffer *buffer) {
+    switch (buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_buffer_unmap(buffer);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc) {
+    view->kind = device->kind;
+    view->desc = *desc;
+
+    switch (device->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_buffer_view_init(device, view, buffer, desc);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_buffer_view_deinit(RHI_Buffer_View *view) {
+    switch (view->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_buffer_view_deinit(view);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+
+//
 // Texture
 //
 bool rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
@@ -347,10 +427,46 @@ void rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline
     }
 }
 
+void rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, float y, float width, float height, float min_depth, float max_depth) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_set_viewport(cmd_buffer, x, y, width, height, min_depth, max_depth);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_set_scissor(cmd_buffer, x, y, width, height);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
 void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance) {
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
             d3d12_cmd_draw(cmd_buffer, num_vertices, num_instances, first_vertex, first_instance);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
+void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_push_constants(cmd_buffer, data, size);
             break;
 
         default:

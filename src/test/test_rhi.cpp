@@ -19,6 +19,24 @@ u32 surface_height      = 1080;
 u32 num_back_buffers    = 3;
 u64 current_frame_index = 0;
 
+struct Vertex {
+    v3 position;
+    v4 color;
+};
+
+Vertex vertices[3] = {
+    { v3(-0.5f, -0.5f, 0.0f), v4(1.0f, 0.0f, 0.0f, 1.0f) },
+    { v3( 0.5f, -0.5f, 0.0f), v4(0.0f, 1.0f, 0.0f, 1.0f) },
+    { v3( 0.0f,  0.5f, 0.0f), v4(0.0f, 0.0f, 1.0f, 1.0f) }
+};
+
+u32 indices[3] = {
+    0, 1, 2
+};
+
+struct Constants {
+    u32 vertex_buffer_id;
+};
 
 String shader_source = S(R"(
     // Copyright Seong Woo Lee. All Rights Reserved.
@@ -30,17 +48,18 @@ String shader_source = S(R"(
 
     struct Vertex {
         float3 position;
+        float  padding;
         float4 color;
     };
     
-    struct PS_Input {
+    struct VS_Output {
         float4 sv_position : SV_POSITION;
         float3 position    : POSITION;
         float4 color       : COLOR;
     };
     
-    PS_Input main_vs(uint vertex_id : SV_VertexID) {
-        PS_Input result;
+    VS_Output main_vs(uint vertex_id : SV_VertexID) {
+        VS_Output result;
 
         StructuredBuffer<Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
         Vertex vert = vertex_buffer[vertex_id];
@@ -52,7 +71,7 @@ String shader_source = S(R"(
         return result;
     }
     
-    float4 main_ps(PS_Input input) : SV_TARGET {
+    float4 main_ps(VS_Output input) : SV_TARGET {
         return input.color;
     }
 )");
@@ -106,7 +125,7 @@ int main_entry(int argc, char **argv)
     RHI_Pipeline pipeline = {};
     Shader_Compile_Result vs = {};
     Shader_Compile_Result ps = {};
-    {
+    { // Create PSO
         // @Todo: Should I compile twice..?
         {
             Shader_Compile_Options vs_opts = {};
@@ -139,9 +158,9 @@ int main_entry(int argc, char **argv)
             desc.num_color_attachments       = 1;
             desc.color_attachment_formats[0] = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
 
-            desc.front_face_ccw = true;
-            desc.fill_mode      = RHI_FILL_MODE_SOLID;
-            desc.cull_mode      = RHI_CULL_MODE_BACK;
+            desc.fill_mode      = RHI_FILL_SOLID;
+            desc.cull_mode      = RHI_CULL_NONE;
+            desc.depth_clip     = true;
 
             desc.topology       = RHI_TOPOLOGY_TRIANGLES;
 
@@ -153,6 +172,35 @@ int main_entry(int argc, char **argv)
 
             rhi_pipeline_init(device, &pipeline, &desc);
         }
+    }
+
+
+    RHI_Buffer vertex_buffer           = {};
+    RHI_Buffer_View vertex_buffer_view = {};
+    { // Create vertex buffer and view.
+        u64 sz = align_up(sizeof(vertices), 16);
+
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_TYPE_CPU_TO_GPU;
+        desc.size        = sz;
+
+        Assert(rhi_buffer_init(device, &vertex_buffer, &desc, NULL));
+
+        // @Temporary
+        void *ptr = rhi_buffer_map(&vertex_buffer);
+        memcpy(ptr, vertices, sz);
+        rhi_buffer_unmap(&vertex_buffer);
+
+        RHI_Buffer_View_Desc view_desc = {};
+        {
+            view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
+            view_desc.writable = false;
+            view_desc.stride   = sizeof(Vertex);
+            view_desc.offset   = 0;
+            view_desc.size     = vertex_buffer.desc.size;
+        }
+
+        rhi_buffer_view_init(device, &vertex_buffer_view, &vertex_buffer, &view_desc);
     }
 
 
@@ -190,7 +238,7 @@ int main_entry(int argc, char **argv)
                 pass.num_color_attachments = 1;
                 pass.color_attachments[0].view    = views[surface->current_frame_index];
                 pass.color_attachments[0].load_op = RHI_LOAD_OP_CLEAR;
-                float color[4] = { 1.f, 0.f, 1.f, 1.f };
+                float color[4] = { 0.3f, 0.2f, 0.2f, 1.f };
                 memcpy(pass.color_attachments[0].clear_color, color, sizeof(color));
             }
 
@@ -199,6 +247,18 @@ int main_entry(int argc, char **argv)
             rhi_pass_begin(cmd_buffer, &pass);
             {
                 rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
+                rhi_cmd_set_viewport(cmd_buffer, 0.f, 0.f, 1920.f, 1080.f, 0.f, 1.f);
+                rhi_cmd_set_scissor(cmd_buffer, 0, 0, 1920, 1080);
+
+                Constants constants = {};
+                {
+                    constants.vertex_buffer_id = vertex_buffer_view.d3d12.index;
+                }
+            
+                rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
+
+                // @Todo: Bind index buffer
+                rhi_cmd_draw(cmd_buffer, 3, 1, 0, 0);
             }
             rhi_pass_end(cmd_buffer, &pass);
 

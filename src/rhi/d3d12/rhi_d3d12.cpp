@@ -5,6 +5,15 @@
 //
 // Translation
 //
+static D3D12_HEAP_TYPE d3d12_heap_type_from_rhi_memory_type(RHI_Memory_Type type) {
+    switch (type) {
+        case RHI_MEMORY_TYPE_GPU_ONLY:              return D3D12_HEAP_TYPE_DEFAULT;
+        case RHI_MEMORY_TYPE_CPU_TO_GPU:            return D3D12_HEAP_TYPE_UPLOAD;
+        case RHI_MEMORY_TYPE_GPU_TO_CPU:            return D3D12_HEAP_TYPE_READBACK;
+        default:                                    Assert(!"Undefined topology."); return {};
+    }
+}
+
 static D3D12_COMPARISON_FUNC d3d12_comparison_func_from_rhi_compare_op(RHI_Compare_Op op) {
     switch (op) {
         case RHI_COMPARE_OP_NONE:                   return D3D12_COMPARISON_FUNC_NONE;
@@ -16,7 +25,7 @@ static D3D12_COMPARISON_FUNC d3d12_comparison_func_from_rhi_compare_op(RHI_Compa
         case RHI_COMPARE_OP_NOT_EQUAL:              return D3D12_COMPARISON_FUNC_NOT_EQUAL;
         case RHI_COMPARE_OP_GREATER_EQUAL:          return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
         case RHI_COMPARE_OP_ALWAYS:                 return D3D12_COMPARISON_FUNC_ALWAYS;
-        default:                                    Assert(!"Undefined compare op."); return {};
+        default:                                    Assert(!"UndefineEd compare op."); return {};
     }
 }
 
@@ -70,18 +79,9 @@ static D3D12_BLEND_OP d3d12_blend_op_from_rhi(RHI_Blend_Op blend_op) {
 
 static D3D12_FILL_MODE d3d12_fill_mode_from_rhi(RHI_Fill_Mode mode) {
     switch (mode) {
-        case RHI_FILL_MODE_SOLID:                   return D3D12_FILL_MODE_SOLID;
-        case RHI_FILL_MODE_WIREFRAME:               return D3D12_FILL_MODE_WIREFRAME;
+        case RHI_FILL_SOLID:                        return D3D12_FILL_MODE_SOLID;
+        case RHI_FILL_WIREFRAME:                    return D3D12_FILL_MODE_WIREFRAME;
         default:                                    Assert(!"Undefined fill mode."); return {};
-    }
-}
-
-static D3D12_CULL_MODE d3d12_cull_mode_from_rhi(RHI_Cull_Mode mode) {
-    switch (mode) {
-        case RHI_CULL_MODE_NONE:                    return D3D12_CULL_MODE_NONE;
-        case RHI_CULL_MODE_FRONT:                   return D3D12_CULL_MODE_FRONT;
-        case RHI_CULL_MODE_BACK:                    return D3D12_CULL_MODE_BACK;
-        default:                                    Assert(!"Undefined cull mode."); return {};
     }
 }
 
@@ -120,7 +120,7 @@ static void d3d12_log_message(D3D12_MESSAGE_SEVERITY severity, LPCSTR descriptio
             break;
     }
 
-    log(level, S("[%S] %s"), s, description);
+    log(level, S("%S: %s"), s, description);
 }
 
 static void d3d12_flush_messages(ID3D12InfoQueue1 *info_queue) {
@@ -285,7 +285,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
     else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)         type_str = S("RTV");
     else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)         type_str = S("DSV");
 
-    log(LOG_INFO, S("Initialized d3d12 '%S' heap."), type_str);
+    log(LOG_INFO, S("Initialized d3d12 descriptor heap, type: %S"), type_str);
     return true;
 }
 
@@ -871,92 +871,50 @@ static D3D12_RESOURCE_FLAGS d3d12_resource_flags_from_texture_usage(RHI_Texture_
     return flags;
 }
 
-bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
-    D3D12_RESOURCE_DESC resource_desc = {};
-    {
-        resource_desc.Dimension         = d3d12_resource_dimension_from_rhi_texture_type(desc->type);
-        resource_desc.Alignment         = 0; // effectively 64KB.
-        resource_desc.Width             = desc->width;
-        resource_desc.Height            = desc->height;
-        resource_desc.DepthOrArraySize  = desc->depth;
-        resource_desc.MipLevels         = desc->mip_levels;
-        resource_desc.Format            = dxgi_texture_format_from_rhi(desc->format);
-        resource_desc.SampleDesc        = { 1, 0 };
-        resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        resource_desc.Flags             = d3d12_resource_flags_from_texture_usage(desc->usage);
-    }
-
-    if (heap) {
-        Assert(!"User heap not supported at the moment.");
-    } else {
-        D3D12_HEAP_PROPERTIES heap_prop = {};
-        heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-        HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE, 
-                                                                      &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
-                                                                      NULL, IID_PPV_ARGS(&texture->d3d12.resource));
-        if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), string_from_hresult(hr), hr);
-            return false;
-        }
-    }
-
-    log(LOG_INFO, S("Created d3d12 texture."));
-    return true;
-}
-
-void d3d12_texture_destroy(RHI_Texture *texture) {
-    // Make sure the texture isn't in flight!
-    SAFE_RELEASE(&texture->d3d12.resource);
-    log(LOG_INFO, S("Destroyed d3d12 texture."));
-}
-
-static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
+static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc_from_rhi_buffer_desc(RHI_Buffer_View_Desc *desc) {
     D3D12_SHADER_RESOURCE_VIEW_DESC result = {};
-    result.Format = dxgi_texture_format_from_rhi(desc->format);
-    result.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    result.ViewDimension            = D3D12_SRV_DIMENSION_BUFFER;
+    result.Shader4ComponentMapping  = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-    switch (desc->dimension) {
-        case RHI_TEXTURE_TYPE_1D: {
-            auto *t = &result.Texture1D;
-            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE1D;
-            t->MostDetailedMip      = desc->base_mip_level;
-            t->MipLevels            = desc->mip_levels;
-        } break;
+    if (desc->type == RHI_BUFFER_VIEW_TYPE_RAW) {
+        result.Format = DXGI_FORMAT_R32_TYPELESS;
+        result.Buffer.FirstElement        = desc->offset / 4;
+        result.Buffer.NumElements         = desc->size   / 4;
+        result.Buffer.StructureByteStride = 0;
+        result.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_RAW ;
+    } else if (desc->type == RHI_BUFFER_VIEW_TYPE_STRUCTURED) {
+        result.Format = DXGI_FORMAT_UNKNOWN;
+        result.Buffer.FirstElement        = desc->offset / desc->stride;
+        result.Buffer.NumElements         = desc->size   / desc->stride;
+        result.Buffer.StructureByteStride = desc->stride;
+        result.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_NONE;
+    } else {
+        Assert(!"Invalid buffer view type.");
+    }
 
-        case RHI_TEXTURE_TYPE_2D: {
-            auto *t = &result.Texture2D;
-            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2D;
-            t->MostDetailedMip      = desc->base_mip_level;
-            t->MipLevels            = desc->mip_levels;
-        } break;
+    return result;
+}
 
-        case RHI_TEXTURE_TYPE_2D_ARRAY: {
-            auto *t = &result.Texture2DArray;
-            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-            t->MostDetailedMip      = desc->base_mip_level;
-            t->MipLevels            = desc->mip_levels;
-            t->FirstArraySlice      = desc->base_array_slice;
-            t->ArraySize            = desc->depth;
-        } break;
+static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc_from_rhi_buffer_desc(RHI_Buffer_View_Desc *desc) {
+    D3D12_UNORDERED_ACCESS_VIEW_DESC result = {};
+    result.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 
-        case RHI_TEXTURE_TYPE_3D: {
-            auto *t = &result.Texture3D;
-            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE3D;
-            t->MostDetailedMip      = desc->base_mip_level;
-            t->MipLevels            = desc->mip_levels;
-        } break;
-
-        case RHI_TEXTURE_TYPE_CUBE: {
-            auto *t = &result.TextureCube;
-            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURECUBE;
-            t->MostDetailedMip      = desc->base_mip_level;
-            t->MipLevels            = desc->mip_levels;
-        } break;
-
-        default: {
-            Assert(!"Unknown texture dimension.");
-        } break;
+    if (desc->type == RHI_BUFFER_VIEW_TYPE_RAW) {
+        result.Format                      = DXGI_FORMAT_R32_TYPELESS;
+        result.Buffer.FirstElement         = desc->offset / 4;
+        result.Buffer.NumElements          = desc->size   / 4;
+        result.Buffer.StructureByteStride  = 0;
+        result.Buffer.CounterOffsetInBytes = 0;
+        result.Buffer.Flags                = D3D12_BUFFER_UAV_FLAG_RAW;
+    } else if (desc->type == RHI_BUFFER_VIEW_TYPE_STRUCTURED) {
+        result.Format                      = DXGI_FORMAT_UNKNOWN;
+        result.Buffer.FirstElement         = desc->offset / desc->stride;
+        result.Buffer.NumElements          = desc->size   / desc->stride;
+        result.Buffer.StructureByteStride  = desc->stride;
+        result.Buffer.CounterOffsetInBytes = 0;
+        result.Buffer.Flags                = D3D12_BUFFER_UAV_FLAG_NONE;
+    } else {
+        Assert(!"Invalid buffer view type.");
     }
 
     return result;
@@ -1089,6 +1047,181 @@ static D3D12_DEPTH_STENCIL_VIEW_DESC d3d12_dsv_desc(RHI_Texture_View_Desc *desc)
 
         default: {
             Assert(!"Invalid texture dimension.");
+        } break;
+    }
+
+    return result;
+}
+
+
+bool d3d12_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap) {
+    if (heap) {
+        Assert(!"Not implemented at the moment.");
+    } else {
+        D3D12_HEAP_PROPERTIES heap_prop = {};
+        heap_prop.Type = d3d12_heap_type_from_rhi_memory_type(desc->memory_type);
+
+        D3D12_CLEAR_VALUE *clear_value = NULL;
+
+        D3D12_RESOURCE_DESC resource_desc = {};
+        {
+            resource_desc.Dimension         = D3D12_RESOURCE_DIMENSION_BUFFER;
+            resource_desc.Alignment         = 0; // effectively 64KB
+            resource_desc.Width             = desc->size;
+            resource_desc.Height            = 1;
+            resource_desc.DepthOrArraySize  = 1;
+            resource_desc.MipLevels         = 1;
+            resource_desc.Format            = DXGI_FORMAT_UNKNOWN;
+            resource_desc.SampleDesc        = { 1, 0 };
+            resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+            // @Study: Is setting flags in buffers expensive?
+            resource_desc.Flags = (desc->memory_type == RHI_MEMORY_TYPE_CPU_TO_GPU || desc->memory_type == RHI_MEMORY_TYPE_GPU_TO_CPU ?
+                                    D3D12_RESOURCE_FLAG_NONE :
+                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        }
+
+        HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE,
+                                                                      &resource_desc, D3D12_RESOURCE_STATE_COMMON,
+                                                                      clear_value, IID_PPV_ARGS(&buffer->d3d12.resource));
+
+        if (FAILED(hr)) {
+            log(LOG_ERROR, S("ID3D12Device::CreateCommittedResource failed."));
+            return false;
+        }
+    }
+
+    log(LOG_INFO, S("Initialized d3d12 buffer."));
+    return true;
+}
+
+void d3d12_buffer_deinit(RHI_Buffer *buffer) {
+    if (buffer) {
+        SAFE_RELEASE(&buffer->d3d12.resource);
+    }
+    log(LOG_INFO, S("Deinitialized d3d12 buffer."));
+}
+
+void *d3d12_buffer_map(RHI_Buffer *buffer) {
+    void *ptr;
+    D3D12_RANGE read_range = { 0, 0 }; // No read.
+    buffer->d3d12.resource->Map(0, &read_range, &ptr);
+    return ptr;
+}
+
+void d3d12_buffer_unmap(RHI_Buffer *buffer) {
+    D3D12_RANGE written_range = { 0, buffer->desc.size };
+    buffer->d3d12.resource->Unmap(0, &written_range);
+}
+
+void d3d12_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc) {
+    ID3D12Resource *resource = buffer->d3d12.resource;
+
+    view->d3d12 = d3d12_descriptor_alloc(&device->d3d12.resource_heap);
+
+    if (desc->type == RHI_BUFFER_VIEW_TYPE_CONSTANT) {
+
+    } else {
+        if (desc->writable) {
+            auto uav_desc = d3d12_uav_desc_from_rhi_buffer_desc(desc);
+            device->d3d12.device_10->CreateUnorderedAccessView(resource, NULL, &uav_desc, view->d3d12.cpu_handle);
+        } else {
+            auto srv_desc = d3d12_srv_desc_from_rhi_buffer_desc(desc);
+            device->d3d12.device_10->CreateShaderResourceView(resource, &srv_desc, view->d3d12.cpu_handle);
+        }
+    }
+}
+
+void d3d12_buffer_view_deinit(RHI_Buffer_View *view) {
+    d3d12_descriptor_dealloc(&view->d3d12);
+    memset(view, 0, sizeof(*view));
+}
+
+bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
+    D3D12_RESOURCE_DESC resource_desc = {};
+    {
+        resource_desc.Dimension         = d3d12_resource_dimension_from_rhi_texture_type(desc->type);
+        resource_desc.Alignment         = 0; // effectively 64KB.
+        resource_desc.Width             = desc->width;
+        resource_desc.Height            = desc->height;
+        resource_desc.DepthOrArraySize  = desc->depth;
+        resource_desc.MipLevels         = desc->mip_levels;
+        resource_desc.Format            = dxgi_texture_format_from_rhi(desc->format);
+        resource_desc.SampleDesc        = { 1, 0 };
+        resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        resource_desc.Flags             = d3d12_resource_flags_from_texture_usage(desc->usage);
+    }
+
+    if (heap) {
+        Assert(!"User heap not supported at the moment.");
+    } else {
+        D3D12_HEAP_PROPERTIES heap_prop = {};
+        heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE, 
+                                                                      &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
+                                                                      NULL, IID_PPV_ARGS(&texture->d3d12.resource));
+        if (FAILED(hr)) {
+            log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), string_from_hresult(hr), hr);
+            return false;
+        }
+    }
+
+    log(LOG_INFO, S("Created d3d12 texture."));
+    return true;
+}
+
+void d3d12_texture_destroy(RHI_Texture *texture) {
+    // Make sure the texture isn't in flight!
+    SAFE_RELEASE(&texture->d3d12.resource);
+    log(LOG_INFO, S("Destroyed d3d12 texture."));
+}
+
+static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
+    D3D12_SHADER_RESOURCE_VIEW_DESC result = {};
+    result.Format = dxgi_texture_format_from_rhi(desc->format);
+    result.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    switch (desc->dimension) {
+        case RHI_TEXTURE_TYPE_1D: {
+            auto *t = &result.Texture1D;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE1D;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D: {
+            auto *t = &result.Texture2D;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2D;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        case RHI_TEXTURE_TYPE_2D_ARRAY: {
+            auto *t = &result.Texture2DArray;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+            t->FirstArraySlice      = desc->base_array_slice;
+            t->ArraySize            = desc->depth;
+        } break;
+
+        case RHI_TEXTURE_TYPE_3D: {
+            auto *t = &result.Texture3D;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE3D;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        case RHI_TEXTURE_TYPE_CUBE: {
+            auto *t = &result.TextureCube;
+            result.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURECUBE;
+            t->MostDetailedMip      = desc->base_mip_level;
+            t->MipLevels            = desc->mip_levels;
+        } break;
+
+        default: {
+            Assert(!"Unknown texture dimension.");
         } break;
     }
 
@@ -1449,6 +1582,7 @@ static D3D12_BARRIER_ACCESS d3d12_barrier_access_from_rhi(RHI_Resource_State sta
             return D3D12_BARRIER_ACCESS_COMMON;
     }
 }
+
 void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, 
                                RHI_Resource_State before, RHI_Resource_State after,
                                u32 mip, u32 slice) {
@@ -1494,8 +1628,32 @@ void d3d12_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeli
     cmd_buffer->d3d12.list_7->IASetPrimitiveTopology(d3d12_primitive_topology_from_rhi(pipeline->desc.topology));
 }
 
+void d3d12_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, float y, float width, float height, float min_depth, float max_depth) {
+    D3D12_VIEWPORT viewport = {};
+    viewport.TopLeftX = x;
+    viewport.TopLeftY = y;
+    viewport.Width    = width;
+    viewport.Height   = height;
+    viewport.MinDepth = min_depth;
+    viewport.MaxDepth = max_depth;
+	cmd_buffer->d3d12.list_7->RSSetViewports(1, &viewport);
+}
+
+void d3d12_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height) {
+    D3D12_RECT rect = {};
+    rect.left   = x;
+    rect.top    = y;
+    rect.right  = x + width;
+    rect.bottom = y + height;
+    cmd_buffer->d3d12.list_7->RSSetScissorRects(1, &rect);
+}
+
 void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance) {
     cmd_buffer->d3d12.list_7->DrawInstanced(num_vertices, num_instances, first_vertex, first_instance);
+}
+
+void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size) {
+    cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(0, size / 4, data, 0);
 }
 
 void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
@@ -1551,12 +1709,12 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
                             bs->SrcBlendAlpha          = d3d12_blend_factor_from_rhi(desc->blend_factor_alpha_src[i]);
                             bs->DestBlendAlpha         = d3d12_blend_factor_from_rhi(desc->blend_factor_alpha_dst[i]);
                             bs->BlendOpAlpha           = d3d12_blend_op_from_rhi(desc->blend_op_alpha[i]);
-
-                            bs->LogicOpEnable          = FALSE;
-                            bs->LogicOp                = D3D12_LOGIC_OP_NOOP;
-
-                            bs->RenderTargetWriteMask  = D3D12_COLOR_WRITE_ENABLE_ALL;
                         }
+
+                        bs->LogicOpEnable          = FALSE;
+                        bs->LogicOp                = D3D12_LOGIC_OP_NOOP;
+
+                        bs->RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
                     }
                 }
 
@@ -1566,8 +1724,8 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
             { // Raster State
                 auto *rs = &pipeline_desc.RasterizerState;
                 rs->FillMode                = d3d12_fill_mode_from_rhi(desc->fill_mode);
-                rs->CullMode                = d3d12_cull_mode_from_rhi(desc->cull_mode);
-                rs->FrontCounterClockwise   = desc->front_face_ccw;
+                rs->CullMode                = (desc->cull_mode != RHI_CULL_NONE) ? D3D12_CULL_MODE_BACK : D3D12_CULL_MODE_NONE;
+                rs->FrontCounterClockwise   = (desc->cull_mode == RHI_CULL_CCW) ? FALSE : TRUE;
                 rs->DepthBias               = 0;
                 rs->DepthBiasClamp          = 0.f;
                 rs->SlopeScaledDepthBias    = 0.f;
