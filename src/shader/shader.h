@@ -15,7 +15,6 @@ struct Shader_Compile_Options {
     Shader_Stage stage;
     String       entry;
     String       source;
-    b32          debug;
 };
 
 struct Shader_Compile_Result {
@@ -26,4 +25,4 @@ struct Shader_Compile_Result {
 
 internal bool shader_compiler_init(Shader_Compiler *compiler);
 internal void shader_compiler_deinit(Shader_Compiler *compiler);
-internal bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, Shader_Compile_Result *out_result, Allocator allocator);
+internal bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, bool debug, Shader_Compile_Result *out_result, Allocator allocator);

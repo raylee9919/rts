@@ -52,7 +52,7 @@ void shader_compiler_deinit(Shader_Compiler *compiler) {
 }
 
 // @Todo: Proper cleanup when failed.
-bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, 
+bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, bool debug, 
                     Shader_Compile_Result *out_result, Allocator allocator) {
     HRESULT hr = S_OK;
 
@@ -92,7 +92,7 @@ bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options,
         args[num_args++] = L"-Zpr";                     // Pack matrices in row-major order
 
 
-        if (options.debug) {
+        if (debug) {
             args[num_args++] = L"-Zi";                  // Enable debug information
             args[num_args++] = L"-Qembed_debug";        // Embed debug symbols
             args[num_args++] = L"-Od";                  // Disable optimization

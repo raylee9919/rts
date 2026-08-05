@@ -75,6 +75,7 @@ internal u32 utf16_encode(u16 *str, u32 codepoint);
 // Conversion.
 //
 internal String to_utf8(Arena *arena, Utf16 in);
+internal String to_utf8(Allocator allocator, Utf16 in);
 internal Utf16 to_utf16(Arena *arena, String in);
 internal Utf16 to_utf16(Allocator allocator, String in);
 

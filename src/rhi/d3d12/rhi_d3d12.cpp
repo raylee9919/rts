@@ -417,7 +417,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         DXGI_GPU_PREFERENCE preference = DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE;
         hr = dxgi_factory_6->EnumAdapterByGpuPreference(adapter_index, preference, IID_PPV_ARGS(&adapter_1));
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %x. 'IDXGIFactory6::EnumAdapterByGpuPreference()' failed."), hr);
+            log(LOG_ERROR, S("HRESULT: %x. IDXGIFactory6::EnumAdapterByGpuPreference() failed."), hr);
             return false;
         }
     }
@@ -1664,6 +1664,18 @@ void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_in
     cmd_buffer->d3d12.list_7->DrawInstanced(num_vertices, num_instances, first_vertex, first_instance);
 }
 
+void d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance) {
+    Assert(index_size == 2 || index_size == 4);
+
+    D3D12_INDEX_BUFFER_VIEW ibv = {};
+	ibv.BufferLocation = index_buffer->d3d12.resource->GetGPUVirtualAddress();
+	ibv.Format         = index_size == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT;
+	ibv.SizeInBytes    = index_buffer->desc.size;
+
+    cmd_buffer->d3d12.list_7->IASetIndexBuffer(&ibv);
+    cmd_buffer->d3d12.list_7->DrawIndexedInstanced(num_indices, num_instances, first_index, first_vertex, first_instance);
+}
+
 void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size) {
     cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(0, size / 4, data, 0);
 }
@@ -1741,7 +1753,7 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
                 rs->DepthBias               = 0;
                 rs->DepthBiasClamp          = 0.f;
                 rs->SlopeScaledDepthBias    = 0.f;
-                rs->DepthClipEnable         = desc->depth_clip;
+                rs->DepthClipEnable         = !desc->disable_depth_clip;
                 rs->MultisampleEnable       = FALSE;
                 rs->AntialiasedLineEnable   = FALSE;
                 rs->ForcedSampleCount       = 0;

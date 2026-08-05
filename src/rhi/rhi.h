@@ -279,7 +279,7 @@ struct RHI_Pipeline_Desc {
     // Raster State
     RHI_Fill_Mode       fill_mode;
     RHI_Cull_Mode       cull_mode;
-    b32                 depth_clip;
+    b32                 disable_depth_clip;
     b32                 conservative_raster;
 
     // Topology
@@ -352,6 +352,7 @@ internal void  rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline
 internal void  rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, float y, float width, float height, float min_depth, float max_depth);
 internal void  rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height);
 internal void  rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
+internal void  rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance);
 internal void  rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size);
 
 #endif // RTS_RHI_H

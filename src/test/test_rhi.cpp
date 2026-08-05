@@ -14,8 +14,8 @@
 
 OS_Handle window;
 bool should_close       = false;
-u32 surface_width       = 1920;
-u32 surface_height      = 1080;
+u32 SURFACE_WIDTH       = 1920;
+u32 SURFACE_HEIGHT      = 1080;
 u32 num_back_buffers    = 3;
 u64 current_frame_index = 0;
 
@@ -24,15 +24,18 @@ struct Vertex {
     v4 color;
 };
 
-Vertex vertices[3] = {
+Vertex vertices[] = {
     { v3(-0.5f, -0.5f, 0.0f), v4(1.0f, 0.0f, 0.0f, 1.0f) },
     { v3( 0.5f, -0.5f, 0.0f), v4(0.0f, 1.0f, 0.0f, 1.0f) },
-    { v3( 0.0f,  0.5f, 0.0f), v4(0.0f, 0.0f, 1.0f, 1.0f) }
+    { v3(-0.5f,  0.5f, 0.0f), v4(0.0f, 0.0f, 1.0f, 1.0f) },
+    { v3( 0.5f,  0.5f, 0.0f), v4(1.0f, 1.0f, 1.0f, 1.0f) },
 };
 
-u32 indices[3] = {
-    0, 1, 2
+u32 indices[] = {
+    0, 1, 2,
+    2, 1, 3
 };
+u32 num_indices = array_count(indices);
 
 struct Constants {
     u32 vertex_buffer_id;
@@ -96,8 +99,8 @@ int main_entry(int argc, char **argv)
         RHI_Surface_Desc surface_desc = {};
         {
             surface_desc.native_window_handle = (void *)hwnd;
-            surface_desc.width                = surface_width;
-            surface_desc.height               = surface_height;
+            surface_desc.width                = SURFACE_WIDTH;
+            surface_desc.height               = SURFACE_HEIGHT;
             surface_desc.num_back_buffers     = num_back_buffers;
         }
         Assert(rhi_surface_init(device, surface, &surface_desc));
@@ -134,9 +137,8 @@ int main_entry(int argc, char **argv)
                 vs_opts.stage  = SHADER_STAGE_VS;
                 vs_opts.entry  = S("main_vs");
                 vs_opts.source = shader_source;
-                vs_opts.debug  = true;
             }
-            Assert(shader_compile(compiler, vs_opts, &vs, tctx.allocator));
+            Assert(shader_compile(compiler, vs_opts, true, &vs, tctx.allocator));
 
 
             Shader_Compile_Options ps_opts = {};
@@ -145,9 +147,8 @@ int main_entry(int argc, char **argv)
                 ps_opts.stage  = SHADER_STAGE_PS;
                 ps_opts.entry  = S("main_ps");
                 ps_opts.source = shader_source;
-                ps_opts.debug  = true;
             }
-            Assert(shader_compile(compiler, ps_opts, &ps, tctx.allocator));
+            Assert(shader_compile(compiler, ps_opts, true, &ps, tctx.allocator));
         }
 
         {
@@ -160,7 +161,6 @@ int main_entry(int argc, char **argv)
 
             desc.fill_mode      = RHI_FILL_SOLID;
             desc.cull_mode      = RHI_CULL_NONE;
-            desc.depth_clip     = true;
 
             desc.topology       = RHI_TOPOLOGY_TRIANGLES;
 
@@ -177,8 +177,10 @@ int main_entry(int argc, char **argv)
 
     RHI_Buffer vertex_buffer           = {};
     RHI_Buffer_View vertex_buffer_view = {};
+    RHI_Buffer index_buffer = {};
+
     { // Create vertex buffer and view.
-        u64 sz = align_up(sizeof(vertices), 16);
+        u64 sz = sizeof(vertices);
 
         RHI_Buffer_Desc desc = {};
         desc.memory_type = RHI_MEMORY_TYPE_CPU_TO_GPU;
@@ -201,6 +203,21 @@ int main_entry(int argc, char **argv)
         }
 
         rhi_buffer_view_init(device, &vertex_buffer_view, &vertex_buffer, &view_desc);
+    }
+
+    { // Create index buffer.
+        u64 sz = sizeof(indices);
+
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_TYPE_CPU_TO_GPU;
+        desc.size        = sz;
+
+        Assert(rhi_buffer_init(device, &index_buffer, &desc, NULL));
+
+        // @Temporary
+        void *ptr = rhi_buffer_map(&index_buffer);
+        memcpy(ptr, indices, sz);
+        rhi_buffer_unmap(&index_buffer);
     }
 
 
@@ -247,8 +264,8 @@ int main_entry(int argc, char **argv)
             rhi_pass_begin(cmd_buffer, &pass);
             {
                 rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
-                rhi_cmd_set_viewport(cmd_buffer, 0.f, 0.f, 1920.f, 1080.f, 0.f, 1.f);
-                rhi_cmd_set_scissor(cmd_buffer, 0, 0, 1920, 1080);
+                rhi_cmd_set_viewport(cmd_buffer, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT, 0.f, 1.f);
+                rhi_cmd_set_scissor(cmd_buffer, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
 
                 Constants constants = {};
                 {
@@ -257,8 +274,7 @@ int main_entry(int argc, char **argv)
             
                 rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
 
-                // @Todo: Bind index buffer
-                rhi_cmd_draw(cmd_buffer, 3, 1, 0, 0);
+                rhi_cmd_draw_indexed(cmd_buffer, &index_buffer, sizeof(indices[0]), num_indices, 1, 0, 0, 0);
             }
             rhi_pass_end(cmd_buffer, &pass);
 

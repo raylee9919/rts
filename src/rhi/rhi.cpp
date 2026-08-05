@@ -463,6 +463,18 @@ void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_inst
     }
 }
 
+void rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance) {
+    switch (cmd_buffer->kind) {
+        case RHI_KIND_D3D12:
+            d3d12_cmd_draw_indexed(cmd_buffer, index_buffer, index_size, num_indices, num_instances, first_index, first_vertex, first_instance);
+            break;
+
+        default:
+            Assert(0);
+            break;
+    }
+}
+
 void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size) {
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:

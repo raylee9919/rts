@@ -309,11 +309,7 @@ utf16_encode(u16 *str, u32 codepoint)
     return(inc);
 }
 
-// # Note: Conversion.
-//
-internal String
-to_utf8(Arena *arena, Utf16 in)
-{
+String to_utf8(Arena *arena, Utf16 in) {
     String result = {};
     if (in.len)
     {
@@ -330,6 +326,28 @@ to_utf8(Arena *arena, Utf16 in)
         }
         str[size] = 0;
         arena_pop(arena, (cap - size));
+        result = utf8(str, size);
+    }
+    return result;
+}
+
+String to_utf8(Allocator allocator, Utf16 in) {
+    String result = {};
+    if (in.len)
+    {
+        u64 cap = in.len*3;
+        u8 *str = (u8 *)alloc(sizeof(u8)*(cap + 1), allocator);
+        u16 *ptr = in.str;
+        u16 *opl = ptr + in.len;
+        u64 size = 0;
+        Unicode_Decode consume;
+        for (;ptr < opl; ptr += consume.inc)
+        {
+            consume = utf16_decode(ptr, opl - ptr);
+            size += utf8_encode(str + size, consume.codepoint);
+        }
+        str[size] = 0;
+        //arena_pop(arena, (cap - size));
         result = utf8(str, size);
     }
     return result;
