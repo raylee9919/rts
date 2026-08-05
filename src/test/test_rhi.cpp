@@ -252,7 +252,7 @@ int main_entry(int argc, char **argv)
 
                 Constants constants = {};
                 {
-                    constants.vertex_buffer_id = vertex_buffer_view.d3d12.index;
+                    constants.vertex_buffer_id = vertex_buffer_view.bindless;
                 }
             
                 rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));

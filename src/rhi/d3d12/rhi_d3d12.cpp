@@ -297,12 +297,12 @@ static void d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap) {
 }
 
 static D3D12_Descriptor d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) {
-    int index = -1;
+    u32 index = 0xffffffff;
 
     // @Todo: One option to make it faster is making it hierarchical.
     for (u32 i = 0; i < heap->free_list_node_count; ++i) {
         u64 bits = heap->free_list[i];
-        u64 b = tzcnt64(bits);
+        u32 b = (u32)tzcnt64(bits);
         if (b < 64) {
             bits ^= (1ull << b);
             index = i * 64 + b;
@@ -312,7 +312,7 @@ static D3D12_Descriptor d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) {
     }
 
     // @Todo: grow?
-    Assert(index != -1);
+    Assert(index != 0xffffffff);
 
     int offset = index * heap->descriptor_size;
 
@@ -920,6 +920,13 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc_from_rhi_buffer_desc(RHI_
     return result;
 }
 
+static D3D12_CONSTANT_BUFFER_VIEW_DESC d3d12_cbv_desc_from_rhi_buffer_desc(RHI_Buffer_View_Desc *desc, RHI_Buffer *buffer) {
+    D3D12_CONSTANT_BUFFER_VIEW_DESC result = {};
+    result.BufferLocation = buffer->d3d12.resource->GetGPUVirtualAddress() + desc->offset;
+    result.SizeInBytes    = desc->size;
+    return result;
+}
+
 static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc(RHI_Texture_View_Desc *desc) {
     D3D12_UNORDERED_ACCESS_VIEW_DESC result = {};
     result.Format = dxgi_texture_format_from_rhi(desc->format);
@@ -1117,10 +1124,12 @@ void d3d12_buffer_unmap(RHI_Buffer *buffer) {
 void d3d12_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc) {
     ID3D12Resource *resource = buffer->d3d12.resource;
 
-    view->d3d12 = d3d12_descriptor_alloc(&device->d3d12.resource_heap);
+    view->d3d12    = d3d12_descriptor_alloc(&device->d3d12.resource_heap);
+    view->bindless = view->d3d12.index;
 
     if (desc->type == RHI_BUFFER_VIEW_TYPE_CONSTANT) {
-
+        auto cbv_desc = d3d12_cbv_desc_from_rhi_buffer_desc(desc, buffer);
+        device->d3d12.device_10->CreateConstantBufferView(&cbv_desc, view->d3d12.cpu_handle);
     } else {
         if (desc->writable) {
             auto uav_desc = d3d12_uav_desc_from_rhi_buffer_desc(desc);
@@ -1130,11 +1139,14 @@ void d3d12_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffe
             device->d3d12.device_10->CreateShaderResourceView(resource, &srv_desc, view->d3d12.cpu_handle);
         }
     }
+
+    log(LOG_INFO, S("Initialized d3d12 buffer view."));
 }
 
 void d3d12_buffer_view_deinit(RHI_Buffer_View *view) {
     d3d12_descriptor_dealloc(&view->d3d12);
     memset(view, 0, sizeof(*view));
+    log(LOG_INFO, S("Deinitialized d3d12 buffer view."));
 }
 
 bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {

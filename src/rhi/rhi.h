@@ -80,6 +80,7 @@ struct RHI_Buffer_View_Desc {
 struct RHI_Buffer_View {
     RHI_Kind kind;
     RHI_Buffer_View_Desc desc;
+    u32 bindless;
     union {
         D3D12_Descriptor d3d12;
     };

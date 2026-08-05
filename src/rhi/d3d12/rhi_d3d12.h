@@ -49,7 +49,7 @@ struct D3D12_Descriptor_Heap {
 
 struct D3D12_Descriptor {
     D3D12_DESCRIPTOR_HEAP_TYPE  type;
-    u64                         index; // index in the free list.
+    u32                         index; // index in the free list.
     D3D12_Descriptor_Heap       *my_heap;
     D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
     D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
