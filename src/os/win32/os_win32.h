@@ -21,7 +21,7 @@
 #pragma comment(lib, "winmm")
 #pragma comment(lib, "ole32")
 
-#define SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
+#define COM_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
 
 extern "C" 
 {
@@ -42,6 +42,7 @@ extern "C"
 //
 #pragma comment(lib, "d3d12")
 #include <ThirdParty/DirectX/Include/d3d12.h>
+#include <ThirdParty/DirectX/Include/d3d12shader.h>
 #include <ThirdParty/DirectX/Include/d3dx12/d3dx12.h>
 
 //

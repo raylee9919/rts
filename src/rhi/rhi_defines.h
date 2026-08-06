@@ -8,8 +8,8 @@
 #define RHI_MAX_COLOR_ATTACHMENTS   8
 #define RHI_SURFACE_FORMAT          RHI_TEXTURE_FORMAT_RGBA8_UNORM
 
-#define RHI_ALL_MIP_LEVELS          0xffffffff
-#define RHI_ALL_ARRAY_SLICES        0xffffffff
+#define RHI_ALL_MIPS                0xffffffff
+#define RHI_ALL_LAYERS              0xffffffff
 #define RHI_INFINITE                0xffffffff
 
 
@@ -24,12 +24,15 @@ struct RHI_Texture;
 struct RHI_Texture_Desc;
 struct RHI_Texture_View;
 struct RHI_Texture_View_Desc;
+struct RHI_Sampler;
+struct RHI_Sampler_Desc;
 struct RHI_Heap;
 struct RHI_Surface;
 struct RHI_Surface_Desc;
 struct RHI_Semaphore;
 struct RHI_Pipeline;
 struct RHI_Pipeline_Desc;
+struct RHI_Box;
 
 
 typedef u8 RHI_Command_Type;
@@ -42,11 +45,11 @@ enum {
 };
 
 enum RHI_Memory_Type {
-    RHI_MEMORY_TYPE_INVALID = 0,
+    RHI_MEMORY_INVALID = 0,
 
-    RHI_MEMORY_TYPE_GPU_ONLY,   // Suitable for the fastest GPU access.
-    RHI_MEMORY_TYPE_CPU_TO_GPU, // Suitable for per-frame data upload to GPU.
-    RHI_MEMORY_TYPE_GPU_TO_CPU, // Suitable for read back from GPU.
+    RHI_MEMORY_GPU_ONLY,   // Suitable for the fastest GPU access.
+    RHI_MEMORY_UPLOAD,     // Suitable for per-frame data upload to GPU.
+    RHI_MEMORY_READBACK,   // Suitable for read back from GPU.
 };
 
 enum RHI_Resource_State {
@@ -84,18 +87,19 @@ enum RHI_Pipeline_Type {
     RHI_PIPELINE_TYPE_COMPUTE,
 };
 
-enum RHI_Compare_Op {
-    RHI_COMPARE_OP_INVALID = 0,
+// Sampler comparison (shadow map) sampling and depth testing.
+enum RHI_Compare {
+    RHI_COMPARE_ALWAYS,
+    RHI_COMPARE_NEVER,
 
-    RHI_COMPARE_OP_NONE,
-    RHI_COMPARE_OP_NEVER,
-    RHI_COMPARE_OP_LESS,
-    RHI_COMPARE_OP_EQUAL,
-    RHI_COMPARE_OP_LESS_EQUAL,
-    RHI_COMPARE_OP_GREATER,
-    RHI_COMPARE_OP_NOT_EQUAL,
-    RHI_COMPARE_OP_GREATER_EQUAL,
-    RHI_COMPARE_OP_ALWAYS
+    RHI_COMPARE_EQUAL,
+    RHI_COMPARE_NOT_EQUAL,
+
+    RHI_COMPARE_LESS,
+    RHI_COMPARE_LESS_EQUAL,
+
+    RHI_COMPARE_GREATER,
+    RHI_COMPARE_GREATER_EQUAL,
 };
 
 enum RHI_Topology {

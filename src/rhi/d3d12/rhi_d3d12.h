@@ -129,6 +129,9 @@ internal void  d3d12_texture_destroy(RHI_Texture *texture);
 internal void  d3d12_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
 internal void  d3d12_texture_view_destroy(RHI_Texture_View *view);
 
+internal void  d3d12_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_Desc *desc);
+internal void  d3d12_sampler_deinit(RHI_Sampler *sampler);
+
 internal bool  d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void  d3d12_surface_present(RHI_Surface *surface);
 internal void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height);
@@ -136,6 +139,7 @@ internal void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height)
 internal bool  d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence);
 internal void  d3d12_fence_destroy(RHI_Semaphore *fence);
 internal void  d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout);
+internal u64   d3d12_fence_completed_value(RHI_Semaphore *fence);
 
 internal void  d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 internal void  d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
@@ -147,6 +151,8 @@ internal void  d3d12_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 
 internal void  d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 internal void  d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance);
 internal void  d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size);
+internal void  d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *dst, RHI_Buffer *src, u64 dst_offset, u64 src_offset, u64 size);
+internal void  d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer);
 
 internal bool  d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
 internal void  d3d12_pipeline_deinit(RHI_Pipeline *pipeline);

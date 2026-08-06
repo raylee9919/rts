@@ -3,6 +3,8 @@
 #ifndef RTS_RHI_H
 #define RTS_RHI_H
 
+#define RHI_API static
+
 struct RHI_State {
     Arena *arena;
     void  *platform;
@@ -171,7 +173,7 @@ struct RHI_Texture_View_Desc {
     RHI_Texture_Type        dimension;
     RHI_Texture_Format      format;
     u32                     base_mip_level;
-    u32                     base_array_slice;
+    u32                     base_array_layer;
     u32                     mip_levels;
     u32                     depth; // or array length.
 };
@@ -179,6 +181,48 @@ struct RHI_Texture_View_Desc {
 struct RHI_Texture_View {
     RHI_Kind kind;
     RHI_Texture_View_Desc desc;
+    u32 bindless;
+    union {
+        D3D12_Descriptor d3d12;
+    };
+};
+
+
+//
+// Sampler
+//
+enum RHI_Filter {
+    RHI_FILTER_LINEAR,
+    RHI_FILTER_NEAREST,
+};
+
+enum RHI_Address {
+    RHI_ADDRESS_REPEAT,
+    RHI_ADDRESS_REPEAT_MIRRORED,
+    RHI_ADDRESS_CLAMP_TO_EDGE,
+    RHI_ADDRESS_CLAMP_TO_BORDER,
+};
+
+struct RHI_Sampler_Desc {
+    RHI_Filter     filter;
+
+    RHI_Address    address_u;
+    RHI_Address    address_v;
+    RHI_Address    address_w;
+
+    u32            max_anisotropy;
+    RHI_Compare    compare_op;
+    f32            border_color[4];
+
+    f32            mip_lod_bias;
+    f32            min_lod;
+    f32            max_lod;
+};
+
+struct RHI_Sampler {
+    RHI_Kind kind;
+    RHI_Sampler_Desc desc;
+    u32 bindless;
     union {
         D3D12_Descriptor d3d12;
     };
@@ -262,7 +306,7 @@ struct RHI_Pipeline_Desc {
 
     // Depth Stencil
     b32                 depth_enabled;
-    RHI_Compare_Op      depth_compare_op;
+    RHI_Compare         depth_compare_op;
     RHI_Texture_Format  depth_format;
 
     // Color attachments
@@ -303,6 +347,15 @@ struct RHI_Pipeline {
 
 
 //
+// Helper
+//
+struct RHI_Box {
+    u32 x, y, z;
+    u32 width, height, depth;
+};
+
+
+//
 // API
 //
 internal bool  rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
@@ -335,6 +388,9 @@ internal void  rhi_texture_destroy(RHI_Texture *texture);
 internal void  rhi_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
 internal void  rhi_texture_view_destroy(RHI_Texture_View *view);
 
+internal void  rhi_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_Desc *desc);
+internal void  rhi_sampler_deinit(RHI_Sampler *sampler);
+
 internal void  rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 internal void  rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 
@@ -342,6 +398,7 @@ internal bool  rhi_semaphore_create(RHI_Device *device, RHI_Semaphore *semaphore
 internal void  rhi_semaphore_destroy(RHI_Semaphore *semaphore);
 internal void  rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout);
 internal void  rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
+internal u64   rhi_semaphore_completed_value(RHI_Semaphore *semaphore);
 internal void  rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 
 internal bool  rhi_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
@@ -354,5 +411,9 @@ internal void  rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y,
 internal void  rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 internal void  rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance);
 internal void  rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size);
+internal void  rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *dst, RHI_Buffer *src, u64 dst_offset, u64 src_offset, u64 size);
+internal void  rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer);
+
+internal bool  rhi_is_bc_format(RHI_Texture_Format);
 
 #endif // RTS_RHI_H

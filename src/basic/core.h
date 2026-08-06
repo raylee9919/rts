@@ -142,7 +142,6 @@ typedef s16         b16;
 typedef s32         b32;
 typedef float       f32; 
 typedef double      f64; 
-typedef uintptr_t   umm;
 
 typedef u8 Axis2;
 enum
@@ -403,9 +402,6 @@ enum Texture_Layout
     TEXTURE_LAYOUT_RGB8,
     TEXTURE_LAYOUT_R8,
 };
-
-
-
 
 inline u8 align_up(u8 x, u8 alignment) {
     Assert((alignment & (alignment - 1)) == 0);

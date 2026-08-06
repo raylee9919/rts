@@ -19,10 +19,16 @@ struct Shader_Compile_Options {
 
 struct Shader_Compile_Result {
     Shader_Stage stage;
+
     u8 *data;
     u64 size;
+
+    u32 num_outputs;
+    u32 num_instructions;
+    u32 num_texture_loads; // Texture load instructions
 };
 
 internal bool shader_compiler_init(Shader_Compiler *compiler);
 internal void shader_compiler_deinit(Shader_Compiler *compiler);
+// Allocator allocates memory for the compiled binary blob.
 internal bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, bool debug, Shader_Compile_Result *out_result, Allocator allocator);

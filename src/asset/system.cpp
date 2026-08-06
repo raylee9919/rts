@@ -7,3 +7,8 @@ namespace Asset
         sys->next_incremental_id = 1;
     }
 }
+
+
+void asset_system_init(Asset_System *sys) {
+    sys->next_incremental_id = 1;
+}

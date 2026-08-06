@@ -3,6 +3,15 @@
 #ifndef RTS_MATH_H
 #define RTS_MATH_H
 
+
+//
+// sin/cos usually have high precision, but they still differ across CRT implementations.
+// So it is better for me to roll my own to guarantee consistency across platforms.
+// sqrt nowadays is a single CPU instruction, there's nothing else to implement.
+// You just use correct builtin/intrinsic from compiler.
+//
+
+
 #define pi32                3.141592f
 #define epsilon_f32         1.19209e-07f
 

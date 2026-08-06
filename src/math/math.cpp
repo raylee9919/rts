@@ -1,12 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-//
-// sin/cos usually have high precision, but they still differ across CRT implementations.
-// So it is better for me to roll my own to guarantee consistency across platforms.
-// sqrt nowadays is a single CPU instruction, there's nothing else to implement.
-// You just use correct builtin/intrinsic from compiler.
-//
-
 
 //
 // Sloppy

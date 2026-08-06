@@ -10,7 +10,7 @@
 #include "thread/includes.h"
 #include "ds.h"
 #include "rts_font.h"
-#include "asset/inc.h"
+#include "asset/include.h"
 #include "asset.h"
 #include "animation/animation.h"
 #include "cdt.h"
@@ -22,9 +22,6 @@
 #include "RectPack/include.h"
 #include "font_provider/fp_inc.h"
 #include "RHI/include.h"
-
-#include "ThirdParty/stb/stb_image.h"
-#include "ThirdParty/stb/stb_image_write.h"
 
 
 // Globals
@@ -44,7 +41,7 @@ global RHI_State  *g_rhi_state;
 #include "thread/includes.cpp"
 #include "ds.cpp"
 #include "rts_font.cpp"
-#include "asset/inc.cpp"
+#include "asset/include.cpp"
 #include "asset.cpp"
 #include "animation/animation.cpp"
 #include "cdt.cpp"
@@ -55,14 +52,6 @@ global RHI_State  *g_rhi_state;
 #include "RectPack/include.cpp"
 #include "font_provider/fp_inc.cpp"
 #include "RHI/include.cpp"
-
-#define STBI_ASSERT(x)
-#define STB_IMAGE_IMPLEMENTATION
-#include "ThirdParty/stb/stb_image.h"
-
-#define STBIW_ASSERT(x)
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "ThirdParty/stb/stb_image_write.h"
 
 
 #include "temporary.h"

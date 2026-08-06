@@ -3,61 +3,45 @@
 #include "basic/include.h"
 #include "math/include.h"
 #include "os/include.h"
+#include "asset/include.h"
 #include "rhi/include.h"
 #include "shader/include.h"
 
 #include "basic/include.cpp"
 #include "math/include.cpp"
 #include "os/include.cpp"
+#include "asset/include.cpp"
 #include "rhi/include.cpp"
 #include "shader/include.cpp"
 
-OS_Handle window;
-bool should_close       = false;
+OS_Handle window        = {};
+b32 should_close        = false;
 u32 SURFACE_WIDTH       = 1920;
 u32 SURFACE_HEIGHT      = 1080;
 u32 num_back_buffers    = 3;
 u64 current_frame_index = 0;
-
-struct Vertex {
-    v3 position;
-    v4 color;
-};
-
-Vertex vertices[] = {
-    { v3(-0.5f, -0.5f, 0.0f), v4(1.0f, 0.0f, 0.0f, 1.0f) },
-    { v3( 0.5f, -0.5f, 0.0f), v4(0.0f, 1.0f, 0.0f, 1.0f) },
-    { v3(-0.5f,  0.5f, 0.0f), v4(0.0f, 0.0f, 1.0f, 1.0f) },
-    { v3( 0.5f,  0.5f, 0.0f), v4(1.0f, 1.0f, 1.0f, 1.0f) },
-};
-
-u32 indices[] = {
-    0, 1, 2,
-    2, 1, 3
-};
-u32 num_indices = array_count(indices);
-
-struct Constants {
-    u32 vertex_buffer_id;
-};
 
 String shader_source = S(R"(
     // Copyright Seong Woo Lee. All Rights Reserved.
 
     struct Push_Constants {
         uint vertex_buffer_id;
+        uint texture_id;
+        uint linear_sampler_id;
     };
     ConstantBuffer<Push_Constants> push : register(b0);
 
     struct Vertex {
         float3 position;
-        float  padding;
+        float2 uv;
+        float3 padding;
         float4 color;
     };
     
     struct VS_Output {
         float4 sv_position : SV_POSITION;
         float3 position    : POSITION;
+        float2 uv          : UV;
         float4 color       : COLOR;
     };
     
@@ -69,19 +53,56 @@ String shader_source = S(R"(
 
         result.sv_position = float4(vert.position, 1.0);
         result.position    = vert.position;
+        result.uv          = vert.uv;
         result.color       = vert.color;
 
         return result;
     }
     
     float4 main_ps(VS_Output input) : SV_TARGET {
-        return input.color;
+        Texture2D <float4> color_texture  = ResourceDescriptorHeap[push.texture_id];
+        SamplerState linear_sampler = SamplerDescriptorHeap[push.linear_sampler_id];
+        float4 rgba = color_texture.Sample(linear_sampler, input.uv);
+
+        return rgba;
     }
 )");
 
 
+struct Vertex {
+    v3 position;
+    v2 uv;
+    v4 color;
+};
+
+Vertex vertices[] = {
+    { v3(-0.5f, -0.5f, 0.0f), v2(0.f, 1.f), v4(1.0f, 0.0f, 0.0f, 1.0f) },
+    { v3( 0.5f, -0.5f, 0.0f), v2(1.f, 1.f), v4(0.0f, 1.0f, 0.0f, 1.0f) },
+    { v3(-0.5f,  0.5f, 0.0f), v2(0.f, 0.f), v4(0.0f, 0.0f, 1.0f, 1.0f) },
+    { v3( 0.5f,  0.5f, 0.0f), v2(1.f, 0.f), v4(1.0f, 1.0f, 1.0f, 1.0f) },
+};
+
+u32 indices[] = {
+    0, 1, 2,
+    2, 1, 3
+};
+u32 num_indices = array_count(indices);
+
+struct Constants {
+    u32 vertex_buffer_id;
+    u32 texture_id;
+    u32 linear_sampler_id;
+};
+
 int main_entry(int argc, char **argv)
 {
+    log(LOG_TRACE,   S("Testing log, level: trace"));
+    log(LOG_DEBUG,   S("Testing log, level: debug"));
+    log(LOG_INFO,    S("Testing log, level: info"));
+    log(LOG_WARNING, S("Testing log, level: warning"));
+    log(LOG_ERROR,   S("Testing log, level: error"));
+    log(LOG_FATAL,   S("Testing log, level: fatal"));
+
     window = os_window_create(1920, 1080, utf8lit("rhi"));
     HWND hwnd = hwnd_from_os_handle(window);
 
@@ -121,77 +142,112 @@ int main_entry(int argc, char **argv)
     }
 
 
-    auto *cmd_buffer = (RHI_Command_Buffer *)alloc(sizeof(RHI_Command_Buffer));
+    auto *cmd_buffer = alloc_t(RHI_Command_Buffer);
     Assert(rhi_command_buffer_init(device, cmd_buffer, RHI_COMMAND_TYPE_GRAPHICS));
+
+    auto *compute_buffer = alloc_t(RHI_Command_Buffer);
+    Assert(rhi_command_buffer_init(device, compute_buffer, RHI_COMMAND_TYPE_COMPUTE));
+
+    auto *copy_buffer = alloc_t(RHI_Command_Buffer);
+    Assert(rhi_command_buffer_init(device, copy_buffer, RHI_COMMAND_TYPE_TRANSFER));
+
+
+    RHI_Sampler linear_sampler = {};
+    {
+        RHI_Sampler_Desc desc= {};
+        {
+            desc.filter             = RHI_FILTER_NEAREST;
+            desc.address_u          = RHI_ADDRESS_REPEAT;
+            desc.address_v          = RHI_ADDRESS_REPEAT;
+            desc.address_w          = RHI_ADDRESS_REPEAT;
+            desc.compare_op         = RHI_COMPARE_ALWAYS;
+            desc.mip_lod_bias       = 0.f;
+            desc.min_lod            = 0.f;
+            desc.max_lod            = 1e10f;
+        }
+        rhi_sampler_init(device, &linear_sampler, &desc);
+    }
 
 
     RHI_Pipeline pipeline = {};
     Shader_Compile_Result vs = {};
     Shader_Compile_Result ps = {};
-    { // Create PSO
-        // @Todo: Should I compile twice..?
+    { // Compile shader
+        Shader_Compile_Options vs_opts = {};
         {
-            Shader_Compile_Options vs_opts = {};
-            {
-                // @Temporary
-                vs_opts.stage  = SHADER_STAGE_VS;
-                vs_opts.entry  = S("main_vs");
-                vs_opts.source = shader_source;
-            }
-            Assert(shader_compile(compiler, vs_opts, true, &vs, tctx.allocator));
-
-
-            Shader_Compile_Options ps_opts = {};
-            {
-                // @Temporary
-                ps_opts.stage  = SHADER_STAGE_PS;
-                ps_opts.entry  = S("main_ps");
-                ps_opts.source = shader_source;
-            }
-            Assert(shader_compile(compiler, ps_opts, true, &ps, tctx.allocator));
-        }
-
-        {
-            RHI_Pipeline_Desc desc = {};
-            desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
-
             // @Temporary
-            desc.num_color_attachments       = 1;
-            desc.color_attachment_formats[0] = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
-
-            desc.fill_mode      = RHI_FILL_SOLID;
-            desc.cull_mode      = RHI_CULL_NONE;
-
-            desc.topology       = RHI_TOPOLOGY_TRIANGLES;
-
-            desc.vs_data        = vs.data;
-            desc.vs_size        = vs.size;
-
-            desc.ps_data        = ps.data;
-            desc.ps_size        = ps.size;
-
-            rhi_pipeline_init(device, &pipeline, &desc);
+            vs_opts.stage  = SHADER_STAGE_VS;
+            vs_opts.entry  = S("main_vs");
+            vs_opts.source = shader_source;
         }
+        Assert(shader_compile(compiler, vs_opts, true, &vs, tctx.allocator));
+
+
+        Shader_Compile_Options ps_opts = {};
+        {
+            // @Temporary
+            ps_opts.stage  = SHADER_STAGE_PS;
+            ps_opts.entry  = S("main_ps");
+            ps_opts.source = shader_source;
+        }
+        Assert(shader_compile(compiler, ps_opts, true, &ps, tctx.allocator));
+
+        // ..or you read bytes from your asset file
+    }
+
+    { // Create PSO
+        RHI_Pipeline_Desc desc = {};
+        desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
+
+        // @Temporary
+        desc.num_color_attachments       = 1;
+        desc.color_attachment_formats[0] = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+
+        desc.fill_mode = RHI_FILL_SOLID;
+        desc.cull_mode = RHI_CULL_CW;
+
+        desc.topology = RHI_TOPOLOGY_TRIANGLES;
+
+        desc.vs_data = vs.data;
+        desc.vs_size = vs.size;
+
+        desc.ps_data = ps.data;
+        desc.ps_size = ps.size;
+
+        rhi_pipeline_init(device, &pipeline, &desc);
     }
 
 
+    RHI_Buffer upload_buffer = {};
+    { // Create upload buffer
+        u64 sz = MB(128);
+
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_UPLOAD;
+        desc.size        = sz;
+
+        Assert(rhi_buffer_init(device, &upload_buffer, &desc, NULL));
+    }
+
+    RHI_Semaphore upload_semaphore = {};
+    u64 upload_semaphore_value = 1;
+    {
+        Assert(rhi_semaphore_create(device, &upload_semaphore));
+    }
+
     RHI_Buffer vertex_buffer           = {};
     RHI_Buffer_View vertex_buffer_view = {};
-    RHI_Buffer index_buffer = {};
+    RHI_Buffer index_buffer            = {};
 
-    { // Create vertex buffer and view.
+
+    { // Create vertex buffer and view
         u64 sz = sizeof(vertices);
 
         RHI_Buffer_Desc desc = {};
-        desc.memory_type = RHI_MEMORY_TYPE_CPU_TO_GPU;
+        desc.memory_type = RHI_MEMORY_GPU_ONLY;
         desc.size        = sz;
 
         Assert(rhi_buffer_init(device, &vertex_buffer, &desc, NULL));
-
-        // @Temporary
-        void *ptr = rhi_buffer_map(&vertex_buffer);
-        memcpy(ptr, vertices, sz);
-        rhi_buffer_unmap(&vertex_buffer);
 
         RHI_Buffer_View_Desc view_desc = {};
         {
@@ -205,19 +261,118 @@ int main_entry(int argc, char **argv)
         rhi_buffer_view_init(device, &vertex_buffer_view, &vertex_buffer, &view_desc);
     }
 
-    { // Create index buffer.
+    { // Create index buffer
         u64 sz = sizeof(indices);
 
         RHI_Buffer_Desc desc = {};
-        desc.memory_type = RHI_MEMORY_TYPE_CPU_TO_GPU;
+        desc.memory_type = RHI_MEMORY_GPU_ONLY;
         desc.size        = sz;
 
         Assert(rhi_buffer_init(device, &index_buffer, &desc, NULL));
+    }
 
-        // @Temporary
-        void *ptr = rhi_buffer_map(&index_buffer);
-        memcpy(ptr, indices, sz);
-        rhi_buffer_unmap(&index_buffer);
+    { // Upload vertex buffer and index buffer.
+        void *ptr = NULL;
+
+        u64 vb_sz = sizeof(vertices);
+        ptr = rhi_buffer_map(&upload_buffer);
+        memcpy(ptr, vertices, vb_sz);
+
+        u64 ib_sz = sizeof(indices);
+        ptr = rhi_buffer_map(&upload_buffer);
+        memcpy((u8 *)ptr + vb_sz, indices, ib_sz);
+
+        rhi_buffer_unmap(&upload_buffer);
+
+        rhi_command_buffer_begin(copy_buffer);
+        {
+            rhi_cmd_copy_buffer_to_buffer(copy_buffer, &vertex_buffer, &upload_buffer, 0, 0, vb_sz);
+            rhi_cmd_copy_buffer_to_buffer(copy_buffer, &index_buffer, &upload_buffer, 0, vb_sz, ib_sz);
+        }
+        rhi_command_buffer_end(copy_buffer);
+        rhi_submit(device, 1, &copy_buffer);
+        rhi_semaphore_signal(device, RHI_COMMAND_TYPE_TRANSFER, &upload_semaphore, upload_semaphore_value);
+
+        // @Todo: This might be the worst case synchronization. Full stop on thread 
+        // until the upload is finished? Sounds terrible.
+        rhi_semaphore_wait(&upload_semaphore, upload_semaphore_value, RHI_INFINITE);
+        upload_semaphore_value += 1;
+    }
+
+
+    // Load image
+    String contents = read_entire_file(S("C:/Users/swl/Desktop/doggo.png"), tctx.allocator);
+    Bitmap bitmap = bitmap_import(contents.str, contents.len);
+
+    // Create texture
+    auto *tex = alloc_t(RHI_Texture);
+    RHI_Texture_View tex_view = {};
+    {
+        // Import options? And do I want intermediate format? I think I just 
+        // want to straight convert to RHI texture.
+        // 1. To texture format.
+        // 2. texture usage
+        // 3. Mip
+        RHI_Texture_Desc desc = {};
+        {
+            desc.type           = RHI_TEXTURE_TYPE_2D;             // @Temporary: hard-coded.
+            desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;  // @Temporary: hard-coded.
+            desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
+            desc.width          = bitmap.width;
+            desc.height         = bitmap.height;
+            desc.mip_levels     = 1;
+            desc.depth          = 1;                               // @Temporary: hard-coded.
+        }
+        rhi_texture_create(device, tex, &desc, NULL);
+    }
+    {
+        RHI_Texture_View_Desc desc = {};
+        {
+            desc.type               = RHI_TEXTURE_VIEW_TYPE_SAMPLED;
+            desc.dimension          = RHI_TEXTURE_TYPE_2D;
+            desc.format             = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+            desc.base_mip_level     = 0;
+            desc.base_array_layer   = 0;
+            desc.mip_levels         = tex->desc.mip_levels;
+            desc.depth              = tex->desc.depth;
+        }
+        rhi_texture_view_create(device, &tex_view, tex, &desc);
+    }
+
+    { // Upload texture
+        // @Todo: I know, I know. Correct alignment for BC and other formats and 
+        // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
+        u8 *ptr = (u8 *)rhi_buffer_map(&upload_buffer);
+        u8 *dst = ptr;
+        u8 *src = (u8 *)bitmap.data;
+        u32 pitch = bitmap.size / bitmap.height;
+        u32 aligned_pitch = align_up(pitch, 256);
+
+        for (u32 r = 0; r < bitmap.height; ++r) {
+            memcpy(dst, src, pitch);
+            dst += aligned_pitch;
+            src += pitch;
+        }
+
+        rhi_buffer_unmap(&upload_buffer);
+
+
+        RHI_Box box = {};
+        {
+            box.width  = bitmap.width;
+            box.height = bitmap.height;
+            box.depth  = 1;
+        }
+
+        rhi_command_buffer_begin(copy_buffer);
+        {
+            rhi_cmd_copy_buffer_to_texture(copy_buffer, &upload_buffer, 0, aligned_pitch, tex, &box, 0, 0);
+        }
+        rhi_command_buffer_end(copy_buffer);
+        rhi_submit(device, 1, &copy_buffer);
+        rhi_semaphore_signal(device, RHI_COMMAND_TYPE_TRANSFER, &upload_semaphore, upload_semaphore_value);
+        rhi_semaphore_wait(&upload_semaphore, upload_semaphore_value, RHI_INFINITE);
+        upload_semaphore_value += 1;
     }
 
 
@@ -259,7 +414,7 @@ int main_entry(int argc, char **argv)
                 memcpy(pass.color_attachments[0].clear_color, color, sizeof(color));
             }
 
-            rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIP_LEVELS, RHI_ALL_ARRAY_SLICES);
+            rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
 
             rhi_pass_begin(cmd_buffer, &pass);
             {
@@ -269,7 +424,9 @@ int main_entry(int argc, char **argv)
 
                 Constants constants = {};
                 {
-                    constants.vertex_buffer_id = vertex_buffer_view.bindless;
+                    constants.vertex_buffer_id  = vertex_buffer_view.bindless;
+                    constants.texture_id        = tex_view.bindless;
+                    constants.linear_sampler_id = linear_sampler.bindless;
                 }
             
                 rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
@@ -278,7 +435,7 @@ int main_entry(int argc, char **argv)
             }
             rhi_pass_end(cmd_buffer, &pass);
 
-            rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIP_LEVELS, RHI_ALL_ARRAY_SLICES);
+            rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
 
             rhi_command_buffer_end(cmd_buffer);
 
