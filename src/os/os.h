@@ -302,7 +302,7 @@ internal bool               os_create_directory(String path);
 internal bool               os_directory_exists(String path);
 
 // GFX
-internal void               gfx_init();
+internal void               os_gfx_init();
 internal OS_Handle          os_window_create(int w, int h, String name);
 internal void               os_window_toggle_fullscreen(OS_Handle window);
 internal v2                 os_window_size(OS_Handle window);

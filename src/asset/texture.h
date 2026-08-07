@@ -4,8 +4,6 @@
 #include "ThirdParty/stb/stb_image.h"
 #include "ThirdParty/stb/stb_image_write.h"
 
-#include "ThirdParty/bc7enc_rdo/bc7enc.h"
-
 
 namespace Asset
 {

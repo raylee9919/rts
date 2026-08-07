@@ -2,7 +2,6 @@
 
 // @Todo: Allocator
 
-//
 // Translation
 //
 static D3D12_HEAP_TYPE d3d12_heap_type_from_rhi_memory_type(RHI_Memory_Type type) {
@@ -259,7 +258,6 @@ static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
     log(LOG_INFO, S("Deinitialized d3d12 command queue."));
 }
 
-//
 // Descriptor
 //
 static bool d3d12_descriptor_heap_init(D3D12_Device *device, 
@@ -376,11 +374,15 @@ static void d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) {
     heap->count -= 1;
 }
 
-
-//
 // Device
 //
 bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
+#if USE_PIX
+    log(LOG_INFO, S("USE_PIX = %d"), USE_PIX);
+#else
+    log(LOG_INFO, S("USE_PIX undefined."));
+#endif
+
     // @Todo: Cleanup on failure.
     bool result = false;
     HRESULT hr = S_OK;
@@ -662,7 +664,6 @@ void d3d12_device_deinit(RHI_Device *device) {
     log(LOG_INFO, S("Deinitialized d3d12 device"));
 }
 
-//
 // Command List
 //
 bool d3d12_command_list_init(RHI_Device *device, RHI_Command_Buffer *cmd_buffer, RHI_Command_Type type) {
@@ -751,11 +752,13 @@ void d3d12_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffer
     }
 }
 
-
-//
 // Render Pass
 //
 void d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
+#if USE_PIX
+    PIXBeginEvent(cmd_buffer->d3d12.list_7, PIX_COLOR_INDEX(0), (const char *)pass->name.str);
+#endif
+
     auto *list = cmd_buffer->d3d12.list_7;
 
     D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = {};
@@ -783,11 +786,11 @@ void d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
 }
 
 void d3d12_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
-
+#if USE_PIX
+    PIXEndEvent(cmd_buffer->d3d12.list_7);
+#endif
 }
 
-
-//
 // Texture
 //
 static DXGI_FORMAT dxgi_format_from_rhi(RHI_Texture_Format format) {
@@ -1187,7 +1190,7 @@ void d3d12_buffer_view_deinit(RHI_Buffer_View *view) {
     log(LOG_INFO, S("Deinitialized d3d12 buffer view."));
 }
 
-bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
+bool d3d12_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
     D3D12_RESOURCE_DESC resource_desc = {};
     {
         resource_desc.Dimension         = d3d12_resource_dimension_from_rhi_texture_type(desc->type);
@@ -1217,14 +1220,14 @@ bool d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_
         }
     }
 
-    log(LOG_INFO, S("Created d3d12 texture."));
+    log(LOG_INFO, S("Initialized d3d12 texture."));
     return true;
 }
 
-void d3d12_texture_destroy(RHI_Texture *texture) {
+void d3d12_texture_deinit(RHI_Texture *texture) {
     // Make sure the texture isn't in flight!
     COM_SAFE_RELEASE(&texture->d3d12.resource);
-    log(LOG_INFO, S("Destroyed d3d12 texture."));
+    log(LOG_INFO, S("Deinitialized d3d12 texture."));
 }
 
 static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
@@ -1278,7 +1281,7 @@ static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *des
     return result;
 }
 
-void d3d12_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc) {
+void d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc) {
     ID3D12Resource *resource = texture->d3d12.resource;
 
     switch (desc->type) {
@@ -1329,7 +1332,7 @@ void d3d12_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_T
     view->bindless = view->d3d12.index;
 }
 
-void d3d12_texture_view_destroy(RHI_Texture_View *view) {
+void d3d12_texture_view_deinit(RHI_Texture_View *view) {
     d3d12_descriptor_dealloc(&view->d3d12);
     memset(view, 0, sizeof(*view));
 }
@@ -1368,8 +1371,6 @@ void d3d12_sampler_deinit(RHI_Sampler *sampler) {
     log(LOG_INFO, S("Deinitialized d3d12 sampler."));
 }
 
-
-//
 // Surface
 //
 bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc) {
@@ -1485,11 +1486,9 @@ void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }
 
-
-//
 // Fence
 //
-bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
+bool d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence) {
     UINT64 initial_value = 0;
     D3D12_FENCE_FLAGS flags = D3D12_FENCE_FLAG_NONE;
 
@@ -1506,7 +1505,7 @@ bool d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence) {
     return true;
 }
 
-void d3d12_fence_destroy(RHI_Semaphore *fence) {
+void d3d12_fence_deinit(RHI_Semaphore *fence) {
     COM_SAFE_RELEASE(&fence->d3d12.fence_0);
     if (fence->d3d12.event) {
         CloseHandle(fence->d3d12.event);
@@ -1527,8 +1526,6 @@ u64 d3d12_fence_completed_value(RHI_Semaphore *fence) {
     return fence->d3d12.fence_0->GetCompletedValue();
 }
 
-
-//
 // Commands
 //
 static D3D12_BARRIER_LAYOUT d3d12_barrier_layout_from_rhi(RHI_Resource_State state) {
@@ -1833,7 +1830,6 @@ void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semap
 }
 
 
-//
 // Pipeline
 //
 bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc) {
@@ -1953,11 +1949,11 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
         } break;
     }
 
-    log(LOG_INFO, S("Created d3d12 pipeline."));
+    log(LOG_INFO, S("Initialized d3d12 pipeline."));
     return true;
 }
 
 void d3d12_pipeline_deinit(RHI_Pipeline *pipeline) {
     COM_SAFE_RELEASE(&pipeline->d3d12.state);
-    log(LOG_INFO, S("Destroyed d3d12 pipeline."));
+    log(LOG_INFO, S("Deinitialized d3d12 pipeline."));
 }

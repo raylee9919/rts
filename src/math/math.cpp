@@ -1,7 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
-//
 // Sloppy
 //
 f32 safe_ratio(f32 l, f32 r) {
@@ -10,14 +9,12 @@ f32 safe_ratio(f32 l, f32 r) {
 }
 
 
-//
 // Absolute
 //
 f32 m_abs(f32 f) { return f > 0.f ? f : -f; }
 f64 m_abs(f64 d) { return d > 0.f ? d : -d; }
 
 
-//
 // Square roots
 //
 f32 m_sqrt(f32 f) {
@@ -34,7 +31,6 @@ f32 m_rsqrt(f32 f) {
 }
 
 
-//
 // Mapping functions
 //
 f32 map(f32 x, f32 min, f32 max) {
@@ -57,7 +53,6 @@ f32 map_snorm(f32 x, f32 min, f32 max) {
 }
 
 
-//
 // Easing functions
 //
 f32 lerp(f32 a, f32 t, f32 b) {
@@ -76,7 +71,6 @@ f32 hermite(f32 min, f32 max, f32 x) {
 }
 
 
-//
 // Vector2
 //
 v2::v2(f32 f) {
@@ -399,7 +393,6 @@ f32 distance(v2 a, v2 b) {
     return m_sqrt(dx*dx + dy*dy);
 }
 
-//
 // Vector4 
 //
 v4::v4(f32 f1, f32 f2, f32 f3, f32 f4)
@@ -480,7 +473,6 @@ v4 lerp(v4 a, f32 t, v4 b)
 }
 
 
-//
 // Quaternion
 //
 Quaternion::Quaternion() 
@@ -601,7 +593,6 @@ Quaternion slerp(Quaternion q1, f32 t, Quaternion q2)
     return q;
 }
 
-//
 // m4x4
 //
 __m128 lincomb(__m128 a, m4x4 b)
@@ -718,6 +709,7 @@ m4x4 z_rotation(f32 a) {
 }
 
 m4x4 transpose(m4x4 m) {
+    // @Todo: SIMD
     m4x4 n;
 
     for (int i = 0; i < 4; ++i)
@@ -899,29 +891,7 @@ m4x4 m4x4_scale(f32 x, f32 y, f32 z) {
     return m;
 }
 
-internal v3
-get_row(m4x4 M, u32 R) 
-{
-    v3 V = {
-        M.e[R][0],
-        M.e[R][1],
-        M.e[R][2]
-    };
-    return V;
-}
 
-internal v3
-get_column(m4x4 M, u32 C) 
-{
-    v3 V = {
-        M.e[0][C],
-        M.e[1][C],
-        M.e[2][C]
-    };
-    return V;
-}
-
-//
 // Rect
 //
 internal Rect2

@@ -1,5 +1,7 @@
+[한국어](README.ko.md)
+
 # Handmade RTS
-![Status](data/branding/status.png "Status")  
+![Status](data/branding/battle.gif "Status")  
 StarCraft has always held a special place in my heart. It was the game that first inspired me to dream of 
 becoming a game developer. It planted a question in my mind, <i>how does this all work under the hood?</i> 
 The curiosity eventually became a challenge I set myself: to build a handmade RTS engine from scratch.
@@ -30,4 +32,5 @@ For anyone looking to take the first step in building a game from scratch, I hig
 
 ## Links
 [<img src="data/branding/youtube_icon.png" width="64"/>](https://www.youtube.com/@seongwoolee9919)
+[<img src="data/branding/blog.png" width="64"/>](https://seongwoolee.com/)
 [<img src="data/branding/x_icon.png" width="64"/>](https://www.x.com/raylee9919)

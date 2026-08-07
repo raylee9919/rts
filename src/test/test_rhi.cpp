@@ -113,7 +113,7 @@ int main_entry(int argc, char **argv)
     Assert(rhi_device_init(device, RHI_KIND_D3D12, true, true));
 
     RHI_Semaphore semaphore = {};
-    Assert(rhi_semaphore_create(device, &semaphore));
+    Assert(rhi_semaphore_init(device, &semaphore));
 
     auto *surface = (RHI_Surface *)alloc(sizeof(RHI_Surface));
     {
@@ -137,7 +137,7 @@ int main_entry(int argc, char **argv)
                 view_desc.format            = surface->textures[i].desc.format;
                 view_desc.base_mip_level    = 0;
             }
-            rhi_texture_view_create(device, &views[i], &surface->textures[i], &view_desc);
+            rhi_texture_view_init(device, &views[i], &surface->textures[i], &view_desc);
         }
     }
 
@@ -232,7 +232,7 @@ int main_entry(int argc, char **argv)
     RHI_Semaphore upload_semaphore = {};
     u64 upload_semaphore_value = 1;
     {
-        Assert(rhi_semaphore_create(device, &upload_semaphore));
+        Assert(rhi_semaphore_init(device, &upload_semaphore));
     }
 
     RHI_Buffer vertex_buffer           = {};
@@ -323,7 +323,7 @@ int main_entry(int argc, char **argv)
             desc.mip_levels     = 1;
             desc.depth          = 1;                               // @Temporary: hard-coded.
         }
-        rhi_texture_create(device, tex, &desc, NULL);
+        rhi_texture_init(device, tex, &desc, NULL);
     }
     {
         RHI_Texture_View_Desc desc = {};
@@ -336,7 +336,7 @@ int main_entry(int argc, char **argv)
             desc.mip_levels         = tex->desc.mip_levels;
             desc.depth              = tex->desc.depth;
         }
-        rhi_texture_view_create(device, &tex_view, tex, &desc);
+        rhi_texture_view_init(device, &tex_view, tex, &desc);
     }
 
     { // Upload texture
@@ -407,6 +407,7 @@ int main_entry(int argc, char **argv)
 
             RHI_Pass pass = {}; // transient
             {
+                pass.name = S("Textured Quad");
                 pass.num_color_attachments = 1;
                 pass.color_attachments[0].view    = views[surface->current_frame_index];
                 pass.color_attachments[0].load_op = RHI_LOAD_OP_CLEAR;

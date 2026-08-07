@@ -3,6 +3,10 @@
 #ifndef RTS_RHI_D3D12_H
 #define RTS_RHI_D3D12_H
 
+#if USE_PIX
+#include "ThirdParty/WinPixRuntimeEvent/Include/pix3.h"
+#endif
+
 #define NODE_MASK                       0 // @Todo: Multiple GPUs?
 #define RHI_D3D12_SWAP_CHAIN_STEREO     0
 #define RHI_D3D12_SURFACE_FORMAT        DXGI_FORMAT_R8G8B8A8_UNORM // @Temporary
@@ -123,11 +127,11 @@ internal void  d3d12_buffer_unmap(RHI_Buffer *buffer);
 internal void  d3d12_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc);
 internal void  d3d12_buffer_view_deinit(RHI_Buffer_View *view);
 
-internal bool  d3d12_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-internal void  d3d12_texture_destroy(RHI_Texture *texture);
+internal bool  d3d12_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
+internal void  d3d12_texture_deinit(RHI_Texture *texture);
 
-internal void  d3d12_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
-internal void  d3d12_texture_view_destroy(RHI_Texture_View *view);
+internal void  d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
+internal void  d3d12_texture_view_deinit(RHI_Texture_View *view);
 
 internal void  d3d12_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_Desc *desc);
 internal void  d3d12_sampler_deinit(RHI_Sampler *sampler);
@@ -136,8 +140,8 @@ internal bool  d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_
 internal void  d3d12_surface_present(RHI_Surface *surface);
 internal void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height);
 
-internal bool  d3d12_fence_create(RHI_Device *device, RHI_Semaphore *fence);
-internal void  d3d12_fence_destroy(RHI_Semaphore *fence);
+internal bool  d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence);
+internal void  d3d12_fence_deinit(RHI_Semaphore *fence);
 internal void  d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout);
 internal u64   d3d12_fence_completed_value(RHI_Semaphore *fence);
 

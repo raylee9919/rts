@@ -29,28 +29,28 @@ extern "C"
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
-//
 // DXGI
-//
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "dxguid")
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 
-//
 // D3D12
-//
 #pragma comment(lib, "d3d12")
 #include <ThirdParty/DirectX/Include/d3d12.h>
 #include <ThirdParty/DirectX/Include/d3d12shader.h>
 #include <ThirdParty/DirectX/Include/d3dx12/d3dx12.h>
 
-//
 // DXC
-//
 #pragma comment(lib, "dxcompiler")
 #include <ThirdParty/DXC/Include/dxcapi.h>
 #include <ThirdParty/DirectX/Include/d3d12compiler.h>
+
+// PIX
+#if BUILD_PROFILE
+# define USE_PIX 1
+# pragma comment(lib, "WinPixEventRuntime")
+#endif
 
 
 

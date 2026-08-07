@@ -254,8 +254,6 @@ internal m4x4           scale(m4x4 transform, v3 factor);
 internal m4x4           scale(m4x4 transform, f32 factor);
 internal m4x4           scale(f32 s);
 internal m4x4           m4x4_scale(f32 x, f32 y, f32 z);
-internal v3             get_row(m4x4 M, u32 R);
-internal v3             get_column(m4x4 M, u32 C);
 internal Rect2          rect2_min_max(v2 min, v2 max);
 internal Rect2          rect2_cen_half_dim(v2 cen, v2 h_dim);
 internal Rect2          rect2_min_dim(v2 min, v2 dim);

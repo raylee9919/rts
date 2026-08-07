@@ -252,7 +252,7 @@ u32 os_query_caret_blink_time() {
 
 
 // Counter
-//   I'm well aware of other sorts of timer.. Bad naming? idk.
+//   I'm well aware of other sorts of timer.. Bad naming? i dunno.
 //
 u64 os_counter() {
     LARGE_INTEGER li;
@@ -685,7 +685,7 @@ LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     return result;
 }
 
-void gfx_init() {
+void os_gfx_init() {
     HINSTANCE hinst = GetModuleHandleW(0);
 
     WNDCLASSEXW wcex = {};
@@ -948,7 +948,7 @@ String string_from_hresult(HRESULT hr) {
 int win32_main_entry() {
     os_init();
     thread_init();
-    gfx_init();
+    os_gfx_init();
     return main_entry(0, NULL);
 }
 

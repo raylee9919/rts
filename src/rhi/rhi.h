@@ -276,6 +276,7 @@ struct RHI_Attachment {
 
 
 struct RHI_Pass {
+    String         name;
     RHI_Attachment color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
     RHI_Attachment depth_attachment;
     u32            num_color_attachments;
@@ -379,14 +380,14 @@ internal void  rhi_buffer_unmap(RHI_Buffer *buffer);
 internal void  rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc);
 internal void  rhi_buffer_view_deinit(RHI_Buffer_View *view);
 
-internal bool  rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-internal void  rhi_texture_destroy(RHI_Texture *texture);
+internal bool  rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
+internal void  rhi_texture_deinit(RHI_Texture *texture);
 
-internal bool  rhi_texture_create(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-internal void  rhi_texture_destroy(RHI_Texture *texture);
+internal bool  rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
+internal void  rhi_texture_deinit(RHI_Texture *texture);
 
-internal void  rhi_texture_view_create(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
-internal void  rhi_texture_view_destroy(RHI_Texture_View *view);
+internal void  rhi_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
+internal void  rhi_texture_view_deinit(RHI_Texture_View *view);
 
 internal void  rhi_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_Desc *desc);
 internal void  rhi_sampler_deinit(RHI_Sampler *sampler);
@@ -394,8 +395,8 @@ internal void  rhi_sampler_deinit(RHI_Sampler *sampler);
 internal void  rhi_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 internal void  rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pass);
 
-internal bool  rhi_semaphore_create(RHI_Device *device, RHI_Semaphore *semaphore);
-internal void  rhi_semaphore_destroy(RHI_Semaphore *semaphore);
+internal bool  rhi_semaphore_init(RHI_Device *device, RHI_Semaphore *semaphore);
+internal void  rhi_semaphore_deinit(RHI_Semaphore *semaphore);
 internal void  rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout);
 internal void  rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 internal u64   rhi_semaphore_completed_value(RHI_Semaphore *semaphore);
