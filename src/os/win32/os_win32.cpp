@@ -211,6 +211,8 @@ void* os_reserve(u64 size) {
 
 bool os_commit(void* ptr, u64 size) {
     bool result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
+    // @Todo: RIORegisterBuffer()
+    // Also, check out (https://github.com/cmuratori/largepages)
     return result;
 }
 
@@ -252,7 +254,7 @@ u32 os_query_caret_blink_time() {
 
 
 // Counter
-//   I'm well aware of other sorts of timer.. Bad naming? i dunno.
+// Bad naming? i dunno.
 //
 u64 os_counter() {
     LARGE_INTEGER li;
@@ -305,7 +307,7 @@ HANDLE win32_handle_from_os_handle(OS_Handle handle) {
 // File
 //
 OS_Handle os_open_file(String path, OS_Access_Flags flags) {
-    // https://stackoverflow.com/a/14469641
+    // (https://stackoverflow.com/a/14469641)
     //                          |                    When the file...
     // This argument:           |             Exists            Does not exist
     // -------------------------+------------------------------------------------------
@@ -811,7 +813,6 @@ v2 os_get_mouse_position(OS_Handle window) {
 }
 
 
-
 // Events
 // 
 void os_poll_events() {
@@ -868,7 +869,6 @@ void os_clear_events() {
     }
 }
 
-//
 // Critical Section
 //
 void csection_init(Critical_Section* csection) {
@@ -887,7 +887,6 @@ void csection_destroy(Critical_Section* csection) {
     DeleteCriticalSection(csection);
 }
 
-//
 // Utilities
 //
 String string_from_hresult(HRESULT hr) {
