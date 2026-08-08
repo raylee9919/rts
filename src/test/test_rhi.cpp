@@ -18,8 +18,8 @@
 global f64 g_time = 0.f;
 
 struct Entity {
-    v3    position;
-    u32   tint;
+    v3 position;
+    v4 tint;
 };
 
 #define NUM_ENTITIES 1024
@@ -173,31 +173,134 @@ u64 rng_u64()
     return x;
 }
 
+v4 unpack_rgba(u32 rgba)
+{
+    return {
+        f32((rgba >>  0) & 0xFF),
+        f32((rgba >>  8) & 0xFF),
+        f32((rgba >> 16) & 0xFF),
+        f32((rgba >> 24) & 0xFF)
+    };
+}
+
+u32 pack_rgba(v4 rgba)
+{
+    u32 r = u32(rgba.x * 255.0f + 0.5f);
+    u32 g = u32(rgba.y * 255.0f + 0.5f);
+    u32 b = u32(rgba.z * 255.0f + 0.5f);
+    u32 a = u32(rgba.w * 255.0f + 0.5f);
+
+    return (r << 0) |
+           (g << 8) |
+           (b << 16) |
+           (a << 24);
+}
+
+void proceed_game_state_ring_buffer() {
+        game_state_index_current += 1;
+        game_state_index_prev    += 1;
+        game_state_index_next    += 1;
+
+        game_state_index_current %= 3;
+        game_state_index_prev    %= 3;
+        game_state_index_next    %= 3;
+}
 
 void tick_game(f64 dt) {
-    auto *game_prev    = &game_states[game_state_index_prev];
-    auto *game_current = &game_states[game_state_index_current];
+    proceed_game_state_ring_buffer();
+
+    auto *next_state    = &game_states[game_state_index_next];
+    auto *current_state = &game_states[game_state_index_current];
 
     for (int i = 0; i < NUM_ENTITIES; ++i) {
         f32 coef = 0.05f;
-        game_current->entities[i].position.x = game_prev->entities[i].position.x + dt * coef * (f32)((s32)(rng_u64() >> 32) % 32);
-        game_current->entities[i].position.y = game_prev->entities[i].position.y + dt * coef * (f32)((s32)(rng_u64() >> 32) % 32);
+        next_state->entities[i].position.x = current_state->entities[i].position.x + dt * coef * (f32)((s32)(rng_u64() >> 32) % 32);
+        next_state->entities[i].position.y = current_state->entities[i].position.y + dt * coef * (f32)((s32)(rng_u64() >> 32) % 32);
 
-        game_current->entities[i].tint = (u32)(rng_u64() >> 32);
+        u32 packed = (u32)rng_u64();
+        next_state->entities[i].tint = unpack_rgba(packed);
     }
-
-
-    // Proceed circular buffer
-    game_state_index_current += 1;
-    game_state_index_prev    += 1;
-    game_state_index_next    += 1;
-
-    game_state_index_current %= 3;
-    game_state_index_prev    %= 3;
-    game_state_index_next    %= 3;
 }
 
-static void render();
+void render(f64 alpha) 
+{
+    rhi_command_buffer_begin(cmd_buffer);
+
+    RHI_Pass pass = {};
+    {
+        pass.name = S("Textured Quad");
+        pass.num_color_attachments = 1;
+
+        auto *attachment = &pass.color_attachments[0];
+        {
+            attachment->view           = views[surface->current_frame_index];
+            attachment->load_op        = RHI_LOAD_OP_CLEAR;
+            attachment->clear_color[0] = 0.3f;
+            attachment->clear_color[1] = 0.2f;
+            attachment->clear_color[2] = 0.2f;
+            attachment->clear_color[3] = 1.0f;
+        }
+    }
+
+    rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+
+    rhi_pass_begin(cmd_buffer, &pass);
+    {
+        // Set states
+        rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
+        rhi_cmd_set_viewport(cmd_buffer, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT, 0.f, 1.f);
+        rhi_cmd_set_scissor(cmd_buffer, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
+
+
+        // Bind root constants
+        Constants constants = {};
+        {
+            constants.vertex_buffer_id  = vertex_buffer_view.bindless;
+            constants.texture_id        = tex_view.bindless;
+            constants.linear_sampler_id = linear_sampler.bindless;
+            constants.arguments_id      = arguments_view.bindless;
+        }
+        rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
+
+
+        { // Update arguments
+            auto *current = &game_states[game_state_index_current];
+            auto *next    = &game_states[game_state_index_next];
+
+            for (u32 i = 0; i < NUM_ENTITIES; ++i) {
+                auto *E1 = &current->entities[i];
+                auto *E2 = &next->entities[i];
+
+                // Interpolate, @Todo: Turns out, there's a better way?
+                v3 position = lerp(E1->position, alpha, E2->position);
+                v4 tint     = lerp(E1->tint, alpha, E2->tint);
+
+                Arguments *args = (Arguments *)arguments_ptr + i;
+                args->position = position; 
+                args->tint = pack_rgba(tint);
+            }
+        }
+
+
+        // Draw
+        u32 num_instances = NUM_ENTITIES;
+        rhi_cmd_draw_indexed(cmd_buffer, &index_buffer, sizeof(indices[0]), num_indices, num_instances, 0, 0, 0);
+    }
+    rhi_pass_end(cmd_buffer, &pass);
+
+    rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+
+    rhi_command_buffer_end(cmd_buffer);
+
+    rhi_submit(device, 1, &cmd_buffer);
+
+    // @Temporary
+    rhi_semaphore_signal(device, RHI_COMMAND_TYPE_GRAPHICS, &semaphore, current_frame_index);
+    rhi_semaphore_wait(&semaphore, current_frame_index, RHI_INFINITE);
+    current_frame_index += 1;
+
+    rhi_surface_present(surface);
+}
 
 int main_entry(int argc, char **argv) 
 {
@@ -534,10 +637,7 @@ int main_entry(int argc, char **argv)
         }
 
         f64 alpha = accumulator / dt;
-
-        // @Todo: lerp_state(alpha);
-
-        render();
+        render(alpha);
 
         clear_temporary_storage();
     }
@@ -546,77 +646,4 @@ int main_entry(int argc, char **argv)
     rhi_device_deinit(device);
 
     return 0;
-}
-
-void render() 
-{
-    rhi_command_buffer_begin(cmd_buffer);
-
-    RHI_Pass pass = {};
-    {
-        pass.name = S("Textured Quad");
-        pass.num_color_attachments = 1;
-
-        auto *attachment = &pass.color_attachments[0];
-        {
-            attachment->view           = views[surface->current_frame_index];
-            attachment->load_op        = RHI_LOAD_OP_CLEAR;
-            attachment->clear_color[0] = 0.3f;
-            attachment->clear_color[1] = 0.2f;
-            attachment->clear_color[2] = 0.2f;
-            attachment->clear_color[3] = 1.0f;
-        }
-    }
-
-    rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-    rhi_pass_begin(cmd_buffer, &pass);
-    {
-        // Set states
-        rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
-        rhi_cmd_set_viewport(cmd_buffer, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT, 0.f, 1.f);
-        rhi_cmd_set_scissor(cmd_buffer, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
-
-
-        // Bind root constants
-        Constants constants = {};
-        {
-            constants.vertex_buffer_id  = vertex_buffer_view.bindless;
-            constants.texture_id        = tex_view.bindless;
-            constants.linear_sampler_id = linear_sampler.bindless;
-            constants.arguments_id      = arguments_view.bindless;
-        }
-        rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
-
-
-        { // Update arguments
-            auto *gs = &game_states[game_state_index_current];
-
-            for (u32 i = 0; i < NUM_ENTITIES; ++i) {
-                Arguments *args = (Arguments *)arguments_ptr + i;
-                auto *entity = &gs->entities[i];
-                args->position = entity->position;
-                args->tint     = entity->tint;
-            }
-        }
-
-
-        // Draw
-        u32 num_instances = NUM_ENTITIES;
-        rhi_cmd_draw_indexed(cmd_buffer, &index_buffer, sizeof(indices[0]), num_indices, num_instances, 0, 0, 0);
-    }
-    rhi_pass_end(cmd_buffer, &pass);
-
-    rhi_cmd_texture_barrier(cmd_buffer, &surface->textures[surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-    rhi_command_buffer_end(cmd_buffer);
-
-    rhi_submit(device, 1, &cmd_buffer);
-
-    // @Temporary
-    rhi_semaphore_signal(device, RHI_COMMAND_TYPE_GRAPHICS, &semaphore, current_frame_index);
-    rhi_semaphore_wait(&semaphore, current_frame_index, RHI_INFINITE);
-    current_frame_index += 1;
-
-    rhi_surface_present(surface);
 }
