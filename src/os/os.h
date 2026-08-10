@@ -430,24 +430,15 @@ internal Wait_Result        semaphore_wait(Semaphore *semaphore, s32 millisecond
 internal Thread             thread_launch(void (*proc)(void *), void *param);
 internal bool               thread_join(Thread thread, s32 endt_us);
 internal void               thread_set_name(String name);
-internal u32                thread_id();
 
 // Thread Group
-internal void
-thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name);
-
-internal void 
-thread_group_shutdown(Thread_Group *group);
-
-internal void 
-thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param);
-
-internal void
-thread_group_complete_all_work(Thread_Group *group);
+internal void               thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name);
+internal void               thread_group_shutdown(Thread_Group *group);
+internal void               thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param);
+internal void               thread_group_complete_all_work(Thread_Group *group);
 
 template<typename F> 
-internal void
-parallel_for(Thread_Group *group, s64 count, F&& func);
+internal void parallel_for(Thread_Group *group, s64 count, F&& func);
 
 
 #endif // RTS_OS_H

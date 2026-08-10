@@ -22,7 +22,7 @@ struct Entity {
     v4 tint;
 };
 
-#define NUM_ENTITIES 1024
+#define NUM_ENTITIES 2048
 struct Game_State {
     Entity entities[NUM_ENTITIES];
 };
@@ -61,7 +61,10 @@ global RHI_Sampler         linear_sampler;
 
 global RHI_Buffer          arguments_buffer;
 global RHI_Buffer_View     arguments_view;
-global void               *arguments_ptr;
+global void                *arguments_ptr;
+
+//
+Thread_Group               *worker_group;
 
 
 //
@@ -139,11 +142,12 @@ struct Vertex {
     v2 uv;
 };
 
+#define QUAD_SIZE 0.0625
 Vertex vertices[] = {
-    { v3(-0.125f * 0.5625f, -0.125f, 0.0f), v2(0.f, 1.f) },
-    { v3( 0.125f * 0.5625f, -0.125f, 0.0f), v2(1.f, 1.f) },
-    { v3(-0.125f * 0.5625f,  0.125f, 0.0f), v2(0.f, 0.f) },
-    { v3( 0.125f * 0.5625f,  0.125f, 0.0f), v2(1.f, 0.f) },
+    { v3(-QUAD_SIZE * 0.5625f, -QUAD_SIZE, 0.0f), v2(0.f, 1.f) },
+    { v3( QUAD_SIZE * 0.5625f, -QUAD_SIZE, 0.0f), v2(1.f, 1.f) },
+    { v3(-QUAD_SIZE * 0.5625f,  QUAD_SIZE, 0.0f), v2(0.f, 0.f) },
+    { v3( QUAD_SIZE * 0.5625f,  QUAD_SIZE, 0.0f), v2(1.f, 0.f) },
 };
 
 u32 indices[] = {
@@ -190,20 +194,17 @@ u32 pack_rgba(v4 rgba)
     u32 b = u32(rgba.z * 255.0f + 0.5f);
     u32 a = u32(rgba.w * 255.0f + 0.5f);
 
-    return (r << 0) |
-           (g << 8) |
-           (b << 16) |
-           (a << 24);
+    return (r << 0) | (g << 8) | (b << 16) | (a << 24);
 }
 
 void proceed_game_state_ring_buffer() {
-        game_state_index_current += 1;
-        game_state_index_prev    += 1;
-        game_state_index_next    += 1;
+    game_state_index_current += 1;
+    game_state_index_prev    += 1;
+    game_state_index_next    += 1;
 
-        game_state_index_current %= 3;
-        game_state_index_prev    %= 3;
-        game_state_index_next    %= 3;
+    game_state_index_current %= 3;
+    game_state_index_prev    %= 3;
+    game_state_index_next    %= 3;
 }
 
 void tick_game(f64 dt) {
@@ -212,14 +213,21 @@ void tick_game(f64 dt) {
     auto *next_state    = &game_states[game_state_index_next];
     auto *current_state = &game_states[game_state_index_current];
 
-    for (int i = 0; i < NUM_ENTITIES; ++i) {
+#if 1
+    auto update_entity = [&](s64 i) {
         f32 coef = 0.05f;
         next_state->entities[i].position.x = current_state->entities[i].position.x + dt * coef * (f32)((s32)(rng_u64() >> 32) % 32);
         next_state->entities[i].position.y = current_state->entities[i].position.y + dt * coef * (f32)((s32)(rng_u64() >> 32) % 32);
 
         u32 packed = (u32)rng_u64();
         next_state->entities[i].tint = unpack_rgba(packed);
-    }
+    };
+
+    //for (int i = 0; i < NUM_ENTITIES; ++i) {
+    parallel_for(worker_group, NUM_ENTITIES, [&](s64 i) {
+        update_entity(i);
+    });
+#endif
 }
 
 void render(f64 alpha) 
@@ -312,7 +320,12 @@ int main_entry(int argc, char **argv)
     compiler = alloc_t(Shader_Compiler);
     Assert(shader_compiler_init(compiler));
 
-
+    // Init worker thread group.
+    {
+        Arena *arena = arena_alloc();
+        worker_group = push_struct(arena, Thread_Group);
+        thread_group_init(worker_group, 4, arena, S("WorkerThreadGroup"));
+    }
 
 
     device = alloc_t(RHI_Device);
@@ -403,6 +416,14 @@ int main_entry(int argc, char **argv)
         // @Temporary
         desc.num_color_attachments       = 1;
         desc.color_attachment_formats[0] = surface->textures[0].desc.format;
+
+        desc.blend_enabled[0]           = true;
+        desc.blend_factor_color_src[0] = RHI_BLEND_FACTOR_SRC_ALPHA;
+        desc.blend_factor_color_dst[0] = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        desc.blend_op_color[0]         = RHI_BLEND_OP_ADD;
+        desc.blend_factor_alpha_src[0] = RHI_BLEND_FACTOR_ONE;
+        desc.blend_factor_alpha_dst[0] = RHI_BLEND_FACTOR_ZERO;
+        desc.blend_op_alpha[0]         = RHI_BLEND_OP_ADD;
 
         desc.fill_mode = RHI_FILL_SOLID;
         desc.cull_mode = RHI_CULL_CW;

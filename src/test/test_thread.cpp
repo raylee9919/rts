@@ -8,9 +8,7 @@
 #include "math/include.cpp"
 #include "os/include.cpp"
 
-void work(void *param) {
-    printf("%llu\n", (u64)param);
-}
+#define WORK_COUNT 1024
 
 int main_entry(int argc, char **argv)
 {
@@ -21,13 +19,13 @@ int main_entry(int argc, char **argv)
         thread_group_init(group, 8, arena, S("WorkerThreadGroup"));
     }
 
-    s32 *values = new s32[1000];
+    s32 *values = new s32[WORK_COUNT];
 
-    for (int i = 0; i < 1000; ++i) {
+    for (int i = 0; i < WORK_COUNT; ++i) {
         values[i] = 0;
     }
 
-    parallel_for(group, 1000, [&](s64 i) {
+    parallel_for(group, WORK_COUNT, [&](s64 i) {
         values[i] += i;
     });
 

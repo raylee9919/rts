@@ -47,7 +47,7 @@ void *arena_proc(Allocator_Mode mode, u64 size, u64 old_size, void *vold_memory,
     }
 }
 
-void thread_init(void) {
+void thread_init() {
     tctx.scratch_arena = arena_alloc();
 
     // @Temporary

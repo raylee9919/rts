@@ -1009,41 +1009,6 @@ void thread_set_name(String name) {
 
     // Minimum supported client	Windows 10, version 1607
     SetThreadDescription(GetCurrentThread(), (WCHAR *)name_16.str);
-
-    {
-        String name_copy = tprint(S("%S"), name);
-#pragma pack(push,8)
-        typedef struct THREADNAME_INFO THREADNAME_INFO;
-        struct THREADNAME_INFO
-        {
-            u32   dwType;     // Must be 0x1000.
-            char *szName;     // Pointer to name (in user addr space).
-            u32   dwThreadID; // Thread ID (-1=caller thread).
-            u32   dwFlags;    // Reserved for future use, must be zero.
-        };
-#pragma pack(pop)
-
-        THREADNAME_INFO info;
-        info.dwType     = 0x1000;
-        info.szName     = (char *)name_copy.str;
-        info.dwThreadID = thread_id();
-        info.dwFlags    = 0;
-#pragma warning(push)
-#pragma warning(disable: 6320 6322)
-        __try
-        {
-            RaiseException(0x406D1388, 0, sizeof(info) / sizeof(void *), (const ULONG_PTR *)&info);
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER)
-        {
-        }
-#pragma warning(pop)
-    }
-}
-
-u32 thread_id() {
-    u32 tid = (u32)GetCurrentThreadId();
-    return tid;
 }
 
 
@@ -1151,7 +1116,6 @@ static void _thread_group_proc(void *param) {
 void thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name) {
     group->should_shutdown = false;
     group->arena           = arena;
-    group->temp            = temporary_arena_begin(group->arena);
     group->count           = num_threads;
     group->worker_info     = push_array_aligned(group->arena, Worker_Info, num_threads, CACHE_LINE_SIZE); // No false-sharing.
 
@@ -1166,6 +1130,7 @@ void thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, Strin
         info->thread = thread_launch(_thread_group_proc, info);
     }
 
+    group->temp    = temporary_arena_begin(group->arena);
     group->initted = true;
 }
 
