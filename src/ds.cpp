@@ -15,7 +15,7 @@ bool List <T> :: is_empty() {
 
 template <typename T>
 void List <T> :: add(T item) {
-    auto* node = new Link <T>;
+    auto* node = new Link <T>; // @Todo: Remove this shii
     memset(node, 0, sizeof(*node));
     
     node->data = item;

@@ -82,7 +82,7 @@ void init_work_queue(Work_Queue* queue, int num_threads) {
 // Init
 //
 void os_init() {
-    Arena* arena = arena_alloc();
+    Arena *arena = arena_alloc();
     os = push_struct(arena, OS_State);
     os->arena = arena;
 
@@ -895,28 +895,60 @@ void os_clear_events() {
     }
 }
 
-// Critical Section
+
+// Mutex  @Todo: afaik, critical seciton is lighweight mutex. But, needs confirmation.
 //
-void csection_init(Critical_Section* csection) {
-    InitializeCriticalSection(csection);
+void mutex_create(Mutex *mutex) {
+    InitializeCriticalSection(&mutex->csection);
 }
 
-void csection_lock(Critical_Section* csection) {
-    EnterCriticalSection(csection);
+void mutex_destroy(Mutex *mutex) {
+    DeleteCriticalSection(&mutex->csection);
 }
 
-void csection_unlock(Critical_Section* csection) {
-    LeaveCriticalSection(csection);
+void mutex_lock(Mutex *mutex) {
+    EnterCriticalSection(&mutex->csection);
 }
 
-void csection_destroy(Critical_Section* csection) {
-    DeleteCriticalSection(csection);
+void mutex_unlock(Mutex *mutex) {
+    LeaveCriticalSection(&mutex->csection);
+}
+
+
+// Semaphore
+//
+void semaphore_create(Semaphore *semaphore) {
+    semaphore->event = CreateSemaphore(NULL, 0, 0x7fffffff, NULL);
+}
+
+void semaphore_destroy(Semaphore *semaphore) {
+    CloseHandle(semaphore->event);
+}
+
+void semaphore_signal(Semaphore *semaphore) {
+    ReleaseSemaphore(semaphore->event, 1, NULL);
+}
+
+Wait_Result semaphore_wait(Semaphore *semaphore, s32 milliseconds) {
+    DWORD res = S_OK;
+
+    if (milliseconds < 0) {
+        res = WaitForSingleObject(semaphore->event, INFINITE);
+    } else {
+        res = WaitForSingleObject(semaphore->event, (u32)milliseconds);
+    }
+
+    if (res == WAIT_OBJECT_0)  return WAIT_RESULT_SUCCESS;
+    if (res == WAIT_TIMEOUT)   return WAIT_RESULT_TIMEOUT;
+    else                       return WAIT_RESULT_ERROR;
 }
 
 
 // Thread
 //
 static DWORD _win32_thread_entry(void *ptr) {
+    thread_init();
+
     OS_Thing *thing = (OS_Thing *)ptr;
 
     auto *proc  = thing->thread.proc;
@@ -927,7 +959,7 @@ static DWORD _win32_thread_entry(void *ptr) {
     return 0;
 }
 
-OS_Thread thread_launch(void (*proc)(void *), void *param) {
+Thread thread_launch(void (*proc)(void *), void *param) {
     OS_Thing_Kind kind = OS_THING_KIND_THREAD;
     OS_Thing *thing = os_thing_alloc(kind);
 
@@ -945,9 +977,9 @@ OS_Thread thread_launch(void (*proc)(void *), void *param) {
     return *thread;
 }
 
-bool thread_join(OS_Thread thread, u64 endt_us) {
-    Assert(endt_us == UINT64_MAX); // @Temporary
-    DWORD milliseconds = INFINITE;
+bool thread_join(Thread thread, s32 milliseconds) {
+    Assert(milliseconds == -1); // @Temporary
+    DWORD timeout = INFINITE;
 
     OS_Thing *thing = NULL;
 
@@ -963,7 +995,7 @@ bool thread_join(OS_Thread thread, u64 endt_us) {
 
     if (thing) {
         HANDLE handle = win32_handle_from_os_handle(thing->thread.handle);
-        wait_result = WaitForSingleObject(handle, milliseconds);
+        wait_result = WaitForSingleObject(handle, timeout);
         CloseHandle(handle);
 
         os_thing_dealloc(thing);
@@ -971,6 +1003,256 @@ bool thread_join(OS_Thread thread, u64 endt_us) {
 
     return wait_result == WAIT_OBJECT_0;
 }
+
+void thread_set_name(String name) {
+    Utf16 name_16 = to_utf16(tctx.temp, name);
+
+    // Minimum supported client	Windows 10, version 1607
+    SetThreadDescription(GetCurrentThread(), (WCHAR *)name_16.str);
+
+    {
+        String name_copy = tprint(S("%S"), name);
+#pragma pack(push,8)
+        typedef struct THREADNAME_INFO THREADNAME_INFO;
+        struct THREADNAME_INFO
+        {
+            u32   dwType;     // Must be 0x1000.
+            char *szName;     // Pointer to name (in user addr space).
+            u32   dwThreadID; // Thread ID (-1=caller thread).
+            u32   dwFlags;    // Reserved for future use, must be zero.
+        };
+#pragma pack(pop)
+
+        THREADNAME_INFO info;
+        info.dwType     = 0x1000;
+        info.szName     = (char *)name_copy.str;
+        info.dwThreadID = thread_id();
+        info.dwFlags    = 0;
+#pragma warning(push)
+#pragma warning(disable: 6320 6322)
+        __try
+        {
+            RaiseException(0x406D1388, 0, sizeof(info) / sizeof(void *), (const ULONG_PTR *)&info);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+#pragma warning(pop)
+    }
+}
+
+u32 thread_id() {
+    u32 tid = (u32)GetCurrentThreadId();
+    return tid;
+}
+
+
+// Thread Group
+//
+static void work_list_init(Work_List *list) {
+    memset(list, 0, sizeof(*list));
+    semaphore_create(&list->semaphore);
+    mutex_create(&list->mutex);
+}
+
+static void work_list_deinit(Work_List *list) {
+    semaphore_destroy(&list->semaphore);
+    mutex_destroy(&list->mutex);
+}
+
+static void _add_work(Work_List *list, Work_Entry *entry) {
+    mutex_lock(&list->mutex);
+    {
+        if (list->last) {
+            list->last->next = entry;
+            list->last       = entry;
+        } else {
+            list->first      = entry;
+            list->last       = entry;
+        }
+
+        list->count += 1;
+    }
+    mutex_unlock(&list->mutex);
+
+    semaphore_signal(&list->semaphore);
+}
+
+static Work_Entry *_get_work(Work_List *list) {
+    Work_Entry* result = NULL;
+
+    mutex_lock(&list->mutex);
+    {
+        result = list->first;
+
+        if (result) {
+            list->first = result->next;
+
+            if (!list->first) {
+                list->last = NULL;
+            }
+
+            result->next = NULL;
+
+            list->count -= 1;
+        }
+    }
+    mutex_unlock(&list->mutex);
+
+    return result;
+}
+
+static void _worker_info_init(Worker_Info *info, Thread_Group *group, s32 index) {
+    work_list_init(&info->available);
+
+    info->group = group;
+    info->index = index;
+}
+
+static void _worker_info_deinit(Worker_Info *info) {
+    work_list_deinit(&info->available);
+
+    info->group = NULL;
+    info->index = 0;
+}
+
+static void _thread_group_proc(void *param) {
+    Worker_Info *info   = (Worker_Info *)param;
+    Thread_Group *group = info->group;
+    Work_List *list     = &info->available;
+
+    if (group->name.str && group->name.len) {
+        String name = tprint(S("%S_%d"), group->name, info->index);
+        thread_set_name(name);
+    }
+
+    Work_Entry *entry = NULL;
+
+    while (!group->should_shutdown) {
+        if (!entry) {
+            semaphore_wait(&list->semaphore, -1);
+
+            if (group->should_shutdown) break; // abort immediately.
+
+            entry = _get_work(list);
+        }
+
+        if (entry) {
+            entry->thread_index = info->index;
+            entry->proc(entry->param);
+
+            InterlockedIncrement64(&group->completed);
+        }
+
+        entry = NULL;
+    }
+}
+
+void thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name) {
+    group->should_shutdown = false;
+    group->arena           = arena;
+    group->temp            = temporary_arena_begin(group->arena);
+    group->count           = num_threads;
+    group->worker_info     = push_array_aligned(group->arena, Worker_Info, num_threads, CACHE_LINE_SIZE); // No false-sharing.
+
+    if (group_name.str && group_name.len) {
+        group->name = group_name;
+    }
+
+    for (s32 i = 0; i < num_threads; ++i) {
+        auto *info = &group->worker_info[i];
+        _worker_info_init(info, group, i);
+
+        info->thread = thread_launch(_thread_group_proc, info);
+    }
+
+    group->initted = true;
+}
+
+void thread_group_shutdown(Thread_Group *group) {
+    // Should exit "properly": never use 'ExitThread()' or 'TerminateThread()'.
+    Assert(group->initted);
+
+    group->should_shutdown = true;
+
+    for (s32 i = 0; i < group->count; ++i) {
+        semaphore_signal(&group->worker_info[i].available.semaphore);
+    }
+
+    for (s32 i = 0; i < group->count; ++i) {
+        thread_join(group->worker_info[i].thread, -1);
+    }
+
+    for (s32 i = 0; i < group->count; ++i) {
+        auto *info = &group->worker_info[i];
+        _worker_info_deinit(info);
+    }
+}
+
+void thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param) {
+    auto *entry = push_struct(group->arena, Work_Entry);
+
+    entry->proc  = proc;
+    entry->param = param;
+
+    s32 index = group->next_worker_index++;
+    group->next_worker_index %= group->count;
+
+    InterlockedIncrement64(&group->added);
+
+    _add_work(&group->worker_info[index].available, entry);
+}
+
+void thread_group_complete_all_work(Thread_Group *group) {
+    while (group->completed != group->added) {
+        _mm_pause(); // spin hint to the processor
+    }
+
+    group->completed = 0;
+    group->added     = 0;
+
+    // Flush allocated work entries.
+    temporary_arena_end(group->temp);
+    group->temp = temporary_arena_begin(group->arena);
+}
+
+template<typename F>
+void parallel_for(Thread_Group *group, s64 count, F&& func) {
+    if (count <= 0)  return;
+
+    s64 chunk_size = (count + group->count - 1) / group->count;
+
+    struct Context {
+        F  *func;
+        s64 begin;
+        s64 end;
+    };
+
+    auto proc = [](void *param) {
+        Context *ctx = (Context *)param;
+
+        for (s64 i = ctx->begin; i < ctx->end; ++i) {
+            (*ctx->func)(i);
+        }
+    };
+
+    for (s32 i = 0; i < group->count; ++i) {
+        s64 begin = i * chunk_size;
+        s64 end   = min(begin + chunk_size, count);
+
+        if (begin >= end)  break;
+
+        Context *ctx = push_struct(group->arena, Context);
+        ctx->func  = &func;
+        ctx->begin = begin;
+        ctx->end   = end;
+
+        thread_group_add_work(group, proc, ctx);
+    }
+
+    thread_group_complete_all_work(group);
+}
+
 
 
 // Main Entry
@@ -980,6 +1262,7 @@ int win32_main_entry() {
     os_init();
     thread_init();
     os_gfx_init();
+
     return main_entry(0, NULL);
 }
 

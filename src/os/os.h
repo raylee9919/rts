@@ -4,6 +4,16 @@
 #define RTS_OS_H
 
 
+struct Thread;
+struct Thread_Group;
+
+
+// Main Entry
+#if !defined(BUILD_NO_ENTRY) || !BUILD_NO_ENTRY
+int main_entry(int argc, char** argv);
+#endif
+
+
 // Handle
 //
 struct OS_Handle {
@@ -13,12 +23,69 @@ struct OS_Handle {
 
 // Thread
 //
-struct OS_Thread {
+struct Thread {
     OS_Handle handle;
-    uint64_t  tid;
+    u64       tid;
 
     void (*proc)(void *);
     void *param;
+};
+
+struct Work_Entry {
+    Work_Entry *next;
+
+    void       (*proc)(void*);
+    void       *param;
+
+    s32        thread_index; // thread of an index in the group that handled the work.
+};
+
+struct Work_List {
+    Work_Entry *first;
+    Work_Entry *last;
+    s32         count;
+
+    Mutex       mutex;
+    Semaphore   semaphore;
+};
+
+struct Worker_Info {
+    Work_List     available;
+
+    Thread        thread;
+
+    Thread_Group *group;
+    s32           index; // Synonym of 'lane' index.
+};
+
+//
+// This is a single producer thread group. It simple cycles 'next_worker_index'  
+// and adds work to corresponding worker info's work list. Each thread has its 
+// own queue so that cache coherency isn't a problem. Job-stealing is a @Todo.
+//
+struct Thread_Group {
+    String          name;
+
+    Arena          *arena;
+    Temporary_Arena temp;
+
+    s32             next_worker_index;
+
+    Worker_Info    *worker_info;
+    s32             count;
+    
+    // @Todo: This is bad. Cache coherency. Multiple threads will write to those and invalidate the cache.
+    s64 volatile    completed;
+    s64 volatile    added;
+
+    b32             initted;
+    b32             should_shutdown;
+};
+
+enum Wait_Result : u8 {
+    WAIT_RESULT_SUCCESS = 0,
+    WAIT_RESULT_ERROR   = 1,
+    WAIT_RESULT_TIMEOUT = 2,
 };
 
 
@@ -208,7 +275,7 @@ struct OS_Event {
 
 // Thing (Discriminated Union)
 //
-enum OS_Thing_Kind : int16_t {
+enum OS_Thing_Kind : u8 {
     OS_THING_KIND_INVALID = 0,
 
     OS_THING_KIND_THREAD,
@@ -221,7 +288,7 @@ struct OS_Thing {
     OS_Thing *next;
     OS_Thing *prev;
     union {
-        OS_Thread thread;
+        Thread thread;
     };
 };
 
@@ -282,8 +349,8 @@ struct OS_State {
     OS_Thing *last_free_thing;
 
     // Thing list
-    OS_Thing *first_thing[OS_THING_KIND_OPL];
-    OS_Thing *last_thing[OS_THING_KIND_OPL];
+    OS_Thing *first_thing[OS_THING_KIND_OPL - 1];
+    OS_Thing *last_thing[OS_THING_KIND_OPL - 1];
 
     // @Temporary
     Work_Queue work_queue;
@@ -291,16 +358,8 @@ struct OS_State {
 global OS_State *os;
 
 
-// OS Include
+// APIs
 //
-#if OS_WINDOWS
-#  include "os/win32/os_win32.h"
-#else
-#  error Undefined OS
-#endif
-
-
-// Init
 internal void               os_init();
 
 // Memory
@@ -349,26 +408,46 @@ internal void               os_window_toggle_fullscreen(OS_Handle window);
 internal v2                 os_window_size(OS_Handle window);
 internal v2                 os_get_mouse_position(OS_Handle window);
 
-// Events
+// Event
 internal void               os_poll_events();
 internal OS_Event*          os_push_event();
 internal void               os_remove_event(OS_Event* event);
 internal void               os_clear_events();
 
-// Critical Section
-internal void               csection_init(Critical_Section* csection);
-internal void               csection_lock(Critical_Section* csection);
-internal void               csection_unlock(Critical_Section* csection);
-internal void               csection_destroy(Critical_Section* csection);
+// Mutex
+internal void               mutex_create(Mutex *mutex);
+internal void               mutex_destroy(Mutex *mutex);
+internal void               mutex_lock(Mutex *mutex);
+internal void               mutex_unlock(Mutex *mutex);
+
+// Semaphore
+internal void               semaphore_create(Semaphore *semaphore);
+internal void               semaphore_destroy(Semaphore *semaphore);
+internal void               semaphore_signal(Semaphore *semaphore);
+internal Wait_Result        semaphore_wait(Semaphore *semaphore, s32 milliseconds); // Pass in negative number to wait indefinitely.
 
 // Thread
-internal OS_Thread          thread_launch(void (*proc)(void *), void *param);
-internal bool               thread_join(OS_Thread thread, u64 endt_us);
+internal Thread             thread_launch(void (*proc)(void *), void *param);
+internal bool               thread_join(Thread thread, s32 endt_us);
+internal void               thread_set_name(String name);
+internal u32                thread_id();
 
-// Main Entry
-#if !defined(BUILD_NO_ENTRY) || !BUILD_NO_ENTRY
-int main_entry(int argc, char** argv);
-#endif
+// Thread Group
+internal void
+thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name);
+
+internal void 
+thread_group_shutdown(Thread_Group *group);
+
+internal void 
+thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param);
+
+internal void
+thread_group_complete_all_work(Thread_Group *group);
+
+template<typename F> 
+internal void
+parallel_for(Thread_Group *group, s64 count, F&& func);
 
 
 #endif // RTS_OS_H

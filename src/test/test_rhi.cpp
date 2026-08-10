@@ -314,6 +314,7 @@ int main_entry(int argc, char **argv)
 
 
 
+
     device = alloc_t(RHI_Device);
     Assert(rhi_device_init(device, RHI_KIND_D3D12, true, true));
 

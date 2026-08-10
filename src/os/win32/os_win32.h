@@ -73,6 +73,14 @@ struct Win32_State {
     Win32_Window *window_free_last;
 };
 
+struct Mutex {
+    CRITICAL_SECTION csection;
+};
+
+struct Semaphore {
+    HANDLE event;
+};
+
 
 
 

@@ -57,6 +57,14 @@
 #  define per_thread __thread
 #endif
 
+#if defined(_MSC_VER)
+#  define force_inline  __forceinline
+#elif defined(__clang__) || defined(__GNUC__)
+#  define force_inline  inline __attribute__((always_inline))
+#else
+#  error Undefined compiler.
+#endif
+
 
 // NOTE: Align Of
 //
@@ -110,6 +118,9 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #    define SSE_ENABLED 1
 #  endif
 #endif
+
+
+#define CACHE_LINE_SIZE 64 // @Temporary
 
 
 
@@ -403,22 +414,22 @@ enum Texture_Layout
     TEXTURE_LAYOUT_R8,
 };
 
-inline u8 align_up(u8 x, u8 alignment) {
+force_inline u8 align_up(u8 x, u8 alignment) {
     Assert((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
-inline u16 align_up(u16 x, u16 alignment) {
+force_inline u16 align_up(u16 x, u16 alignment) {
     Assert((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
-inline u32 align_up(u32 x, u32 alignment) {
+force_inline u32 align_up(u32 x, u32 alignment) {
     Assert((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
-inline u64 align_up(u64 x, u64 alignment) {
+force_inline u64 align_up(u64 x, u64 alignment) {
     Assert((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
@@ -426,7 +437,7 @@ inline u64 align_up(u64 x, u64 alignment) {
 
 // Returns 64 if there's no set bit. That's why TZCNT is better than BSF.
 // @Todo: Some old chips might not support tzcnt
-inline u64 tzcnt64(u64 x) {
+force_inline u64 tzcnt64(u64 x) {
     return _tzcnt_u64(x);
 }
 

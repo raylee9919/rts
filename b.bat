@@ -79,8 +79,8 @@ if "%build_rts%"=="1" (
 :: Test
 if "%build_test%"=="1" (
     REM call %compiler% %flags_compile% ..\src\Test\test_ds.cpp  /Fe:test_ds  /link %flags_linker%
-    call %compiler% %flags_compile% ..\src\Test\test_rhi.cpp /Fe:test_rhi /link %flags_linker%
-    REM call %compiler% %flags_compile% ..\src\Test\test_thread.cpp /Fe:test_thread /link %flags_linker%
+    REM call %compiler% %flags_compile% ..\src\Test\test_rhi.cpp /Fe:test_rhi /link %flags_linker%
+    call %compiler% %flags_compile% ..\src\Test\test_thread.cpp /Fe:test_thread /link %flags_linker%
 )
 
 del *.obj *.res >nul
