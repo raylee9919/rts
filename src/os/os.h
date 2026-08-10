@@ -10,6 +10,18 @@ struct OS_Handle {
     u64 e[1];
 };
 
+
+// Thread
+//
+struct OS_Thread {
+    OS_Handle handle;
+    uint64_t  tid;
+
+    void (*proc)(void *);
+    void *param;
+};
+
+
 // File
 //
 typedef u32 OS_Access_Flags;
@@ -193,6 +205,27 @@ struct OS_Event {
     u16             repeat_count;
 };
 
+
+// Thing (Discriminated Union)
+//
+enum OS_Thing_Kind : int16_t {
+    OS_THING_KIND_INVALID = 0,
+
+    OS_THING_KIND_THREAD,
+
+    OS_THING_KIND_OPL // one-past-last
+};
+
+struct OS_Thing {
+    OS_Thing_Kind kind;
+    OS_Thing *next;
+    OS_Thing *prev;
+    union {
+        OS_Thread thread;
+    };
+};
+
+
 // @Temporary
 //
 #define OS_WORK_CALLBACK(name) void name(void *param)
@@ -244,10 +277,18 @@ struct OS_State {
     String initial_path;
     String appdata_path;
 
+    // Thing Free List
+    OS_Thing *first_free_thing;
+    OS_Thing *last_free_thing;
+
+    // Thing list
+    OS_Thing *first_thing[OS_THING_KIND_OPL];
+    OS_Thing *last_thing[OS_THING_KIND_OPL];
+
     // @Temporary
     Work_Queue work_queue;
 };
-global OS_State* os;
+global OS_State *os;
 
 
 // OS Include
@@ -319,6 +360,10 @@ internal void               csection_init(Critical_Section* csection);
 internal void               csection_lock(Critical_Section* csection);
 internal void               csection_unlock(Critical_Section* csection);
 internal void               csection_destroy(Critical_Section* csection);
+
+// Thread
+internal OS_Thread          thread_launch(void (*proc)(void *), void *param);
+internal bool               thread_join(OS_Thread thread, u64 endt_us);
 
 // Main Entry
 #if !defined(BUILD_NO_ENTRY) || !BUILD_NO_ENTRY

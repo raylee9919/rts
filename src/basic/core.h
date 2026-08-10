@@ -236,7 +236,7 @@ enum
 #define stack_pop(f) stack_pop_nz(f, next, check_null)
 
 #define list_for_n(f, it, next) \
-    for (decltype(f) (it) = (f), _n = (it) ? (it)->next : NULL; \
+    for (auto *it = (f), *_n = (it) ? (it)->next : NULL; \
          (it) != NULL; \
          (it) = _n, _n = (it) ? (it)->next : NULL)
 

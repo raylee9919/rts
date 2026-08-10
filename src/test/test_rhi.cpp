@@ -27,41 +27,41 @@ struct Game_State {
     Entity entities[NUM_ENTITIES];
 };
 
-Game_State game_states[3];
-s64 game_state_index_current = 0;
-s64 game_state_index_next    = 1;
-s64 game_state_index_prev    = 2;
+global Game_State game_states[3];
+global s64 game_state_index_current = 0;
+global s64 game_state_index_next    = 1;
+global s64 game_state_index_prev    = 2;
 
 //
-OS_Handle window        = {};
-b32 should_close        = false;
-u32 SURFACE_WIDTH       = 1920;
-u32 SURFACE_HEIGHT      = 1080;
-u32 num_back_buffers    = 3;
-u64 current_frame_index = 0;
+global OS_Handle window        = {};
+global b32 should_close        = false;
+global u32 SURFACE_WIDTH       = 1920;
+global u32 SURFACE_HEIGHT      = 1080;
+global u32 num_back_buffers    = 3;
+global u64 current_frame_index = 0;
 
 //
-Shader_Compiler     *compiler;
+global Shader_Compiler     *compiler;
 
 //
-RHI_Device          *device;
-RHI_Semaphore       semaphore;
-RHI_Surface         *surface;
-RHI_Command_Buffer  *cmd_buffer;
-RHI_Command_Buffer  *compute_buffer;
-RHI_Command_Buffer  *copy_buffer;
-RHI_Texture_View    views[RHI_MAX_BACK_BUFFERS];
-RHI_Pipeline        pipeline;
+global RHI_Device          *device;
+global RHI_Semaphore       semaphore;
+global RHI_Surface         *surface;
+global RHI_Command_Buffer  *cmd_buffer;
+global RHI_Command_Buffer  *compute_buffer;
+global RHI_Command_Buffer  *copy_buffer;
+global RHI_Texture_View    views[RHI_MAX_BACK_BUFFERS];
+global RHI_Pipeline        pipeline;
 
-RHI_Buffer          vertex_buffer;
-RHI_Buffer_View     vertex_buffer_view;
-RHI_Buffer          index_buffer;
-RHI_Texture_View    tex_view;
-RHI_Sampler         linear_sampler;
+global RHI_Buffer          vertex_buffer;
+global RHI_Buffer_View     vertex_buffer_view;
+global RHI_Buffer          index_buffer;
+global RHI_Texture_View    tex_view;
+global RHI_Sampler         linear_sampler;
 
-RHI_Buffer          arguments_buffer;
-RHI_Buffer_View     arguments_view;
-void               *arguments_ptr;
+global RHI_Buffer          arguments_buffer;
+global RHI_Buffer_View     arguments_view;
+global void               *arguments_ptr;
 
 
 //
@@ -304,11 +304,15 @@ void render(f64 alpha)
 
 int main_entry(int argc, char **argv) 
 {
+    // Open window
     window = os_window_create(1920, 1080, utf8lit("rhi"));
     HWND hwnd = hwnd_from_os_handle(window);
 
+    // Init shader compiler
     compiler = alloc_t(Shader_Compiler);
     Assert(shader_compiler_init(compiler));
+
+
 
     device = alloc_t(RHI_Device);
     Assert(rhi_device_init(device, RHI_KIND_D3D12, true, true));
@@ -397,7 +401,7 @@ int main_entry(int argc, char **argv)
 
         // @Temporary
         desc.num_color_attachments       = 1;
-        desc.color_attachment_formats[0] = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+        desc.color_attachment_formats[0] = surface->textures[0].desc.format;
 
         desc.fill_mode = RHI_FILL_SOLID;
         desc.cull_mode = RHI_CULL_CW;

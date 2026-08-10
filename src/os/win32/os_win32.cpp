@@ -77,6 +77,8 @@ void init_work_queue(Work_Queue* queue, int num_threads) {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 // Init
 //
 void os_init() {
@@ -202,9 +204,33 @@ void os_init() {
 }
 
 
+// Thing
+//
+static OS_Thing *os_thing_alloc(OS_Thing_Kind kind) {
+    OS_Thing *thing = os->first_free_thing;
+
+    if (thing == NULL) {
+        thing = push_struct(os->arena, OS_Thing);
+    } else {
+        sll_pop_front(os->first_free_thing, os->last_free_thing);
+        memset(thing, 0, sizeof(*thing));
+    }
+
+    thing->kind = kind;
+    dll_push_back(os->first_thing[kind], os->last_thing[kind], thing);
+
+    return thing;
+}
+
+static void os_thing_dealloc(OS_Thing *thing) {
+    dll_remove(os->first_thing[thing->kind], os->last_thing[thing->kind], thing);
+    sll_push_back(os->first_free_thing, os->last_free_thing, thing);
+}
+
+
 // Memory
 //
-void* os_reserve(u64 size) {
+void *os_reserve(u64 size) {
     void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
     return result;
 }
@@ -225,7 +251,7 @@ void os_release(void* ptr, u64 size) {
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-void* os_heap_alloc(u64 size) {
+void *os_heap_alloc(u64 size) {
     return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
@@ -887,6 +913,88 @@ void csection_destroy(Critical_Section* csection) {
     DeleteCriticalSection(csection);
 }
 
+
+// Thread
+//
+static DWORD _win32_thread_entry(void *ptr) {
+    OS_Thing *thing = (OS_Thing *)ptr;
+
+    auto *proc  = thing->thread.proc;
+    void *param = thing->thread.param;
+
+    proc(param);
+
+    return 0;
+}
+
+OS_Thread thread_launch(void (*proc)(void *), void *param) {
+    OS_Thing_Kind kind = OS_THING_KIND_THREAD;
+    OS_Thing *thing = os_thing_alloc(kind);
+
+    auto *thread = &thing->thread;
+
+    thread->proc  = proc;
+    thread->param = param;
+
+    HANDLE handle = CreateThread(NULL, 0, _win32_thread_entry, thing, 0, (DWORD *)&thread->tid);
+
+    if (handle) {
+        thread->handle = os_handle_from_win32_handle(handle); 
+    }
+
+    return *thread;
+}
+
+bool thread_join(OS_Thread thread, u64 endt_us) {
+    Assert(endt_us == UINT64_MAX); // @Temporary
+    DWORD milliseconds = INFINITE;
+
+    OS_Thing *thing = NULL;
+
+    list_for(os->first_thing[OS_THING_KIND_THREAD], it) {
+        auto *t = &it->thread;
+        if (t->handle == thread.handle && t->tid == thread.tid) {
+            thing = it;
+            break;
+        }
+    }
+
+    DWORD wait_result = WAIT_OBJECT_0;
+
+    if (thing) {
+        HANDLE handle = win32_handle_from_os_handle(thing->thread.handle);
+        wait_result = WaitForSingleObject(handle, milliseconds);
+        CloseHandle(handle);
+
+        os_thing_dealloc(thing);
+    }
+
+    return wait_result == WAIT_OBJECT_0;
+}
+
+
+// Main Entry
+//
+#if !BUILD_NO_ENTRY
+int win32_main_entry() {
+    os_init();
+    thread_init();
+    os_gfx_init();
+    return main_entry(0, NULL);
+}
+
+/*
+int wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd) {
+    return win32_main_entry();
+}
+*/
+
+int main(int argc, char **argv) {
+    return win32_main_entry();
+}
+#endif
+
+
 // Utilities
 //
 String string_from_hresult(HRESULT hr) {
@@ -938,24 +1046,3 @@ String string_from_hresult(HRESULT hr) {
     }
 #undef X
 }
-
-
-
-// Main Entry
-//
-#if !BUILD_NO_ENTRY
-int win32_main_entry() {
-    os_init();
-    thread_init();
-    os_gfx_init();
-    return main_entry(0, NULL);
-}
-
-//int wWinMain(HINSTANCE hinst, HINSTANCE deprecated, PWSTR cmd, int show_cmd) {
-//    return win32_main_entry();
-//}
-
-int main(int argc, char **argv) {
-    return win32_main_entry();
-}
-#endif
