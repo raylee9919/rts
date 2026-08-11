@@ -28,9 +28,9 @@
 // NOTE: Define per-platform stuffs.
 //
 #if OS_WINDOWS
-#  define break_debugger() __debugbreak()
+#  define debug_break() __debugbreak()
 #else
-#  define break_debugger() (*(volatile int *)0 = 0;)
+#  define debug_break() (*(volatile int *)0 = 0;)
 #endif
 
 #if COMPILER_CL || (COMPILER_CLANG && OS_WINDOWS)
@@ -57,12 +57,10 @@
 #  define per_thread __thread
 #endif
 
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #  define force_inline  __forceinline
-#elif defined(__clang__) || defined(__GNUC__)
-#  define force_inline  inline __attribute__((always_inline))
 #else
-#  error Undefined compiler.
+#  define force_inline  __attribute__((always_inline))
 #endif
 
 
@@ -174,9 +172,9 @@ enum
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #undef assert
-#define ASSERT(exp)  if (!(exp)) do { break_debugger(); } while(0)
-#define Assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
-#define assert(exp)  if (!(exp)) do { break_debugger(); } while(0)
+#define ASSERT(exp)  if (!(exp)) do { debug_break(); } while(0)
+#define Assert(exp)  if (!(exp)) do { debug_break(); } while(0)
+#define assert(exp)  if (!(exp)) do { debug_break(); } while(0)
 #define assume(exp)  assert(exp)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
@@ -439,6 +437,12 @@ force_inline u64 align_up(u64 x, u64 alignment) {
 // @Todo: Some old chips might not support tzcnt
 force_inline u64 tzcnt64(u64 x) {
     return _tzcnt_u64(x);
+}
+
+// Placement new
+template <typename T, typename... Args>
+T* construct(T* memory, Args&&... args) {
+    return new (memory) T(static_cast<Args&&>(args)...);
 }
 
 

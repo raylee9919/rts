@@ -366,10 +366,10 @@ void rhi_semaphore_deinit(RHI_Semaphore *semaphore) {
     }
 }
 
-void rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout) {
+void rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, s32 milliseconds) {
     switch (semaphore->kind) {
         case RHI_KIND_D3D12:
-            d3d12_fence_wait(semaphore, value, timeout);
+            d3d12_fence_wait(semaphore, value, milliseconds);
             break;
 
         default:

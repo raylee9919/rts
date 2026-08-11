@@ -142,7 +142,7 @@ internal void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height)
 
 internal bool  d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence);
 internal void  d3d12_fence_deinit(RHI_Semaphore *fence);
-internal void  d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout);
+internal void  d3d12_fence_wait(RHI_Semaphore *fence, u64 value, s32 milliseconds);
 internal u64   d3d12_fence_completed_value(RHI_Semaphore *fence);
 
 internal void  d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);

@@ -9,7 +9,6 @@
 
 #define RHI_ALL_MIPS                0xffffffff
 #define RHI_ALL_LAYERS              0xffffffff
-#define RHI_INFINITE                0xffffffff
 
 
 struct RHI_Device;

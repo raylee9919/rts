@@ -1305,3 +1305,24 @@ Xform to_xform(m4x4 m)
 
     return xform;
 }
+
+
+// Graphics
+//
+u32 pack_rgba(v4 rgba) {
+    u32 r = u32(rgba.x * 255.0f + 0.5f);
+    u32 g = u32(rgba.y * 255.0f + 0.5f);
+    u32 b = u32(rgba.z * 255.0f + 0.5f);
+    u32 a = u32(rgba.w * 255.0f + 0.5f);
+
+    return (r << 0) | (g << 8) | (b << 16) | (a << 24);
+}
+
+v4 unpack_rgba(u32 rgba) {
+    return {
+        f32((rgba >>  0) & 0xFF),
+        f32((rgba >>  8) & 0xFF),
+        f32((rgba >> 16) & 0xFF),
+        f32((rgba >> 24) & 0xFF)
+    };
+}

@@ -280,5 +280,10 @@ internal v2             to_ndc(v2 p, f32 w, f32 h);
 internal v3             unproject(v3 position, m4x4 viewproj);
 internal Ray3           ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj);
 
+// Graphics
+internal u32            pack_rgba(v4 rgba);
+internal v4             unpack_rgba(u32 rgba);
+
+
 
 #endif // RTS_MATH_H

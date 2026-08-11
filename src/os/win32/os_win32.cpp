@@ -239,6 +239,7 @@ bool os_commit(void* ptr, u64 size) {
     bool result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
     // @Todo: RIORegisterBuffer()
     // Also, check out (https://github.com/cmuratori/largepages)
+    // The problem with RIO is that now it cannot be evicted, so it's somewhat dangerous to ship.
     return result;
 }
 
@@ -1218,6 +1219,21 @@ void parallel_for(Thread_Group *group, s64 count, F&& func) {
     thread_group_complete_all_work(group);
 }
 
+
+// UUID/GUID
+//
+ID128 id128_generate() {
+    ID128 result = {};
+    UUID uuid;
+    RPC_STATUS status = UuidCreate(&uuid);
+    if (status == RPC_S_OK) {
+        result.data1 = uuid.Data1;
+        result.data2 = uuid.Data2;
+        result.data3 = uuid.Data3;
+        memcpy(result.data4, uuid.Data4, 8);
+    }
+    return result;
+}
 
 
 // Main Entry

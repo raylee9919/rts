@@ -3,6 +3,8 @@
 #ifndef RTS_OS_WIN32_H
 #define RTS_OS_WIN32_H
 
+#define COM_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
+
 #define NOMINMAX
 #define UNICODE
 #define _UNICODE
@@ -20,8 +22,6 @@
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "winmm")
 #pragma comment(lib, "ole32")
-
-#define COM_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
 
 extern "C" 
 {
@@ -51,9 +51,6 @@ extern "C"
 # define USE_PIX 1
 # pragma comment(lib, "WinPixEventRuntime")
 #endif
-
-
-
 
 typedef CRITICAL_SECTION Critical_Section;
 

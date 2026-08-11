@@ -35,7 +35,7 @@ struct Table {
     Array<Entry> entries;
 
     u32 hash(Key_Type key) {
-        if constexpr (given_hash_function) {
+        if (given_hash_function) {
             return given_hash_function(key);
         } else {
             return default_hash(key);

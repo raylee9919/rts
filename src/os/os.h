@@ -293,6 +293,25 @@ struct OS_Thing {
 };
 
 
+// UUID/GUID
+//
+struct ID128 {
+    union {
+        struct {
+            u32 data1;
+            u16 data2;
+            u16 data3;
+            u8  data4[8];
+        };
+        u8 u[16];
+    };
+
+    bool operator == (const ID128& other) {
+        return memcmp(u, other.u, sizeof(u)) == 0;
+    }
+};
+
+
 // @Temporary
 //
 #define OS_WORK_CALLBACK(name) void name(void *param)
@@ -436,6 +455,9 @@ internal void               thread_group_init(Thread_Group *group, s32 num_threa
 internal void               thread_group_shutdown(Thread_Group *group);
 internal void               thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param);
 internal void               thread_group_complete_all_work(Thread_Group *group);
+
+// UUID/GUID
+internal ID128              id128_generate();
 
 template<typename F> 
 internal void parallel_for(Thread_Group *group, s64 count, F&& func);

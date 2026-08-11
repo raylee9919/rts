@@ -201,12 +201,12 @@ static void d3d12_message_callback(D3D12_MESSAGE_CATEGORY category,
         case D3D12_MESSAGE_SEVERITY_CORRUPTION:
         case D3D12_MESSAGE_SEVERITY_ERROR:
             if (description) d3d12_log_message(severity, description);
-            break_debugger();
+            __debugbreak();
             break;
 
         case D3D12_MESSAGE_SEVERITY_WARNING:
             if (description) d3d12_log_message(severity, description);
-            if (break_on_warning) break_debugger();
+            if (break_on_warning) __debugbreak();
             break;
 
         default:
@@ -257,6 +257,7 @@ static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
     }
     log(LOG_INFO, S("Deinitialized d3d12 command queue."));
 }
+
 
 // Descriptor
 //
@@ -1603,10 +1604,11 @@ void d3d12_fence_deinit(RHI_Semaphore *fence) {
     log(LOG_INFO, S("Deinitialized d3d12 fence."));
 }
 
-void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, u32 timeout) {
+void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, s32 milliseconds) {
+    DWORD timeout = (milliseconds == -1) ? INFINITE : (DWORD)milliseconds;
     if (fence->d3d12.fence_0->GetCompletedValue() < value) {
         fence->d3d12.fence_0->SetEventOnCompletion(value, fence->d3d12.event);
-        WaitForSingleObject(fence->d3d12.event, (timeout == RHI_INFINITE) ? INFINITE : (DWORD)timeout);
+        WaitForSingleObject(fence->d3d12.event, timeout);
     }
 }
 

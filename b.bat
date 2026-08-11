@@ -41,7 +41,7 @@ set flags_release=/O2 /DBUILD_DEBUG=0
 :: 4189: local variable is initialized but not referenced
 :: 4456: declaration hides previous local declaration
 :: 4244::::::::::::::::::::::::::::::::::::::::::::::::::
-set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS -wd4201 -wd4505 -wd4100 -wd4189 -wd4244
+set flags_warning=/W4 /D_CRT_SECURE_NO_WARNINGS -wd4201 -wd4505 -wd4100 -wd4189 -wd4244 -wd4127
 set flags_linker=/incremental:no /opt:ref
 
 :: Choose Compile/Link Lines

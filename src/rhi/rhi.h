@@ -3,22 +3,6 @@
 #ifndef RTS_RHI_H
 #define RTS_RHI_H
 
-#define RHI_API static
-
-struct RHI_State {
-    Arena *arena;
-    void  *platform;
-};
-
-
-internal bool rhi_init(RHI_State* rhi, OS_Window window);
-internal void r_begin(RHI_State* rhi, v2 window_size, v2 render_size);
-internal void r_end(RHI_State* rhi, struct Renderer *r);
-
-
-// ------------------------------------------------------------------------ //
-
-
 typedef struct D3D12_Device D3D12_Device;
 
 enum RHI_Kind : u8 {
@@ -43,10 +27,6 @@ struct RHI_Command_Buffer {
     };
 };
 
-
-//
-// Heap
-//
 struct RHI_Heap {
     RHI_Kind kind;
     union {
@@ -54,10 +34,6 @@ struct RHI_Heap {
     };
 };
 
-
-//
-// Buffer
-//
 struct RHI_Buffer_Desc {
     RHI_Memory_Type memory_type;
     u64             size;
@@ -88,10 +64,6 @@ struct RHI_Buffer_View {
     };
 };
 
-
-//
-// Texture
-//
 enum RHI_Texture_Type {
     RHI_TEXTURE_TYPE_1D,
     RHI_TEXTURE_TYPE_2D,
@@ -161,11 +133,14 @@ struct RHI_Texture {
     };
 };
 
-enum RHI_Texture_View_Type {
+typedef u16 RHI_Texture_View_Type;
+enum {
     RHI_TEXTURE_VIEW_TYPE_SAMPLED,
     RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS,
     RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET,
-    RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL
+    RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL,
+
+    RHI_TEXTURE_VIEW_TYPE_COUNT
 };
 
 struct RHI_Texture_View_Desc {
@@ -179,7 +154,7 @@ struct RHI_Texture_View_Desc {
 };
 
 struct RHI_Texture_View {
-    RHI_Kind kind;
+    RHI_Kind              kind;
     RHI_Texture_View_Desc desc;
     u32 bindless;
     union {
@@ -240,10 +215,10 @@ struct RHI_Surface_Desc {
 };
 
 struct RHI_Surface {
-    RHI_Kind kind;
-    RHI_Surface_Desc desc;
-    u32 current_frame_index;
-    RHI_Texture textures[RHI_MAX_BACK_BUFFERS];
+    RHI_Kind            kind;
+    RHI_Surface_Desc    desc;
+    u32                 current_frame_index;
+    RHI_Texture         textures[RHI_MAX_BACK_BUFFERS];
     union {
         D3D12_Surface d3d12;
     };
@@ -339,7 +314,7 @@ struct RHI_Pipeline_Desc {
 };
 
 struct RHI_Pipeline {
-    RHI_Kind kind;
+    RHI_Kind          kind;
     RHI_Pipeline_Desc desc;
     union {
         D3D12_Pipeline d3d12;
@@ -383,9 +358,6 @@ internal void  rhi_buffer_view_deinit(RHI_Buffer_View *view);
 internal bool  rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
 internal void  rhi_texture_deinit(RHI_Texture *texture);
 
-internal bool  rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-internal void  rhi_texture_deinit(RHI_Texture *texture);
-
 internal void  rhi_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
 internal void  rhi_texture_view_deinit(RHI_Texture_View *view);
 
@@ -397,7 +369,7 @@ internal void  rhi_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *render_pas
 
 internal bool  rhi_semaphore_init(RHI_Device *device, RHI_Semaphore *semaphore);
 internal void  rhi_semaphore_deinit(RHI_Semaphore *semaphore);
-internal void  rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, u32 timeout);
+internal void  rhi_semaphore_wait(RHI_Semaphore *semaphore, u64 value, s32 milliseconds);
 internal void  rhi_semaphore_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
 internal u64   rhi_semaphore_completed_value(RHI_Semaphore *semaphore);
 internal void  rhi_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value);
