@@ -439,6 +439,10 @@ force_inline u64 tzcnt64(u64 x) {
     return _tzcnt_u64(x);
 }
 
+force_inline u32 tzcnt32(u32 x) {
+    return _tzcnt_u32(x);
+}
+
 // Placement new
 template <typename T, typename... Args>
 T* construct(T* memory, Args&&... args) {

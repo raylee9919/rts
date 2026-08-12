@@ -1,7 +1,8 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
-void _log_internal(Log_Level level, String fmt, String file, int line, ...) {
+void _log_internal(Log_Level level, String fmt, String file, int line, ...) 
+{
     {
         String str_level = {};
         if      (level == LOG_TRACE)   str_level = tprint(S("[%s%+5s%s] "),        ANSI_COLOR_CYAN,   "TRACE", ANSI_COLOR_RESET);
@@ -14,7 +15,8 @@ void _log_internal(Log_Level level, String fmt, String file, int line, ...) {
         printf((char *)str_level.str);
     }
 
-    if (0) {
+    if (0) 
+    {
         String file_line_fmt = S("%S(%d)  ");
         String file_line = tprint(file_line_fmt, file, line);
         printf("%s", file_line.str);

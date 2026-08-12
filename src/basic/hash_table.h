@@ -10,7 +10,7 @@
 
 
 #define TABLE_SIZE_MIN              32
-#define TABLE_LOAD_FACTOR_PERCENT   70 // @Temporary
+#define TABLE_LOAD_FACTOR_PERCENT   70
 
 
 #define HASH_NEVER_OCCUPIED 0
@@ -18,7 +18,7 @@
 #define HASH_FIRST_VALID    2
 
 
-template <typename Key_Type, typename Value_Type, u32 (*given_hash_function)(Key_Type) = nullptr, u32 LOAD_FACTOR_PERCENT = 70>
+template <typename K, typename V, u32 (*given_hash_function)(K) = NULL, u32 LOAD_FACTOR_PERCENT = TABLE_LOAD_FACTOR_PERCENT>
 struct Table {
     s64 count;        // The number of valid items in the table..
     s64 allocated;    // The numbers of slots for which we have allocated memory.
@@ -27,15 +27,15 @@ struct Table {
     Allocator allocator;
 
     struct Entry {
-        u32         hash;
-        Key_Type    key;
-        Value_Type  value;
+        u32  hash;
+        K    key;
+        V    value;
     };
 
     Array<Entry> entries;
 
-    u32 hash(Key_Type key) {
-        if (given_hash_function) {
+    u32 hash(K key) {
+        if constexpr (given_hash_function) { // Because of this, I had to use C++17
             return given_hash_function(key);
         } else {
             return default_hash(key);
@@ -43,10 +43,10 @@ struct Table {
     }
 };
 
-template <typename Value_Type>
+template <typename V>
 struct Table_Find_Result {
-    bool        found;
-    Value_Type  value;
+    b32 found;
+    V   value;
 };
 
 

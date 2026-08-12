@@ -1319,10 +1319,10 @@ u32 pack_rgba(v4 rgba) {
 }
 
 v4 unpack_rgba(u32 rgba) {
-    return {
-        f32((rgba >>  0) & 0xFF),
-        f32((rgba >>  8) & 0xFF),
-        f32((rgba >> 16) & 0xFF),
-        f32((rgba >> 24) & 0xFF)
-    };
+    return v4{
+        f32((rgba >>  0) & 0xff),
+        f32((rgba >>  8) & 0xff),
+        f32((rgba >> 16) & 0xff),
+        f32((rgba >> 24) & 0xff)
+    } * 0.003921568627451f;
 }

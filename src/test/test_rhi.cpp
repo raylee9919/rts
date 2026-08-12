@@ -48,11 +48,7 @@ global u64 current_frame_index = 0;
 global Shader_Compiler     *compiler;
 
 //
-global RHI_Semaphore       semaphore;
-global RHI_Texture_View    views[RHI_MAX_BACK_BUFFERS];
 global RHI_Pipeline        pipeline;
-
-global RHI_Texture_View    tex_view;
 
 global RHI_Buffer          arguments_buffer;
 global RHI_Buffer_View     arguments_view;
@@ -129,7 +125,8 @@ String shader_source = S(R"(
 )");
 
 
-global const u64 MESH_ID = 1219;
+global const u64 MESH_ID     = 1219;
+global const u32 RENDER_PASS = 0;
 
 struct Vertex {
     v3 position;
@@ -188,87 +185,60 @@ void tick_game(f64 dt)
 
 void render(f64 alpha) 
 {
-    auto *cmd_buffer     = &gfx->command_buffers[0];
-    auto *compute_buffer = &gfx->compute_buffers[0];
+    gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_HANDLE);
+    gfx_pass_viewport(RENDER_PASS, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
+    gfx_pass_scissor(RENDER_PASS, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
+    gfx_pass_clear_color(RENDER_PASS, 0xffff00ff, 0);
 
-    rhi_command_buffer_begin(cmd_buffer);
+    gfx_end();
 
-    RHI_Pass pass = {};
-    {
-        pass.name = S("Textured Quad");
-        pass.num_color_attachments = 1;
-
-        auto *attachment = &pass.color_attachments[0];
-        {
-            attachment->view           = views[gfx->surface->current_frame_index];
-            attachment->load_op        = RHI_LOAD_OP_CLEAR;
-            attachment->clear_color[0] = 0.3f;
-            attachment->clear_color[1] = 0.2f;
-            attachment->clear_color[2] = 0.2f;
-            attachment->clear_color[3] = 1.0f;
-        }
-    }
-
-    rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-    rhi_pass_begin(cmd_buffer, &pass);
+#if 0
     {
         // @Temporary
-        auto* mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+        auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+        auto *tex  = table_find_pointer(&gfx->texture_table, TEXTURE_ID); 
 
-        // Set states
+        // Set pipeline state.
         rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
-        rhi_cmd_set_viewport(cmd_buffer, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT, 0.f, 1.f);
-        rhi_cmd_set_scissor(cmd_buffer, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
 
 
-        // Bind root constants
-        Constants constants = {};
+        // This is a draw call, effectively.
         {
-            constants.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
-            constants.texture_id        = tex_view.bindless;
-            constants.linear_sampler_id = gfx->linear_sampler.bindless;
-            constants.arguments_id      = arguments_view.bindless;
-        }
-        rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
-
-
-        { // Update arguments
-            auto *current = &game_states[game_state_index_current];
-            auto *next    = &game_states[game_state_index_next];
-
-            for (u32 i = 0; i < NUM_ENTITIES; ++i) {
-                auto *E1 = &current->entities[i];
-                auto *E2 = &next->entities[i];
-
-                // Interpolate, @Todo: Turns out, there's a better way?
-                v3 position = lerp(E1->position, alpha, E2->position);
-                v4 tint     = lerp(E1->tint, alpha, E2->tint);
-
-                Arguments *args = (Arguments *)arguments_ptr + i;
-                args->position = position; 
-                args->tint = pack_rgba(tint);
+            // Bind root constants
+            Constants constants = {};
+            {
+                constants.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
+                constants.texture_id        = tex->views[RHI_TEXTURE_VIEW_TYPE_SAMPLED].bindless;
+                constants.linear_sampler_id = gfx->linear_sampler.bindless;
+                constants.arguments_id      = arguments_view.bindless;
             }
+            rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
+
+
+            { // Update arguments
+                auto *current = &game_states[game_state_index_current];
+                auto *next    = &game_states[game_state_index_next];
+
+                for (u32 i = 0; i < NUM_ENTITIES; ++i) {
+                    auto *E1 = &current->entities[i];
+                    auto *E2 = &next->entities[i];
+
+                    // Interpolate, @Todo: Turns out, there's a better way?
+                    v3 position = lerp(E1->position, alpha, E2->position);
+                    v4 tint     = lerp(E1->tint, alpha, E2->tint);
+
+                    Arguments *args = (Arguments *)arguments_ptr + i;
+                    args->position = position; 
+                    args->tint = pack_rgba(tint);
+                }
+            }
+
+            // Draw
+            u32 num_instances = NUM_ENTITIES;
+            rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, sizeof(indices[0]), num_indices, num_instances, 0, 0, 0);
         }
-
-        // Draw
-        u32 num_instances = NUM_ENTITIES;
-        rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, sizeof(indices[0]), num_indices, num_instances, 0, 0, 0);
     }
-    rhi_pass_end(cmd_buffer, &pass);
-
-    rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-    rhi_command_buffer_end(cmd_buffer);
-
-    rhi_submit(gfx->device, 1, &cmd_buffer);
-
-    // @Temporary
-    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &semaphore, current_frame_index);
-    rhi_semaphore_wait(&semaphore, current_frame_index, -1);
-    current_frame_index += 1;
-
-    rhi_surface_present(gfx->surface);
+#endif
 }
 
 int main_entry(int argc, char **argv) 
@@ -298,23 +268,6 @@ int main_entry(int argc, char **argv)
         gfx_init(init);
     }
 
-
-    Assert(rhi_semaphore_init(gfx->device, &semaphore));
-
-
-    for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) {
-        RHI_Texture_View_Desc view_desc = {};
-        {
-            view_desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
-            view_desc.dimension         = RHI_TEXTURE_TYPE_2D;
-            view_desc.format            = gfx->surface->textures[i].desc.format;
-            view_desc.base_mip_level    = 0;
-        }
-        rhi_texture_view_init(gfx->device, &views[i], &gfx->surface->textures[i], &view_desc);
-    }
-
-
-
     Shader_Compile_Result vs = {};
     Shader_Compile_Result ps = {};
     { // Compile shader
@@ -340,7 +293,7 @@ int main_entry(int argc, char **argv)
         // ..or you read bytes from your asset file
     }
 
-    { // Create PSO
+    { // Create pipeline state object(PSO)
         RHI_Pipeline_Desc desc = {};
         desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
 
@@ -363,10 +316,11 @@ int main_entry(int argc, char **argv)
     }
 
 
-    gfx_register_mesh(MESH_ID, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
+    gfx_mesh_create(MESH_ID, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
+
 
     // @Temporary
-    auto* mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+    auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
 
     { // Create arguments buffer and view
         u64 stride = sizeof(Arguments);
@@ -396,72 +350,21 @@ int main_entry(int argc, char **argv)
     String contents = read_entire_file(S("C:/Users/swl/Desktop/doggo.png"), tctx.allocator);
     Bitmap bitmap = bitmap_import(contents.str, contents.len);
 
-    // Create texture
-    auto *tex = alloc_t(RHI_Texture);
+
+    // Create and upload texture.
+    RHI_Texture_Desc tex_desc = {};
     {
-        RHI_Texture_Desc desc = {};
-        {
-            desc.type           = RHI_TEXTURE_TYPE_2D;             // @Temporary: hard-coded.
-            desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;  // @Temporary: hard-coded.
-            desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
-            desc.width          = bitmap.width;
-            desc.height         = bitmap.height;
-            desc.mip_levels     = 1;
-            desc.depth          = 1;                               // @Temporary: hard-coded.
-        }
-        rhi_texture_init(gfx->device, tex, &desc, NULL);
+        tex_desc.type           = RHI_TEXTURE_TYPE_2D;             // @Temporary: hard-coded.
+        tex_desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;  // @Temporary: hard-coded.
+        tex_desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
+        tex_desc.width          = bitmap.width;
+        tex_desc.height         = bitmap.height;
+        tex_desc.mip_levels     = 1;
+        tex_desc.depth          = 1;                               // @Temporary: hard-coded.
     }
-    {
-        RHI_Texture_View_Desc desc = {};
-        {
-            desc.type               = RHI_TEXTURE_VIEW_TYPE_SAMPLED;
-            desc.dimension          = RHI_TEXTURE_TYPE_2D;
-            desc.format             = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
-            desc.base_mip_level     = 0;
-            desc.base_array_layer   = 0;
-            desc.mip_levels         = tex->desc.mip_levels;
-            desc.depth              = tex->desc.depth;
-        }
-        rhi_texture_view_init(gfx->device, &tex_view, tex, &desc);
-    }
-
-    { // Upload texture
-        // @Todo: I know, I know. Correct alignment for BC and other formats and 
-        // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
-        u8 *ptr = (u8 *)rhi_buffer_map(&gfx->upload_buffer);
-        u8 *dst = ptr;
-        u8 *src = (u8 *)bitmap.data;
-        u32 pitch = bitmap.size / bitmap.height;
-        u32 aligned_pitch = align_up(pitch, 256);
-
-        for (u32 r = 0; r < bitmap.height; ++r) {
-            memcpy(dst, src, pitch);
-            dst += aligned_pitch;
-            src += pitch;
-        }
-
-        rhi_buffer_unmap(&gfx->upload_buffer);
-
-
-        RHI_Box box = {};
-        {
-            box.width  = bitmap.width;
-            box.height = bitmap.height;
-            box.depth  = 1;
-        }
-
-        rhi_command_buffer_begin(&gfx->copy_buffer);
-        {
-            rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, 0, aligned_pitch, tex, &box, 0, 0);
-        }
-        rhi_command_buffer_end(&gfx->copy_buffer);
-        RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-        rhi_submit(gfx->device, 1, buffers);
-        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value);
-        rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value, -1);
-        gfx->upload_semaphore_value += 1;
-    }
-
+    auto texture_handle = gfx_texture_create(tex_desc);
+    gfx_texture_upload(texture_handle, tex_desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
+ 
 
     u64 counter_prev = os_counter();
     f64 dt = 1.f / 60.f; // Update frequency, Tick rate
@@ -515,7 +418,12 @@ int main_entry(int argc, char **argv)
         clear_temporary_storage();
     }
 
+
+    // Cleanup
+    gfx_texture_destroy(texture_handle);
+    gfx_mesh_destroy(MESH_ID);
     gfx_shutdown();
+
 
     return 0;
 }

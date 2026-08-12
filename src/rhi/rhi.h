@@ -107,12 +107,25 @@ enum RHI_Texture_Format {
     RHI_TEXTURE_FORMAT_BC7_UNORM_SRGB,
 };
 
+// Texture_Usage and View_Type are tightly coupled. Changing either would be 
+// catastrophic. Be aware!
 typedef u8 RHI_Texture_Usage;
 enum {
     RHI_TEXTURE_USAGE_SAMPLED                  = 0x1,
     RHI_TEXTURE_USAGE_STORAGE                  = 0x2,
     RHI_TEXTURE_USAGE_COLOR_ATTACHMENT         = 0x4,
-    RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT = 0x8,
+    RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT = 0x8, // It cannot be combined with COLOR_ATTACHMENT nor STORAGE.
+    RHI_TEXTURE_USAGE_OPL_BIT                  = 0x10,
+};
+
+typedef u16 RHI_Texture_View_Type;
+enum {
+    RHI_TEXTURE_VIEW_TYPE_SAMPLED           = 0,
+    RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS  = 1,
+    RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET     = 2,
+    RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL     = 3,
+
+    RHI_TEXTURE_VIEW_TYPE_COUNT             = 4
 };
 
 struct RHI_Texture_Desc {
@@ -131,16 +144,6 @@ struct RHI_Texture {
     union {
         D3D12_Texture d3d12;
     };
-};
-
-typedef u16 RHI_Texture_View_Type;
-enum {
-    RHI_TEXTURE_VIEW_TYPE_SAMPLED,
-    RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS,
-    RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET,
-    RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL,
-
-    RHI_TEXTURE_VIEW_TYPE_COUNT
 };
 
 struct RHI_Texture_View_Desc {
@@ -251,11 +254,11 @@ struct RHI_Attachment {
 
 
 struct RHI_Pass {
-    String         name;
-    RHI_Attachment color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
-    RHI_Attachment depth_attachment;
+    String         name; // for debuggability.
     u32            num_color_attachments;
     b32            has_depth_attachment;
+    RHI_Attachment color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Attachment depth_attachment;
 };
 
 
