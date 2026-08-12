@@ -7,5 +7,6 @@
 #include "./string.cpp"
 #include "./log.cpp"
 #include "./array.cpp"
+#include "./queue.cpp"
 #include "./hash.cpp"
 #include "./hash_table.cpp"

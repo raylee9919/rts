@@ -10,6 +10,7 @@
 #include "./string.h"
 #include "./log.h"
 #include "./array.h"
+#include "./queue.h"
 #include "./hash.h"
 #include "./hash_table.h"
 

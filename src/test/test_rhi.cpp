@@ -1,5 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+
 #include "basic/include.h"
 #include "math/include.h"
 #include "os/include.h"
@@ -48,12 +49,13 @@ global u64 current_frame_index = 0;
 global Shader_Compiler     *compiler;
 
 //
-global RHI_Pipeline        pipeline;
-
 global RHI_Buffer          arguments_buffer;
 global RHI_Buffer_View     arguments_view;
 global void                *arguments_ptr;
 
+//
+global GFX_Texture  texture_handle;
+global GFX_Pipeline pipeline;
 
 //
 struct Arguments {
@@ -65,14 +67,16 @@ struct Arguments {
 String shader_source = S(R"(
     // Copyright Seong Woo Lee. All Rights Reserved.
 
-    float4 unpack_rgba8(uint packed) {
+    float4 unpack_rgba8(uint packed) 
+    {
         return float4((packed >>  0) & 0xff,
                       (packed >>  8) & 0xff,
                       (packed >> 16) & 0xff,
                       (packed >> 24) & 0xff) / 255.0;
     }
 
-    struct Push_Constants {
+    struct Push_Constants 
+    {
         uint vertex_buffer_id;
         uint texture_id;
         uint linear_sampler_id;
@@ -80,24 +84,28 @@ String shader_source = S(R"(
     };
     ConstantBuffer<Push_Constants> push : register(b0);
 
-    struct Arguments {
+    struct Arguments 
+    {
         float3 position;
         uint   tint;
     };
 
-    struct Vertex {
+    struct Vertex 
+    {
         float3 position;
         float2 uv;
     };
     
-    struct VS_Output {
+    struct VS_Output 
+    {
         float4 sv_position : SV_POSITION;
         float3 position    : POSITION;
         float2 uv          : UV;
         float4 color       : COLOR;
     };
     
-    VS_Output main_vs(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID) {
+    VS_Output main_vs(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID) 
+    {
         VS_Output result;
 
         StructuredBuffer<Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
@@ -115,7 +123,8 @@ String shader_source = S(R"(
         return result;
     }
     
-    float4 main_ps(VS_Output input) : SV_TARGET {
+    float4 main_ps(VS_Output input) : SV_TARGET 
+    {
         Texture2D <float4> color_texture  = ResourceDescriptorHeap[push.texture_id];
         SamplerState linear_sampler = SamplerDescriptorHeap[push.linear_sampler_id];
         float4 result = color_texture.Sample(linear_sampler, input.uv) * input.color;
@@ -173,6 +182,7 @@ void tick_game(f64 dt)
     auto *next_state    = &game_states[game_state_index_next];
     auto *current_state = &game_states[game_state_index_current];
 
+#if 0
     for (int i = 0; i < NUM_ENTITIES; ++i) {
         f32 coef = 0.05f;
         next_state->entities[i].position.x = current_state->entities[i].position.x + dt * coef * (f32)((s32)(xorshift64() >> 32) % 32);
@@ -181,64 +191,81 @@ void tick_game(f64 dt)
         u32 packed = (u32)xorshift64();
         next_state->entities[i].tint = unpack_rgba(packed);
     }
+#else
+    xorshift_state_64 = 0xbaadf00d;
+    xorshift_state_32 = 0xCafeBabe;
+    for (int i = 0; i < NUM_ENTITIES; ++i) {
+        f32 coef = 0.05f;
+        next_state->entities[i].position.x = coef * (f32)((s32)(xorshift64() >> 32) % 32);
+        next_state->entities[i].position.y = coef * (f32)((s32)(xorshift64() >> 32) % 32);
+
+        u32 packed = (xorshift32() & 0x00ffffff) | 0xA4000000;
+        next_state->entities[i].tint = unpack_rgba(packed);
+    }
+#endif
+}
+
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+// @Todo: Resolve this......!
+void update_args(f64 alpha)
+{
+    auto *current = &game_states[game_state_index_current];
+    auto *next    = &game_states[game_state_index_next];
+
+    for (u32 i = 0; i < NUM_ENTITIES; ++i) {
+        auto *E1 = &current->entities[i];
+        auto *E2 = &next->entities[i];
+
+        // Interpolate, @Todo: Turns out, there's a better way?
+        v3 position = lerp(E1->position, alpha, E2->position);
+        v4 tint     = lerp(E1->tint, alpha, E2->tint);
+
+        Arguments *args = (Arguments *)arguments_ptr + i;
+        args->position = position; 
+        args->tint = pack_rgba(tint);
+    }
 }
 
 void render(f64 alpha) 
 {
-    gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_HANDLE);
+    gfx_pass_begin(RENDER_PASS);
+
+    gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_TEXTURE);
+    gfx_pass_clear_color(RENDER_PASS, 0xffff00ff, 0);
     gfx_pass_viewport(RENDER_PASS, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
     gfx_pass_scissor(RENDER_PASS, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
-    gfx_pass_clear_color(RENDER_PASS, 0xffff00ff, 0);
 
-    gfx_end();
+    gfx_pipeline(pipeline);
 
-#if 0
     {
         // @Temporary
         auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
-        auto *tex  = table_find_pointer(&gfx->texture_table, TEXTURE_ID); 
 
-        // Set pipeline state.
-        rhi_cmd_set_pipeline(cmd_buffer, &pipeline);
+        // Bind root constants
+        Constants c = {};
+        c.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
+        c.texture_id        = texture_handle.bindless[RHI_TEXTURE_VIEW_TYPE_SAMPLED];
+        c.linear_sampler_id = gfx->linear_sampler.bindless;
+        c.arguments_id      = arguments_view.bindless;
 
+        gfx_push_constants(&c, sizeof(c));
 
-        // This is a draw call, effectively.
-        {
-            // Bind root constants
-            Constants constants = {};
-            {
-                constants.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
-                constants.texture_id        = tex->views[RHI_TEXTURE_VIEW_TYPE_SAMPLED].bindless;
-                constants.linear_sampler_id = gfx->linear_sampler.bindless;
-                constants.arguments_id      = arguments_view.bindless;
-            }
-            rhi_cmd_push_constants(cmd_buffer, &constants, sizeof(constants));
+        update_args(alpha);
 
-
-            { // Update arguments
-                auto *current = &game_states[game_state_index_current];
-                auto *next    = &game_states[game_state_index_next];
-
-                for (u32 i = 0; i < NUM_ENTITIES; ++i) {
-                    auto *E1 = &current->entities[i];
-                    auto *E2 = &next->entities[i];
-
-                    // Interpolate, @Todo: Turns out, there's a better way?
-                    v3 position = lerp(E1->position, alpha, E2->position);
-                    v4 tint     = lerp(E1->tint, alpha, E2->tint);
-
-                    Arguments *args = (Arguments *)arguments_ptr + i;
-                    args->position = position; 
-                    args->tint = pack_rgba(tint);
-                }
-            }
-
-            // Draw
-            u32 num_instances = NUM_ENTITIES;
-            rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, sizeof(indices[0]), num_indices, num_instances, 0, 0, 0);
-        }
+        gfx_draw(MESH_ID, NUM_ENTITIES);
     }
-#endif
+
+    gfx_pass_end();
+
+    gfx_end();
 }
 
 int main_entry(int argc, char **argv) 
@@ -293,6 +320,7 @@ int main_entry(int argc, char **argv)
         // ..or you read bytes from your asset file
     }
 
+
     { // Create pipeline state object(PSO)
         RHI_Pipeline_Desc desc = {};
         desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
@@ -300,6 +328,16 @@ int main_entry(int argc, char **argv)
         // @Temporary
         desc.num_color_attachments       = 1;
         desc.color_attachment_formats[0] = gfx->surface->textures[0].desc.format;
+        
+        desc.blend_enabled[0]           = true;
+
+        desc.blend_factor_color_src[0]  = RHI_BLEND_FACTOR_SRC_ALPHA;
+        desc.blend_factor_color_dst[0]  = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        desc.blend_op_color[0]          = RHI_BLEND_OP_ADD;
+
+        desc.blend_factor_alpha_src[0]  = RHI_BLEND_FACTOR_ONE;
+        desc.blend_factor_alpha_dst[0]  = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        desc.blend_op_alpha[0]          = RHI_BLEND_OP_ADD;
 
         desc.fill_mode = RHI_FILL_SOLID;
         desc.cull_mode = RHI_CULL_CW;
@@ -312,7 +350,7 @@ int main_entry(int argc, char **argv)
         desc.ps_data = ps.data;
         desc.ps_size = ps.size;
 
-        rhi_pipeline_init(gfx->device, &pipeline, &desc);
+        pipeline = gfx_pipeline_create(desc);
     }
 
 
@@ -321,6 +359,7 @@ int main_entry(int argc, char **argv)
 
     // @Temporary
     auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+
 
     { // Create arguments buffer and view
         u64 stride = sizeof(Arguments);
@@ -352,18 +391,20 @@ int main_entry(int argc, char **argv)
 
 
     // Create and upload texture.
-    RHI_Texture_Desc tex_desc = {};
     {
-        tex_desc.type           = RHI_TEXTURE_TYPE_2D;             // @Temporary: hard-coded.
-        tex_desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;  // @Temporary: hard-coded.
-        tex_desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
-        tex_desc.width          = bitmap.width;
-        tex_desc.height         = bitmap.height;
-        tex_desc.mip_levels     = 1;
-        tex_desc.depth          = 1;                               // @Temporary: hard-coded.
+        RHI_Texture_Desc tex_desc = {};
+        {
+            tex_desc.type           = RHI_TEXTURE_TYPE_2D;             // @Temporary: hard-coded.
+            tex_desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;  // @Temporary: hard-coded.
+            tex_desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
+            tex_desc.width          = bitmap.width;
+            tex_desc.height         = bitmap.height;
+            tex_desc.mip_levels     = 1;
+            tex_desc.depth          = 1;                               // @Temporary: hard-coded.
+        }
+        texture_handle = gfx_texture_create(tex_desc);
+        gfx_texture_upload(texture_handle, tex_desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
     }
-    auto texture_handle = gfx_texture_create(tex_desc);
-    gfx_texture_upload(texture_handle, tex_desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
  
 
     u64 counter_prev = os_counter();
@@ -421,6 +462,7 @@ int main_entry(int argc, char **argv)
 
     // Cleanup
     gfx_texture_destroy(texture_handle);
+    gfx_pipeline_destroy(pipeline);
     gfx_mesh_destroy(MESH_ID);
     gfx_shutdown();
 

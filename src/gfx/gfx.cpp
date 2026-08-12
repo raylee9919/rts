@@ -54,33 +54,72 @@ static void gfx_init_uploader(u64 buffer_size)
 static void gfx_reset_per_frame_data()
 {
     // Reset per-frame data.
-    gfx->current_pass = -1;
+    gfx->current_pass           = UINT32_MAX;
+    gfx->ctx_pipeline           = {};
+    gfx->current_push_constants = 0;
+
+    array_reset_keeping_memory(&gfx->sort_keys);
     array_reset_keeping_memory(&gfx->commands);
+    array_reset_keeping_memory(&gfx->push_constants);
+
     memset(&gfx->pass_states[0], 0, sizeof(gfx->pass_states[0]) * GFX_MAX_PASS);
 }
 
-static GFX_Texture_Handle gfx_generate_texture_handle()
+static force_inline u32 gfx_rand32()
 {
-    GFX_Texture_Handle handle;
-    u64 hi = gfx->generational_id++;
-    u64 lo = xorshift32();
-    handle.u[0] = (hi << 32) | lo;
+    return xorshift32();
+}
+
+static GFX_Handle gfx_generate_handle()
+{
+    GFX_Handle handle;
+    u64 hi = gfx->generational_handle_id++;
+    u32 lo = gfx_rand32();
+    handle.u[0] = (hi << 32llu) | lo;
     return handle;
 }
 
-static bool gfx_texture_handle_is_null(GFX_Texture_Handle handle)
+static bool gfx_handle_is_null(GFX_Handle handle)
 {
     return handle.u[0] == 0;
 }
 
+static void gfx_add_callback(GFX_Callback_Entry entry)
+{
+    queue_push(&gfx->callbacks, entry);
+}
+
+static void gfx_execute_callbacks()
+{
+    // The values MUST be in the ascending order in the queue.
+
+    u64 completed_value = rhi_semaphore_completed_value(&gfx->semaphore);
+
+    if (gfx->semaphore_last_completed < completed_value)
+    {
+        gfx->semaphore_last_completed = completed_value;
+    }
+
+    // @Todo: Make a queue. This won't work.
+    while (gfx->callbacks.count > 0)
+    {
+        auto entry = queue_front(&gfx->callbacks);
+        if (entry.semaphore_value_to_execute > completed_value)  break;
+
+        entry.proc(NULL);
+        queue_pop(&gfx->callbacks);
+    }
+}
+
 void gfx_init(GFX_Init init)
 {
+    // Alloc, ZII
     Arena *arena = arena_alloc();
-    gfx = push_struct_noz(arena, GFX_State);
-    memset(gfx, 0, sizeof(*gfx));
-    construct(gfx);
-
+    gfx = push_struct(arena, GFX_State);
     gfx->arena = arena;
+
+    // Construct
+    Construct(gfx);
 
     gfx->init = init;
 
@@ -114,7 +153,7 @@ void gfx_init(GFX_Init init)
         Assert(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
     }
 
-    GFX_SURFACE_HANDLE = gfx_generate_texture_handle();
+    GFX_SURFACE_TEXTURE.handle = gfx_generate_handle();
 }
 
 void gfx_shutdown()
@@ -125,6 +164,8 @@ void gfx_shutdown()
         rhi_command_buffer_deinit(&gfx->command_buffers[i]);
         rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
     }
+
+    // @Todo: release resources safely..
 
     gfx_deinit_samplers();
     rhi_semaphore_deinit(&gfx->semaphore);
@@ -157,13 +198,13 @@ static void gfx_create_structured_view(RHI_Buffer_View *view, RHI_Buffer *buffer
     rhi_buffer_view_init(gfx->device, view, buffer, &desc);
 }
 
-static u64 gfx_encode_sort_key(u64 pass, u64 shader)
+static GFX_Sort_Key gfx_encode_sort_key(u64 pass, u64 pipeline, u64 push_constants)
 {
-}
+    // @Temporary
+    GFX_Sort_Key key = {};
+    key.bits = (pass << 16) | (pipeline << 8) | push_constants;
 
-static GFX_Sort_Key gfx_decode_sort_key(u64 key)
-{
-    // @Todo
+    return key;
 }
 
 void gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size)
@@ -180,6 +221,8 @@ void gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, 
     entry.vertex_buffer      = vb;
     entry.vertex_buffer_view = view;
     entry.index_buffer       = ib;
+    entry.index_size         = index_size;
+    entry.num_indices        = num_indices;
 
     table_add(&gfx->mesh_table, id, entry);
 
@@ -224,11 +267,12 @@ void gfx_mesh_destroy(u64 id)
     }
 }
 
-GFX_Texture_Handle gfx_texture_create(RHI_Texture_Desc desc)
+GFX_Texture gfx_texture_create(RHI_Texture_Desc desc)
 {
-    GFX_Texture tex = {};
+    GFX_Texture result = {};
+    GFX_Texture_Entry entry = {};
 
-    Assert( rhi_texture_init(gfx->device, &tex.texture, &desc, NULL) );
+    Assert( rhi_texture_init(gfx->device, &entry.texture, &desc, NULL) );
 
     RHI_Texture_View_Type view_type = 0;
 
@@ -245,37 +289,46 @@ GFX_Texture_Handle gfx_texture_create(RHI_Texture_Desc desc)
             vdesc.mip_levels         = desc.mip_levels;
             vdesc.depth              = desc.depth;
 
-            rhi_texture_view_init(gfx->device, &tex.views[view_type], &tex.texture, &vdesc);
+            rhi_texture_view_init(gfx->device, &entry.views[view_type], &entry.texture, &vdesc);
+
+            result.bindless[view_type] = entry.views[view_type].bindless;
+        }
+        else
+        {
+            result.bindless[view_type] = UINT32_MAX;
         }
 
         view_type += 1;
     }
 
-    GFX_Texture_Handle handle = gfx_generate_texture_handle();
+    result.handle = gfx_generate_handle();
 
-    table_add(&gfx->texture_table, handle, tex);
+    table_add(&gfx->texture_table, result.handle, entry);
 
-    return handle;
+    return result;
 }
 
-void gfx_texture_destroy(GFX_Texture_Handle handle)
+void gfx_texture_destroy(GFX_Texture texture)
 {
-    auto *tex = table_find_pointer(&gfx->texture_table, handle);
-    if (tex)
+    auto *entry = table_find_pointer(&gfx->texture_table, texture.handle);
+    if (entry)
     {
         for (u16 i = 0; i < RHI_TEXTURE_VIEW_TYPE_COUNT; ++i) 
         {
-            rhi_texture_view_deinit(&tex->views[i]);
+            if (entry->views[i].kind != RHI_KIND_INVALID)
+            {
+                rhi_texture_view_deinit(&entry->views[i]);
+            }
         }
-        rhi_texture_deinit(&tex->texture);
+        rhi_texture_deinit(&entry->texture);
         
-        table_remove(&gfx->texture_table, handle);
+        table_remove(&gfx->texture_table, texture.handle);
     }
 }
 
-void gfx_texture_upload(GFX_Texture_Handle handle, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height)
+void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height)
 {
-    auto *tex = table_find_pointer(&gfx->texture_table, handle);
+    auto *tex = table_find_pointer(&gfx->texture_table, texture.handle);
 
     if (tex)
     {
@@ -323,7 +376,25 @@ void gfx_pass_begin(u32 pass_index)
 
 void gfx_pass_end()
 {
-    gfx->current_pass = -1;
+    gfx->current_pass = UINT32_MAX;
+}
+
+void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Texture texture)
+{
+    Assert(pass_index < GFX_MAX_PASS);
+
+    auto *pass = &gfx->pass_states[pass_index];
+
+    pass->color_attachments[color_attachment_index] = texture;
+}
+
+void gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture)
+{
+    Assert(pass_index < GFX_MAX_PASS);
+
+    auto *pass = &gfx->pass_states[pass_index];
+
+    pass->depth_attachment = texture;
 }
 
 void gfx_pass_viewport(u32 pass_index, f32 top_left_x, f32 top_left_y, f32 width, f32 height)
@@ -358,24 +429,6 @@ void gfx_pass_scissor(u32 pass_index, u32 top_left_x, u32 top_left_y, u32 width,
     sc->h = height;
 }
 
-void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Texture_Handle texture)
-{
-    Assert(pass_index < GFX_MAX_PASS);
-
-    auto *pass = &gfx->pass_states[pass_index];
-
-    pass->color_attachments[color_attachment_index] = texture;
-}
-
-void gfx_pass_depth_attachment(u32 pass_index, GFX_Texture_Handle texture)
-{
-    Assert(pass_index < GFX_MAX_PASS);
-
-    auto *pass = &gfx->pass_states[pass_index];
-
-    pass->depth_attachment = texture;
-}
-
 void gfx_pass_clear_color(u32 pass_index, u32 clear_color, u32 color_attachment_index)
 {
     Assert(pass_index < GFX_MAX_PASS && color_attachment_index < RHI_MAX_COLOR_ATTACHMENTS);
@@ -392,15 +445,73 @@ void gfx_pass_clear_depth(u32 pass_index, f32 clear_depth)
     gfx->pass_states[pass_index].depth  = clear_depth;
 }
 
-void gfx_draw(u64 mesh_id)
+GFX_Pipeline gfx_pipeline_create(RHI_Pipeline_Desc desc)
 {
-    Assert(gfx->current_pass != -1);
+    Assert(gfx->generational_pipeline_id < GFX_MAX_PIPELINE);
+
+    GFX_Pipeline result = {};
+
+    GFX_Pipeline_Entry entry = {};
+    Assert( rhi_pipeline_init(gfx->device, &entry.rhi_pipeline, &desc) );
+
+    result.handle = gfx_generate_handle();
+    result.index  = gfx->generational_pipeline_id++;
+
+    table_add(&gfx->pipeline_table, result.handle, entry);
+
+    return result;
+}
+
+void gfx_pipeline_destroy(GFX_Pipeline pipeline)
+{
+    auto *entry = table_find_pointer(&gfx->pipeline_table, pipeline.handle);
+    if (entry)
+    {
+        rhi_pipeline_deinit(&entry->rhi_pipeline);
+        table_remove(&gfx->pipeline_table, pipeline.handle);
+    }
+}
+
+void gfx_pipeline(GFX_Pipeline pipeline)
+{
+    gfx->ctx_pipeline = pipeline;
+}
+
+void gfx_push_constants(void *data, u32 size)
+{
+    array_add(&gfx->push_constants, {});
+    auto *push = &gfx->push_constants;
+    auto *entry = &push->data[push->count - 1];
+    void *dst = &entry->data[0];
+    memcpy(dst, data, size);
+
+    entry->size = size;
+
+    gfx->current_push_constants += 1;
+}
+
+void gfx_draw(u64 mesh_id, u32 num_instances)
+{
+    Assert(gfx->current_pass != UINT32_MAX);
 
     auto *mesh = table_find_pointer(&gfx->mesh_table, mesh_id);
 
     if (mesh)
     {
-        
+        // @Robustness
+        GFX_Sort_Key key = gfx_encode_sort_key(gfx->current_pass,
+                                               gfx->ctx_pipeline.index,
+                                               gfx->current_push_constants);  
+        key.cmd_index = gfx->commands.count;
+        array_add(&gfx->sort_keys, key);
+
+        GFX_Command cmd = {};
+        cmd.pipeline = gfx->ctx_pipeline;
+        cmd.push_constant_index = gfx->current_push_constants - 1; // can wrap to UINT32_MAX if nothing was pushed.
+        cmd.mesh_handle = mesh_id;
+        cmd.num_instances = num_instances;
+
+        array_add(&gfx->commands, cmd);
     }
     else if (gfx->init.debug)
     {
@@ -411,6 +522,8 @@ void gfx_draw(u64 mesh_id)
 
 void gfx_end()
 {
+    Assert(gfx->push_constants.count == gfx->current_push_constants);
+
     auto *cmd_buffer = &gfx->command_buffers[0];
 
     // @Temporary
@@ -429,14 +542,14 @@ void gfx_end()
 
             for (u32 i = 0; i < RHI_MAX_COLOR_ATTACHMENTS; ++i)
             {
-                if (!gfx_texture_handle_is_null(p->color_attachments[i]))
+                if (!gfx_handle_is_null(p->color_attachments[i].handle))
                 {
                     pass.num_color_attachments += 1;
                 }
             }
 
 
-            if (!gfx_texture_handle_is_null(p->depth_attachment))
+            if (!gfx_handle_is_null(p->depth_attachment.handle))
             {
                 pass.has_depth_attachment = true;
             }
@@ -445,10 +558,10 @@ void gfx_end()
             {
                 if (p->flags & (GFX_PASS_FLAG_CLEAR_COLOR_0 << (color_idx)))
                 {
-                    GFX_Texture_Handle handle = p->color_attachments[color_idx];
+                    GFX_Handle handle = p->color_attachments[color_idx].handle;
 
                     // @Cleanup: I don't like this additional code path.
-                    if (handle != GFX_SURFACE_HANDLE)
+                    if (handle != GFX_SURFACE_TEXTURE.handle)
                     {
                         auto *tex = table_find_pointer(&gfx->texture_table, handle);
                         if (tex)
@@ -485,7 +598,7 @@ void gfx_end()
 
             if (p->flags & GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL)
             {
-                GFX_Texture_Handle handle = p->depth_attachment;
+                GFX_Handle handle = p->depth_attachment.handle;
                 auto *tex = table_find_pointer(&gfx->texture_table, handle);
 
                 if (tex)
@@ -510,7 +623,48 @@ void gfx_end()
 
 
                 {
-                    // Draw calls.
+                    // 1. Sort commands (including resource managing calls).
+                    // 2. ..
+
+                    u64 current_pass     = UINT32_MAX;
+                    u64 current_pipeline = UINT32_MAX;
+
+                    for (auto& key : gfx->sort_keys)
+                    {
+                        // @Temporary: Decode the key.
+                        u64 pass_               = (key.bits & 0b111111110000000000000000) >> 16;
+                        u64 pipeline            = (key.bits & 0b1111111100000000) >> 8;
+                        u64 push_constant_index = (key.bits & 0b11111111);
+
+                        // Fetch the corresponding command.
+                        auto cmd = gfx->commands[key.cmd_index];
+
+                        // Update pass? @Todo
+                        //if (current_pass != pass)
+                        //{
+                        //    current_pass = pass;
+                        //}
+
+                        // Update pipeline?
+                        if (current_pipeline != cmd.pipeline.index)
+                        {
+                            current_pipeline = cmd.pipeline.index;
+                            auto *entry = table_find_pointer(&gfx->pipeline_table, cmd.pipeline.handle);
+                            Assert(entry);
+                            rhi_cmd_set_pipeline(cmd_buffer, &entry->rhi_pipeline);
+                        }
+
+                        // And the real push constants.
+                        if (cmd.push_constant_index != UINT32_MAX)
+                        {
+                            auto* entry = &gfx->push_constants.data[cmd.push_constant_index];
+                            rhi_cmd_push_constants(cmd_buffer, entry->data, entry->size);
+                        }
+
+                        auto *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
+
+                        rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, mesh->index_size, mesh->num_indices, cmd.num_instances, 0, 0, 0);
+                    }
                 }
 
 
@@ -529,13 +683,14 @@ void gfx_end()
 
     // @Temporary
     {
-        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->semaphore, gfx->current_frame_index);
-        rhi_semaphore_wait(&gfx->semaphore, gfx->current_frame_index, -1);
-        gfx->current_frame_index += 1;
+        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->semaphore, ++gfx->semaphore_last_set);
+        rhi_semaphore_wait(&gfx->semaphore, gfx->semaphore_last_set, -1);
 
         rhi_surface_present(gfx->surface);
     }
 
 
     gfx_reset_per_frame_data();
+
+    gfx_execute_callbacks();
 }

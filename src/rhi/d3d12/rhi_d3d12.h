@@ -154,7 +154,7 @@ internal void  d3d12_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, f
 internal void  d3d12_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height);
 internal void  d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 internal void  d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance);
-internal void  d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size);
+internal void  d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u32 size);
 internal void  d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *dst, RHI_Buffer *src, u64 dst_offset, u64 src_offset, u64 size);
 internal void  d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer);
 

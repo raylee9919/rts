@@ -518,7 +518,7 @@ void rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buff
     }
 }
 
-void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size) {
+void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u32 size) {
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
             d3d12_cmd_push_constants(cmd_buffer, data, size);

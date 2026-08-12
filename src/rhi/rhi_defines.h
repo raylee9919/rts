@@ -4,8 +4,9 @@
 #define RHI_ENUM_H
 
 
-#define RHI_MAX_BACK_BUFFERS        3
-#define RHI_MAX_COLOR_ATTACHMENTS   8
+#define RHI_MAX_BACK_BUFFERS            3
+#define RHI_MAX_COLOR_ATTACHMENTS       8
+#define RHI_MAX_32BIT_PUSH_CONSTANTS    32
 
 #define RHI_ALL_MIPS                0xffffffff
 #define RHI_ALL_LAYERS              0xffffffff

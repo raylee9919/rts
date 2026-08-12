@@ -577,7 +577,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
         D3D12_ROOT_PARAMETER root_params[1] = {};
         {
             root_params[0].ParameterType            = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-            root_params[0].Constants.Num32BitValues = 32; // 128-bytes
+            root_params[0].Constants.Num32BitValues = RHI_MAX_32BIT_PUSH_CONSTANTS;
             root_params[0].Constants.RegisterSpace  = 0;
             root_params[0].Constants.ShaderRegister = 0;
         }
@@ -1841,7 +1841,7 @@ void d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_bu
     cmd_buffer->d3d12.list_7->DrawIndexedInstanced(num_indices, num_instances, first_index, first_vertex, first_instance);
 }
 
-void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u64 size) {
+void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u32 size) {
     cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(0, size / 4, data, 0);
 }
 

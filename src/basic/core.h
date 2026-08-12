@@ -445,7 +445,7 @@ force_inline u32 tzcnt32(u32 x) {
 
 // Placement new
 template <typename T, typename... Args>
-T* construct(T* memory, Args&&... args) {
+T* Construct(T* memory, Args&&... args) {
     return new (memory) T(static_cast<Args&&>(args)...);
 }
 
