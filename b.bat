@@ -26,9 +26,9 @@ if "%release%"=="1" set debug=0 && echo [Release Build]
 
 if "%fbx%"=="1"    set build_fbx=1
 if "%rts%"=="1"    set build_rts=1
-if "%test%"=="1"   set build_test=1
+if "%t%"=="1"      set build_test=1
 
-if not defined build_fbx if not defined build_rts if not defined test (
+if not defined build_fbx if not defined build_rts if not defined build_test (
     set "build_rts=1"
     echo building all..
 )

@@ -192,8 +192,6 @@ void tick_game(f64 dt)
         next_state->entities[i].tint = unpack_rgba(packed);
     }
 #else
-    xorshift_state_64 = 0xbaadf00d;
-    xorshift_state_32 = 0xCafeBabe;
     for (int i = 0; i < NUM_ENTITIES; ++i) {
         f32 coef = 0.05f;
         next_state->entities[i].position.x = coef * (f32)((s32)(xorshift64() >> 32) % 32);
@@ -281,7 +279,7 @@ int main_entry(int argc, char **argv)
 
     // Init GFX
     {
-        GFX_Init init = {};
+        GFX_Info init = {};
         init.kind                   = RHI_KIND_D3D12;
 #if BUILD_DEBUG
         init.debug                  = true;

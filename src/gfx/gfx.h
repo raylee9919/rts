@@ -22,7 +22,7 @@ struct GFX_Sort_Key {
     u32 cmd_index;
 };
 
-struct GFX_Init {
+struct GFX_Info {
     RHI_Kind kind;
     b32 debug;
     b32 break_on_warning;
@@ -36,13 +36,8 @@ struct GFX_Init {
 struct GFX_Handle {
     u64 u[1];
 
-    bool operator == (GFX_Handle other) {
-        return u[0] == other.u[0];
-    }
-
-    bool operator != (GFX_Handle other) {
-        return u[0] != other.u[0];
-    }
+    bool operator == (GFX_Handle other) { return u[0] == other.u[0]; }
+    bool operator != (GFX_Handle other) { return u[0] != other.u[0]; }
 };
 
 static force_inline u32 gfx_handle_hash(GFX_Handle handle) {
@@ -125,8 +120,11 @@ struct GFX_Command {
 };
 
 struct GFX_Callback_Entry {
-    void (*proc)(void *);
     u64 semaphore_value_to_execute;
+    void (*proc)(GFX_Callback_Entry entry);
+    union {
+        u64 mesh_id;
+    };
 };
 
 struct GFX_Push_Constants {
@@ -137,8 +135,8 @@ struct GFX_Push_Constants {
 struct GFX_State {
     Arena                                   *arena;
     RHI_Device                              *device;
-    GFX_Init                                init;
-    u32                                     generational_handle_id   = 1;
+    GFX_Info                                info;
+    u32                                     generational_handle_id   = 1; // so null handle is never generated.
     u64                                     generational_pipeline_id = 1;
 
     // The thread will periodically check the 'frame' semaphore at the end of the 
@@ -146,11 +144,26 @@ struct GFX_State {
     // to the semaphore value that is checked to be completed. Releasing resource 
     // early is a problem, but releasing 1,2 frames late? I won't say that's a concern.
     // If it turns out to be a bad idea, I'll make a dedicated thread or something.
+    //
+    // @Todo:
+    // Case 1.
+    //      
+    //      API Timeline:
+    //          x = CreateMesh(A) -> Draw(x) -> DestroyMesh(x) -> y = CreateMesh(A) -> Draw(y)
+    //
+    //      Actual Timeline:
+    //          [ x = CreateMesh(A) -> y = CreateMesh(A) ] -> Draw(x) -> Draw(y)
+    //                           Immediately.              -> [ Draw(x) -> Draw(y) ]
+    //                                                              After sort         -> DestroyMesh(x)
+    //                                                                                      Callback
+    //      
+    //      
+    //
+    //
     Queue<GFX_Callback_Entry>               callbacks;
 
     RHI_Semaphore                           semaphore; // frame semaphore.
-    u64                                     semaphore_last_completed = 0;
-    u64                                     semaphore_last_set       = 0;
+    u64                                     current_frame = 1;
 
     // I'll just have a single swapchain.
     RHI_Surface                             *surface;
@@ -188,7 +201,7 @@ global GFX_Texture GFX_SURFACE_TEXTURE;
 
 
 
-internal void                   gfx_init(GFX_Init init);
+internal void                   gfx_init(GFX_Info info);
 internal void                   gfx_shutdown();
 
 internal void                   gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);

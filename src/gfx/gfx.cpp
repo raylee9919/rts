@@ -89,29 +89,21 @@ static void gfx_add_callback(GFX_Callback_Entry entry)
     queue_push(&gfx->callbacks, entry);
 }
 
-static void gfx_execute_callbacks()
+static void gfx_execute_callbacks(u64 completed_value)
 {
     // The values MUST be in the ascending order in the queue.
 
-    u64 completed_value = rhi_semaphore_completed_value(&gfx->semaphore);
-
-    if (gfx->semaphore_last_completed < completed_value)
-    {
-        gfx->semaphore_last_completed = completed_value;
-    }
-
-    // @Todo: Make a queue. This won't work.
     while (gfx->callbacks.count > 0)
     {
         auto entry = queue_front(&gfx->callbacks);
         if (entry.semaphore_value_to_execute > completed_value)  break;
 
-        entry.proc(NULL);
+        entry.proc(entry);
         queue_pop(&gfx->callbacks);
     }
 }
 
-void gfx_init(GFX_Init init)
+void gfx_init(GFX_Info info)
 {
     // Alloc, ZII
     Arena *arena = arena_alloc();
@@ -121,13 +113,13 @@ void gfx_init(GFX_Init init)
     // Construct
     Construct(gfx);
 
-    gfx->init = init;
+    gfx->info = info;
 
     gfx->device = push_struct(arena, RHI_Device);
-    Assert(rhi_device_init(gfx->device, init.kind, init.debug, init.break_on_warning));
+    Assert(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning));
 
     gfx->surface = push_struct(arena, RHI_Surface);
-    gfx_init_surface(init.native_window_handle, init.width, init.height, init.num_back_buffers);
+    gfx_init_surface(info.native_window_handle, info.width, info.height, info.num_back_buffers);
 
     for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) {
         RHI_Texture_View_Desc desc = {};
@@ -144,7 +136,7 @@ void gfx_init(GFX_Init init)
 
     gfx_init_samplers();
 
-    gfx_init_uploader(MB(128));
+    gfx_init_uploader(MB(128)); // @Temporary
 
     // @Temporary: These will go to encoding threads.
     for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) 
@@ -254,17 +246,28 @@ void gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, 
     }
 }
 
-void gfx_mesh_destroy(u64 id)
+static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
 {
-    auto *mesh = table_find_pointer(&gfx->mesh_table, id);
+    auto *mesh = table_find_pointer(&gfx->mesh_table, entry.mesh_id);
     if (mesh)
     {
         rhi_buffer_view_deinit(&mesh->vertex_buffer_view);
         rhi_buffer_deinit(&mesh->vertex_buffer);
         rhi_buffer_deinit(&mesh->index_buffer);
 
-        table_remove(&gfx->mesh_table, id);
+        table_remove(&gfx->mesh_table, entry.mesh_id);
     }
+}
+
+void gfx_mesh_destroy(u64 id)
+{
+    // Destruction is deferred until the current workload on the GPU is done.
+    GFX_Callback_Entry entry = {};
+    entry.semaphore_value_to_execute = gfx->current_frame;
+    entry.proc    = gfx_mesh_destroy_callback;
+    entry.mesh_id = id;
+
+    gfx_add_callback(entry);
 }
 
 GFX_Texture gfx_texture_create(RHI_Texture_Desc desc)
@@ -403,7 +406,7 @@ void gfx_pass_viewport(u32 pass_index, f32 top_left_x, f32 top_left_y, f32 width
 
     auto *vp = &gfx->pass_states[pass_index].viewport;
 
-    if (vp->set && gfx->init.debug)
+    if (vp->set && gfx->info.debug)
         log(LOG_WARNING, S("Viewport of pass %d will be overwritten."), pass_index);
 
     vp->set = true;
@@ -419,7 +422,7 @@ void gfx_pass_scissor(u32 pass_index, u32 top_left_x, u32 top_left_y, u32 width,
 
     auto *sc = &gfx->pass_states[pass_index].scissor;
 
-    if (sc->set && gfx->init.debug)
+    if (sc->set && gfx->info.debug)
         log(LOG_WARNING, S("Scissor of pass %d will be overwritten."), pass_index);
 
     sc->set = true;
@@ -479,6 +482,8 @@ void gfx_pipeline(GFX_Pipeline pipeline)
 
 void gfx_push_constants(void *data, u32 size)
 {
+    Assert(size <= (4 * RHI_MAX_32BIT_PUSH_CONSTANTS));
+
     array_add(&gfx->push_constants, {});
     auto *push = &gfx->push_constants;
     auto *entry = &push->data[push->count - 1];
@@ -513,7 +518,7 @@ void gfx_draw(u64 mesh_id, u32 num_instances)
 
         array_add(&gfx->commands, cmd);
     }
-    else if (gfx->init.debug)
+    else if (gfx->info.debug)
     {
         log(LOG_WARNING, S("Mesh wasn't registered."));
         Assert(0);
@@ -524,7 +529,7 @@ void gfx_end()
 {
     Assert(gfx->push_constants.count == gfx->current_push_constants);
 
-    auto *cmd_buffer = &gfx->command_buffers[0];
+    auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_back_buffers];
 
     // @Temporary
     rhi_command_buffer_begin(cmd_buffer);
@@ -627,7 +632,7 @@ void gfx_end()
                     // 2. ..
 
                     u64 current_pass     = UINT32_MAX;
-                    u64 current_pipeline = UINT32_MAX;
+                    u64 current_pipeline = UINT32_MAX; // @Fix: If pass changes, pipeline must be reset..
 
                     for (auto& key : gfx->sort_keys)
                     {
@@ -680,17 +685,19 @@ void gfx_end()
     RHI_Command_Buffer *buffers[] = { cmd_buffer };
     rhi_submit(gfx->device, 1, buffers);
 
+    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->semaphore, gfx->current_frame);
 
-    // @Temporary
-    {
-        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->semaphore, ++gfx->semaphore_last_set);
-        rhi_semaphore_wait(&gfx->semaphore, gfx->semaphore_last_set, -1);
-
-        rhi_surface_present(gfx->surface);
-    }
-
+    rhi_surface_present(gfx->surface);
 
     gfx_reset_per_frame_data();
 
-    gfx_execute_callbacks();
+    u64 completed_value = rhi_semaphore_completed_value(&gfx->semaphore);
+    gfx_execute_callbacks(completed_value);
+
+    gfx->current_frame += 1;
+
+    if (gfx->current_frame > gfx->info.num_back_buffers)
+    {
+        rhi_semaphore_wait(&gfx->semaphore, gfx->current_frame % gfx->info.num_back_buffers + 1, -1);
+    }
 }
