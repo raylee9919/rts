@@ -9,7 +9,6 @@
 
 #define NODE_MASK                       0 // @Todo: Multiple GPUs?
 #define RHI_D3D12_SWAP_CHAIN_STEREO     0
-#define RHI_D3D12_SURFACE_FORMAT        DXGI_FORMAT_R8G8B8A8_UNORM // @Temporary
 
 extern "C"
 {

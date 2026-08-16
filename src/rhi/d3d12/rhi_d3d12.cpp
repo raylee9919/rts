@@ -400,7 +400,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
     d3d12->break_on_warning = break_on_warning;
 
     if (debug) {
-        d3d12->dxgi_debug_dll_handle = LoadLibrary(L"dxgidebug.dll");
+        d3d12->dxgi_debug_dll_handle = LoadLibraryW(L"dxgidebug.dll");
         if (d3d12->dxgi_debug_dll_handle) {
             typedef HRESULT(WINAPI *DXGI_Get_Debug_Interface)(REFIID, void **);
             DXGI_Get_Debug_Interface dxgi_get_debug_interface = (DXGI_Get_Debug_Interface)(void*)(GetProcAddress(d3d12->dxgi_debug_dll_handle, "DXGIGetDebugInterface"));
@@ -1081,7 +1081,7 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc(RHI_Texture_View_Desc *de
         } break;
 
         case RHI_TEXTURE_TYPE_3D: {
-            // @Todo: Not sure of WSlice and WSize.
+            // @Study: Not sure of WSlice and WSize.
             auto *t = &result.Texture3D;
             result.ViewDimension    = D3D12_UAV_DIMENSION_TEXTURE3D;
             t->MipSlice             = desc->base_mip_level;
@@ -1131,7 +1131,7 @@ static D3D12_RENDER_TARGET_VIEW_DESC d3d12_rtv_desc(RHI_Texture_View_Desc *desc)
         } break;
 
         case RHI_TEXTURE_TYPE_3D: {
-            // @Todo: Not sure of WSlice and WSize.
+            // @Study: Not sure of WSlice and WSize.
             auto *t = &result.Texture3D;
             result.ViewDimension    = D3D12_RTV_DIMENSION_TEXTURE3D;
             t->MipSlice             = desc->base_mip_level;
@@ -1465,10 +1465,6 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
     DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM; // @Todo: HDR
 
-    //
-    // Thank you Martins. 
-    // (https://gist.github.com/mmozeiko/5e727f845db182d468a34d524508ad5f#file-win32_d3d11-c-L184-L185)
-    //
     DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
     {
         swap_chain_desc.Width  = desc->width;
@@ -1480,12 +1476,10 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
         swap_chain_desc.BufferCount = desc->num_back_buffers,
-        swap_chain_desc.Scaling     = DXGI_SCALING_STRETCH;
+        swap_chain_desc.Scaling     = DXGI_SCALING_NONE;
 
-        // Windows 10 allows to use DXGI_SWAP_EFFECT_FLIP_DISCARD.
-        // For Windows 8 compatibility use DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL.
-        // For Windows 7 compatibility use DXGI_SWAP_EFFECT_DISCARD.
-        swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        // FLIP_DISCARD discards "old" frames in the queue and will present only the "new" frame.
+        swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; 
 
         // FLIP presentation model does not allow MSAA framebuffer.
         // If you want MSAA then you'll need to render offscreen and manually
@@ -1494,8 +1488,8 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
-        // @Todo: Allow tearing?
-        swap_chain_desc.Flags = {}; 
+        // @Todo: Allow tearing option.
+        swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT; 
     }
 
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;

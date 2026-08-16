@@ -132,12 +132,16 @@ struct GFX_Push_Constants {
     u32 size;
 };
 
+struct GFX_Arena {
+    RHI_Buffer buffer;
+};
+
 struct GFX_State {
     Arena                                   *arena;
     RHI_Device                              *device;
     GFX_Info                                info;
     u32                                     generational_handle_id   = 1; // so null handle is never generated.
-    u64                                     generational_pipeline_id = 1;
+    u64                                     generational_pipeline_id = 1; // pipeline bits in the sort key.
 
     // The thread will periodically check the 'frame' semaphore at the end of the 
     // frames and run callbacks in the queue whose semaphore value is less or equal 
@@ -162,8 +166,8 @@ struct GFX_State {
     //
     Queue<GFX_Callback_Entry>               callbacks;
 
-    RHI_Semaphore                           semaphore; // frame semaphore.
-    u64                                     current_frame = 1;
+    RHI_Semaphore                           frame_semaphore; // frame semaphore.
+    u64                                     current_frame = 0;
 
     // I'll just have a single swapchain.
     RHI_Surface                             *surface;

@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#pragma once
+#ifndef RTS_PROFILER_H
+#define RTS_PROFILER_H
 
 
 #if BUILD_PROFILE
@@ -17,3 +18,6 @@
 #  define ProfileScopeN
 #  define ProfileScopeNC
 #endif
+
+
+#endif // RTS_PROFILER_H

@@ -1,6 +1,8 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
+#include "profiler/include.h"
+
 #include "basic/include.h"
 #include "math/include.h"
 #include "os/include.h"
@@ -235,32 +237,32 @@ void update_args(f64 alpha)
 void render(f64 alpha) 
 {
     gfx_pass_begin(RENDER_PASS);
-
-    gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_TEXTURE);
-    gfx_pass_clear_color(RENDER_PASS, 0xffff00ff, 0);
-    gfx_pass_viewport(RENDER_PASS, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
-    gfx_pass_scissor(RENDER_PASS, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
-
-    gfx_pipeline(pipeline);
-
     {
-        // @Temporary
-        auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+        gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_TEXTURE);
+        gfx_pass_clear_color(RENDER_PASS, 0xffff00ff, 0);
+        gfx_pass_viewport(RENDER_PASS, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
+        gfx_pass_scissor(RENDER_PASS, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
 
-        // Bind root constants
-        Constants c = {};
-        c.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
-        c.texture_id        = texture_handle.bindless[RHI_TEXTURE_VIEW_TYPE_SAMPLED];
-        c.linear_sampler_id = gfx->linear_sampler.bindless;
-        c.arguments_id      = arguments_view.bindless;
+        gfx_pipeline(pipeline);
 
-        gfx_push_constants(&c, sizeof(c));
+        {
+            // @Temporary
+            auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
 
-        update_args(alpha);
+            // Bind root constants
+            Constants c = {};
+            c.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
+            c.texture_id        = texture_handle.bindless[RHI_TEXTURE_VIEW_TYPE_SAMPLED];
+            c.linear_sampler_id = gfx->linear_sampler.bindless;
+            c.arguments_id      = arguments_view.bindless;
 
-        gfx_draw(MESH_ID, NUM_ENTITIES);
+            gfx_push_constants(&c, sizeof(c));
+
+            update_args(alpha);
+
+            gfx_draw(MESH_ID, NUM_ENTITIES);
+        }
     }
-
     gfx_pass_end();
 
     gfx_end();

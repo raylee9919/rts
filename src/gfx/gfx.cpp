@@ -132,11 +132,11 @@ void gfx_init(GFX_Info info)
         rhi_texture_view_init(gfx->device, &gfx->surface_views[i], &gfx->surface->textures[i], &desc);
     }
 
-    rhi_semaphore_init(gfx->device, &gfx->semaphore);
+    rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
 
     gfx_init_samplers();
 
-    gfx_init_uploader(MB(128)); // @Temporary
+    gfx_init_uploader(128ull * 1024 * 1024); // @Temporary
 
     // @Temporary: These will go to encoding threads.
     for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) 
@@ -160,7 +160,7 @@ void gfx_shutdown()
     // @Todo: release resources safely..
 
     gfx_deinit_samplers();
-    rhi_semaphore_deinit(&gfx->semaphore);
+    rhi_semaphore_deinit(&gfx->frame_semaphore);
     gfx_deinit_surface();
     rhi_device_deinit(gfx->device);
 
@@ -262,6 +262,8 @@ static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
 void gfx_mesh_destroy(u64 id)
 {
     // Destruction is deferred until the current workload on the GPU is done.
+    // @Todo: This isn't settled yet.. Async asset loading, sorting pass, after-frame 
+    // callbacks,...
     GFX_Callback_Entry entry = {};
     entry.semaphore_value_to_execute = gfx->current_frame;
     entry.proc    = gfx_mesh_destroy_callback;
@@ -407,7 +409,9 @@ void gfx_pass_viewport(u32 pass_index, f32 top_left_x, f32 top_left_y, f32 width
     auto *vp = &gfx->pass_states[pass_index].viewport;
 
     if (vp->set && gfx->info.debug)
+    {
         log(LOG_WARNING, S("Viewport of pass %d will be overwritten."), pass_index);
+    }
 
     vp->set = true;
     vp->x = top_left_x;
@@ -423,7 +427,9 @@ void gfx_pass_scissor(u32 pass_index, u32 top_left_x, u32 top_left_y, u32 width,
     auto *sc = &gfx->pass_states[pass_index].scissor;
 
     if (sc->set && gfx->info.debug)
+    {
         log(LOG_WARNING, S("Scissor of pass %d will be overwritten."), pass_index);
+    }
 
     sc->set = true;
     sc->x = top_left_x;
@@ -530,6 +536,11 @@ void gfx_end()
     Assert(gfx->push_constants.count == gfx->current_push_constants);
 
     auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_back_buffers];
+
+    if (gfx->current_frame >= gfx->info.num_back_buffers)
+    {
+        rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx->info.num_back_buffers, -1);
+    }
 
     // @Temporary
     rhi_command_buffer_begin(cmd_buffer);
@@ -685,19 +696,14 @@ void gfx_end()
     RHI_Command_Buffer *buffers[] = { cmd_buffer };
     rhi_submit(gfx->device, 1, buffers);
 
-    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->semaphore, gfx->current_frame);
+    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->frame_semaphore, gfx->current_frame);
 
     rhi_surface_present(gfx->surface);
 
     gfx_reset_per_frame_data();
 
-    u64 completed_value = rhi_semaphore_completed_value(&gfx->semaphore);
+    u64 completed_value = rhi_semaphore_completed_value(&gfx->frame_semaphore);
     gfx_execute_callbacks(completed_value);
 
     gfx->current_frame += 1;
-
-    if (gfx->current_frame > gfx->info.num_back_buffers)
-    {
-        rhi_semaphore_wait(&gfx->semaphore, gfx->current_frame % gfx->info.num_back_buffers + 1, -1);
-    }
 }

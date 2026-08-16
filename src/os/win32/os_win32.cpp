@@ -174,7 +174,7 @@ void os_init() {
             Temporary_Arena tmp = temporary_arena_begin(os->arena);
 
             {
-                DWORD size = KB(32);
+                DWORD size = 32 * 1024;
                 u16 *buffer = push_array_noz(tmp.arena, u16, size);
                 DWORD length = GetModuleFileNameW(0, (WCHAR *)buffer, size);
                 binary_path = to_utf8(tmp.arena, utf16(buffer, length));
@@ -182,7 +182,7 @@ void os_init() {
             }
 
             {
-                DWORD size = KB(32);
+                DWORD size = 32 * 1024;
                 u16 *buffer = push_array_noz(tmp.arena, u16, size);
                 if (SUCCEEDED(SHGetFolderPathW(0, CSIDL_APPDATA, 0, 0, (WCHAR *)buffer)))
                 {
@@ -723,7 +723,7 @@ void os_gfx_init() {
         wcex.style          = CS_HREDRAW | CS_VREDRAW;
         wcex.lpfnWndProc    = win32_window_proc;
         wcex.hInstance      = hinst;
-        wcex.hIcon          = LoadIcon(hinst, L"Icon");;
+        wcex.hIcon          = LoadIconW(hinst, L"Icon");;
         wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);;
         wcex.hbrBackground  = CreateSolidBrush(RGB(30, 20, 20));
         wcex.lpszClassName  = L"GFX-Class";

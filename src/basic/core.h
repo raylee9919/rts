@@ -129,11 +129,6 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #include <math.h>
 #include <string.h>
 
-#define KB(value) (   value  * 1024ll)
-#define MB(value) (KB(value) * 1024ll)
-#define GB(value) (MB(value) * 1024ll)
-#define TB(value) (GB(value) * 1024ll)
-
 #define internal        static
 #define global          static
 #define local_persist   static

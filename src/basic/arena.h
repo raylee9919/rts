@@ -4,9 +4,9 @@
 #define RTS_ARENA_H
 
 
-#define ARENA_DEFAULT_RESERVE_SIZE  MB(64)
-#define ARENA_DEFAULT_COMMIT_SIZE   KB(64)
-#define ARENA_HEADER_SIZE           (128)
+#define ARENA_DEFAULT_RESERVE_SIZE  (64ull * 1024 * 1024)
+#define ARENA_DEFAULT_COMMIT_SIZE   (64ull)
+#define ARENA_HEADER_SIZE           (128ull)
 
 
 struct Arena {
