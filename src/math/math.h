@@ -13,12 +13,13 @@
 
 
 #define pi32                3.141592f
+#define PI32                3.141592f
 #define epsilon_f32         1.19209e-07f
 
 
 // @Robustness
-#define FAR_Z  ( 1.f)
-#define NEAR_Z (-1.f)
+#define _FAR_Z  ( 1.f)
+#define _NEAR_Z (-1.f)
 
 
 union v2 {
@@ -138,6 +139,10 @@ struct Ray3 {
 // Sloppy
 internal f32        safe_ratio(f32 l, f32 r);
 
+// Trigonometry
+internal f32        m_sin(f32 f);
+internal f32        m_cos(f32 f);
+
 // Absolute
 internal f32        m_abs(f32 f);
 internal f64        m_abs(f64 d);
@@ -210,6 +215,8 @@ internal v3&            operator += (v3& a, v3 b);
 internal v3&            operator -= (v3& a, v3 b);
 internal v3&            operator *= (v3& a, f32 b);
 internal f32            length(v3 A);
+internal b32            is_zero(v3 v);
+internal b32            is_inf(v3 v);
 internal v3             normalize(v3 a);
 internal v3             lerp(v3 a, f32 t, v3 b);
 internal f32            distance(v3 a, v3 b);
@@ -265,8 +272,9 @@ internal m4x4           to_m4x4(v3 translation, Quaternion rotation, v3 scale);
 internal Quaternion     build_quaternion(v3 axis, f32 radian);
 internal Quaternion     rotate(Quaternion q0, v3 axis, f32 radian);
 internal v3             project(v3 p, m4x4 view_proj);
-internal m4x4           look_at_lh(v3 from, v3 at, v3 up);
-internal m4x4           look_at_rh(v3 from, v3 at, v3 up);
+
+
+
 internal m4x4           ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 internal f32            radian_from_degree(f32 d);
 
@@ -280,10 +288,41 @@ internal v2             to_ndc(v2 p, f32 w, f32 h);
 internal v3             unproject(v3 position, m4x4 viewproj);
 internal Ray3           ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj);
 
+
 // Graphics
-internal u32            pack_rgba(v4 rgba);
-internal v4             unpack_rgba(u32 rgba);
 
+// I like to view the process of building look-at matrix as determining the
+// local axes of a camera placed in the world. The axes are the camera's own
+// language, into which the objects' positions, expressed in the world's
+// language are translated.
+//
+// The problem is that axes can be arbitrary. Just imagine three orthogonal
+// axes rotating rotating wildly around the camera. Thus, we must impose some
+// constraints.
+//
+// As most, if not all, graphics APIs' viewport is X-right and Y-up, these will
+// be the premises in the API. Of course, I provide additional functionality to
+// customize them, but IMO, the extra verbosity isn't worth it.
+//
+// Now, all we have to determine is Z. Does it point "foward" or "backward"?
+// In other words, is it left-handed or right-handed? This is only variant exposed by the API.
+//
+internal m4x4 look_to_lh(v3 from, v3 to, v3 up);
+internal m4x4 look_to_rh(v3 from, v3 to, v3 up);
+internal m4x4 look_at_lh(v3 from, v3 at, v3 up);
+internal m4x4 look_at_rh(v3 from, v3 at, v3 up);
 
+// For perspective projection as well, we impose the following premises: [0,1]
+// for NDC depth, X-right and Y-up. The projection maps 'near_z' to 0 and
+// 'far_z' to 1. 
+// 
+// LH and RH variants specify the handedness of the input space. The 'near_z' and 
+// 'far_z' parameters are distances, and are therefore unsigned.
+//
+internal m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
+internal m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
+
+internal u32  pack_rgba(v4 rgba);
+internal v4   unpack_rgba(u32 rgba);
 
 #endif // RTS_MATH_H

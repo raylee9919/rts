@@ -444,5 +444,4 @@ T* Construct(T* memory, Args&&... args) {
     return new (memory) T(static_cast<Args&&>(args)...);
 }
 
-
 #endif // RTS_BASIC_CORE_H

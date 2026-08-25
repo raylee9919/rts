@@ -9,6 +9,21 @@ f32 safe_ratio(f32 l, f32 r) {
 }
 
 
+// Trigonometry
+//
+f32 m_sin(f32 f) {
+    return sinf(f);
+}
+
+f32 m_cos(f32 f) {
+    return cosf(f);
+}
+
+f32 m_tan(f32 f) {
+    return tanf(f);
+}
+
+
 // Absolute
 //
 f32 m_abs(f32 f) { return f > 0.f ? f : -f; }
@@ -364,6 +379,14 @@ f32 length(v3 v)
     return len;
 }
 
+b32 is_zero(v3 v) {
+    return v.x==0.f && v.y==0.f && v.z==0.f;
+}
+
+b32 is_inf(v3 v) {
+    return isinf(v.x) || isinf(v.y) || isinf(v.z);
+}
+
 v3 normalize(v3 v) {
     f32 d = m_rsqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x *= d;
@@ -577,9 +600,9 @@ Quaternion slerp(Quaternion q1, f32 t, Quaternion q2)
     if (1.0f - cosom > threshold) {
         f32 omega, sinom;
         omega = acosf(cosom);
-        sinom = sinf(omega);
-        sclp  = sinf((1.0f - t) * omega) / sinom;
-        sclq  = sinf(t * omega) / sinom;
+        sinom = m_sin(omega);
+        sclp  = m_sin((1.0f - t) * omega) / sinom;
+        sclq  = m_sin(t * omega) / sinom;
     } else {
         sclp = 1.0f - t;
         sclq = t;
@@ -670,8 +693,8 @@ m4x4 identity()
 }
 
 m4x4 x_rotation(f32 a) {
-    f32 c = cosf(a);
-    f32 s = sinf(a);
+    f32 c = m_cos(a);
+    f32 s = m_sin(a);
     m4x4 r = {
         1,  0,  0,  0,
         0,  c, -s,  0,
@@ -683,8 +706,8 @@ m4x4 x_rotation(f32 a) {
 }
 
 m4x4 y_rotation(f32 a) {
-    f32 c = cosf(a);
-    f32 s = sinf(a);
+    f32 c = m_cos(a);
+    f32 s = m_sin(a);
     m4x4 r = {
         c,  0,  s,  0,
         0,  1,  0,  0,
@@ -696,8 +719,8 @@ m4x4 y_rotation(f32 a) {
 }
 
 m4x4 z_rotation(f32 a) {
-    f32 c = cosf(a);
-    f32 s = sinf(a);
+    f32 c = m_cos(a);
+    f32 s = m_sin(a);
     m4x4 r = {
         c, -s,  0,  0,
         s,  c,  0,  0,
@@ -836,12 +859,12 @@ m4x4 to_m4x4(Quaternion q) {
 
 // @Todo: I think it's wrong
 Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
-    f32 cr = cosf(roll * 0.5f);
-    f32 sr = sinf(roll * 0.5f);
-    f32 cp = cosf(pitch * 0.5f);
-    f32 sp = sinf(pitch * 0.5f);
-    f32 cy = cosf(yaw * 0.5f);
-    f32 sy = sinf(yaw * 0.5f);
+    f32 cr = m_cos(roll * 0.5f);
+    f32 sr = m_sin(roll * 0.5f);
+    f32 cp = m_cos(pitch * 0.5f);
+    f32 sp = m_sin(pitch * 0.5f);
+    f32 cy = m_cos(yaw * 0.5f);
+    f32 sy = m_sin(yaw * 0.5f);
 
     Quaternion q;
     q.w = cr * cp * cy + sr * sp * sy;
@@ -995,8 +1018,8 @@ m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale)
 internal Quaternion
 build_quaternion(v3 axis, f32 radian)
 {
-    f32 c = cosf(radian*0.5f);
-    f32 s = sinf(radian*0.5f);
+    f32 c = m_cos(radian*0.5f);
+    f32 s = m_sin(radian*0.5f);
     v3 n = s * normalize(axis);
     Quaternion result = Quaternion{c, n.x, n.y, n.z};
     return result;
@@ -1024,68 +1047,6 @@ V2(v2u v)
 {
     v2 result = v2{(f32)v.x, (f32)v.y};
     return result;
-}
-
-m4x4 look_at_lh(v3 from, v3 at, v3 up) {
-    // @Todo: divide-by-zero.
-    v3 Z = normalize(at - from);
-    v3 X = normalize(cross(Z, up));
-    v3 Y = cross(X, Z);
-
-    m4x4 m;
-
-    m._11 = X.x;
-    m._12 = X.y;
-    m._13 = X.z;
-    m._14 = -dot(from, X);
-
-    m._21 = Y.x;
-    m._22 = Y.y;
-    m._23 = Y.z;
-    m._24 = -dot(from, Y);
-
-    m._31 = Z.x;
-    m._32 = Z.y;
-    m._33 = Z.z;
-    m._34 = -dot(from, Z);
-
-    m._41 = 0.f;
-    m._42 = 0.f;
-    m._43 = 0.f;
-    m._44 = 1.f;
-
-    return m;
-}
-
-m4x4 look_at_rh(v3 from, v3 at, v3 up) {
-    // @Todo: divide-by-zero.
-    v3 Z = normalize(from - at);
-    v3 X = normalize(cross(up, Z));
-    v3 Y = cross(Z, X);
-
-    m4x4 m;
-
-    m._11 = X.x;
-    m._12 = X.y;
-    m._13 = X.z;
-    m._14 = -dot(from, X);
-
-    m._21 = Y.x;
-    m._22 = Y.y;
-    m._23 = Y.z;
-    m._24 = -dot(from, Y);
-
-    m._31 = Z.x;
-    m._32 = Z.y;
-    m._33 = Z.z;
-    m._34 = -dot(from, Z);
-
-    m._41 = 0.f;
-    m._42 = 0.f;
-    m._43 = 0.f;
-    m._44 = 1.f;
-
-    return m;
 }
 
 // @Todo: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
@@ -1197,8 +1158,9 @@ Ray3 ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, 
 
     m4x4 inv_viewproj = inverse(viewproj);
 
-    v4 near_clip = v4{x, y, NEAR_Z, 1.f};
-    v4 far_clip  = v4{x, y,  FAR_Z, 1.f};
+    // @Temporary
+    v4 near_clip = v4{x, y, _NEAR_Z, 1.f};
+    v4 far_clip  = v4{x, y,  _FAR_Z, 1.f};
 
     v4 near_p = inv_viewproj*near_clip;
     v4 far_p  = inv_viewproj*far_clip;
@@ -1309,6 +1271,117 @@ Xform to_xform(m4x4 m)
 
 // Graphics
 //
+m4x4 look_to_lh(v3 from, v3 to, v3 up) {
+    Assert(!is_zero(to));
+    Assert(!is_inf(to));
+    Assert(!is_zero(up));
+    Assert(!is_inf(up));
+
+    v3 Z = normalize(to);
+    v3 X = normalize(cross(up, Z));
+    v3 Y = normalize(cross(Z, X));
+
+    v3 T = from;
+
+    m4x4 M;
+
+    M._11 = X.x;
+    M._12 = X.y;
+    M._13 = X.z;
+    M._14 = -dot(T, X);
+
+    M._21 = Y.x;
+    M._22 = Y.y;
+    M._23 = Y.z;
+    M._24 = -dot(T, Y);
+
+    M._31 = Z.x;
+    M._32 = Z.y;
+    M._33 = Z.z;
+    M._34 = -dot(T, Z);
+
+    M._41 = 0.f;
+    M._42 = 0.f;
+    M._43 = 0.f;
+    M._44 = 1.f;
+
+    return M;
+}
+
+m4x4 look_to_rh(v3 from, v3 to, v3 up) {
+    return look_to_lh(from, -to, up);
+}
+
+m4x4 look_at_lh(v3 from, v3 at, v3 up) {
+    v3 to = at - from;
+    m4x4 M = look_to_lh(from, to, up);
+    return M;
+}
+
+m4x4 look_at_rh(v3 from, v3 at, v3 up) {
+    v3 neg_to = from - at;
+    m4x4 M = look_to_lh(from, neg_to, up);
+    return M;
+}
+
+m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
+    f32 h = m_tan(0.5f * fov);
+    f32 w = h / aspect_ratio;
+
+    m4x4 M;
+
+    M._11 = w;
+    M._12 = 0.f;
+    M._13 = 0.f;
+    M._14 = 0.f;
+
+    M._21 = 0.f;
+    M._22 = h;
+    M._23 = 0.f;
+    M._24 = 0.f;
+
+    M._31 = 0.f;
+    M._32 = 0.f;
+    M._33 = far_z / (far_z - near_z);
+    M._34 = (near_z * far_z) / (near_z - far_z);
+
+    M._41 = 0.f;
+    M._42 = 0.f;
+    M._43 = 1.f;
+    M._44 = 0.f;
+
+    return M;
+}
+
+m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
+    f32 h = 1.f / m_tan(0.5f * fov);
+    f32 w = h / aspect_ratio;
+
+    m4x4 M;
+
+    M._11 = w;
+    M._12 = 0.f;
+    M._13 = 0.f;
+    M._14 = 0.f;
+
+    M._21 = 0.f;
+    M._22 = h;
+    M._23 = 0.f;
+    M._24 = 0.f;
+
+    M._31 = 0.f;
+    M._32 = 0.f;
+    M._33 = far_z / (near_z - far_z);
+    M._34 = (near_z * far_z) / (near_z - far_z);
+
+    M._41 = 0.f;
+    M._42 = 0.f;
+    M._43 = -1.f;
+    M._44 = 0.f;
+
+    return M;
+}
+
 u32 pack_rgba(v4 rgba) {
     u32 r = u32(rgba.x * 255.0f + 0.5f);
     u32 g = u32(rgba.y * 255.0f + 0.5f);

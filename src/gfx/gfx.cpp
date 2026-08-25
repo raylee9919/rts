@@ -110,18 +110,21 @@ void gfx_init(GFX_Info info)
     gfx = push_struct(arena, GFX_State);
     gfx->arena = arena;
 
-    // Construct
+    // Placement new
     Construct(gfx);
 
     gfx->info = info;
+
+    Assert(info.num_frames >= GFX_MIN_FRAME_COUNT && info.num_frames <= GFX_MAX_FRAME_COUNT);
 
     gfx->device = push_struct(arena, RHI_Device);
     Assert(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning));
 
     gfx->surface = push_struct(arena, RHI_Surface);
-    gfx_init_surface(info.native_window_handle, info.width, info.height, info.num_back_buffers);
+    gfx_init_surface(info.native_window_handle, info.width, info.height, info.num_buffers);
 
-    for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) {
+    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) 
+    {
         RHI_Texture_View_Desc desc = {};
         {
             desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
@@ -139,7 +142,7 @@ void gfx_init(GFX_Info info)
     gfx_init_uploader(128ull * 1024 * 1024); // @Temporary
 
     // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) 
+    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) 
     {
         Assert(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
         Assert(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
@@ -151,7 +154,7 @@ void gfx_init(GFX_Info info)
 void gfx_shutdown()
 {
     // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < RHI_MAX_BACK_BUFFERS; ++i) 
+    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) 
     {
         rhi_command_buffer_deinit(&gfx->command_buffers[i]);
         rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
@@ -517,29 +520,33 @@ void gfx_draw(u64 mesh_id, u32 num_instances)
         array_add(&gfx->sort_keys, key);
 
         GFX_Command cmd = {};
-        cmd.pipeline = gfx->ctx_pipeline;
+        cmd.pipeline            = gfx->ctx_pipeline;
         cmd.push_constant_index = gfx->current_push_constants - 1; // can wrap to UINT32_MAX if nothing was pushed.
-        cmd.mesh_handle = mesh_id;
-        cmd.num_instances = num_instances;
+        cmd.mesh_handle         = mesh_id;
+        cmd.num_instances       = num_instances;
 
         array_add(&gfx->commands, cmd);
     }
     else if (gfx->info.debug)
     {
-        log(LOG_WARNING, S("Mesh wasn't registered."));
+        log(LOG_WARNING, S("Draw attempted with an unregistered mesh."));
         Assert(0);
     }
 }
 
 void gfx_end()
 {
+    ProfileScopeN("gfx_end");
+
     Assert(gfx->push_constants.count == gfx->current_push_constants);
 
-    auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_back_buffers];
+    auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_frames];
 
-    if (gfx->current_frame >= gfx->info.num_back_buffers)
+    // Wait on frame semaphore.
+    if (gfx->current_frame >= gfx->info.num_frames)
     {
-        rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx->info.num_back_buffers, -1);
+        ProfileScopeN("gfx_wait_on_frame_semaphore");
+        rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx->info.num_frames, -1);
     }
 
     // @Temporary
@@ -637,11 +644,12 @@ void gfx_end()
                 rhi_cmd_set_viewport(cmd_buffer, vp.x, vp.y, vp.w, vp.h, 0.f, 1.f);
                 rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
 
+                {
+                    ProfileScopeN("gfx_sort_keys");
+                    radix_sort_u64(gfx->sort_keys.data, gfx->sort_keys.count, sizeof(GFX_Sort_Key), offset_of(GFX_Sort_Key, bits));
+                }
 
                 {
-                    // 1. Sort commands (including resource managing calls).
-                    // 2. ..
-
                     u64 current_pass     = UINT32_MAX;
                     u64 current_pipeline = UINT32_MAX; // @Fix: If pass changes, pipeline must be reset..
 
@@ -698,7 +706,10 @@ void gfx_end()
 
     rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->frame_semaphore, gfx->current_frame);
 
-    rhi_surface_present(gfx->surface);
+    {
+        ProfileScopeN("gfx_present");
+        rhi_surface_present(gfx->surface);
+    }
 
     gfx_reset_per_frame_data();
 

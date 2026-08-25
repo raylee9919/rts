@@ -3,11 +3,13 @@
 #ifndef RTS_GFX_H
 #define RTS_GFX_H
 
-#define GFX_MAX_PASS 32 
+#define GFX_MIN_FRAME_COUNT     1
+#define GFX_MAX_FRAME_COUNT     2
+#define GFX_MAX_PASS            32 
+#define GFX_MAX_PIPELINE        65536
 static_assert((((GFX_MAX_PASS - 1) & GFX_MAX_PASS) == 0) && (GFX_MAX_PASS > 0), 
               "GFX_MAX_PASS must be power of two.");
 
-#define GFX_MAX_PIPELINE 65536
 
 
 
@@ -30,7 +32,9 @@ struct GFX_Info {
     void *native_window_handle;
     u32 width;
     u32 height;
-    u32 num_back_buffers;
+
+    u32 num_buffers;
+    u32 num_frames;
 };
 
 struct GFX_Handle {
@@ -171,7 +175,7 @@ struct GFX_State {
 
     // I'll just have a single swapchain.
     RHI_Surface                             *surface;
-    RHI_Texture_View                        surface_views[RHI_MAX_BACK_BUFFERS];
+    RHI_Texture_View                        surface_views[RHI_MAX_BUFFER_COUNT];
 
     RHI_Sampler                             linear_sampler;
 
@@ -181,8 +185,8 @@ struct GFX_State {
     u64                                     upload_semaphore_value = 1;
     RHI_Command_Buffer                      copy_buffer; // One copy buffer should be enough. Right?
 
-    RHI_Command_Buffer                      command_buffers[RHI_MAX_BACK_BUFFERS];
-    RHI_Command_Buffer                      compute_buffers[RHI_MAX_BACK_BUFFERS];
+    RHI_Command_Buffer                      command_buffers[GFX_MAX_FRAME_COUNT];
+    RHI_Command_Buffer                      compute_buffers[GFX_MAX_FRAME_COUNT];
 
     // gfx's draw calls encode commands into the buffer by the current context.
     // Later commands get sorted by key and submitted to the GPU.

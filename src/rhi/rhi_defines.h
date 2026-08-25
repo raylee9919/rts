@@ -4,7 +4,8 @@
 #define RHI_ENUM_H
 
 
-#define RHI_MAX_BACK_BUFFERS            3
+#define RHI_MIN_BUFFER_COUNT            2
+#define RHI_MAX_BUFFER_COUNT            3
 #define RHI_MAX_COLOR_ATTACHMENTS       8
 #define RHI_MAX_32BIT_PUSH_CONSTANTS    32
 

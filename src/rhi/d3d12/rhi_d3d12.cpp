@@ -1478,7 +1478,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
         swap_chain_desc.BufferCount = desc->num_back_buffers,
         swap_chain_desc.Scaling     = DXGI_SCALING_NONE;
 
-        // FLIP_DISCARD discards "old" frames in the queue and will present only the "new" frame.
+        // FLIP_DISCARD discards "old flips" in the queue and presents only the "new" flip.
         swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; 
 
         // FLIP presentation model does not allow MSAA framebuffer.
@@ -1488,8 +1488,9 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
-        // @Todo: Allow tearing option.
-        swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT; 
+        // @Todo
+        //swap_chain_desc.Flags = (DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING |
+        //                         DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT); 
     }
 
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;
@@ -1543,9 +1544,11 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 }
 
 void d3d12_surface_present(RHI_Surface *surface) {
-    // @Temporary
-    //surface->swap_chain_4->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-    surface->d3d12.swap_chain_4->Present(1, 0);
+    // @Todo: VSync off
+    UINT sync_interval = 1;
+    UINT flags         = 0;
+
+    surface->d3d12.swap_chain_4->Present(sync_interval, flags);
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }
 

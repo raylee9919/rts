@@ -221,7 +221,7 @@ struct RHI_Surface {
     RHI_Kind            kind;
     RHI_Surface_Desc    desc;
     u32                 current_frame_index;
-    RHI_Texture         textures[RHI_MAX_BACK_BUFFERS];
+    RHI_Texture         textures[RHI_MAX_BUFFER_COUNT];
     union {
         D3D12_Surface d3d12;
     };
