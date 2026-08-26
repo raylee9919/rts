@@ -13,7 +13,6 @@
 
 
 #define pi32                3.141592f
-#define PI32                3.141592f
 #define epsilon_f32         1.19209e-07f
 
 

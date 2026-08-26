@@ -252,7 +252,6 @@ struct RHI_Attachment {
     };
 };
 
-
 struct RHI_Pass {
     String         name; // for debuggability.
     u32            num_color_attachments;

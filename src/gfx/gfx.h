@@ -3,27 +3,53 @@
 #ifndef RTS_GFX_H
 #define RTS_GFX_H
 
-#define GFX_MIN_FRAME_COUNT     1
-#define GFX_MAX_FRAME_COUNT     2
-#define GFX_MAX_PASS            32 
-#define GFX_MAX_PIPELINE        65536
-static_assert((((GFX_MAX_PASS - 1) & GFX_MAX_PASS) == 0) && (GFX_MAX_PASS > 0), 
-              "GFX_MAX_PASS must be power of two.");
+// Minimum and maximum count of set of frame resources.
+#define GFX_MIN_FRAME_COUNT         1
+#define GFX_MAX_FRAME_COUNT         2
 
 
+#define GFX_NULL_PASS 0xffffffff
 
 
+// Sort keys
+//
+typedef u16 GFX_Key;
+enum {
+    GFX_KEY_PASS = 0,
+    GFX_KEY_PIPELINE,
+    GFX_KEY_CONSTANTS,
+
+    GFX_KEY_COUNT
+};
+
+global read_only constexpr u64 gfx_key_lengths[GFX_KEY_COUNT] = {
+    5, 16, 8
+};
+global read_only constexpr u64 gfx_key_offsets[GFX_KEY_COUNT] = {
+    0,
+    gfx_key_lengths[0],
+    gfx_key_lengths[0] + gfx_key_lengths[1],
+};
+
+global read_only constexpr u64 GFX_MAX_PASS     = (1ull << gfx_key_lengths[GFX_KEY_PASS]);
+global read_only constexpr u64 GFX_MAX_PIPELINE = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
+
+static_assert([] {
+    u64 sum = 0;
+    for (u64 v : gfx_key_lengths)  sum += v;
+    return sum <= 64;
+}(), "gfx: sum of key lengths must be <= 64.");
 
 struct GFX_Sort_Key {
-    // pass;
-    // pipeline;
-    // push_constants;
     u64 bits;
 
     // Index to the actual command
     u32 cmd_index;
 };
 
+
+// Initialization info struct
+//
 struct GFX_Info {
     RHI_Kind kind;
     b32 debug;
@@ -190,7 +216,7 @@ struct GFX_State {
 
     // gfx's draw calls encode commands into the buffer by the current context.
     // Later commands get sorted by key and submitted to the GPU.
-    u64                                     current_pass            = UINT32_MAX;
+    u64                                     current_pass = GFX_NULL_PASS;
     GFX_Pipeline                            ctx_pipeline;
     u64                                     current_push_constants = 0;
     Array<GFX_Sort_Key>                     sort_keys;
@@ -226,14 +252,16 @@ internal void                   gfx_pass_begin(u32 pass_index);
 internal void                   gfx_pass_end();
 internal void                   gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Handle texture);
 internal void                   gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture);
-internal void                   gfx_pass_viewport(u32 pass_index, f32 top_left_x, f32 top_left_y, f32 width, f32 height);
-internal void                   gfx_pass_scissor(u32 pass_index, u32 top_left_x, u32 top_left_y, u32 width, u32 height);
 internal void                   gfx_pass_clear_color(u32 pass_index, u32 clear_color, u32 color_attachment_index);
 internal void                   gfx_pass_clear_depth(u32 pass_index, f32 clear_depth);
 
+// Sets viewport and scissor of currently set pass.
+internal void                   gfx_set_viewport(f32 top_left_x, f32 top_left_y, f32 width, f32 height);
+internal void                   gfx_set_scissor(u32 top_left_x, u32 top_left_y, u32 width, u32 height);
+
 internal GFX_Pipeline           gfx_pipeline_create(RHI_Pipeline_Desc desc);
 internal void                   gfx_pipeline_destroy(GFX_Pipeline pipeline);
-internal void                   gfx_pipeline(GFX_Pipeline pipeline);
+internal void                   gfx_set_pipeline(GFX_Pipeline pipeline);
 
 internal void                   gfx_push_constants(void *data, u32 size);
 

@@ -54,7 +54,7 @@ static void gfx_init_uploader(u64 buffer_size)
 static void gfx_reset_per_frame_data()
 {
     // Reset per-frame data.
-    gfx->current_pass           = UINT32_MAX;
+    gfx->current_pass           = GFX_NULL_PASS;
     gfx->ctx_pipeline           = {};
     gfx->current_push_constants = 0;
 
@@ -193,13 +193,27 @@ static void gfx_create_structured_view(RHI_Buffer_View *view, RHI_Buffer *buffer
     rhi_buffer_view_init(gfx->device, view, buffer, &desc);
 }
 
-static GFX_Sort_Key gfx_encode_sort_key(u64 pass, u64 pipeline, u64 push_constants)
-{
-    // @Temporary
-    GFX_Sort_Key key = {};
-    key.bits = (pass << 16) | (pipeline << 8) | push_constants;
+static u64 gfx_encode_key(const u64 *subkeys) {
+    u64 key = 0;
+
+    for (u16 i = 0; i < GFX_KEY_COUNT; ++i) {
+        u64 subkey = subkeys[i];
+        Assert(subkey < (1ull << gfx_key_lengths[i]));
+        key |= (subkey << gfx_key_offsets[i]);
+    }
 
     return key;
+}
+
+static void gfx_decode_key(u64 key, u64 *out_subkeys) {
+    for (u16 i = 0; i < GFX_KEY_COUNT; ++i) {
+        u64 offset = gfx_key_offsets[i];
+        u64 length = gfx_key_lengths[i];
+
+        u64 mask   = ((1ull << length) - 1) << offset;
+        u64 subkey = (key & mask) >> offset;
+        out_subkeys[i] = subkey;
+    }
 }
 
 void gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size)
@@ -316,8 +330,7 @@ GFX_Texture gfx_texture_create(RHI_Texture_Desc desc)
     return result;
 }
 
-void gfx_texture_destroy(GFX_Texture texture)
-{
+void gfx_texture_destroy(GFX_Texture texture) {
     auto *entry = table_find_pointer(&gfx->texture_table, texture.handle);
     if (entry)
     {
@@ -334,8 +347,7 @@ void gfx_texture_destroy(GFX_Texture texture)
     }
 }
 
-void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height)
-{
+void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height) {
     auto *tex = table_find_pointer(&gfx->texture_table, texture.handle);
 
     if (tex)
@@ -376,19 +388,16 @@ void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *da
     }
 }
 
-void gfx_pass_begin(u32 pass_index)
-{
+void gfx_pass_begin(u32 pass_index) {
     Assert(pass_index < GFX_MAX_PASS);
     gfx->current_pass = pass_index;
 }
 
-void gfx_pass_end()
-{
-    gfx->current_pass = UINT32_MAX;
+void gfx_pass_end() {
+    gfx->current_pass = GFX_NULL_PASS;
 }
 
-void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Texture texture)
-{
+void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Texture texture) {
     Assert(pass_index < GFX_MAX_PASS);
 
     auto *pass = &gfx->pass_states[pass_index];
@@ -396,8 +405,7 @@ void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_T
     pass->color_attachments[color_attachment_index] = texture;
 }
 
-void gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture)
-{
+void gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture) {
     Assert(pass_index < GFX_MAX_PASS);
 
     auto *pass = &gfx->pass_states[pass_index];
@@ -405,16 +413,10 @@ void gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture)
     pass->depth_attachment = texture;
 }
 
-void gfx_pass_viewport(u32 pass_index, f32 top_left_x, f32 top_left_y, f32 width, f32 height)
-{
-    Assert(pass_index < GFX_MAX_PASS);
+void gfx_set_viewport(f32 top_left_x, f32 top_left_y, f32 width, f32 height) {
+    Assert(gfx->current_pass < GFX_MAX_PASS);
 
-    auto *vp = &gfx->pass_states[pass_index].viewport;
-
-    if (vp->set && gfx->info.debug)
-    {
-        log(LOG_WARNING, S("Viewport of pass %d will be overwritten."), pass_index);
-    }
+    auto *vp = &gfx->pass_states[gfx->current_pass].viewport;
 
     vp->set = true;
     vp->x = top_left_x;
@@ -423,16 +425,10 @@ void gfx_pass_viewport(u32 pass_index, f32 top_left_x, f32 top_left_y, f32 width
     vp->h = height;
 }
 
-void gfx_pass_scissor(u32 pass_index, u32 top_left_x, u32 top_left_y, u32 width, u32 height)
-{
-    Assert(pass_index < GFX_MAX_PASS);
+void gfx_set_scissor(u32 top_left_x, u32 top_left_y, u32 width, u32 height) {
+    Assert(gfx->current_pass < GFX_MAX_PASS);
 
-    auto *sc = &gfx->pass_states[pass_index].scissor;
-
-    if (sc->set && gfx->info.debug)
-    {
-        log(LOG_WARNING, S("Scissor of pass %d will be overwritten."), pass_index);
-    }
+    auto *sc = &gfx->pass_states[gfx->current_pass].scissor;
 
     sc->set = true;
     sc->x = top_left_x;
@@ -484,7 +480,7 @@ void gfx_pipeline_destroy(GFX_Pipeline pipeline)
     }
 }
 
-void gfx_pipeline(GFX_Pipeline pipeline)
+void gfx_set_pipeline(GFX_Pipeline pipeline)
 {
     gfx->ctx_pipeline = pipeline;
 }
@@ -504,19 +500,21 @@ void gfx_push_constants(void *data, u32 size)
     gfx->current_push_constants += 1;
 }
 
-void gfx_draw(u64 mesh_id, u32 num_instances)
-{
-    Assert(gfx->current_pass != UINT32_MAX);
+void gfx_draw(u64 mesh_id, u32 num_instances) {
+    Assert(gfx->current_pass != GFX_NULL_PASS);
 
     auto *mesh = table_find_pointer(&gfx->mesh_table, mesh_id);
 
-    if (mesh)
-    {
-        // @Robustness
-        GFX_Sort_Key key = gfx_encode_sort_key(gfx->current_pass,
-                                               gfx->ctx_pipeline.index,
-                                               gfx->current_push_constants);  
+    if (mesh) {
+        u64 subkeys[GFX_KEY_COUNT]  = {};
+        subkeys[GFX_KEY_PASS]       = gfx->current_pass;
+        subkeys[GFX_KEY_PIPELINE]   = gfx->ctx_pipeline.index;
+        subkeys[GFX_KEY_CONSTANTS]  = gfx->current_push_constants;
+
+        GFX_Sort_Key key = {};
+        key.bits      = gfx_encode_key(subkeys);
         key.cmd_index = gfx->commands.count;
+
         array_add(&gfx->sort_keys, key);
 
         GFX_Command cmd = {};
@@ -526,12 +524,83 @@ void gfx_draw(u64 mesh_id, u32 num_instances)
         cmd.num_instances       = num_instances;
 
         array_add(&gfx->commands, cmd);
-    }
-    else if (gfx->info.debug)
-    {
+    } else if (gfx->info.debug) {
         log(LOG_WARNING, S("Draw attempted with an unregistered mesh."));
         Assert(0);
     }
+}
+
+static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass, RHI_Command_Buffer *cmd_buffer)
+{
+    auto *p = &gfx->pass_states[pass_idx];
+    auto vp = p->viewport;
+    auto sc = p->scissor;
+
+    for (u32 i = 0; i < RHI_MAX_COLOR_ATTACHMENTS; ++i) {
+        if (!gfx_handle_is_null(p->color_attachments[i].handle)) {
+            pass->num_color_attachments += 1;
+        }
+    }
+
+
+    if (!gfx_handle_is_null(p->depth_attachment.handle)) {
+        pass->has_depth_attachment = true;
+    }
+
+    for (u16 color_idx = 0; color_idx < RHI_MAX_COLOR_ATTACHMENTS; ++color_idx) {
+        if (p->flags & (GFX_PASS_FLAG_CLEAR_COLOR_0 << (color_idx))) {
+            GFX_Handle handle = p->color_attachments[color_idx].handle;
+
+            // @Cleanup: I don't like this additional code path.
+            if (handle != GFX_SURFACE_TEXTURE.handle) {
+                auto *tex = table_find_pointer(&gfx->texture_table, handle);
+                if (tex) {
+                    auto *attachment = &pass->color_attachments[color_idx];
+                    attachment->view = tex->views[RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET];
+
+                    attachment->load_op = RHI_LOAD_OP_CLEAR;
+
+                    u32 c_packed = p->colors[color_idx];
+                    v4 c_unpacked = unpack_rgba(c_packed);
+                    memcpy(attachment->clear_color, &c_unpacked, sizeof(f32) * 4);
+                } else {
+                    // @Todo: Error-handling.
+                    log(LOG_ERROR, S("Color attachment texture wasn't found."));
+                    Assert(0);
+                }
+            } else {
+                auto *attachment = &pass->color_attachments[color_idx];
+                attachment->view = gfx->surface_views[gfx->surface->current_frame_index];
+
+                attachment->load_op = RHI_LOAD_OP_CLEAR;
+
+                u32 c_packed = p->colors[color_idx];
+                v4 c_unpacked = unpack_rgba(c_packed);
+                memcpy(attachment->clear_color, &c_unpacked, sizeof(f32) * 4);
+            }
+        }
+    }
+
+    if (p->flags & GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL) {
+        GFX_Handle handle = p->depth_attachment.handle;
+        auto *tex = table_find_pointer(&gfx->texture_table, handle);
+
+        if (tex) {
+            auto *attachment = &pass->depth_attachment;
+            attachment->view        = tex->views[RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL];;
+            attachment->load_op     = RHI_LOAD_OP_CLEAR;
+            attachment->clear_depth = p->depth;
+        } else {
+            // @Todo: Error-handling.
+            log(LOG_ERROR, S("Depth attachment texture wasn't found."));
+            Assert(0);
+        }
+    }
+
+    rhi_pass_begin(cmd_buffer, pass);
+
+    rhi_cmd_set_viewport(cmd_buffer, vp.x, vp.y, vp.w, vp.h, 0.f, 1.f);
+    rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
 }
 
 void gfx_end()
@@ -543,159 +612,69 @@ void gfx_end()
     auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_frames];
 
     // Wait on frame semaphore.
-    if (gfx->current_frame >= gfx->info.num_frames)
-    {
-        ProfileScopeN("gfx_wait_on_frame_semaphore");
+    if (gfx->current_frame >= gfx->info.num_frames) {
         rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx->info.num_frames, -1);
+    }
+
+    {
+        ProfileScopeN("gfx_sort_keys");
+        radix_sort_u64(gfx->sort_keys.data, gfx->sort_keys.count, sizeof(GFX_Sort_Key), offset_of(GFX_Sort_Key, bits));
     }
 
     // @Temporary
     rhi_command_buffer_begin(cmd_buffer);
     {
-        for (u32 pass_idx = 0; pass_idx < GFX_MAX_PASS; ++pass_idx)
-        {
-            // @Temporary, @Todo: Barriers should be set automatically...!
-            rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+        RHI_Pass pass    = {};
+        u64 current_pass = GFX_NULL_PASS;
 
-            auto *p = &gfx->pass_states[pass_idx];
-            auto vp = p->viewport;
-            auto sc = p->scissor;
+        u64 current_pipeline = UINT32_MAX;
 
-            RHI_Pass pass = {};
+        for (auto& key : gfx->sort_keys) {
+            // @Temporary: Decode the key.
+            u64 subkeys[GFX_KEY_COUNT];
+            gfx_decode_key(key.bits, subkeys);
 
-            for (u32 i = 0; i < RHI_MAX_COLOR_ATTACHMENTS; ++i)
-            {
-                if (!gfx_handle_is_null(p->color_attachments[i].handle))
-                {
-                    pass.num_color_attachments += 1;
+            u64 pass_idx            = subkeys[GFX_KEY_PASS];
+            u64 pipeline            = subkeys[GFX_KEY_PIPELINE];
+            u64 push_constant_index = subkeys[GFX_KEY_CONSTANTS];
+
+            // Get the corresponding command.
+            auto cmd = gfx->commands[key.cmd_index];
+
+            // @Fix, Robustness, Todo: If pass changes, pipeline must be reset..
+            // Automate barrier installation.
+            if (current_pass != pass_idx) {
+                if (current_pass != GFX_NULL_PASS) {
+                    rhi_pass_end(cmd_buffer, &pass);
+                    rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
                 }
+                current_pass = pass_idx;
+                rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+                gfx_begin_pass_and_set_viewport_scissor(pass_idx, &pass, cmd_buffer);
             }
 
-
-            if (!gfx_handle_is_null(p->depth_attachment.handle))
-            {
-                pass.has_depth_attachment = true;
+            // Update pipeline?
+            if (current_pipeline != cmd.pipeline.index) {
+                current_pipeline = cmd.pipeline.index;
+                auto *entry = table_find_pointer(&gfx->pipeline_table, cmd.pipeline.handle);
+                Assert(entry);
+                rhi_cmd_set_pipeline(cmd_buffer, &entry->rhi_pipeline);
             }
 
-            for (u16 color_idx = 0; color_idx < RHI_MAX_COLOR_ATTACHMENTS; ++color_idx) 
+            // And the real push constants.
+            if (cmd.push_constant_index != UINT32_MAX)
             {
-                if (p->flags & (GFX_PASS_FLAG_CLEAR_COLOR_0 << (color_idx)))
-                {
-                    GFX_Handle handle = p->color_attachments[color_idx].handle;
-
-                    // @Cleanup: I don't like this additional code path.
-                    if (handle != GFX_SURFACE_TEXTURE.handle)
-                    {
-                        auto *tex = table_find_pointer(&gfx->texture_table, handle);
-                        if (tex)
-                        {
-                            auto *attachment = &pass.color_attachments[color_idx];
-                            attachment->view = tex->views[RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET];
-
-                            attachment->load_op = RHI_LOAD_OP_CLEAR;
-
-                            u32 c_packed = p->colors[color_idx];
-                            v4 c_unpacked = unpack_rgba(c_packed);
-                            memcpy(attachment->clear_color, &c_unpacked, sizeof(f32) * 4);
-                        }
-                        else
-                        {
-                            // @Todo: Error-handling.
-                            log(LOG_ERROR, S("Color attachment texture wasn't found."));
-                            Assert(0);
-                        }
-                    }
-                    else
-                    {
-                        auto *attachment = &pass.color_attachments[color_idx];
-                        attachment->view = gfx->surface_views[gfx->surface->current_frame_index];
-
-                        attachment->load_op = RHI_LOAD_OP_CLEAR;
-
-                        u32 c_packed = p->colors[color_idx];
-                        v4 c_unpacked = unpack_rgba(c_packed);
-                        memcpy(attachment->clear_color, &c_unpacked, sizeof(f32) * 4);
-                    }
-                }
+                auto* entry = &gfx->push_constants.data[cmd.push_constant_index];
+                rhi_cmd_push_constants(cmd_buffer, entry->data, entry->size);
             }
 
-            if (p->flags & GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL)
-            {
-                GFX_Handle handle = p->depth_attachment.handle;
-                auto *tex = table_find_pointer(&gfx->texture_table, handle);
+            auto *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
 
-                if (tex)
-                {
-                    auto *attachment = &pass.depth_attachment;
-                    attachment->view        = tex->views[RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL];;
-                    attachment->load_op     = RHI_LOAD_OP_CLEAR;
-                    attachment->clear_depth = p->depth;
-                }
-                else
-                {
-                    // @Todo: Error-handling.
-                    log(LOG_ERROR, S("Depth attachment texture wasn't found."));
-                    Assert(0);
-                }
-            }
+            rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, mesh->index_size, mesh->num_indices, cmd.num_instances, 0, 0, 0);
+        }
 
-            rhi_pass_begin(cmd_buffer, &pass);
-            {
-                rhi_cmd_set_viewport(cmd_buffer, vp.x, vp.y, vp.w, vp.h, 0.f, 1.f);
-                rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
-
-                {
-                    ProfileScopeN("gfx_sort_keys");
-                    radix_sort_u64(gfx->sort_keys.data, gfx->sort_keys.count, sizeof(GFX_Sort_Key), offset_of(GFX_Sort_Key, bits));
-                }
-
-                {
-                    u64 current_pass     = UINT32_MAX;
-                    u64 current_pipeline = UINT32_MAX; // @Fix: If pass changes, pipeline must be reset..
-
-                    for (auto& key : gfx->sort_keys)
-                    {
-                        // @Temporary: Decode the key.
-                        u64 pass_               = (key.bits & 0b111111110000000000000000) >> 16;
-                        u64 pipeline            = (key.bits & 0b1111111100000000) >> 8;
-                        u64 push_constant_index = (key.bits & 0b11111111);
-
-                        // Fetch the corresponding command.
-                        auto cmd = gfx->commands[key.cmd_index];
-
-                        // Update pass? @Todo
-                        //if (current_pass != pass)
-                        //{
-                        //    current_pass = pass;
-                        //}
-
-                        // Update pipeline?
-                        if (current_pipeline != cmd.pipeline.index)
-                        {
-                            current_pipeline = cmd.pipeline.index;
-                            auto *entry = table_find_pointer(&gfx->pipeline_table, cmd.pipeline.handle);
-                            Assert(entry);
-                            rhi_cmd_set_pipeline(cmd_buffer, &entry->rhi_pipeline);
-                        }
-
-                        // And the real push constants.
-                        if (cmd.push_constant_index != UINT32_MAX)
-                        {
-                            auto* entry = &gfx->push_constants.data[cmd.push_constant_index];
-                            rhi_cmd_push_constants(cmd_buffer, entry->data, entry->size);
-                        }
-
-                        auto *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
-
-                        rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, mesh->index_size, mesh->num_indices, cmd.num_instances, 0, 0, 0);
-                    }
-                }
-
-
-            }
+        if (current_pass != GFX_NULL_PASS) {
             rhi_pass_end(cmd_buffer, &pass);
-
-            // @Temporary, @Todo: Barriers should be set automatically...!
             rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
         }
     }
@@ -706,10 +685,7 @@ void gfx_end()
 
     rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->frame_semaphore, gfx->current_frame);
 
-    {
-        ProfileScopeN("gfx_present");
-        rhi_surface_present(gfx->surface);
-    }
+    rhi_surface_present(gfx->surface);
 
     gfx_reset_per_frame_data();
 

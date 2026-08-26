@@ -96,7 +96,6 @@ String read_entire_file(String file_path, Allocator allocator) {
 
 void radix_sort_u64(void *data, s64 count, s64 stride, s64 key_offset)
 {
-    void *original = data;
     void *tmp = alloc(count * stride, tctx.temp);
 
     for (int k = 0; k < 64; k += 8)
@@ -128,6 +127,4 @@ void radix_sort_u64(void *data, s64 count, s64 stride, s64 key_offset)
         data = tmp;
         tmp = swap;
     }
-
-    Assert(original == data);
 }

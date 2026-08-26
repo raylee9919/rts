@@ -133,10 +133,11 @@ void render(s64 index)
     {
         gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_TEXTURE);
         gfx_pass_clear_color(RENDER_PASS, 0xff201010, 0);
-        gfx_pass_viewport(RENDER_PASS, 0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
-        gfx_pass_scissor(RENDER_PASS, 0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
 
-        gfx_pipeline(pipeline);
+        gfx_set_viewport(0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
+        gfx_set_scissor(0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
+
+        gfx_set_pipeline(pipeline);
 
         {
             // @Temporary
@@ -169,9 +170,9 @@ void render(s64 index)
                 }
 
                 R_Camera camera = {};
-                f32 fov = PI32 * 0.5f;
+                f32 fov = pi32 * 0.5f;
                 f32 aspect_ratio = (f32)VIEWPORT_WIDTH / (f32)VIEWPORT_HEIGHT;
-                camera.position  = V4(state->camera.position, 1.0f);
+                camera.position  = V4(state->camera.position, 1.f);
                 camera.view      = look_at_rh(state->camera.position, v3{}, WORLD_UP);
                 camera.proj      = persp_fov_rh(fov, aspect_ratio, NEAR_Z, FAR_Z);
                 camera.view_proj = camera.proj * camera.view;
