@@ -518,10 +518,10 @@ void rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buff
     }
 }
 
-void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u32 size) {
+void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void *data, u32 size) {
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
-            d3d12_cmd_push_constants(cmd_buffer, data, size);
+            d3d12_cmd_push_constants(cmd_buffer, root_index, data, size);
             break;
 
         default:
@@ -558,17 +558,17 @@ void rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *
 //
 // Helpers
 //
-bool rhi_is_bc_format(RHI_Texture_Format format) {
+bool rhi_is_bc_format(RHI_Format format) {
     switch (format) {
-        case RHI_TEXTURE_FORMAT_BC1_UNORM:
-        case RHI_TEXTURE_FORMAT_BC1_UNORM_SRGB:
-        case RHI_TEXTURE_FORMAT_BC3_UNORM:
-        case RHI_TEXTURE_FORMAT_BC3_UNORM_SRGB:
-        case RHI_TEXTURE_FORMAT_BC4_UNORM:
-        case RHI_TEXTURE_FORMAT_BC5_UNORM:
-        case RHI_TEXTURE_FORMAT_BC6H_UFLOAT:
-        case RHI_TEXTURE_FORMAT_BC7_UNORM:
-        case RHI_TEXTURE_FORMAT_BC7_UNORM_SRGB:
+        case RHI_FORMAT_BC1_UNORM:
+        case RHI_FORMAT_BC1_UNORM_SRGB:
+        case RHI_FORMAT_BC3_UNORM:
+        case RHI_FORMAT_BC3_UNORM_SRGB:
+        case RHI_FORMAT_BC4_UNORM:
+        case RHI_FORMAT_BC5_UNORM:
+        case RHI_FORMAT_BC6H_UFLOAT:
+        case RHI_FORMAT_BC7_UNORM:
+        case RHI_FORMAT_BC7_UNORM_SRGB:
             return true;
         default:
             return false;

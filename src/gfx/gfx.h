@@ -3,11 +3,13 @@
 #ifndef RTS_GFX_H
 #define RTS_GFX_H
 
+#define GFX_PASS_NULL               0xffffffffffffffff
+#define GFX_PIPELINE_INVALID        UINT64_MAX
+
 // Minimum and maximum count of set of frame resources.
 #define GFX_MIN_FRAME_COUNT         1
 #define GFX_MAX_FRAME_COUNT         2
 
-#define GFX_NULL_PASS               0xffffffff
 
 // Sort keys
 //
@@ -44,6 +46,13 @@ struct GFX_Sort_Key {
 };
 
 
+// GUID to uint32
+//
+static force_inline u32 gfx_128_to_32(Guid guid) {
+    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
+}
+
+
 // Initialization info struct
 //
 struct GFX_Info {
@@ -59,22 +68,6 @@ struct GFX_Info {
     u32         num_frames;
 };
 
-struct GFX_Handle {
-    u64 u[1];
-
-    bool operator == (GFX_Handle other) { return u[0] == other.u[0]; }
-    bool operator != (GFX_Handle other) { return u[0] != other.u[0]; }
-};
-
-static force_inline u32 gfx_handle_hash(GFX_Handle handle) {
-    u32 seed = 0xbaadf00d;
-    return (u32)(knuth_hash(handle.u[0] ^ seed) >> 32);
-}
-
-static force_inline u32 gfx_128_to_32(Guid guid) {
-    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
-}
-
 struct GFX_Mesh { 
     RHI_Buffer      vertex_buffer;
     RHI_Buffer_View vertex_buffer_view;
@@ -86,11 +79,6 @@ struct GFX_Mesh {
 struct GFX_Texture_Entry {
     RHI_Texture      texture;
     RHI_Texture_View views[RHI_TEXTURE_VIEW_TYPE_COUNT];
-};
-
-struct GFX_Pipeline {
-    GFX_Handle      handle;
-    u64             index; // for sort keys.
 };
 
 struct GFX_Pipeline_Entry {
@@ -144,9 +132,9 @@ struct GFX_Pass_State {
 };
 
 struct GFX_Command {
-    GFX_Pipeline pipeline;
+    u64          pipeline_index;
     u32          push_constant_index;
-    u64          mesh_handle;
+    Guid         mesh_handle;
     u32          num_instances;
 };
 
@@ -154,7 +142,7 @@ struct GFX_Callback_Entry {
     u64 semaphore_value_to_execute;
     void (*proc)(GFX_Callback_Entry entry);
     union {
-        u64 mesh_id;
+        Guid mesh_id;
     };
 };
 
@@ -217,19 +205,30 @@ struct GFX_State {
 
     // gfx's draw calls encode commands into the buffer by the current context.
     // Later commands get sorted by key and submitted to the GPU.
-    u64                                     current_pass = GFX_NULL_PASS;
-    GFX_Pipeline                            ctx_pipeline;
+    u64                                     current_pass           = GFX_PASS_NULL;
+
+    // Transient pipeline frame data
+    u64                                     context_pipeline = GFX_PIPELINE_INVALID;  // Currently set transient pipeline index
+    u64                                     next_pipeline    = 0;                     // Next transient pipeline index to acquire
+    Array<Guid>                             pipelines;
+
     u64                                     current_push_constants = 0;
+
+    Table <Guid, u64, gfx_128_to_32>        pipeline_to_index_this_frame;
+
     Array<GFX_Sort_Key>                     sort_keys;
     Array<GFX_Command>                      commands;
     Array<GFX_Push_Constants>               push_constants;
     GFX_Pass_State                          pass_states[GFX_MAX_PASS];
 
     // Resource tables
-    Table <u64, GFX_Mesh>                                       mesh_table;
-    Table <Guid, GFX_Material, gfx_128_to_32>                   material_table;
-    Table <Guid, GFX_Texture_Entry, gfx_128_to_32>              texture_table;
-    Table <GFX_Handle, GFX_Pipeline_Entry, gfx_handle_hash>     pipeline_table;
+    Table <Guid,           GFX_Mesh, gfx_128_to_32>     mesh_table;
+    Table <Guid,       GFX_Material, gfx_128_to_32>     material_table;
+    Table <Guid,  GFX_Texture_Entry, gfx_128_to_32>     texture_table;
+    Table <Guid, GFX_Pipeline_Entry, gfx_128_to_32>     pipeline_table;
+
+    // Shader global data
+    f32 time;
 };
 
 global GFX_State *gfx;
@@ -240,8 +239,8 @@ global Guid GFX_SURFACE_TEXTURE;
 internal void                   gfx_init(GFX_Info info);
 internal void                   gfx_shutdown();
 
-internal void                   gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
-internal void                   gfx_mesh_destroy(u64 id);
+internal void                   gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
+internal void                   gfx_mesh_destroy(Guid guid);
 
 internal void                   gfx_material_alloc(Guid guid, GFX_Material material);
 internal void                   gfx_material_dealloc(Guid guid);
@@ -249,14 +248,14 @@ internal GFX_Material           *gfx_get_material_pointer_from_guid(Guid guid);
 
 internal void                   gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
 internal void                   gfx_texture_destroy(Guid guid);
-internal void                   gfx_texture_upload(Guid guid, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height);
+internal void                   gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height);
 internal u32                    gfx_bindless_from_texture(Guid guid, RHI_Texture_View_Type view_type);
 
 // The last state you set will be submitted to the GPU. The system isn't smart 
 // enough to untangle the order in which you called them.
 internal void                   gfx_pass_begin(u32 pass_index);
 internal void                   gfx_pass_end();
-internal void                   gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Handle texture);
+internal void                   gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, Guid texture);
 internal void                   gfx_pass_depth_attachment(u32 pass_index, Guid texture);
 internal void                   gfx_pass_clear_color(u32 pass_index, u32 clear_color, u32 color_attachment_index);
 internal void                   gfx_pass_clear_depth(u32 pass_index, f32 clear_depth);
@@ -265,17 +264,17 @@ internal void                   gfx_pass_clear_depth(u32 pass_index, f32 clear_d
 internal void                   gfx_set_viewport(f32 top_left_x, f32 top_left_y, f32 width, f32 height);
 internal void                   gfx_set_scissor(u32 top_left_x, u32 top_left_y, u32 width, u32 height);
 
-internal GFX_Pipeline           gfx_pipeline_create(RHI_Pipeline_Desc desc);
-internal void                   gfx_pipeline_destroy(GFX_Pipeline pipeline);
-internal void                   gfx_set_pipeline(GFX_Pipeline pipeline);
+internal void                   gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc);
+internal void                   gfx_pipeline_destroy(Guid guid);
+internal void                   gfx_set_pipeline(Guid guid);
 
 internal void                   gfx_push_constants(void *data, u32 size);
 
-internal void                   gfx_draw(u64 mesh_id);
+internal void                   gfx_draw(Guid mesh_id);
 
-internal void                   gfx_end();
+internal void                   gfx_end(f64 dt);
 
-internal Shader_Material        gfx_to_shader_material(GFX_Material *material);
+internal GPU_Material           gpu_material_from_gfx(GFX_Material *material);
 
 
 #endif // RTS_GFX_H

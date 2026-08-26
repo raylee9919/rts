@@ -8,6 +8,8 @@ struct Shader_Compiler {
     IDxcCompiler3      *compiler_3;
     IDxcUtils          *utils;
     IDxcIncludeHandler *include_handler;
+
+    String              include_path;
 };
 
 

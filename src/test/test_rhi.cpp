@@ -11,7 +11,7 @@
 #include "asset/include.h"
 #include "rhi/include.h"
 #include "gfx/include.h"
-#include "shader/include.h"
+#include "shader_compiler/include.h"
 
 #include "basic/include.cpp"
 #include "math/include.cpp"
@@ -21,12 +21,12 @@
 #include "asset/include.cpp"
 #include "rhi/include.cpp"
 #include "gfx/include.cpp"
-#include "shader/include.cpp"
+#include "shader_compiler/include.cpp"
 
 //
-#define WORLD_UP    v3{0.f, 1.f, 0.f}
-#define NEAR_Z      1e-3f
-#define FAR_Z       1e9f
+#define WORLD_UP        v3{0.f, 1.f, 0.f}
+#define NEAR_Z          1e-3f
+#define FAR_Z           1e9f
 global f64 g_time = 0.f;
 
 struct Entity {
@@ -52,12 +52,6 @@ struct Game_State {
 global Game_State game_states[2];
 
 //
-struct R_Camera {
-    v4   position;
-    m4x4 view;
-    m4x4 proj;
-    m4x4 view_proj;
-};
 global RHI_Buffer          camera_buffer;
 global RHI_Buffer_View     camera_view;
 global void                *camera_ptr;
@@ -88,9 +82,9 @@ global void                *material_ptr;
 //
 global Guid         depth_texture;
 global Guid         doggo_texture;
-global GFX_Pipeline pipeline;
+global Guid         pipeline;
 
-global const u64 MESH_ID     = 1219;
+global Guid         cube_mesh;
 global const u32 RENDER_PASS = 0;
 
 struct Vertex {
@@ -111,30 +105,15 @@ void tick_game(s64 index, f64 dt) {
     for (int i = 0; i < NUM_ENTITIES; ++i) {
         auto *E = &state->entities[i];
 
-        f32 coef = 30.0f;
+        f32 coef = 20.0f;
         f32 idx = (f32)i;
-#if 1
-        int GRID_WIDTH = 10;
-        f32 SPACING = 4.0f;
 
-        // Weird ordering.
-        u32 cell = (u32)i * 2654435761u;
-        cell %= NUM_ENTITIES;
-
-        int x = cell % GRID_WIDTH;
-        int z = cell / GRID_WIDTH;
-
-        E->position.x = ((f32)x - (GRID_WIDTH - 1) * 0.5f) * SPACING;
-        E->position.y = 0.0f;
-        E->position.z = ((f32)z - (GRID_WIDTH - 1) * 0.5f) * SPACING;
-#else
-        E->position.z = coef * m_cos(m_cos(g_time) + idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
-        E->position.x = coef * m_sin(m_cos(g_time) + idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
-#endif
+        E->position.z = coef * m_cos(idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
+        E->position.x = coef * m_sin(idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
     }
 }
 
-void render(s64 index) 
+void render(s64 index, f64 dt) 
 {
     gfx_pass_begin(RENDER_PASS);
     {
@@ -151,7 +130,7 @@ void render(s64 index)
 
         {
             // @Temporary
-            auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+            auto *mesh = table_find_pointer(&gfx->mesh_table, cube_mesh);
 
             // Bind root constants
             Constants c = {};
@@ -171,19 +150,17 @@ void render(s64 index)
 
                     Arguments *args = (Arguments *)arguments_ptr + i;
 
-                    memcpy(&args->position, &E->position, sizeof(args->position));
+                    m4x4 m = m4x4_translate(E->position) * y_rotation(g_time);
+                    memcpy(&args->transform, &m, sizeof(args->transform));
 
-                    m4x4 m = identity();
-                    memcpy(&args->orientation, &m, sizeof(args->orientation));
-
-                    GFX_Material *mat    = gfx_material_pointer_from_guid(E->material);
-                    Shader_Material sm   = gfx_to_shader_material(mat);
-                    Shader_Material *dst = (Shader_Material *)material_ptr + i;
+                    GFX_Material *mat = gfx_material_pointer_from_guid(E->material);
+                    GPU_Material sm   = gpu_material_from_gfx(mat);
+                    GPU_Material *dst = (GPU_Material *)material_ptr + i;
                     memcpy(dst, &sm, sizeof(sm));
                     args->material_id = i;
                 }
 
-                R_Camera camera = {};
+                GPU_Camera camera = {};
                 f32 fov = pi32 * 0.5f;
                 f32 aspect_ratio = (f32)VIEWPORT_WIDTH / (f32)VIEWPORT_HEIGHT;
                 camera.position  = V4(state->camera.position, 1.f);
@@ -193,28 +170,30 @@ void render(s64 index)
                 memcpy(camera_ptr, &camera, sizeof(camera));
             }
 
-            gfx_draw(MESH_ID, NUM_ENTITIES);
+            gfx_draw(cube_mesh, NUM_ENTITIES);
         }
     }
     gfx_pass_end();
 
-    gfx_end();
+    gfx_end(dt);
 }
 
-int main_entry(int argc, char **argv) 
+int main_entry(int argc, char **argv)
 {
     // Open window
-    window = os_window_create(1920, 1080, utf8lit("rhi"));
+    window = os_window_create(1920, 1080, S("RHI"));
     HWND hwnd = hwnd_from_os_handle(window);
 
     // Init shader compiler
     compiler = alloc_t(Shader_Compiler);
     Assert(shader_compiler_init(compiler));
+    compiler->include_path = S("C:\\dev\\rts\\src\\shaders\\");
 
     // @Temporary: Init camera
     game_states[GAME_STATE_MAIN_INDEX].camera.position = v3(0.f, 6.f, 15.f);
 
     // Make a cube
+    cube_mesh = guid_generate();
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
 
     // Init GFX
@@ -235,7 +214,7 @@ int main_entry(int argc, char **argv)
         gfx_init(init);
     }
 
-    String shader_source = read_entire_file(S("../src/test/shader.hlsl"), tctx.allocator);
+    String shader_source = read_entire_file(S("../src/shaders/shader.hlsl"), tctx.allocator);
 
     Shader_Compile_Result vs = {};
     Shader_Compile_Result ps = {};
@@ -269,7 +248,7 @@ int main_entry(int argc, char **argv)
 
         desc.depth_enabled              = true;
         desc.depth_compare_op           = RHI_COMPARE_LESS_EQUAL;
-        desc.depth_format               = RHI_TEXTURE_FORMAT_D32F;
+        desc.depth_format               = RHI_FORMAT_D32F;
 
         desc.num_color_attachments       = 1;
         desc.color_attachment_formats[0] = gfx->surface->textures[0].desc.format;
@@ -295,18 +274,19 @@ int main_entry(int argc, char **argv)
         desc.ps_data = ps.data;
         desc.ps_size = ps.size;
 
-        pipeline = gfx_pipeline_create(desc);
+        pipeline = guid_generate();
+        gfx_pipeline_create(pipeline, desc);
     }
 
 
-    gfx_mesh_create(MESH_ID, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
+    gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
 
 
     // @Temporary
-    auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
+    auto *mesh = table_find_pointer(&gfx->mesh_table, cube_mesh);
 
     { // Create material buffer and view.
-        u64 stride = sizeof(Shader_Material);
+        u64 stride = sizeof(GPU_Material);
         u64 sz     = stride * MAX_MATERIALS;
 
         RHI_Buffer_Desc desc = {};
@@ -354,8 +334,8 @@ int main_entry(int argc, char **argv)
     }
 
     { // Create camera buffer and view
-        u64 stride = sizeof(R_Camera);
-        u64 sz     = sizeof(R_Camera) * 1;
+        u64 stride = sizeof(GPU_Camera);
+        u64 sz     = sizeof(GPU_Camera) * 1;
 
         RHI_Buffer_Desc desc = {};
         desc.memory_type = RHI_MEMORY_UPLOAD;
@@ -389,7 +369,7 @@ int main_entry(int argc, char **argv)
         RHI_Texture_Desc desc = {};
         {
             desc.type           = RHI_TEXTURE_TYPE_2D;
-            desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+            desc.format         = RHI_FORMAT_RGBA8_UNORM;
             desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
             desc.width          = bitmap.width;
             desc.height         = bitmap.height;
@@ -406,7 +386,7 @@ int main_entry(int argc, char **argv)
         RHI_Texture_Desc desc = {};
         {
             desc.type           = RHI_TEXTURE_TYPE_2D;
-            desc.format         = RHI_TEXTURE_FORMAT_D32F;
+            desc.format         = RHI_FORMAT_D32F;
             desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
             desc.width          = SURFACE_WIDTH;
             desc.height         = SURFACE_HEIGHT;
@@ -432,8 +412,8 @@ int main_entry(int argc, char **argv)
         E->material = guid;
 
         GFX_Material material = {};
-        material.albedo = doggo_guid;
-        material.tint   = 0x22ffffff;
+        //material.albedo = doggo_guid;
+        material.tint   = 0x33ffffff;
 
         // ..or read from asset pack.
 
@@ -475,7 +455,7 @@ int main_entry(int argc, char **argv)
         // Render
         {
             ProfileScopeN("render");
-            render(GAME_STATE_RENDER_INDEX);
+            render(GAME_STATE_RENDER_INDEX, dt); // @Fix: wrong dt.
         }
 
         // Close app if needed
@@ -505,7 +485,7 @@ int main_entry(int argc, char **argv)
     // Cleanup
     gfx_texture_destroy(doggo_texture);
     gfx_pipeline_destroy(pipeline);
-    gfx_mesh_destroy(MESH_ID);
+    gfx_mesh_destroy(cube_mesh);
     gfx_shutdown();
 
 

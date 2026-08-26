@@ -52,8 +52,11 @@ void shader_compiler_deinit(Shader_Compiler *compiler) {
 }
 
 // @Todo: Proper cleanup when failed.
-bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, bool debug, 
-                    Shader_Compile_Result *out_result, Allocator allocator) {
+bool shader_compile(Shader_Compiler *compiler, 
+                    Shader_Compile_Options options, 
+                    bool debug, 
+                    Shader_Compile_Result *out_result, 
+                    Allocator allocator) {
     HRESULT hr = S_OK;
 
     IDxcResult *compile_result         = NULL;
@@ -94,6 +97,9 @@ bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, b
 
         args[num_args++] = L"-WX";                      // Treat warnings as errors
         args[num_args++] = L"-Zpr";                     // Pack matrices in row-major order
+                                                        //
+        args[num_args++] = L"-D";
+        args[num_args++] = L"SCOPE_SHADER=1";
 
 
         if (debug) {
@@ -103,6 +109,12 @@ bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, b
         } else {
             args[num_args++] = L"-O3";                  // Optimization Level 3 (Default)
             args[num_args++] = L"-all_resources_bound"; // Driver-side optimization
+        }
+
+        if (compiler->include_path.str) {
+            Utf16 include16  = to_utf16(tctx.temp, compiler->include_path);
+            args[num_args++] = L"-I";                       
+            args[num_args++] = (LPCWCHAR)include16.str;
         }
     }
     Assert(num_args <= array_count(args));

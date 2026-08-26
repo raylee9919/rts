@@ -72,39 +72,39 @@ enum RHI_Texture_Type {
     RHI_TEXTURE_TYPE_CUBE,
 };
 
-enum RHI_Texture_Format {
-    RHI_TEXTURE_FORMAT_UNKNOWN = 0,
+enum RHI_Format {
+    RHI_FORMAT_UNKNOWN = 0,
 
-    RHI_TEXTURE_FORMAT_R8_UNORM,
-    RHI_TEXTURE_FORMAT_RG8_UNORM,
-    RHI_TEXTURE_FORMAT_RGBA8_UNORM,
-    RHI_TEXTURE_FORMAT_BGRA8_UNORM,
-    RHI_TEXTURE_FORMAT_RGBA8_UNORM_SRGB,
-    RHI_TEXTURE_FORMAT_BGRA8_UNORM_SRGB,
+    RHI_FORMAT_R8_UNORM,
+    RHI_FORMAT_RG8_UNORM,
+    RHI_FORMAT_RGBA8_UNORM,
+    RHI_FORMAT_BGRA8_UNORM,
+    RHI_FORMAT_RGBA8_UNORM_SRGB,
+    RHI_FORMAT_BGRA8_UNORM_SRGB,
 
-    RHI_TEXTURE_FORMAT_R16_UNORM,
-    RHI_TEXTURE_FORMAT_RG16_UNORM,
-    RHI_TEXTURE_FORMAT_RGBA16_UNORM,
+    RHI_FORMAT_R16_UNORM,
+    RHI_FORMAT_RG16_UNORM,
+    RHI_FORMAT_RGBA16_UNORM,
 
-    RHI_TEXTURE_FORMAT_R16F,
-    RHI_TEXTURE_FORMAT_RG16F,
-    RHI_TEXTURE_FORMAT_RGBA16F,
+    RHI_FORMAT_R16F,
+    RHI_FORMAT_RG16F,
+    RHI_FORMAT_RGBA16F,
 
-    RHI_TEXTURE_FORMAT_R32F,
-    RHI_TEXTURE_FORMAT_RG32F,
-    RHI_TEXTURE_FORMAT_RGBA32F,
+    RHI_FORMAT_R32F,
+    RHI_FORMAT_RG32F,
+    RHI_FORMAT_RGBA32F,
 
-    RHI_TEXTURE_FORMAT_D32F,
+    RHI_FORMAT_D32F,
 
-    RHI_TEXTURE_FORMAT_BC1_UNORM,
-    RHI_TEXTURE_FORMAT_BC1_UNORM_SRGB,
-    RHI_TEXTURE_FORMAT_BC3_UNORM,
-    RHI_TEXTURE_FORMAT_BC3_UNORM_SRGB,
-    RHI_TEXTURE_FORMAT_BC4_UNORM,
-    RHI_TEXTURE_FORMAT_BC5_UNORM,
-    RHI_TEXTURE_FORMAT_BC6H_UFLOAT,
-    RHI_TEXTURE_FORMAT_BC7_UNORM,
-    RHI_TEXTURE_FORMAT_BC7_UNORM_SRGB,
+    RHI_FORMAT_BC1_UNORM,
+    RHI_FORMAT_BC1_UNORM_SRGB,
+    RHI_FORMAT_BC3_UNORM,
+    RHI_FORMAT_BC3_UNORM_SRGB,
+    RHI_FORMAT_BC4_UNORM,
+    RHI_FORMAT_BC5_UNORM,
+    RHI_FORMAT_BC6H_UFLOAT,
+    RHI_FORMAT_BC7_UNORM,
+    RHI_FORMAT_BC7_UNORM_SRGB,
 };
 
 // Texture_Usage and View_Type are tightly coupled. Changing either would be 
@@ -130,7 +130,7 @@ enum {
 
 struct RHI_Texture_Desc {
     RHI_Texture_Type   type;
-    RHI_Texture_Format format;
+    RHI_Format         format;
     RHI_Texture_Usage  usage;
     u32 width;
     u32 height;
@@ -158,7 +158,7 @@ struct RHI_Texture {
 struct RHI_Texture_View_Desc {
     RHI_Texture_View_Type   type;
     RHI_Texture_Type        dimension;
-    RHI_Texture_Format      format;
+    RHI_Format              format;
     u32                     base_mip_level;
     u32                     base_array_layer;
     u32                     mip_levels;
@@ -294,11 +294,11 @@ struct RHI_Pipeline_Desc {
     // Depth Stencil
     b32                 depth_enabled;
     RHI_Compare         depth_compare_op;
-    RHI_Texture_Format  depth_format;
+    RHI_Format          depth_format;
 
     // Color attachments
     u32                 num_color_attachments;
-    RHI_Texture_Format  color_attachment_formats[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Format          color_attachment_formats[RHI_MAX_COLOR_ATTACHMENTS];
     b32                 blend_enabled[RHI_MAX_COLOR_ATTACHMENTS];
     RHI_Blend_Factor    blend_factor_color_src[RHI_MAX_COLOR_ATTACHMENTS];
     RHI_Blend_Factor    blend_factor_color_dst[RHI_MAX_COLOR_ATTACHMENTS];
@@ -394,10 +394,10 @@ internal void  rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, flo
 internal void  rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height);
 internal void  rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
 internal void  rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance);
-internal void  rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u32 size);
+internal void  rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void *data, u32 size);
 internal void  rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *dst, RHI_Buffer *src, u64 dst_offset, u64 src_offset, u64 size);
 internal void  rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer);
 
-internal bool  rhi_is_bc_format(RHI_Texture_Format);
+internal bool  rhi_is_bc_format(RHI_Format);
 
 #endif // RTS_RHI_H

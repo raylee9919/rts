@@ -51,12 +51,17 @@ static void gfx_init_uploader(u64 buffer_size)
     Assert(rhi_command_buffer_init(gfx->device, &gfx->copy_buffer, RHI_COMMAND_TYPE_TRANSFER));
 }
 
-static void gfx_reset_per_frame_data()
-{
+static void gfx_reset_per_frame_data() {
     // Reset per-frame data.
-    gfx->current_pass           = GFX_NULL_PASS;
-    gfx->ctx_pipeline           = {};
+    gfx->current_pass           = GFX_PASS_NULL;
     gfx->current_push_constants = 0;
+
+    // Pipeline
+    gfx->context_pipeline = GFX_PIPELINE_INVALID;
+    gfx->next_pipeline    = 0;
+    array_reset_keeping_memory(&gfx->pipelines);
+
+    table_reset_keeping_memory(&gfx->pipeline_to_index_this_frame);
 
     array_reset_keeping_memory(&gfx->sort_keys);
     array_reset_keeping_memory(&gfx->commands);
@@ -68,19 +73,6 @@ static void gfx_reset_per_frame_data()
 static force_inline u32 gfx_rand32()
 {
     return xorshift32();
-}
-
-static GFX_Handle gfx_generate_handle() {
-    GFX_Handle handle;
-    u64 hi = gfx->generational_handle_id++;
-    u32 lo = gfx_rand32();
-    handle.u[0] = (hi << 32llu) | lo;
-    return handle;
-}
-
-static bool gfx_handle_is_null(GFX_Handle handle)
-{
-    return handle.u[0] == 0;
 }
 
 static void gfx_add_callback(GFX_Callback_Entry entry)
@@ -214,7 +206,7 @@ static void gfx_decode_key(u64 key, u64 *out_subkeys) {
     }
 }
 
-void gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size)
+void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size)
 {
     RHI_Buffer vb        = {};
     RHI_Buffer ib        = {};
@@ -231,7 +223,7 @@ void gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, 
     entry.index_size         = index_size;
     entry.num_indices        = num_indices;
 
-    table_add(&gfx->mesh_table, id, entry);
+    table_add(&gfx->mesh_table, guid, entry);
 
     { // @Temporary: Upload vertex buffer and index buffer.
         void *ptr = 0;
@@ -274,7 +266,7 @@ static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
     }
 }
 
-void gfx_mesh_destroy(u64 id)
+void gfx_mesh_destroy(Guid guid)
 {
     // Destruction is deferred until the current workload on the GPU is done.
     // @Todo: This isn't settled yet.. Async asset loading, sorting pass, after-frame 
@@ -282,7 +274,7 @@ void gfx_mesh_destroy(u64 id)
     GFX_Callback_Entry entry = {};
     entry.semaphore_value_to_execute = gfx->current_frame;
     entry.proc    = gfx_mesh_destroy_callback;
-    entry.mesh_id = id;
+    entry.mesh_id = guid;
 
     gfx_add_callback(entry);
 }
@@ -345,7 +337,7 @@ void gfx_texture_destroy(Guid guid) {
     }
 }
 
-void gfx_texture_upload(Guid guid, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height) {
+void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height) {
     auto *tex = table_find_pointer(&gfx->texture_table, guid);
 
     if (tex) {
@@ -384,7 +376,7 @@ void gfx_texture_upload(Guid guid, RHI_Texture_Format format, void *data, u32 si
 }
 
 u32 gfx_bindless_from_texture(Guid guid, RHI_Texture_View_Type view_type) {
-    u32 id = INVALID_BINDLESS_ID;
+    u32 id = GFX_INVALID_BINDLESS;
     GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
     if (entry) {
         id = entry->views[view_type].bindless;
@@ -398,7 +390,7 @@ void gfx_pass_begin(u32 pass_index) {
 }
 
 void gfx_pass_end() {
-    gfx->current_pass = GFX_NULL_PASS;
+    gfx->current_pass = GFX_PASS_NULL;
 }
 
 void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, Guid guid) {
@@ -457,40 +449,36 @@ void gfx_pass_clear_depth(u32 pass_index, f32 clear_depth)
     gfx->pass_states[pass_index].depth  = clear_depth;
 }
 
-GFX_Pipeline gfx_pipeline_create(RHI_Pipeline_Desc desc)
-{
+void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) {
     Assert(gfx->generational_pipeline_id < GFX_MAX_PIPELINE);
 
-    GFX_Pipeline result = {};
-
     GFX_Pipeline_Entry entry = {};
-    Assert( rhi_pipeline_init(gfx->device, &entry.rhi_pipeline, &desc) );
+    Assert(rhi_pipeline_init(gfx->device, &entry.rhi_pipeline, &desc));
 
-    result.handle = gfx_generate_handle();
-    result.index  = gfx->generational_pipeline_id++;
-
-    table_add(&gfx->pipeline_table, result.handle, entry);
-
-    return result;
+    table_add(&gfx->pipeline_table, guid, entry);
 }
 
-void gfx_pipeline_destroy(GFX_Pipeline pipeline)
-{
-    auto *entry = table_find_pointer(&gfx->pipeline_table, pipeline.handle);
-    if (entry)
-    {
+void gfx_pipeline_destroy(Guid guid) {
+    auto *entry = table_find_pointer(&gfx->pipeline_table, guid);
+    if (entry) {
         rhi_pipeline_deinit(&entry->rhi_pipeline);
-        table_remove(&gfx->pipeline_table, pipeline.handle);
+        table_remove(&gfx->pipeline_table, guid);
     }
 }
 
-void gfx_set_pipeline(GFX_Pipeline pipeline)
-{
-    gfx->ctx_pipeline = pipeline;
+void gfx_set_pipeline(Guid guid) {
+    u64 *index = table_find_pointer(&gfx->pipeline_to_index_this_frame, guid);
+    if (!index) {
+        table_add(&gfx->pipeline_to_index_this_frame, guid, gfx->next_pipeline);
+        gfx->context_pipeline = gfx->next_pipeline;
+        gfx->next_pipeline += 1;
+        array_add(&gfx->pipelines, guid);
+    } else {
+        gfx->context_pipeline = *index;
+    }
 }
 
-void gfx_push_constants(void *data, u32 size)
-{
+void gfx_push_constants(void *data, u32 size) {
     Assert(size <= (4 * RHI_MAX_32BIT_PUSH_CONSTANTS));
 
     array_add(&gfx->push_constants, {});
@@ -504,15 +492,15 @@ void gfx_push_constants(void *data, u32 size)
     gfx->current_push_constants += 1;
 }
 
-void gfx_draw(u64 mesh_id, u32 num_instances) {
-    Assert(gfx->current_pass != GFX_NULL_PASS);
+void gfx_draw(Guid mesh_id, u32 num_instances) {
+    Assert(gfx->current_pass != GFX_PASS_NULL);
 
     auto *mesh = table_find_pointer(&gfx->mesh_table, mesh_id);
 
     if (mesh) {
         u64 subkeys[GFX_KEY_COUNT]  = {};
         subkeys[GFX_KEY_PASS]       = gfx->current_pass;
-        subkeys[GFX_KEY_PIPELINE]   = gfx->ctx_pipeline.index;
+        subkeys[GFX_KEY_PIPELINE]   = gfx->context_pipeline;
         subkeys[GFX_KEY_CONSTANTS]  = gfx->current_push_constants;
 
         GFX_Sort_Key key = {};
@@ -522,7 +510,7 @@ void gfx_draw(u64 mesh_id, u32 num_instances) {
         array_add(&gfx->sort_keys, key);
 
         GFX_Command cmd = {};
-        cmd.pipeline            = gfx->ctx_pipeline;
+        cmd.pipeline_index      = gfx->context_pipeline;
         cmd.push_constant_index = gfx->current_push_constants - 1; // can wrap to UINT32_MAX if nothing was pushed.
         cmd.mesh_handle         = mesh_id;
         cmd.num_instances       = num_instances;
@@ -607,9 +595,12 @@ static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass
     rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
 }
 
-void gfx_end()
+void gfx_end(f64 dt)
 {
     ProfileScopeN("gfx_end");
+
+    // Update shader time
+    gfx->time += dt; // @Todo: do dt trick from Witness.
 
     Assert(gfx->push_constants.count == gfx->current_push_constants);
 
@@ -629,9 +620,9 @@ void gfx_end()
     rhi_command_buffer_begin(cmd_buffer);
     {
         RHI_Pass pass    = {};
-        u64 current_pass = GFX_NULL_PASS;
+        u64 current_pass = GFX_PASS_NULL;
 
-        u64 current_pipeline = UINT32_MAX;
+        u64 current_pipeline = GFX_PIPELINE_INVALID;
 
         for (auto& key : gfx->sort_keys) {
             // @Temporary: Decode the key.
@@ -649,9 +640,9 @@ void gfx_end()
             // Automate barrier installation.
             //
             if (current_pass != pass_idx) {
-                current_pipeline = UINT32_MAX;
+                current_pipeline = GFX_PIPELINE_INVALID;
 
-                if (current_pass != GFX_NULL_PASS) {
+                if (current_pass != GFX_PASS_NULL) {
                     rhi_pass_end(cmd_buffer, &pass);
                     rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
 
@@ -676,20 +667,31 @@ void gfx_end()
                 }
 
                 gfx_begin_pass_and_set_viewport_scissor(pass_idx, &pass, cmd_buffer);
+
             }
 
             // Update pipeline?
-            if (current_pipeline != cmd.pipeline.index) {
-                current_pipeline = cmd.pipeline.index;
-                auto *entry = table_find_pointer(&gfx->pipeline_table, cmd.pipeline.handle);
+            if (current_pipeline != cmd.pipeline_index) {
+                current_pipeline = cmd.pipeline_index;
+                Guid pipeline_guid = gfx->pipelines[cmd.pipeline_index];
+                auto *entry = table_find_pointer(&gfx->pipeline_table, pipeline_guid);
                 Assert(entry);
                 rhi_cmd_set_pipeline(cmd_buffer, &entry->rhi_pipeline);
+
+
+                // Push shader global data
+                {
+                    GPU_Global g = {};
+                    g.time = gfx->time;
+
+                    rhi_cmd_push_constants(cmd_buffer, GFX_CONSTANTS_INDEX_GLOBAL, &g, sizeof(g));
+                }
             }
 
             // And the real push constants.
             if (cmd.push_constant_index != UINT32_MAX) {
                 auto* entry = &gfx->push_constants.data[cmd.push_constant_index];
-                rhi_cmd_push_constants(cmd_buffer, entry->data, entry->size);
+                rhi_cmd_push_constants(cmd_buffer, GFX_CONSTANTS_INDEX_USER, entry->data, entry->size);
             }
 
             // Draw mesh.
@@ -699,7 +701,7 @@ void gfx_end()
             }
         }
 
-        if (current_pass != GFX_NULL_PASS) {
+        if (current_pass != GFX_PASS_NULL) {
             rhi_pass_end(cmd_buffer, &pass);
             rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
             
@@ -729,8 +731,8 @@ void gfx_end()
     gfx->current_frame += 1;
 }
 
-Shader_Material gfx_to_shader_material(GFX_Material *material) {
-    Shader_Material result = {};
+GPU_Material gpu_material_from_gfx(GFX_Material *material) {
+    GPU_Material result = {};
 
     result.albedo_id = gfx_bindless_from_texture(material->albedo, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
     result.orm_id    = gfx_bindless_from_texture(material->orm, RHI_TEXTURE_VIEW_TYPE_SAMPLED);

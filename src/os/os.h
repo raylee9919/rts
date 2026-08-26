@@ -304,7 +304,9 @@ struct Guid {
             u8  data4[8];
         };
         u8   u[16];
+        u16 _16[8];
         u32 _32[4];
+        u64 _64[2];
     };
 
     bool operator == (const Guid& other) {

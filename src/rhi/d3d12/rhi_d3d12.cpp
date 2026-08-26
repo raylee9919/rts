@@ -574,12 +574,19 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
 
     { // Create bindless global root signature.
-        D3D12_ROOT_PARAMETER root_params[1] = {};
+        D3D12_ROOT_PARAMETER root_params[2] = {};
         {
+            // b0
             root_params[0].ParameterType            = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
             root_params[0].Constants.Num32BitValues = RHI_MAX_32BIT_PUSH_CONSTANTS;
             root_params[0].Constants.RegisterSpace  = 0;
             root_params[0].Constants.ShaderRegister = 0;
+
+            // b1
+            root_params[1].ParameterType            = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+            root_params[1].Constants.Num32BitValues = RHI_MAX_32BIT_PUSH_CONSTANTS;
+            root_params[1].Constants.RegisterSpace  = 0;
+            root_params[1].Constants.ShaderRegister = 1;
         }
 
         D3D12_ROOT_SIGNATURE_DESC root_signature_desc = {};
@@ -794,84 +801,84 @@ void d3d12_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
 
 // Texture
 //
-static DXGI_FORMAT dxgi_format_from_rhi(RHI_Texture_Format format) {
+static DXGI_FORMAT dxgi_format_from_rhi(RHI_Format format) {
     switch (format) {
-        case RHI_TEXTURE_FORMAT_UNKNOWN:
+        case RHI_FORMAT_UNKNOWN:
             return DXGI_FORMAT_UNKNOWN;
 
-        case RHI_TEXTURE_FORMAT_R8_UNORM:
+        case RHI_FORMAT_R8_UNORM:
             return DXGI_FORMAT_R8_UNORM;
 
-        case RHI_TEXTURE_FORMAT_RG8_UNORM:
+        case RHI_FORMAT_RG8_UNORM:
             return DXGI_FORMAT_R8G8_UNORM;
 
-        case RHI_TEXTURE_FORMAT_RGBA8_UNORM:
+        case RHI_FORMAT_RGBA8_UNORM:
             return DXGI_FORMAT_R8G8B8A8_UNORM;
 
-        case RHI_TEXTURE_FORMAT_BGRA8_UNORM:
+        case RHI_FORMAT_BGRA8_UNORM:
             return DXGI_FORMAT_B8G8R8A8_UNORM;
 
-        case RHI_TEXTURE_FORMAT_RGBA8_UNORM_SRGB:
+        case RHI_FORMAT_RGBA8_UNORM_SRGB:
             return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
-        case RHI_TEXTURE_FORMAT_BGRA8_UNORM_SRGB:
+        case RHI_FORMAT_BGRA8_UNORM_SRGB:
             return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 
-        case RHI_TEXTURE_FORMAT_R16_UNORM:
+        case RHI_FORMAT_R16_UNORM:
             return DXGI_FORMAT_R16_UNORM;
 
-        case RHI_TEXTURE_FORMAT_RG16_UNORM:
+        case RHI_FORMAT_RG16_UNORM:
             return DXGI_FORMAT_R16G16_UNORM;
 
-        case RHI_TEXTURE_FORMAT_RGBA16_UNORM:
+        case RHI_FORMAT_RGBA16_UNORM:
             return DXGI_FORMAT_R16G16B16A16_UNORM;
 
-        case RHI_TEXTURE_FORMAT_R16F:
+        case RHI_FORMAT_R16F:
             return DXGI_FORMAT_R16_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_RG16F:
+        case RHI_FORMAT_RG16F:
             return DXGI_FORMAT_R16G16_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_RGBA16F:
+        case RHI_FORMAT_RGBA16F:
             return DXGI_FORMAT_R16G16B16A16_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_R32F:
+        case RHI_FORMAT_R32F:
             return DXGI_FORMAT_R32_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_RG32F:
+        case RHI_FORMAT_RG32F:
             return DXGI_FORMAT_R32G32_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_RGBA32F:
+        case RHI_FORMAT_RGBA32F:
             return DXGI_FORMAT_R32G32B32A32_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_D32F:
+        case RHI_FORMAT_D32F:
             return DXGI_FORMAT_D32_FLOAT;
 
-        case RHI_TEXTURE_FORMAT_BC1_UNORM:
+        case RHI_FORMAT_BC1_UNORM:
             return DXGI_FORMAT_BC1_UNORM;
 
-        case RHI_TEXTURE_FORMAT_BC1_UNORM_SRGB:
+        case RHI_FORMAT_BC1_UNORM_SRGB:
             return DXGI_FORMAT_BC1_UNORM_SRGB;
 
-        case RHI_TEXTURE_FORMAT_BC3_UNORM:
+        case RHI_FORMAT_BC3_UNORM:
             return DXGI_FORMAT_BC3_UNORM;
 
-        case RHI_TEXTURE_FORMAT_BC3_UNORM_SRGB:
+        case RHI_FORMAT_BC3_UNORM_SRGB:
             return DXGI_FORMAT_BC3_UNORM_SRGB;
 
-        case RHI_TEXTURE_FORMAT_BC4_UNORM:
+        case RHI_FORMAT_BC4_UNORM:
             return DXGI_FORMAT_BC4_UNORM;
 
-        case RHI_TEXTURE_FORMAT_BC5_UNORM:
+        case RHI_FORMAT_BC5_UNORM:
             return DXGI_FORMAT_BC5_UNORM;
 
-        case RHI_TEXTURE_FORMAT_BC6H_UFLOAT:
+        case RHI_FORMAT_BC6H_UFLOAT:
             return DXGI_FORMAT_BC6H_UF16;
 
-        case RHI_TEXTURE_FORMAT_BC7_UNORM:
+        case RHI_FORMAT_BC7_UNORM:
             return DXGI_FORMAT_BC7_UNORM;
 
-        case RHI_TEXTURE_FORMAT_BC7_UNORM_SRGB:
+        case RHI_FORMAT_BC7_UNORM_SRGB:
             return DXGI_FORMAT_BC7_UNORM_SRGB;
 
         default:
@@ -880,89 +887,89 @@ static DXGI_FORMAT dxgi_format_from_rhi(RHI_Texture_Format format) {
     }
 }
 
-static RHI_Texture_Format rhi_texture_format_from_d3d12(DXGI_FORMAT format) {
+static RHI_Format rhi_texture_format_from_d3d12(DXGI_FORMAT format) {
     switch (format) {
         case DXGI_FORMAT_UNKNOWN:
-            return RHI_TEXTURE_FORMAT_UNKNOWN;
+            return RHI_FORMAT_UNKNOWN;
 
         case DXGI_FORMAT_R8_UNORM:
-            return RHI_TEXTURE_FORMAT_R8_UNORM;
+            return RHI_FORMAT_R8_UNORM;
 
         case DXGI_FORMAT_R8G8_UNORM:
-            return RHI_TEXTURE_FORMAT_RG8_UNORM;
+            return RHI_FORMAT_RG8_UNORM;
 
         case DXGI_FORMAT_R8G8B8A8_UNORM:
-            return RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+            return RHI_FORMAT_RGBA8_UNORM;
 
         case DXGI_FORMAT_B8G8R8A8_UNORM:
-            return RHI_TEXTURE_FORMAT_BGRA8_UNORM;
+            return RHI_FORMAT_BGRA8_UNORM;
 
         case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-            return RHI_TEXTURE_FORMAT_RGBA8_UNORM_SRGB;
+            return RHI_FORMAT_RGBA8_UNORM_SRGB;
 
         case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-            return RHI_TEXTURE_FORMAT_BGRA8_UNORM_SRGB;
+            return RHI_FORMAT_BGRA8_UNORM_SRGB;
 
         case DXGI_FORMAT_R16_UNORM:
-            return RHI_TEXTURE_FORMAT_R16_UNORM;
+            return RHI_FORMAT_R16_UNORM;
 
         case DXGI_FORMAT_R16G16_UNORM:
-            return RHI_TEXTURE_FORMAT_RG16_UNORM;
+            return RHI_FORMAT_RG16_UNORM;
 
         case DXGI_FORMAT_R16G16B16A16_UNORM:
-            return RHI_TEXTURE_FORMAT_RGBA16_UNORM;
+            return RHI_FORMAT_RGBA16_UNORM;
 
         case DXGI_FORMAT_R16_FLOAT:
-            return RHI_TEXTURE_FORMAT_R16F;
+            return RHI_FORMAT_R16F;
 
         case DXGI_FORMAT_R16G16_FLOAT:
-            return RHI_TEXTURE_FORMAT_RG16F;
+            return RHI_FORMAT_RG16F;
 
         case DXGI_FORMAT_R16G16B16A16_FLOAT:
-            return RHI_TEXTURE_FORMAT_RGBA16F;
+            return RHI_FORMAT_RGBA16F;
 
         case DXGI_FORMAT_R32_FLOAT:
-            return RHI_TEXTURE_FORMAT_R32F;
+            return RHI_FORMAT_R32F;
 
         case DXGI_FORMAT_R32G32_FLOAT:
-            return RHI_TEXTURE_FORMAT_RG32F;
+            return RHI_FORMAT_RG32F;
 
         case DXGI_FORMAT_R32G32B32A32_FLOAT:
-            return RHI_TEXTURE_FORMAT_RGBA32F;
+            return RHI_FORMAT_RGBA32F;
 
         case DXGI_FORMAT_D32_FLOAT:
-            return RHI_TEXTURE_FORMAT_D32F;
+            return RHI_FORMAT_D32F;
 
         case DXGI_FORMAT_BC1_UNORM:
-            return RHI_TEXTURE_FORMAT_BC1_UNORM;
+            return RHI_FORMAT_BC1_UNORM;
 
         case DXGI_FORMAT_BC1_UNORM_SRGB:
-            return RHI_TEXTURE_FORMAT_BC1_UNORM_SRGB;
+            return RHI_FORMAT_BC1_UNORM_SRGB;
 
         case DXGI_FORMAT_BC3_UNORM:
-            return RHI_TEXTURE_FORMAT_BC3_UNORM;
+            return RHI_FORMAT_BC3_UNORM;
 
         case DXGI_FORMAT_BC3_UNORM_SRGB:
-            return RHI_TEXTURE_FORMAT_BC3_UNORM_SRGB;
+            return RHI_FORMAT_BC3_UNORM_SRGB;
 
         case DXGI_FORMAT_BC4_UNORM:
-            return RHI_TEXTURE_FORMAT_BC4_UNORM;
+            return RHI_FORMAT_BC4_UNORM;
 
         case DXGI_FORMAT_BC5_UNORM:
-            return RHI_TEXTURE_FORMAT_BC5_UNORM;
+            return RHI_FORMAT_BC5_UNORM;
 
         case DXGI_FORMAT_BC6H_UF16:
-            return RHI_TEXTURE_FORMAT_BC6H_UFLOAT;
+            return RHI_FORMAT_BC6H_UFLOAT;
 
         case DXGI_FORMAT_BC7_UNORM:
-            return RHI_TEXTURE_FORMAT_BC7_UNORM;
+            return RHI_FORMAT_BC7_UNORM;
 
         case DXGI_FORMAT_BC7_UNORM_SRGB:
-            return RHI_TEXTURE_FORMAT_BC7_UNORM_SRGB;
+            return RHI_FORMAT_BC7_UNORM_SRGB;
 
         default:
             Assert(!"Unknown D3D12 texture format.");
-            return RHI_TEXTURE_FORMAT_UNKNOWN;
+            return RHI_FORMAT_UNKNOWN;
     }
 }
 
@@ -1852,8 +1859,8 @@ void d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_bu
     cmd_buffer->d3d12.list_7->DrawIndexedInstanced(num_indices, num_instances, first_index, first_vertex, first_instance);
 }
 
-void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, void *data, u32 size) {
-    cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(0, size / 4, data, 0);
+void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void *data, u32 size) {
+    cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(root_index, size / 4, data, 0);
 }
 
 void d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, 
