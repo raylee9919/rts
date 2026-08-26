@@ -136,6 +136,15 @@ struct RHI_Texture_Desc {
     u32 height;
     u32 mip_levels;
     u32 depth; // or array length.
+
+    b32 clear;
+    union {
+        f32 clear_color[4];
+        struct {
+            f32 clear_depth;
+            u8  clear_stencil;
+        };
+    };
 };
 
 struct RHI_Texture {

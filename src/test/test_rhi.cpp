@@ -31,7 +31,8 @@ global f64 g_time = 0.f;
 
 struct Entity {
     v3 position;
-    u32 tint;
+
+    Guid material;
 };
 
 struct Camera {
@@ -40,7 +41,7 @@ struct Camera {
     f32 pitch;
 };
 
-#define NUM_ENTITIES 32
+#define NUM_ENTITIES 64
 struct Game_State {
     Entity entities[NUM_ENTITIES];
     Camera camera;
@@ -79,23 +80,15 @@ global RHI_Buffer_View     arguments_view;
 global void                *arguments_ptr;
 
 //
-global GFX_Texture  texture_handle;
-global GFX_Pipeline pipeline;
+#define MAX_MATERIALS      1024
+global RHI_Buffer          material_buffer;
+global RHI_Buffer_View     material_view;
+global void                *material_ptr;
 
 //
-struct Arguments {
-    float position[3];
-    float orientation[4][4];
-    u32 tint;
-};
-
-struct Constants {
-    u32 vertex_buffer_id;
-    u32 texture_id;
-    u32 linear_sampler_id;
-    u32 camera_id;
-    u32 arguments_id;
-};
+global Guid         depth_texture;
+global Guid         doggo_texture;
+global GFX_Pipeline pipeline;
 
 global const u64 MESH_ID     = 1219;
 global const u32 RENDER_PASS = 0;
@@ -112,18 +105,32 @@ u32 indices[36];
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
 
-void tick_game(s64 index, f64 dt) 
-{
+void tick_game(s64 index, f64 dt) {
     auto *state = &game_states[index];
 
     for (int i = 0; i < NUM_ENTITIES; ++i) {
-        f32 coef = 20.0f;
+        auto *E = &state->entities[i];
 
+        f32 coef = 30.0f;
         f32 idx = (f32)i;
-        state->entities[i].position.x = coef * m_cos(m_cos(g_time) + idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
-        state->entities[i].position.y = coef * m_sin(m_cos(g_time) + idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
+#if 1
+        int GRID_WIDTH = 10;
+        f32 SPACING = 4.0f;
 
-        state->entities[i].tint = (u32)xorshift64();
+        // Weird ordering.
+        u32 cell = (u32)i * 2654435761u;
+        cell %= NUM_ENTITIES;
+
+        int x = cell % GRID_WIDTH;
+        int z = cell / GRID_WIDTH;
+
+        E->position.x = ((f32)x - (GRID_WIDTH - 1) * 0.5f) * SPACING;
+        E->position.y = 0.0f;
+        E->position.z = ((f32)z - (GRID_WIDTH - 1) * 0.5f) * SPACING;
+#else
+        E->position.z = coef * m_cos(m_cos(g_time) + idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
+        E->position.x = coef * m_sin(m_cos(g_time) + idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
+#endif
     }
 }
 
@@ -133,6 +140,9 @@ void render(s64 index)
     {
         gfx_pass_color_attachment(RENDER_PASS, 0, GFX_SURFACE_TEXTURE);
         gfx_pass_clear_color(RENDER_PASS, 0xff201010, 0);
+
+        gfx_pass_depth_attachment(RENDER_PASS, depth_texture);
+        gfx_pass_clear_depth(RENDER_PASS, 1.f);
 
         gfx_set_viewport(0.f, 0.f, SURFACE_WIDTH, SURFACE_HEIGHT);
         gfx_set_scissor(0, 0, SURFACE_WIDTH, SURFACE_HEIGHT);
@@ -145,11 +155,11 @@ void render(s64 index)
 
             // Bind root constants
             Constants c = {};
-            c.vertex_buffer_id  = mesh->vertex_buffer_view.bindless;
-            c.texture_id        = texture_handle.bindless[RHI_TEXTURE_VIEW_TYPE_SAMPLED];
-            c.linear_sampler_id = gfx->linear_sampler.bindless;
-            c.camera_id         = camera_view.bindless;
-            c.arguments_id      = arguments_view.bindless;
+            c.vertex_buffer_id   = mesh->vertex_buffer_view.bindless;
+            c.linear_sampler_id  = gfx->linear_sampler.bindless;
+            c.camera_id          = camera_view.bindless;
+            c.arguments_id       = arguments_view.bindless;
+            c.material_buffer_id = material_view.bindless;
 
             gfx_push_constants(&c, sizeof(c));
 
@@ -157,16 +167,20 @@ void render(s64 index)
                 auto *state = &game_states[index];
 
                 for (u32 i = 0; i < NUM_ENTITIES; ++i) {
-                    auto *e = &state->entities[i];
+                    auto *E = &state->entities[i];
 
                     Arguments *args = (Arguments *)arguments_ptr + i;
 
-                    memcpy(&args->position, &e->position, sizeof(args->position));
+                    memcpy(&args->position, &E->position, sizeof(args->position));
 
                     m4x4 m = identity();
                     memcpy(&args->orientation, &m, sizeof(args->orientation));
 
-                    memcpy(&args->tint, &e->tint, sizeof(e->tint));
+                    GFX_Material *mat    = gfx_material_pointer_from_guid(E->material);
+                    Shader_Material sm   = gfx_to_shader_material(mat);
+                    Shader_Material *dst = (Shader_Material *)material_ptr + i;
+                    memcpy(dst, &sm, sizeof(sm));
+                    args->material_id = i;
                 }
 
                 R_Camera camera = {};
@@ -198,7 +212,7 @@ int main_entry(int argc, char **argv)
     Assert(shader_compiler_init(compiler));
 
     // @Temporary: Init camera
-    game_states[GAME_STATE_MAIN_INDEX].camera.position = v3(0.f, 10.f, 25.f);
+    game_states[GAME_STATE_MAIN_INDEX].camera.position = v3(0.f, 6.f, 15.f);
 
     // Make a cube
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
@@ -253,7 +267,10 @@ int main_entry(int argc, char **argv)
         RHI_Pipeline_Desc desc = {};
         desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
 
-        // @Temporary
+        desc.depth_enabled              = true;
+        desc.depth_compare_op           = RHI_COMPARE_LESS_EQUAL;
+        desc.depth_format               = RHI_TEXTURE_FORMAT_D32F;
+
         desc.num_color_attachments       = 1;
         desc.color_attachment_formats[0] = gfx->surface->textures[0].desc.format;
         
@@ -288,6 +305,29 @@ int main_entry(int argc, char **argv)
     // @Temporary
     auto *mesh = table_find_pointer(&gfx->mesh_table, MESH_ID);
 
+    { // Create material buffer and view.
+        u64 stride = sizeof(Shader_Material);
+        u64 sz     = stride * MAX_MATERIALS;
+
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_UPLOAD;
+        desc.size        = sz;
+
+        Assert(rhi_buffer_init(gfx->device, &material_buffer, &desc, NULL));
+
+        RHI_Buffer_View_Desc view_desc = {};
+        {
+            view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
+            view_desc.writable = false;
+            view_desc.stride   = stride;
+            view_desc.offset   = 0;
+            view_desc.size     = sz;
+        }
+
+        rhi_buffer_view_init(gfx->device, &material_view, &material_buffer, &view_desc);
+
+        material_ptr = rhi_buffer_map(&material_buffer);
+    }
 
     { // Create arguments buffer and view
         u64 stride = sizeof(Arguments);
@@ -309,8 +349,9 @@ int main_entry(int argc, char **argv)
         }
 
         rhi_buffer_view_init(gfx->device, &arguments_view, &arguments_buffer, &view_desc);
+
+        arguments_ptr = rhi_buffer_map(&arguments_buffer);
     }
-    arguments_ptr = rhi_buffer_map(&arguments_buffer);
 
     { // Create camera buffer and view
         u64 stride = sizeof(R_Camera);
@@ -332,29 +373,50 @@ int main_entry(int argc, char **argv)
         }
 
         rhi_buffer_view_init(gfx->device, &camera_view, &camera_buffer, &view_desc);
+
+        camera_ptr = rhi_buffer_map(&camera_buffer);
     }
-    camera_ptr = rhi_buffer_map(&camera_buffer);
 
 
     // Load image
+    Guid doggo_guid = guid_generate();
     String contents = read_entire_file(S("C:/Users/swl/Desktop/doggo.png"), tctx.allocator);
-    Bitmap bitmap = bitmap_import(contents.str, contents.len);
+    Bitmap bitmap   = bitmap_import(contents.str, contents.len);
 
 
     // Create and upload texture.
     {
-        RHI_Texture_Desc tex_desc = {};
+        RHI_Texture_Desc desc = {};
         {
-            tex_desc.type           = RHI_TEXTURE_TYPE_2D;             // @Temporary: hard-coded.
-            tex_desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;  // @Temporary: hard-coded.
-            tex_desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
-            tex_desc.width          = bitmap.width;
-            tex_desc.height         = bitmap.height;
-            tex_desc.mip_levels     = 1;
-            tex_desc.depth          = 1;                               // @Temporary: hard-coded.
+            desc.type           = RHI_TEXTURE_TYPE_2D;
+            desc.format         = RHI_TEXTURE_FORMAT_RGBA8_UNORM;
+            desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
+            desc.width          = bitmap.width;
+            desc.height         = bitmap.height;
+            desc.mip_levels     = 1;
+            desc.depth          = 1;
         }
-        texture_handle = gfx_texture_create(tex_desc);
-        gfx_texture_upload(texture_handle, tex_desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
+        doggo_guid = guid_generate();
+        gfx_texture_create(doggo_guid, desc);
+        gfx_texture_upload(doggo_guid, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
+    }
+
+    // Create detph texture.
+    {
+        RHI_Texture_Desc desc = {};
+        {
+            desc.type           = RHI_TEXTURE_TYPE_2D;
+            desc.format         = RHI_TEXTURE_FORMAT_D32F;
+            desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
+            desc.width          = SURFACE_WIDTH;
+            desc.height         = SURFACE_HEIGHT;
+            desc.mip_levels     = 1;
+            desc.depth          = 1;
+            desc.clear          = true;
+            desc.clear_depth    = 1.f;
+        }
+        depth_texture = guid_generate();
+        gfx_texture_create(depth_texture, desc);
     }
  
 
@@ -362,9 +424,23 @@ int main_entry(int argc, char **argv)
     f64 dt = 1.f / 60.f; // Update frequency, Tick rate
     f64 accumulator = 0.f;
 
+    auto *state = &game_states[GAME_STATE_MAIN_INDEX];
+    for (int i = 0; i < NUM_ENTITIES; ++i) {
+        auto *E = &state->entities[i];
 
-    while (!should_close) 
-    {
+        Guid guid = guid_generate();
+        E->material = guid;
+
+        GFX_Material material = {};
+        material.albedo = doggo_guid;
+        material.tint   = 0x22ffffff;
+
+        // ..or read from asset pack.
+
+        gfx_material_alloc(guid, material);
+    }
+
+    while (!should_close) {
         ProfileScopeN("main_loop");
         //
         // @Important: WaitForSwapchain() must be go before ProcessInput().
@@ -427,7 +503,7 @@ int main_entry(int argc, char **argv)
 
 
     // Cleanup
-    gfx_texture_destroy(texture_handle);
+    gfx_texture_destroy(doggo_texture);
     gfx_pipeline_destroy(pipeline);
     gfx_mesh_destroy(MESH_ID);
     gfx_shutdown();

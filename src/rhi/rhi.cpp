@@ -555,7 +555,6 @@ void rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *
 }
 
 
-
 //
 // Helpers
 //

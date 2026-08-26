@@ -70,8 +70,7 @@ static force_inline u32 gfx_rand32()
     return xorshift32();
 }
 
-static GFX_Handle gfx_generate_handle()
-{
+static GFX_Handle gfx_generate_handle() {
     GFX_Handle handle;
     u64 hi = gfx->generational_handle_id++;
     u32 lo = gfx_rand32();
@@ -103,8 +102,7 @@ static void gfx_execute_callbacks(u64 completed_value)
     }
 }
 
-void gfx_init(GFX_Info info)
-{
+void gfx_init(GFX_Info info) {
     // Alloc, ZII
     Arena *arena = arena_alloc();
     gfx = push_struct(arena, GFX_State);
@@ -148,7 +146,7 @@ void gfx_init(GFX_Info info)
         Assert(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
     }
 
-    GFX_SURFACE_TEXTURE.handle = gfx_generate_handle();
+    GFX_SURFACE_TEXTURE = guid_generate();
 }
 
 void gfx_shutdown()
@@ -289,19 +287,28 @@ void gfx_mesh_destroy(u64 id)
     gfx_add_callback(entry);
 }
 
-GFX_Texture gfx_texture_create(RHI_Texture_Desc desc)
-{
-    GFX_Texture result = {};
+void gfx_material_alloc(Guid guid, GFX_Material material) {
+    table_add(&gfx->material_table, guid, material);
+}
+
+void gfx_material_dealloc(Guid guid) {
+    table_remove(&gfx->material_table, guid);
+}
+
+GFX_Material *gfx_material_pointer_from_guid(Guid guid) {
+    GFX_Material *result = table_find_pointer(&gfx->material_table, guid);
+    return result;
+}
+
+void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
     GFX_Texture_Entry entry = {};
 
     Assert( rhi_texture_init(gfx->device, &entry.texture, &desc, NULL) );
 
     RHI_Texture_View_Type view_type = 0;
 
-    for (u32 flag = 0x1; flag < RHI_TEXTURE_USAGE_OPL_BIT; flag <<= 1) 
-    {
-        if (desc.usage & flag) 
-        {
+    for (u32 flag = 0x1; flag < RHI_TEXTURE_USAGE_OPL_BIT; flag <<= 1) {
+        if (desc.usage & flag) { 
             RHI_Texture_View_Desc vdesc = {};
             vdesc.type               = view_type;
             vdesc.dimension          = desc.type;
@@ -313,45 +320,35 @@ GFX_Texture gfx_texture_create(RHI_Texture_Desc desc)
 
             rhi_texture_view_init(gfx->device, &entry.views[view_type], &entry.texture, &vdesc);
 
-            result.bindless[view_type] = entry.views[view_type].bindless;
-        }
-        else
-        {
-            result.bindless[view_type] = UINT32_MAX;
+            //result.bindless[view_type] = entry.views[view_type].bindless;
+        } else {
+            //result.bindless[view_type] = UINT32_MAX;
         }
 
         view_type += 1;
     }
 
-    result.handle = gfx_generate_handle();
-
-    table_add(&gfx->texture_table, result.handle, entry);
-
-    return result;
+    table_add(&gfx->texture_table, guid, entry);
 }
 
-void gfx_texture_destroy(GFX_Texture texture) {
-    auto *entry = table_find_pointer(&gfx->texture_table, texture.handle);
-    if (entry)
-    {
-        for (u16 i = 0; i < RHI_TEXTURE_VIEW_TYPE_COUNT; ++i) 
-        {
-            if (entry->views[i].kind != RHI_KIND_INVALID)
-            {
+void gfx_texture_destroy(Guid guid) {
+    auto *entry = table_find_pointer(&gfx->texture_table, guid);
+    if (entry) {
+        for (u16 i = 0; i < RHI_TEXTURE_VIEW_TYPE_COUNT; ++i) {
+            if (entry->views[i].kind != RHI_KIND_INVALID) {
                 rhi_texture_view_deinit(&entry->views[i]);
             }
         }
         rhi_texture_deinit(&entry->texture);
         
-        table_remove(&gfx->texture_table, texture.handle);
+        table_remove(&gfx->texture_table, guid);
     }
 }
 
-void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height) {
-    auto *tex = table_find_pointer(&gfx->texture_table, texture.handle);
+void gfx_texture_upload(Guid guid, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height) {
+    auto *tex = table_find_pointer(&gfx->texture_table, guid);
 
-    if (tex)
-    {
+    if (tex) {
         // @Todo: I know, I know. Correct alignment for BC and other formats and 
         // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
         u8 *ptr = (u8 *)rhi_buffer_map(&gfx->upload_buffer);
@@ -369,11 +366,9 @@ void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *da
         rhi_buffer_unmap(&gfx->upload_buffer);
 
         RHI_Box box = {};
-        {
-            box.width  = width;
-            box.height = height;
-            box.depth  = 1;
-        }
+        box.width  = width;
+        box.height = height;
+        box.depth  = 1;
 
         rhi_command_buffer_begin(&gfx->copy_buffer);
         {
@@ -388,6 +383,15 @@ void gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *da
     }
 }
 
+u32 gfx_bindless_from_texture(Guid guid, RHI_Texture_View_Type view_type) {
+    u32 id = INVALID_BINDLESS_ID;
+    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+    if (entry) {
+        id = entry->views[view_type].bindless;
+    }
+    return id;
+}
+
 void gfx_pass_begin(u32 pass_index) {
     Assert(pass_index < GFX_MAX_PASS);
     gfx->current_pass = pass_index;
@@ -397,20 +401,20 @@ void gfx_pass_end() {
     gfx->current_pass = GFX_NULL_PASS;
 }
 
-void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Texture texture) {
+void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, Guid guid) {
     Assert(pass_index < GFX_MAX_PASS);
 
     auto *pass = &gfx->pass_states[pass_index];
 
-    pass->color_attachments[color_attachment_index] = texture;
+    pass->color_attachments[color_attachment_index] = guid;
 }
 
-void gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture) {
+void gfx_pass_depth_attachment(u32 pass_index, Guid guid) {
     Assert(pass_index < GFX_MAX_PASS);
 
     auto *pass = &gfx->pass_states[pass_index];
 
-    pass->depth_attachment = texture;
+    pass->depth_attachment = guid;
 }
 
 void gfx_set_viewport(f32 top_left_x, f32 top_left_y, f32 width, f32 height) {
@@ -537,23 +541,23 @@ static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass
     auto sc = p->scissor;
 
     for (u32 i = 0; i < RHI_MAX_COLOR_ATTACHMENTS; ++i) {
-        if (!gfx_handle_is_null(p->color_attachments[i].handle)) {
+        if (p->color_attachments[i] != NULL_GUID) {
             pass->num_color_attachments += 1;
         }
     }
 
 
-    if (!gfx_handle_is_null(p->depth_attachment.handle)) {
+    if (p->depth_attachment != NULL_GUID) {
         pass->has_depth_attachment = true;
     }
 
     for (u16 color_idx = 0; color_idx < RHI_MAX_COLOR_ATTACHMENTS; ++color_idx) {
         if (p->flags & (GFX_PASS_FLAG_CLEAR_COLOR_0 << (color_idx))) {
-            GFX_Handle handle = p->color_attachments[color_idx].handle;
+            Guid guid = p->color_attachments[color_idx];
 
             // @Cleanup: I don't like this additional code path.
-            if (handle != GFX_SURFACE_TEXTURE.handle) {
-                auto *tex = table_find_pointer(&gfx->texture_table, handle);
+            if (guid != GFX_SURFACE_TEXTURE) {
+                auto *tex = table_find_pointer(&gfx->texture_table, guid);
                 if (tex) {
                     auto *attachment = &pass->color_attachments[color_idx];
                     attachment->view = tex->views[RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET];
@@ -582,8 +586,8 @@ static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass
     }
 
     if (p->flags & GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL) {
-        GFX_Handle handle = p->depth_attachment.handle;
-        auto *tex = table_find_pointer(&gfx->texture_table, handle);
+        Guid guid = p->depth_attachment;
+        auto *tex = table_find_pointer(&gfx->texture_table, guid);
 
         if (tex) {
             auto *attachment = &pass->depth_attachment;
@@ -641,15 +645,36 @@ void gfx_end()
             // Get the corresponding command.
             auto cmd = gfx->commands[key.cmd_index];
 
-            // @Fix, Robustness, Todo: If pass changes, pipeline must be reset..
+            // @Fix, Robustness, Todo: If pass changes, pipeline must be reset.
             // Automate barrier installation.
+            //
             if (current_pass != pass_idx) {
+                current_pipeline = UINT32_MAX;
+
                 if (current_pass != GFX_NULL_PASS) {
                     rhi_pass_end(cmd_buffer, &pass);
                     rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+
+                    Guid depth_attachment_guid = gfx->pass_states[pass_idx].depth_attachment;
+                    if (depth_attachment_guid != NULL_GUID) {
+                        auto *entry = table_find_pointer(&gfx->texture_table, depth_attachment_guid);
+                        if (entry) {
+                            rhi_cmd_texture_barrier(cmd_buffer, &entry->texture, RHI_RESOURCE_STATE_DEPTH_WRITE, RHI_RESOURCE_STATE_COMMON, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+                        }
+                    }
                 }
                 current_pass = pass_idx;
+
                 rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+
+                Guid depth_attachment_guid = gfx->pass_states[pass_idx].depth_attachment;
+                if (depth_attachment_guid != NULL_GUID) {
+                    auto *entry = table_find_pointer(&gfx->texture_table, depth_attachment_guid);
+                    if (entry) {
+                        rhi_cmd_texture_barrier(cmd_buffer, &entry->texture, RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_DEPTH_WRITE, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+                    }
+                }
+
                 gfx_begin_pass_and_set_viewport_scissor(pass_idx, &pass, cmd_buffer);
             }
 
@@ -662,20 +687,29 @@ void gfx_end()
             }
 
             // And the real push constants.
-            if (cmd.push_constant_index != UINT32_MAX)
-            {
+            if (cmd.push_constant_index != UINT32_MAX) {
                 auto* entry = &gfx->push_constants.data[cmd.push_constant_index];
                 rhi_cmd_push_constants(cmd_buffer, entry->data, entry->size);
             }
 
+            // Draw mesh.
             auto *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
-
-            rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, mesh->index_size, mesh->num_indices, cmd.num_instances, 0, 0, 0);
+            if (mesh) {
+                rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, mesh->index_size, mesh->num_indices, cmd.num_instances, 0, 0, 0);
+            }
         }
 
         if (current_pass != GFX_NULL_PASS) {
             rhi_pass_end(cmd_buffer, &pass);
             rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+            
+            Guid depth_attachment_guid = gfx->pass_states[current_pass].depth_attachment;
+            if (depth_attachment_guid != NULL_GUID) {
+                auto *entry = table_find_pointer(&gfx->texture_table, depth_attachment_guid);
+                if (entry) {
+                    rhi_cmd_texture_barrier(cmd_buffer, &entry->texture, RHI_RESOURCE_STATE_DEPTH_WRITE, RHI_RESOURCE_STATE_COMMON, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+                }
+            }
         }
     }
     rhi_command_buffer_end(cmd_buffer);
@@ -693,4 +727,14 @@ void gfx_end()
     gfx_execute_callbacks(completed_value);
 
     gfx->current_frame += 1;
+}
+
+Shader_Material gfx_to_shader_material(GFX_Material *material) {
+    Shader_Material result = {};
+
+    result.albedo_id = gfx_bindless_from_texture(material->albedo, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
+    result.orm_id    = gfx_bindless_from_texture(material->orm, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
+    result.tint      = material->tint;
+
+    return result;
 }

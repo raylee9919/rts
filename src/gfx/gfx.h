@@ -7,9 +7,7 @@
 #define GFX_MIN_FRAME_COUNT         1
 #define GFX_MAX_FRAME_COUNT         2
 
-
-#define GFX_NULL_PASS 0xffffffff
-
+#define GFX_NULL_PASS               0xffffffff
 
 // Sort keys
 //
@@ -41,26 +39,24 @@ static_assert([] {
 }(), "gfx: sum of key lengths must be <= 64.");
 
 struct GFX_Sort_Key {
-    u64 bits;
-
-    // Index to the actual command
-    u32 cmd_index;
+    u64 bits;      // Packed keys
+    u32 cmd_index; // Index to the actual command
 };
 
 
 // Initialization info struct
 //
 struct GFX_Info {
-    RHI_Kind kind;
-    b32 debug;
-    b32 break_on_warning;
+    RHI_Kind    kind;
+    b32         debug;
+    b32         break_on_warning;
 
-    void *native_window_handle;
-    u32 width;
-    u32 height;
+    void        *native_window_handle;
+    u32         width;
+    u32         height;
 
-    u32 num_buffers;
-    u32 num_frames;
+    u32         num_buffers;
+    u32         num_frames;
 };
 
 struct GFX_Handle {
@@ -75,17 +71,16 @@ static force_inline u32 gfx_handle_hash(GFX_Handle handle) {
     return (u32)(knuth_hash(handle.u[0] ^ seed) >> 32);
 }
 
+static force_inline u32 gfx_128_to_32(Guid guid) {
+    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
+}
+
 struct GFX_Mesh { 
     RHI_Buffer      vertex_buffer;
     RHI_Buffer_View vertex_buffer_view;
     RHI_Buffer      index_buffer;
     u32             index_size;
     u32             num_indices;
-};
-
-struct GFX_Texture {
-    GFX_Handle      handle;
-    u32             bindless[RHI_TEXTURE_VIEW_TYPE_COUNT];
 };
 
 struct GFX_Texture_Entry {
@@ -129,14 +124,20 @@ enum {
 };
 static_assert(GFX_PASS_FLAG_CLEAR_COLOR_MAX_OPL == (1 << RHI_MAX_COLOR_ATTACHMENTS));
 
+struct GFX_Material {
+    Guid        albedo;
+    Guid        orm;
+    u32         tint;
+};
+
 struct GFX_Pass_State {
     GFX_Pass_Flags      flags;
 
     GFX_Viewport        viewport;
     GFX_Scissor         scissor;
 
-    GFX_Texture         color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
-    GFX_Texture         depth_attachment;
+    Guid                color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
+    Guid                depth_attachment;
 
     u32                 colors[RHI_MAX_COLOR_ATTACHMENTS];
     f32                 depth;
@@ -225,13 +226,14 @@ struct GFX_State {
     GFX_Pass_State                          pass_states[GFX_MAX_PASS];
 
     // Resource tables
-    Table<u64, GFX_Mesh> mesh_table;
-    Table<GFX_Handle, GFX_Texture_Entry, gfx_handle_hash> texture_table;
-    Table<GFX_Handle, GFX_Pipeline_Entry, gfx_handle_hash> pipeline_table;
+    Table <u64, GFX_Mesh>                                       mesh_table;
+    Table <Guid, GFX_Material, gfx_128_to_32>                   material_table;
+    Table <Guid, GFX_Texture_Entry, gfx_128_to_32>              texture_table;
+    Table <GFX_Handle, GFX_Pipeline_Entry, gfx_handle_hash>     pipeline_table;
 };
 
 global GFX_State *gfx;
-global GFX_Texture GFX_SURFACE_TEXTURE;
+global Guid GFX_SURFACE_TEXTURE;
 
 
 
@@ -241,17 +243,21 @@ internal void                   gfx_shutdown();
 internal void                   gfx_mesh_create(u64 id, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
 internal void                   gfx_mesh_destroy(u64 id);
 
-internal GFX_Texture            gfx_texture_create(RHI_Texture_Desc desc);
-internal void                   gfx_texture_destroy(GFX_Texture texture);
-internal void                   gfx_texture_upload(GFX_Texture texture, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height);
+internal void                   gfx_material_alloc(Guid guid, GFX_Material material);
+internal void                   gfx_material_dealloc(Guid guid);
+internal GFX_Material           *gfx_get_material_pointer_from_guid(Guid guid);
 
+internal void                   gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
+internal void                   gfx_texture_destroy(Guid guid);
+internal void                   gfx_texture_upload(Guid guid, RHI_Texture_Format format, void *data, u32 size, u32 width, u32 height);
+internal u32                    gfx_bindless_from_texture(Guid guid, RHI_Texture_View_Type view_type);
 
 // The last state you set will be submitted to the GPU. The system isn't smart 
 // enough to untangle the order in which you called them.
 internal void                   gfx_pass_begin(u32 pass_index);
 internal void                   gfx_pass_end();
 internal void                   gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, GFX_Handle texture);
-internal void                   gfx_pass_depth_attachment(u32 pass_index, GFX_Texture texture);
+internal void                   gfx_pass_depth_attachment(u32 pass_index, Guid texture);
 internal void                   gfx_pass_clear_color(u32 pass_index, u32 clear_color, u32 color_attachment_index);
 internal void                   gfx_pass_clear_depth(u32 pass_index, f32 clear_depth);
 
@@ -268,6 +274,8 @@ internal void                   gfx_push_constants(void *data, u32 size);
 internal void                   gfx_draw(u64 mesh_id);
 
 internal void                   gfx_end();
+
+internal Shader_Material        gfx_to_shader_material(GFX_Material *material);
 
 
 #endif // RTS_GFX_H

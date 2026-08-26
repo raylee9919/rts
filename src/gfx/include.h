@@ -4,6 +4,7 @@
 #define RTS_GFX_INCLUDE_H
 
 
+#include "./gfx_shared.h"
 #include "./gfx.h"
 
 

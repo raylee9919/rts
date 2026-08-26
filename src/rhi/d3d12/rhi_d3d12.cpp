@@ -1298,9 +1298,23 @@ bool d3d12_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_De
         D3D12_HEAP_PROPERTIES heap_prop = {};
         heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
 
+        D3D12_CLEAR_VALUE clear = {};
+
+        if (desc->clear) {
+            clear.Format = resource_desc.Format;
+            if (clear.Format == DXGI_FORMAT_D32_FLOAT) {
+                clear.DepthStencil.Depth = desc->clear_depth;
+            } else if (clear.Format == DXGI_FORMAT_D24_UNORM_S8_UINT) {
+                clear.DepthStencil.Depth = desc->clear_depth;
+                clear.DepthStencil.Stencil = desc->clear_stencil;
+            } else {
+                memcpy(&clear.Color, desc->clear_color, 16);
+            }
+        }
+
         HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE, 
                                                                       &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
-                                                                      NULL, IID_PPV_ARGS(&texture->d3d12.resource));
+                                                                      desc->clear ? &clear : NULL, IID_PPV_ARGS(&texture->d3d12.resource));
         if (FAILED(hr)) {
             log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), string_from_hresult(hr), hr);
             return false;

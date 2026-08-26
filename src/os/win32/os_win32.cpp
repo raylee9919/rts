@@ -1222,8 +1222,8 @@ void parallel_for(Thread_Group *group, s64 count, F&& func) {
 
 // UUID/GUID
 //
-ID128 id128_generate() {
-    ID128 result = {};
+Guid guid_generate() {
+    Guid result = {};
     UUID uuid;
     RPC_STATUS status = UuidCreate(&uuid);
     if (status == RPC_S_OK) {
@@ -1232,6 +1232,11 @@ ID128 id128_generate() {
         result.data3 = uuid.Data3;
         memcpy(result.data4, uuid.Data4, 8);
     }
+
+    if (result == NULL_GUID) {
+        result.u[15] += 1;
+    }
+
     return result;
 }
 

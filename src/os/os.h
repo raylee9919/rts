@@ -293,9 +293,9 @@ struct OS_Thing {
 };
 
 
-// UUID/GUID
+// GUID
 //
-struct ID128 {
+struct Guid {
     union {
         struct {
             u32 data1;
@@ -303,13 +303,19 @@ struct ID128 {
             u16 data3;
             u8  data4[8];
         };
-        u8 u[16];
+        u8   u[16];
+        u32 _32[4];
     };
 
-    bool operator == (const ID128& other) {
+    bool operator == (const Guid& other) {
         return memcmp(u, other.u, sizeof(u)) == 0;
     }
+
+    bool operator != (const Guid& other) {
+        return memcmp(u, other.u, sizeof(u)) == 1;
+    }
 };
+global read_only const Guid NULL_GUID = {0};
 
 
 // @Temporary
@@ -457,7 +463,7 @@ internal void               thread_group_add_work(Thread_Group *group, void (*pr
 internal void               thread_group_complete_all_work(Thread_Group *group);
 
 // UUID/GUID
-internal ID128              id128_generate();
+internal Guid               guid_generate();
 
 template<typename F> 
 internal void parallel_for(Thread_Group *group, s64 count, F&& func);

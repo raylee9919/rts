@@ -22,6 +22,7 @@
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "winmm")
 #pragma comment(lib, "ole32")
+#pragma comment(lib, "rpcrt4")
 
 extern "C" 
 {
