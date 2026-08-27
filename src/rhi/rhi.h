@@ -356,7 +356,7 @@ internal void  rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer);
 internal void  rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
 
 internal bool  rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
-internal void  rhi_surface_present(RHI_Surface *surface);
+internal void  rhi_surface_present(RHI_Surface *surface, u32 sync_interval);
 internal void  rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height);
 
 internal bool  rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap);

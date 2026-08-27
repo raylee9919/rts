@@ -33,20 +33,6 @@ void *crt_proc(Allocator_Mode mode, u64 size, u64 old_size, void *old_memory, vo
     return result;
 }
 
-void *arena_proc(Allocator_Mode mode, u64 size, u64 old_size, void *vold_memory, void *data) {
-    auto *arena = (Arena *)data;
-
-    if (mode == ALLOCATOR_MODE_ALLOCATE) {
-        return push_size(arena, size);
-    } else if (mode == ALLOCATOR_MODE_FREE) {
-        arena_clear(arena);
-        return NULL;
-    } else {
-        Assert(!"X");
-        return NULL;
-    }
-}
-
 void thread_init() {
     tctx.scratch_arena = arena_alloc();
 
@@ -55,7 +41,7 @@ void thread_init() {
         tctx.allocator.proc = crt_proc;
         tctx.allocator.data = NULL;
 
-        tctx.temp.proc = arena_proc;
+        tctx.temp.proc = arena_allocator_proc;
         tctx.temp.data = arena_alloc();
     }
 

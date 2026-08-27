@@ -8,6 +8,7 @@ enum Allocator_Mode {
     ALLOCATOR_MODE_ALLOCATE = 0,
     ALLOCATOR_MODE_RESIZE   = 1,
     ALLOCATOR_MODE_FREE     = 2,
+    ALLOCATOR_MODE_RELEASE  = 3,
 };
 
 typedef void *Allocator_Procedure(Allocator_Mode mode, u64 size, u64 old_size,
@@ -26,5 +27,6 @@ struct Allocator {
 static void *alloc(u64 size, Allocator allocator = {});
 static void *realloc(void *memory, u64 size, u64 old_size, Allocator allocator = {});
 static void  dealloc(void *memory, Allocator allocator = {});
+static void  release(Allocator allocator);
 
 #endif // RTS_ALLOCATOR_H

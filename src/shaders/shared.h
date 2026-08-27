@@ -26,9 +26,12 @@ struct GPU_Camera {
 };
 
 struct GPU_Material {
+    v3              albedo;
+    float           metallic;
+    float           roughness;
+
     uint32_t        albedo_id;
     uint32_t        orm_id;
-    uint32_t        tint;
 };
 
 struct Constants {

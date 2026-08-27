@@ -6,6 +6,8 @@
 #define GFX_PASS_NULL               0xffffffffffffffff
 #define GFX_PIPELINE_INVALID        UINT64_MAX
 
+#define GFX_FIRST_PUSH_CONSTANTS    0
+
 // Minimum and maximum count of set of frame resources.
 #define GFX_MIN_FRAME_COUNT         1
 #define GFX_MAX_FRAME_COUNT         2
@@ -31,8 +33,8 @@ global read_only constexpr u64 gfx_key_offsets[GFX_KEY_COUNT] = {
     gfx_key_lengths[0] + gfx_key_lengths[1],
 };
 
-global read_only constexpr u64 GFX_MAX_PASS     = (1ull << gfx_key_lengths[GFX_KEY_PASS]);
-global read_only constexpr u64 GFX_MAX_PIPELINE = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
+global read_only constexpr u64 GFX_MAX_PASS      = (1ull << gfx_key_lengths[GFX_KEY_PASS]);
+global read_only constexpr u64 GFX_MAX_PIPELINES = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
 
 static_assert([] {
     u64 sum = 0;
@@ -49,6 +51,8 @@ struct GFX_Sort_Key {
 // GUID to uint32
 //
 static force_inline u32 gfx_128_to_32(Guid guid) {
+    // @Todo: Not critical as it's used for hash table index, but is there a 
+    //        better way?
     return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
 }
 
@@ -113,9 +117,12 @@ enum {
 static_assert(GFX_PASS_FLAG_CLEAR_COLOR_MAX_OPL == (1 << RHI_MAX_COLOR_ATTACHMENTS));
 
 struct GFX_Material {
-    Guid        albedo;
-    Guid        orm;
-    u32         tint;
+    v3          albedo         = v3{1.f, 1.f, 1.f};
+    f32         metallic       = 0.f;
+    f32         roughness      = 1.f;
+
+    Guid        albedo_texture = NULL_GUID;
+    Guid        orm_texture    = NULL_GUID;
 };
 
 struct GFX_Pass_State {
@@ -151,12 +158,12 @@ struct GFX_Push_Constants {
     u32 size;
 };
 
-struct GFX_Arena {
-    RHI_Buffer buffer;
-};
-
 struct GFX_State {
-    Arena                                   *arena;
+    Allocator                               arena;
+
+    bool                                    initted = false;
+    bool                                    should_shutdown = false;
+
     RHI_Device                              *device;
     GFX_Info                                info;
     u32                                     generational_handle_id   = 1; // so null handle is never generated.
@@ -186,7 +193,7 @@ struct GFX_State {
     Queue<GFX_Callback_Entry>               callbacks;
 
     RHI_Semaphore                           frame_semaphore; // frame semaphore.
-    u64                                     current_frame = 0;
+    u64                                     current_frame = 1;
 
     // I'll just have a single swapchain.
     RHI_Surface                             *surface;
@@ -205,20 +212,19 @@ struct GFX_State {
 
     // gfx's draw calls encode commands into the buffer by the current context.
     // Later commands get sorted by key and submitted to the GPU.
-    u64                                     current_pass           = GFX_PASS_NULL;
+    u64                                     current_pass = GFX_PASS_NULL;
 
     // Transient pipeline frame data
     u64                                     context_pipeline = GFX_PIPELINE_INVALID;  // Currently set transient pipeline index
     u64                                     next_pipeline    = 0;                     // Next transient pipeline index to acquire
-    Array<Guid>                             pipelines;
+    Array<Guid>                             pipelines;                                // pipelines[transient pipeline index] = guid
+    Table <Guid, u64, gfx_128_to_32>        pipeline_to_index_this_frame;             // increments index if new pipeline was encountered this frame
 
     u64                                     current_push_constants = 0;
-
-    Table <Guid, u64, gfx_128_to_32>        pipeline_to_index_this_frame;
+    Array<GFX_Push_Constants>               push_constants;
 
     Array<GFX_Sort_Key>                     sort_keys;
     Array<GFX_Command>                      commands;
-    Array<GFX_Push_Constants>               push_constants;
     GFX_Pass_State                          pass_states[GFX_MAX_PASS];
 
     // Resource tables
@@ -229,6 +235,14 @@ struct GFX_State {
 
     // Shader global data
     f32 time;
+
+    // Resize
+    b32 resize_requested = false;
+    u32 resize_width;
+    u32 resize_height;
+
+    // Framebuffer Depth Textures
+    Guid depth_textures[RHI_MAX_BUFFER_COUNT];
 };
 
 global GFX_State *gfx;
@@ -272,7 +286,9 @@ internal void                   gfx_push_constants(void *data, u32 size);
 
 internal void                   gfx_draw(Guid mesh_id);
 
-internal void                   gfx_end(f64 dt);
+internal void                   gfx_end(f64 dt, u32 sync_interval);
+
+internal void                   gfx_request_swapchain_resize(u32 width, u32 height);
 
 internal GPU_Material           gpu_material_from_gfx(GFX_Material *material);
 

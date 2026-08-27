@@ -136,7 +136,7 @@ internal void  d3d12_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_
 internal void  d3d12_sampler_deinit(RHI_Sampler *sampler);
 
 internal bool  d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
-internal void  d3d12_surface_present(RHI_Surface *surface);
+internal void  d3d12_surface_present(RHI_Surface *surface, u32 sync_interval);
 internal void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height);
 
 internal bool  d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence);

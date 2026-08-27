@@ -2,7 +2,7 @@
 
 #define MAIN_CAMERA_INDEX 0
 
-#include "./basic.h"
+#include "./basic.hlsl"
 #include "./shared.h"
 
 struct Push_Constants {
@@ -74,18 +74,17 @@ float4 main_ps(VS_Output input) : SV_TARGET
     StructuredBuffer<GPU_Material> material_buffer = ResourceDescriptorHeap[push.material_buffer_id];
     GPU_Material material = material_buffer[input.material_id];
 
-    float3 albedo = 1.0;
+    float3 albedo = material.albedo;
     float  alpha  = 1.0;
 
     if (material.albedo_id != GFX_INVALID_BINDLESS) {
         Texture2D <float4> albedo_texture = ResourceDescriptorHeap[material.albedo_id];
         float4 texel = albedo_texture.Sample(linear_sampler, input.uv);
-        albedo = texel.rgb;
+        albedo = texel.rgb * albedo;
         alpha  = texel.a;
     }
 
-    float4 tint = unpack_rgba8(material.tint);
-    float4 result = float4(albedo, alpha) * tint;
+    float4 result = float4(albedo, alpha);
 
     return result;
 }

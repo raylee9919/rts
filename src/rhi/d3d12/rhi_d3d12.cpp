@@ -1497,7 +1497,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
         swap_chain_desc.BufferCount = desc->num_back_buffers,
-        swap_chain_desc.Scaling     = DXGI_SCALING_NONE;
+        swap_chain_desc.Scaling     = DXGI_SCALING_STRETCH;
 
         // FLIP_DISCARD discards "old flips" in the queue and presents only the "new" flip.
         swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; 
@@ -1564,10 +1564,9 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
     return true;
 }
 
-void d3d12_surface_present(RHI_Surface *surface) {
+void d3d12_surface_present(RHI_Surface *surface, u32 sync_interval) {
     // @Todo: VSync off
-    UINT sync_interval = 1;
-    UINT flags         = 0;
+    UINT flags = 0;
 
     surface->d3d12.swap_chain_4->Present(sync_interval, flags);
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();

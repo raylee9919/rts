@@ -184,8 +184,7 @@ void os_init() {
             {
                 DWORD size = 32 * 1024;
                 u16 *buffer = push_array_noz(tmp.arena, u16, size);
-                if (SUCCEEDED(SHGetFolderPathW(0, CSIDL_APPDATA, 0, 0, (WCHAR *)buffer)))
-                {
+                if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, (WCHAR *)buffer))) {
                     appdata_path = to_utf8(tmp.arena, utf16c(buffer));
                 }
             }
@@ -839,6 +838,10 @@ v2 os_get_mouse_position(OS_Handle window) {
     return v2{(f32)p.x, (f32)p.y};
 }
 
+void* get_native_window_handle(OS_Handle window) {
+    return (void *)hwnd_from_os_handle(window);
+}
+
 
 // Events
 // 
@@ -857,7 +860,8 @@ void os_poll_events() {
     // 
     BYTE vk_state[256];
     GetKeyboardState(vk_state);
-    memcpy(os->key_was_down, os->key_is_down, sizeof(os->key_is_down[0])*array_count(os->key_is_down));
+    u64 sz = sizeof(os->key_is_down[0])*array_count(os->key_is_down);
+    memcpy(os->key_was_down, os->key_is_down, sz);
     for (int vk = 0; vk < array_count(vk_state); ++vk) {
         OS_Key key = os->vk_to_key[vk];
         os->key_is_down[key] = vk_state[vk] & 0x80;
@@ -1238,6 +1242,13 @@ Guid guid_generate() {
     }
 
     return result;
+}
+
+
+// Atomic
+//
+void atomic_increment(volatile s32 *x) {
+    InterlockedIncrement((LONG *)x);
 }
 
 

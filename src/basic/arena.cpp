@@ -138,3 +138,28 @@ internal void temporary_arena_end(Temporary_Arena temp)
 {
     arena_pop_to(temp.arena, temp.pos);
 }
+
+
+void *arena_allocator_proc(Allocator_Mode mode, u64 size, u64 old_size, void *vold_memory, void *data) {
+    Arena *arena = (Arena *)data;
+
+    if (mode == ALLOCATOR_MODE_ALLOCATE) {
+        return push_size(arena, size);
+    } else if (mode == ALLOCATOR_MODE_FREE) {
+        arena_clear(arena);
+        return NULL;
+    } else if (mode == ALLOCATOR_MODE_RELEASE) {
+        arena_release(arena);
+        return NULL;
+    } else {
+        Assert(!"X");
+        return NULL;
+    }
+}
+
+Allocator arena_allocator_alloc() {
+    Allocator result = {};
+    result.data = arena_alloc();
+    result.proc = arena_allocator_proc;
+    return result;
+}

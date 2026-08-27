@@ -14,3 +14,7 @@ void dealloc(void *memory, Allocator allocator) {
     auto a = (allocator.proc == NULL) ? tctx.allocator : allocator;
     a.proc(ALLOCATOR_MODE_FREE, 0, 0, memory, a.data);
 }
+
+void release(Allocator allocator) {
+    allocator.proc(ALLOCATOR_MODE_RELEASE, 0, 0, NULL, allocator.data);
+}

@@ -414,6 +414,7 @@ internal OS_Handle          os_handle_from_hwnd(HWND hwnd);
 internal OS_Handle          os_handle_from_win32_handle(HANDLE handle);
 internal HWND               hwnd_from_os_handle(OS_Handle handle);
 internal HANDLE             win32_handle_from_os_handle(OS_Handle handle);
+internal void*              get_native_window_handle(OS_Handle window);
 
 // File
 internal OS_Handle          os_open_file(String path, OS_Access_Flags flags);
@@ -466,6 +467,9 @@ internal void               thread_group_complete_all_work(Thread_Group *group);
 
 // UUID/GUID
 internal Guid               guid_generate();
+
+// Atomic
+internal void               atomic_increment(volatile s32 *x);
 
 template<typename F> 
 internal void parallel_for(Thread_Group *group, s64 count, F&& func);

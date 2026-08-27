@@ -107,7 +107,7 @@ int main_entry(int argc, char **argv)
     // Main Loop
     //
     u64 old_counter = os_counter();
-    for (bool should_close = false; !should_close;)
+    for (bool should_close = false; !should_close;) 
     {
         // Draw resolution.
         v2 resolution = {

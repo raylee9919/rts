@@ -1,41 +1,83 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-static void gfx_init_samplers()
-{
-    RHI_Sampler_Desc desc = {};
-    {
-        desc.filter             = RHI_FILTER_NEAREST;
-        desc.address_u          = RHI_ADDRESS_REPEAT;
-        desc.address_v          = RHI_ADDRESS_REPEAT;
-        desc.address_w          = RHI_ADDRESS_REPEAT;
-        desc.compare_op         = RHI_COMPARE_ALWAYS;
-        desc.mip_lod_bias       = 0.f;
-        desc.min_lod            = 0.f;
-        desc.max_lod            = 1e10f;
+
+static void gfx_create_swapchain_depth_textures(u32 width, u32 height) {
+    RHI_Texture_Desc desc = {}; 
+    desc.type           = RHI_TEXTURE_TYPE_2D;
+    desc.format         = RHI_FORMAT_D32F;
+    desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
+    desc.width          = width;
+    desc.height         = height;
+    desc.mip_levels     = 1;
+    desc.depth          = 1;
+    desc.clear          = true;
+    desc.clear_depth    = 1.f;
+
+    for (int i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
+        gfx->depth_textures[i] = guid_generate();
+        gfx_texture_create(gfx->depth_textures[i], desc);
     }
+}
+
+static void gfx_destroy_swapchain_depth_textures() {
+    for (int i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
+        gfx_texture_destroy(gfx->depth_textures[i]);
+    }
+}
+
+static void gfx_init_samplers() {
+    RHI_Sampler_Desc desc = {};
+    desc.filter             = RHI_FILTER_LINEAR;
+    desc.address_u          = RHI_ADDRESS_REPEAT;
+    desc.address_v          = RHI_ADDRESS_REPEAT;
+    desc.address_w          = RHI_ADDRESS_REPEAT;
+    desc.compare_op         = RHI_COMPARE_ALWAYS;
+    desc.mip_lod_bias       = 0.f;
+    desc.min_lod            = 0.f;
+    desc.max_lod            = 1e10f;
+
     rhi_sampler_init(gfx->device, &gfx->linear_sampler, &desc);
 }
 
-static void gfx_deinit_samplers()
-{
+static void gfx_deinit_samplers() {
     rhi_sampler_deinit(&gfx->linear_sampler);
 }
 
-static void gfx_init_surface(void *native_window_handle, u32 width, u32 height, u32 num_back_buffers)
-{
+static void gfx_init_swapchain(void *native_window_handle, u32 width, u32 height, u32 num_back_buffers) {
     RHI_Surface_Desc desc = {};
-    {
-        desc.native_window_handle = native_window_handle;
-        desc.width                = width;
-        desc.height               = height;
-        desc.num_back_buffers     = num_back_buffers;
-    }
+    desc.native_window_handle = native_window_handle;
+    desc.width                = width;
+    desc.height               = height;
+    desc.num_back_buffers     = num_back_buffers;
+
     Assert(rhi_surface_init(gfx->device, gfx->surface, &desc));
 }
 
-static void gfx_deinit_surface()
-{
+static void gfx_deinit_swapchain() {
     // rhi_surface_deinit(gfx->surface);
+}
+
+static void gfx_init_swapchain_views() {
+    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i)  {
+        RHI_Texture_View_Desc desc = {};
+        desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
+        desc.dimension         = RHI_TEXTURE_TYPE_2D;
+        desc.format            = gfx->surface->textures[i].desc.format;
+        desc.base_mip_level    = 0;
+        rhi_texture_view_init(gfx->device, &gfx->surface_views[i], &gfx->surface->textures[i], &desc);
+    }
+}
+
+static void gfx_resize_swapchain(u32 width, u32 height) {
+    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
+
+    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i)  {
+        rhi_texture_view_deinit(&gfx->surface_views[i]);
+    }
+    rhi_surface_resize(gfx->surface, width, height);
+    gfx_init_swapchain_views();
+    gfx_destroy_swapchain_depth_textures();
+    gfx_create_swapchain_depth_textures(width, height);
 }
 
 static void gfx_init_uploader(u64 buffer_size)
@@ -54,25 +96,22 @@ static void gfx_init_uploader(u64 buffer_size)
 static void gfx_reset_per_frame_data() {
     // Reset per-frame data.
     gfx->current_pass           = GFX_PASS_NULL;
-    gfx->current_push_constants = 0;
 
     // Pipeline
     gfx->context_pipeline = GFX_PIPELINE_INVALID;
     gfx->next_pipeline    = 0;
     array_reset_keeping_memory(&gfx->pipelines);
-
     table_reset_keeping_memory(&gfx->pipeline_to_index_this_frame);
+
+    // Push constants
+    gfx->current_push_constants = 0;
+    array_reset_keeping_memory(&gfx->push_constants);
+
 
     array_reset_keeping_memory(&gfx->sort_keys);
     array_reset_keeping_memory(&gfx->commands);
-    array_reset_keeping_memory(&gfx->push_constants);
 
     memset(&gfx->pass_states[0], 0, sizeof(gfx->pass_states[0]) * GFX_MAX_PASS);
-}
-
-static force_inline u32 gfx_rand32()
-{
-    return xorshift32();
 }
 
 static void gfx_add_callback(GFX_Callback_Entry entry)
@@ -95,10 +134,11 @@ static void gfx_execute_callbacks(u64 completed_value)
 }
 
 void gfx_init(GFX_Info info) {
-    // Alloc, ZII
-    Arena *arena = arena_alloc();
-    gfx = push_struct(arena, GFX_State);
-    gfx->arena = arena;
+    { // Alloc, ZII
+        Allocator arena = arena_allocator_alloc();
+        gfx = (GFX_State *)alloc(sizeof(GFX_State), arena);
+        gfx->arena = arena; 
+    }
 
     // Placement new
     Construct(gfx);
@@ -107,23 +147,13 @@ void gfx_init(GFX_Info info) {
 
     Assert(info.num_frames >= GFX_MIN_FRAME_COUNT && info.num_frames <= GFX_MAX_FRAME_COUNT);
 
-    gfx->device = push_struct(arena, RHI_Device);
+    gfx->device = (RHI_Device *)alloc(sizeof(RHI_Device), gfx->arena);
     Assert(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning));
 
-    gfx->surface = push_struct(arena, RHI_Surface);
-    gfx_init_surface(info.native_window_handle, info.width, info.height, info.num_buffers);
-
-    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) 
-    {
-        RHI_Texture_View_Desc desc = {};
-        {
-            desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
-            desc.dimension         = RHI_TEXTURE_TYPE_2D;
-            desc.format            = gfx->surface->textures[i].desc.format;
-            desc.base_mip_level    = 0;
-        }
-        rhi_texture_view_init(gfx->device, &gfx->surface_views[i], &gfx->surface->textures[i], &desc);
-    }
+    gfx->surface = (RHI_Surface *)alloc(sizeof(RHI_Surface), gfx->arena);
+    gfx_init_swapchain(info.native_window_handle, info.width, info.height, info.num_buffers);
+    gfx_init_swapchain_views();
+    gfx_create_swapchain_depth_textures(info.width, info.height);
 
     rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
 
@@ -132,20 +162,22 @@ void gfx_init(GFX_Info info) {
     gfx_init_uploader(128ull * 1024 * 1024); // @Temporary
 
     // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) 
-    {
+    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) {
         Assert(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
         Assert(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
     }
 
     GFX_SURFACE_TEXTURE = guid_generate();
+
+    gfx->initted = true;
 }
 
-void gfx_shutdown()
-{
+void gfx_shutdown() {
+    // Wait until all pending frames are finished.
+    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
+
     // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) 
-    {
+    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) {
         rhi_command_buffer_deinit(&gfx->command_buffers[i]);
         rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
     }
@@ -154,10 +186,10 @@ void gfx_shutdown()
 
     gfx_deinit_samplers();
     rhi_semaphore_deinit(&gfx->frame_semaphore);
-    gfx_deinit_surface();
+    gfx_deinit_swapchain();
     rhi_device_deinit(gfx->device);
 
-    arena_release(gfx->arena);
+    release(gfx->arena);
 }
 
 static void gfx_create_gpu_buffer(RHI_Buffer *buffer, u32 size)
@@ -227,13 +259,12 @@ void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_siz
 
     { // @Temporary: Upload vertex buffer and index buffer.
         void *ptr = 0;
+        ptr = rhi_buffer_map(&gfx->upload_buffer);
 
         u64 vb_sz = num_vertices * vertex_size;
-        ptr = rhi_buffer_map(&gfx->upload_buffer);
         memcpy(ptr, vertices, vb_sz);
 
         u64 ib_sz = num_indices * index_size;
-        ptr = rhi_buffer_map(&gfx->upload_buffer);
         memcpy((u8 *)ptr + vb_sz, indices, ib_sz);
 
         rhi_buffer_unmap(&gfx->upload_buffer);
@@ -266,8 +297,7 @@ static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
     }
 }
 
-void gfx_mesh_destroy(Guid guid)
-{
+void gfx_mesh_destroy(Guid guid) {
     // Destruction is deferred until the current workload on the GPU is done.
     // @Todo: This isn't settled yet.. Async asset loading, sorting pass, after-frame 
     // callbacks,...
@@ -311,10 +341,6 @@ void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
             vdesc.depth              = desc.depth;
 
             rhi_texture_view_init(gfx->device, &entry.views[view_type], &entry.texture, &vdesc);
-
-            //result.bindless[view_type] = entry.views[view_type].bindless;
-        } else {
-            //result.bindless[view_type] = UINT32_MAX;
         }
 
         view_type += 1;
@@ -450,7 +476,7 @@ void gfx_pass_clear_depth(u32 pass_index, f32 clear_depth)
 }
 
 void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) {
-    Assert(gfx->generational_pipeline_id < GFX_MAX_PIPELINE);
+    Assert(gfx->pipeline_table.count <= GFX_MAX_PIPELINES);
 
     GFX_Pipeline_Entry entry = {};
     Assert(rhi_pipeline_init(gfx->device, &entry.rhi_pipeline, &desc));
@@ -467,23 +493,28 @@ void gfx_pipeline_destroy(Guid guid) {
 }
 
 void gfx_set_pipeline(Guid guid) {
-    u64 *index = table_find_pointer(&gfx->pipeline_to_index_this_frame, guid);
-    if (!index) {
+    u64 index = GFX_PIPELINE_INVALID;
+    u64 *ptr = table_find_pointer(&gfx->pipeline_to_index_this_frame, guid);
+    if (!ptr) {
         table_add(&gfx->pipeline_to_index_this_frame, guid, gfx->next_pipeline);
-        gfx->context_pipeline = gfx->next_pipeline;
+        index = gfx->next_pipeline;
         gfx->next_pipeline += 1;
         array_add(&gfx->pipelines, guid);
     } else {
-        gfx->context_pipeline = *index;
+        index = *ptr;
     }
+
+    Assert(index <= GFX_MAX_PIPELINES); // Technically, it's max # of pipelines per frame..
+
+    gfx->context_pipeline = index;
 }
 
 void gfx_push_constants(void *data, u32 size) {
     Assert(size <= (4 * RHI_MAX_32BIT_PUSH_CONSTANTS));
 
     array_add(&gfx->push_constants, {});
-    auto *push = &gfx->push_constants;
-    auto *entry = &push->data[push->count - 1];
+    auto *arr = &gfx->push_constants;
+    auto *entry = &arr->data[arr->count - 1];
     void *dst = &entry->data[0];
     memcpy(dst, data, size);
 
@@ -511,7 +542,7 @@ void gfx_draw(Guid mesh_id, u32 num_instances) {
 
         GFX_Command cmd = {};
         cmd.pipeline_index      = gfx->context_pipeline;
-        cmd.push_constant_index = gfx->current_push_constants - 1; // can wrap to UINT32_MAX if nothing was pushed.
+        cmd.push_constant_index = gfx->current_push_constants;
         cmd.mesh_handle         = mesh_id;
         cmd.num_instances       = num_instances;
 
@@ -595,19 +626,23 @@ static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass
     rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
 }
 
-void gfx_end(f64 dt)
+void gfx_end(f64 dt, u32 sync_interval)
 {
     ProfileScopeN("gfx_end");
+
+    // Resize swapchain if requested
+    if (gfx->resize_requested) {
+        gfx_resize_swapchain(gfx->resize_width, gfx->resize_height);
+        gfx->resize_requested = false;
+    }
 
     // Update shader time
     gfx->time += dt; // @Todo: do dt trick from Witness.
 
-    Assert(gfx->push_constants.count == gfx->current_push_constants);
-
     auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_frames];
 
     // Wait on frame semaphore.
-    if (gfx->current_frame >= gfx->info.num_frames) {
+    if (gfx->current_frame > gfx->info.num_frames) {
         rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx->info.num_frames, -1);
     }
 
@@ -688,9 +723,10 @@ void gfx_end(f64 dt)
                 }
             }
 
+            // @Fix: Duplicate?
             // And the real push constants.
-            if (cmd.push_constant_index != UINT32_MAX) {
-                auto* entry = &gfx->push_constants.data[cmd.push_constant_index];
+            if (cmd.push_constant_index != 0) {
+                auto* entry = &gfx->push_constants.data[cmd.push_constant_index - 1];
                 rhi_cmd_push_constants(cmd_buffer, GFX_CONSTANTS_INDEX_USER, entry->data, entry->size);
             }
 
@@ -719,9 +755,9 @@ void gfx_end(f64 dt)
     RHI_Command_Buffer *buffers[] = { cmd_buffer };
     rhi_submit(gfx->device, 1, buffers);
 
+    // @Study: Present and Signal ordering...
+    rhi_surface_present(gfx->surface, sync_interval);
     rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->frame_semaphore, gfx->current_frame);
-
-    rhi_surface_present(gfx->surface);
 
     gfx_reset_per_frame_data();
 
@@ -731,12 +767,21 @@ void gfx_end(f64 dt)
     gfx->current_frame += 1;
 }
 
+void gfx_request_swapchain_resize(u32 width, u32 height) {
+    gfx->resize_requested = true;
+    gfx->resize_width     = width;
+    gfx->resize_height    = height;
+}
+
 GPU_Material gpu_material_from_gfx(GFX_Material *material) {
     GPU_Material result = {};
 
-    result.albedo_id = gfx_bindless_from_texture(material->albedo, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
-    result.orm_id    = gfx_bindless_from_texture(material->orm, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
-    result.tint      = material->tint;
+    result.albedo    = material->albedo;
+    result.metallic  = material->metallic;
+    result.roughness = material->roughness;
+
+    result.albedo_id = gfx_bindless_from_texture(material->albedo_texture, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
+    result.orm_id    = gfx_bindless_from_texture(material->orm_texture, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
 
     return result;
 }

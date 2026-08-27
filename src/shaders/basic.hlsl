@@ -1,5 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+typedef float3      v3;
 typedef float4      v4;
 typedef float4x4    m4x4;
 
