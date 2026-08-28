@@ -161,22 +161,12 @@ enum
     AXIS2_COUNT
 };
 
-typedef u8 Axis3;
-enum
-{
-    AXIS3_X,
-    AXIS3_Y,
-    AXIS3_Z,
-    AXIS3_COUNT
-};
-
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #undef assert
 #define ASSERT(exp)  if (!(exp)) do { debug_break(); } while(0)
 #define Assert(exp)  if (!(exp)) do { debug_break(); } while(0)
 #define assert(exp)  if (!(exp)) do { debug_break(); } while(0)
-#define assume(exp)  assert(exp)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define max(a, b) ( ((a) > (b)) ? (a) : (b) )

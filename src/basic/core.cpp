@@ -96,36 +96,36 @@ String read_entire_file(String file_path, Allocator allocator) {
 
 void radix_sort_u64(void *data, s64 count, s64 stride, s64 key_offset)
 {
-  ProfileScope;
-  void *tmp = alloc(count * stride, tctx.temp);
+    ProfileScope;
+    void *tmp = alloc(count * stride, tctx.temp);
 
-  for (int k = 0; k < 64; k += 8)
-  {
-    u32 n[256] = {0};
-    u32 idx[256] = {0};
-
-    for (s64 i = 0; i < count; ++i)
+    for (int k = 0; k < 64; k += 8)
     {
-      u64 key = *(u64*)((u8*)data + stride * i + key_offset);
-      u8 b = (u8)(key >> k);
-      n[b] += 1;
-    }
+        u32 n[256] = {0};
+        u32 idx[256] = {0};
 
-    for (s64 i = 0; i < 255; ++i)
-    {
-      idx[i + 1] = idx[i] + n[i];
-    }
+        for (s64 i = 0; i < count; ++i)
+        {
+            u64 key = *(u64*)((u8*)data + stride * i + key_offset);
+            u8 b = (u8)(key >> k);
+            n[b] += 1;
+        }
 
-    for (s64 i = 0; i < count; ++i)
-    {
-      u64 key = *(u64*)((u8*)data + stride * i + key_offset);
-      u8 b = (u8)(key >> k);
-      memcpy((u8*)tmp + idx[b] * stride, (u8*)data + i * stride, stride);
-      idx[b] += 1;
-    }
+        for (s64 i = 0; i < 255; ++i)
+        {
+            idx[i + 1] = idx[i] + n[i];
+        }
 
-    void *swap = data;
-    data = tmp;
-    tmp = swap;
-  }
+        for (s64 i = 0; i < count; ++i)
+        {
+            u64 key = *(u64*)((u8*)data + stride * i + key_offset);
+            u8 b = (u8)(key >> k);
+            memcpy((u8*)tmp + idx[b] * stride, (u8*)data + i * stride, stride);
+            idx[b] += 1;
+        }
+
+        void *swap = data;
+        data = tmp;
+        tmp = swap;
+    }
 }

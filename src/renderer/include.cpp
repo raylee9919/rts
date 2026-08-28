@@ -87,18 +87,21 @@ void r_render(Game_State *g, f64 refresh_dt)
                 args->material_id = i;
 
                 // Upload constants
-                auto *mesh = table_find_pointer(&gfx->mesh_table, cube_mesh);
-                Constants c = {};
-                c.vertex_buffer_id    = mesh->vertex_buffer_view.bindless;
-                c.linear_sampler_id   = gfx->linear_sampler.bindless;
-                c.camera_buffer_id    = camera_view.bindless;
-                c.arguments_buffer_id = arguments_view.bindless;
-                c.material_buffer_id  = material_view.bindless;
-                c.arguments_index = i;
-                gfx_push_constants(&c, sizeof(c));
+                auto *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
 
-                // Draw
-                gfx_draw(cube_mesh, 1);
+                if (mesh) {
+                    Constants c = {};
+                    c.vertex_buffer_id    = mesh->vertex_buffer_view.bindless;
+                    c.linear_sampler_id   = gfx->linear_sampler.bindless;
+                    c.camera_buffer_id    = camera_view.bindless;
+                    c.arguments_buffer_id = arguments_view.bindless;
+                    c.material_buffer_id  = material_view.bindless;
+                    c.arguments_index = i;
+                    gfx_push_constants(&c, sizeof(c));
+
+                    // Draw
+                    gfx_draw(cube_mesh, 1);
+                }
             });
 
 

@@ -23,6 +23,10 @@ void game_state_init(Game_State **game_state_pptr) {
     *game_state_pptr = g;
 }
 
+void game_state_deinit(Game_State *g) {
+    os_release(g->storage.base, g->storage.reserved);
+}
+
 void game_init(f64 time_init) {
     // Initialize game state
     game_state_init(&game_state);
@@ -35,7 +39,7 @@ void game_init(f64 time_init) {
     log(LOG_INFO, S("Initialized game state."));
 }
 
-void game_shutdown() {
+void game_deinit() {
     Game_State *g = game_state;
 
     os_release(g->storage.base, g->storage.reserved);
@@ -74,12 +78,24 @@ void *game_alloc(Game_State *g, u64 size, u64 alignment) {
 }
 
 Entity *entity_alloc(Game_State *g) {
-    Entity *entity = NULL;
+    Entity *entity = entity_from_handle(g, g->first_free_entity);
 
-    // @Todo: Pool
+    if (entity) {
+        if (g->first_free_entity == g->last_free_entity) {
+            g->first_free_entity = {};
+            g->last_free_entity  = {};
+        } else {
+            g->first_free_entity = entity->next;
+        }
+    } else {
+        entity = (Entity *)game_alloc(g, sizeof(Entity), align_of(Entity));
+    }
 
-    entity = (Entity *)game_alloc(g, sizeof(Entity), align_of(Entity));
+    Assert(entity);
 
+    memset(entity, 0, sizeof(Entity));
+
+    // Assign generational ID
     entity->generational_id = g->next_generational_id++;
 
     // Attach to root

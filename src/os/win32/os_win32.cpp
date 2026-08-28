@@ -849,7 +849,7 @@ void condvar_create(Condvar *condvar) {
     InitializeConditionVariable(&condvar->var);
 }
 
-void condvar_destroy() {
+void condvar_destroy(Condvar *condvar) {
     // no-op
 }
 

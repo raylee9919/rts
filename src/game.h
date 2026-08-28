@@ -13,7 +13,16 @@
 #define FAR_Z               1e9f
 
 
+struct Input_State {
+
+};
+
+
 struct Handle {
+    // You can think of Handle as a pointer. The difference is that while a
+    // "real" pointers is in the process's address space, a Handle is an offset
+    // into the Game_Storage's HUGE reserved address space.
+    //
     u64             offset;
     u64             generational_id;
 
@@ -64,6 +73,10 @@ struct Game_State {
     u64             num_entities;
     Handle          root;
 
+    // Singly-linked entity free list
+    Handle          first_free_entity;
+    Handle          last_free_entity;
+
     Camera          camera;
 };
 
@@ -73,16 +86,19 @@ global Game_State   *game_state;
 
 internal void       game_state_init(Game_State **game_state_pptr);
 internal void       game_init(f64 time_init);
-internal void       game_shutdown();
+internal void       game_deinit();
 internal void       game_copy(Game_State *dst, Game_State *src);
 internal void      *game_alloc(Game_State *g, u64 size, u64 alignment);
 
 internal Entity    *entity_alloc(Game_State *g);
 internal void       entity_dealloc(Game_State *g);
+
 internal Entity    *entity_from_handle(Game_State *g, Handle handle);
 internal Handle     handle_from_entity(Game_State *g, Entity *entity);
+
 internal void       entity_add_child(Game_State *g, Handle parent, Handle child);
 internal void       entity_remove_child(Game_State *g, Handle parent, Handle child);
+
 internal void       entity_dfs(Game_State *g, Handle root, void (*proc)(Game_State *g, Entity *entity, u64 index));
 
 

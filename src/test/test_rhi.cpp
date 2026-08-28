@@ -14,6 +14,7 @@
 #include "renderer/include.h"
 #include "shader_compiler/include.h"
 #include "game.h"
+#include "audio.h"
 
 #include "basic/include.cpp"
 #include "math/include.cpp"
@@ -26,13 +27,14 @@
 #include "renderer/include.cpp"
 #include "shader_compiler/include.cpp"
 #include "game.cpp"
+#include "audio.cpp"
 
 //
 #define MAX_MATERIALS       1024
 
 //
-global OS_Handle window        = {};
-global b32 should_close        = false;
+global OS_Handle window = {};
+global b32 should_close = false;
 
 //
 global Shader_Compiler     *compiler;
@@ -48,6 +50,28 @@ u32 indices[36];
 
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
+
+internal void render_ring_init() {
+    Construct(&render_queue);
+
+    mutex_create(&render_queue.mutex); 
+    condvar_create(&render_queue.condvar); 
+
+    for (int i = 0; i < array_count(render_queue.entries); ++i) {
+        game_state_init(&render_queue.entries[i].game_state);
+        mutex_create(&render_queue.entries[i].mutex);
+    }
+}
+
+internal void render_ring_deinit() {
+    mutex_destroy(&render_queue.mutex);
+    condvar_destroy(&render_queue.condvar);
+
+    for (int i = 0; i < array_count(render_queue.entries); ++i) {
+        game_state_deinit(render_queue.entries[i].game_state);
+        mutex_destroy(&render_queue.entries[i].mutex);
+    }
+}
 
 void game_tick(Game_State *g, f64 dt) {
     ProfileScope;
@@ -122,42 +146,28 @@ int main_entry(int argc, char **argv)
     // Init Game
     game_init(time_old);
 
-
     // Open window
     window = os_window_create(1920, 1080, S("RHI"));
-
 
     // Launch render thread
     Thread render_thread = thread_launch(r_entry, get_native_window_handle(window));
 
+    // Launch audio thread
+    Thread audio_thread = thread_launch(audio_entry, NULL);
 
     // Init shader compiler
     compiler = alloc_t(Shader_Compiler);
     Assert(shader_compiler_init(compiler));
     compiler->include_path = S("C:\\dev\\rts\\src\\shaders\\");
 
-
     // Init render queue
-    {
-        Construct(&render_queue);
-
-        mutex_create(&render_queue.mutex); 
-        condvar_create(&render_queue.condvar); 
-
-        for (int i = 0; i < array_count(render_queue.entries); ++i) {
-            game_state_init(&render_queue.entries[i].game_state);
-            mutex_create(&render_queue.entries[i].mutex); // @Cleanup
-        }
-    }
-
+    render_ring_init();
 
     // Spin-lock until gfx is initted.
     while (!gfx || !gfx->initted) { _mm_pause(); }
 
-
     // Init camera
     game_state->camera.position = v3(0.f, 6.f, 15.f);
-
 
     // Make a cube
     cube_mesh = guid_generate();
@@ -432,9 +442,11 @@ int main_entry(int argc, char **argv)
         clear_thread_temporary_storage();
     }
 
+    thread_join(audio_thread, -1);
     thread_join(render_thread, -1);
 
-    game_shutdown();
+    render_ring_deinit();
+    game_deinit();
 
     log(LOG_INFO, S("Main thread returned successfully."));
     return 0;

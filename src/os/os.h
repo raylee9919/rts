@@ -419,8 +419,8 @@ internal void               mutex_lock(Mutex *mutex);
 internal void               mutex_unlock(Mutex *mutex);
 
 // Condition Variable
-internal void               condvar_create();
-internal void               condvar_destroy();
+internal void               condvar_create(Condvar *condvar);
+internal void               condvar_destroy(Condvar *condvar);
 internal Wait_Result        condvar_sleep(Condvar *condvar, Mutex *mutex, s64 timeout_ms);
 internal void               condvar_wake_one(Condvar *condvar);
 internal void               condvar_wake_all(Condvar *condvar);
