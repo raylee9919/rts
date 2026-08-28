@@ -320,28 +320,6 @@ struct Guid {
 global read_only const Guid NULL_GUID = {0};
 
 
-// @Temporary
-//
-#define OS_WORK_CALLBACK(name) void name(void *param)
-typedef OS_WORK_CALLBACK(Work_Callback);
-
-struct Work {
-    Work_Callback* callback;
-    void* param;
-};
-
-struct Work_Queue {
-    Work works[4192];
-
-    u32 volatile index_to_write;
-    u32 volatile index_to_read;
-
-    u32 volatile completion_count;
-    u32 volatile completion_goal;
-
-    OS_Handle semaphore;
-};
-
 // Global OS State
 //
 struct OS_State {
@@ -362,10 +340,6 @@ struct OS_State {
     b8          key_is_down[512];
     b8          key_was_down[512];
     
-    // Counter
-    f64 qpc_rcp_freq64;
-    f32 qpc_rcp_freq32;
-
     // Path
     String binary_path;
     String initial_path;
@@ -378,9 +352,6 @@ struct OS_State {
     // Thing list
     OS_Thing *first_thing[OS_THING_KIND_OPL - 1];
     OS_Thing *last_thing[OS_THING_KIND_OPL - 1];
-
-    // @Temporary
-    Work_Queue work_queue;
 };
 global OS_State *os;
 
@@ -402,11 +373,10 @@ internal u32                os_query_core_count();
 internal u32                os_query_page_size();
 internal u32                os_query_caret_blink_time();
 
-// Counter
-internal u64                os_counter();
-internal u64                os_counter_freq();
-internal f32                os_counter_freq_rcp();
-internal f64                os_counter_freq_rcp64();
+// Time
+internal f64                time_s();
+internal f64                time_ms();
+internal f64                time_us();
 
 // Handle Translation
 internal bool               operator == (OS_Handle& l, OS_Handle& r);
@@ -442,11 +412,18 @@ internal OS_Event*          os_push_event();
 internal void               os_remove_event(OS_Event* event);
 internal void               os_clear_events();
 
-// Mutex
+// Mutex (non-re-entrant, meaning, 'lock -> lock' is invalid)
 internal void               mutex_create(Mutex *mutex);
 internal void               mutex_destroy(Mutex *mutex);
 internal void               mutex_lock(Mutex *mutex);
 internal void               mutex_unlock(Mutex *mutex);
+
+// Condition Variable
+internal void               condvar_create();
+internal void               condvar_destroy();
+internal Wait_Result        condvar_sleep(Condvar *condvar, Mutex *mutex, s64 timeout_ms);
+internal void               condvar_wake_one(Condvar *condvar);
+internal void               condvar_wake_all(Condvar *condvar);
 
 // Semaphore
 internal void               semaphore_create(Semaphore *semaphore);

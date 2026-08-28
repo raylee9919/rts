@@ -106,3 +106,101 @@ if "%assimp%" == "1" (
     call %compiler% %flags_compile% ..\src\rts_assimp.cpp -Fe:assimp.exe -I../src/vendor -link %flags_linker% ..\lib\assimp-vc143-mtd.lib
 )
 
+// @Temporary
+//
+#define OS_WORK_CALLBACK(name) void name(void *param)
+typedef OS_WORK_CALLBACK(Work_Callback);
+
+struct Work {
+    Work_Callback* callback;
+    void* param;
+};
+
+struct Work_Queue {
+    Work works[4192];
+
+    u32 volatile index_to_write;
+    u32 volatile index_to_read;
+
+    u32 volatile completion_count;
+    u32 volatile completion_goal;
+
+    OS_Handle semaphore;
+};
+
+// @Temporary
+//
+void add_work(Work_Queue* queue, Work_Callback* callback, void* param) {
+    // @Todo: Single producer implementation atm. We gonna have to switch to 
+    // cmpxchg if we want multiple producers, ultimately.
+    u32 index = queue->index_to_write;
+    u32 new_write_index = (queue->index_to_write + 1) % array_count(queue->works);
+
+    assert(new_write_index != queue->index_to_read);
+
+    queue->works[index].callback = callback;
+    queue->works[index].param = param;
+    _WriteBarrier();
+    queue->index_to_write = new_write_index;
+    queue->completion_goal++;
+
+    HANDLE semaphore = win32_handle_from_os_handle(queue->semaphore);
+    ReleaseSemaphore(semaphore, 1, 0);
+}
+
+bool do_work_or_should_sleep(Work_Queue* queue)
+{
+    bool should_sleep = false;
+
+    u32 old_index = queue->index_to_read;
+    u32 new_index = (old_index + 1) % array_count(queue->works);
+
+    if (old_index != queue->index_to_write) {
+        u32 index = InterlockedCompareExchange((LONG volatile *)&queue->index_to_read, new_index, old_index);
+        if (index == old_index) {
+            Work work = queue->works[index];
+            work.callback(work.param);
+            InterlockedIncrement(&queue->completion_count);
+        }
+    } else {
+        should_sleep = true;
+    }
+
+    return should_sleep;
+}
+
+void complete_all_work(Work_Queue *queue) 
+{
+    while (queue->completion_count != queue->completion_goal) {
+        do_work_or_should_sleep(queue);
+    }
+
+    queue->completion_count = 0;
+    queue->completion_goal  = 0;
+}
+
+DWORD worker_thread_proc(LPVOID param) {
+    Work_Queue *queue = (Work_Queue *)param;
+
+    for (;;) {
+        if (do_work_or_should_sleep(queue)) {
+            HANDLE semaphore = win32_handle_from_os_handle(queue->semaphore);
+            WaitForSingleObject(semaphore, INFINITE);
+        }
+    }
+}
+
+void init_work_queue(Work_Queue* queue, int num_threads) {
+    if (num_threads == 0) {
+        return;
+    }
+
+    HANDLE semaphore = CreateSemaphore(NULL, 0, num_threads, 0);
+    queue->semaphore = os_handle_from_win32_handle(semaphore);
+
+    for (int i = 0; i < num_threads; ++i) {
+        DWORD tid;
+        HANDLE thread_handle = CreateThread(NULL, 0, worker_thread_proc, queue, 0, &tid);
+        CloseHandle(thread_handle);
+    }
+}

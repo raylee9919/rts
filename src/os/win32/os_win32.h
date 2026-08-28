@@ -69,10 +69,16 @@ struct Win32_State {
     Win32_Window *window_last;
     Win32_Window *window_free_first;
     Win32_Window *window_free_last;
+
+    uint64_t    qpc_frequency;
 };
 
 struct Mutex {
-    CRITICAL_SECTION csection;
+    SRWLOCK lock;
+};
+
+struct Condvar {
+    CONDITION_VARIABLE var;
 };
 
 struct Semaphore {

@@ -134,14 +134,14 @@ static void gfx_execute_callbacks(u64 completed_value)
 }
 
 void gfx_init(GFX_Info info) {
-    { // Alloc, ZII
+    { // Alloc, Construct
         Allocator arena = arena_allocator_alloc();
         gfx = (GFX_State *)alloc(sizeof(GFX_State), arena);
+
+        Construct(gfx);
+
         gfx->arena = arena; 
     }
-
-    // Placement new
-    Construct(gfx);
 
     gfx->info = info;
 
@@ -626,7 +626,7 @@ static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass
     rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
 }
 
-void gfx_end(f64 dt, u32 sync_interval)
+void gfx_end(f64 time, u32 sync_interval)
 {
     ProfileScopeN("gfx_end");
 
@@ -637,7 +637,7 @@ void gfx_end(f64 dt, u32 sync_interval)
     }
 
     // Update shader time
-    gfx->time += dt; // @Todo: do dt trick from Witness.
+    gfx->time = time; // @Todo: do dt trick from Witness.
 
     auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_frames];
 

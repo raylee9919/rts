@@ -1,83 +1,5 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-// @Temporary
-//
-void add_work(Work_Queue* queue, Work_Callback* callback, void* param) {
-    // @Todo: Single producer implementation atm. We gonna have to switch to 
-    // cmpxchg if we want multiple producers, ultimately.
-    u32 index = queue->index_to_write;
-    u32 new_write_index = (queue->index_to_write + 1) % array_count(queue->works);
-
-    assert(new_write_index != queue->index_to_read);
-
-    queue->works[index].callback = callback;
-    queue->works[index].param = param;
-    _WriteBarrier();
-    queue->index_to_write = new_write_index;
-    queue->completion_goal++;
-
-    HANDLE semaphore = win32_handle_from_os_handle(queue->semaphore);
-    ReleaseSemaphore(semaphore, 1, 0);
-}
-
-bool do_work_or_should_sleep(Work_Queue* queue)
-{
-    bool should_sleep = false;
-
-    u32 old_index = queue->index_to_read;
-    u32 new_index = (old_index + 1) % array_count(queue->works);
-
-    if (old_index != queue->index_to_write) {
-        u32 index = InterlockedCompareExchange((LONG volatile *)&queue->index_to_read, new_index, old_index);
-        if (index == old_index) {
-            Work work = queue->works[index];
-            work.callback(work.param);
-            InterlockedIncrement(&queue->completion_count);
-        }
-    } else {
-        should_sleep = true;
-    }
-
-    return should_sleep;
-}
-
-void complete_all_work(Work_Queue *queue) 
-{
-    while (queue->completion_count != queue->completion_goal) {
-        do_work_or_should_sleep(queue);
-    }
-
-    queue->completion_count = 0;
-    queue->completion_goal  = 0;
-}
-
-DWORD worker_thread_proc(LPVOID param) {
-    Work_Queue *queue = (Work_Queue *)param;
-
-    for (;;) {
-        if (do_work_or_should_sleep(queue)) {
-            HANDLE semaphore = win32_handle_from_os_handle(queue->semaphore);
-            WaitForSingleObject(semaphore, INFINITE);
-        }
-    }
-}
-
-void init_work_queue(Work_Queue* queue, int num_threads) {
-    if (num_threads == 0) {
-        return;
-    }
-
-    HANDLE semaphore = CreateSemaphore(NULL, 0, num_threads, 0);
-    queue->semaphore = os_handle_from_win32_handle(semaphore);
-
-    for (int i = 0; i < num_threads; ++i) {
-        DWORD tid;
-        HANDLE thread_handle = CreateThread(NULL, 0, worker_thread_proc, queue, 0, &tid);
-        CloseHandle(thread_handle);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////
 
 // Init
 //
@@ -161,9 +83,12 @@ void os_init() {
     os->vk_to_key[VK_MBUTTON]       = KEY_MOUSE_MIDDLE;
 
 
-    // Cache counter frequency.
-    os->qpc_rcp_freq64 = 1.0 / (f64)os_counter_freq();
-    os->qpc_rcp_freq32 = (f32)os->qpc_rcp_freq64;
+    
+    { // Cache QPC frequency
+        LARGE_INTEGER li;
+        QueryPerformanceFrequency(&li);
+        win32->qpc_frequency = li.QuadPart;
+    }
 
 
     // Gather paths.
@@ -197,9 +122,6 @@ void os_init() {
             os->appdata_path = utf8_copy(os->arena, appdata_path);
         }
     }
-
-    // @Temporary
-    init_work_queue(&os->work_queue, os_query_core_count() - 1);
 }
 
 
@@ -279,27 +201,22 @@ u32 os_query_caret_blink_time() {
 }
 
 
-// Counter
-// Bad naming? i dunno.
-//
-u64 os_counter() {
+// Time
+// @Todo: This is kinda sloppy...
+f64 time_s() {
+    Win32_State *win32 = (Win32_State *)os->native;
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
-    return li.QuadPart;
+    f64 seconds = (f64)li.QuadPart / (f64)win32->qpc_frequency;
+    return seconds;
 }
 
-u64 os_counter_freq(void) {
-    LARGE_INTEGER li;
-    QueryPerformanceFrequency(&li);
-    return li.QuadPart;
+f64 time_ms() {
+    return time_s() * 1000.0;
 }
 
-f32 os_counter_freq_rcp() {
-    return os->qpc_rcp_freq32;
-}
-
-f64 os_counter_freq_rcp64() {
-    return os->qpc_rcp_freq64;
+f64 time_us() {
+    return time_s() * 1000000.0;
 }
 
 
@@ -901,26 +818,64 @@ void os_clear_events() {
 }
 
 
-// Mutex  @Todo: afaik, critical seciton is lighweight mutex. But, needs confirmation.
+// Mutex
+//
+// Do not use CriticalSection on Windows. It is legacy API. Use SRWLock for
+// much simpler and better API for mutex. If you want to be very fancy they you
+// can use futex'es - WaitOnAddress & its friends, but that will require much
+// more carefully written code. For basic lock/unlock/condvar, SRWLock is way
+// to go. SRWLock is not re-entrant, but just don't do it.
 //
 void mutex_create(Mutex *mutex) {
-    InitializeCriticalSection(&mutex->csection);
+    InitializeSRWLock(&mutex->lock);
 }
 
 void mutex_destroy(Mutex *mutex) {
-    DeleteCriticalSection(&mutex->csection);
+    // no-op
 }
 
 void mutex_lock(Mutex *mutex) {
-    EnterCriticalSection(&mutex->csection);
+    AcquireSRWLockExclusive(&mutex->lock);
 }
 
 void mutex_unlock(Mutex *mutex) {
-    LeaveCriticalSection(&mutex->csection);
+    ReleaseSRWLockExclusive(&mutex->lock);
+}
+
+
+// Condition Variable
+//
+void condvar_create(Condvar *condvar) {
+    InitializeConditionVariable(&condvar->var);
+}
+
+void condvar_destroy() {
+    // no-op
+}
+
+Wait_Result condvar_sleep(Condvar *condvar, Mutex *mutex, s64 timeout_ms) {
+    DWORD ms = timeout_ms == -1 ? INFINITE : (DWORD)timeout_ms;
+    BOOL res = SleepConditionVariableSRW(&condvar->var, &mutex->lock, ms, 0);
+    if (res == 0)  return WAIT_RESULT_ERROR;
+    else           return WAIT_RESULT_SUCCESS;
+}
+
+void condvar_wake_one(Condvar *condvar) {
+    WakeConditionVariable(&condvar->var);
+}
+
+void condvar_wake_all(Condvar *condvar) {
+    WakeAllConditionVariable(&condvar->var);
 }
 
 
 // Semaphore
+//
+// Windows Semaphore involves system call, thus any operation on it incurs
+// roundtrip through kernel. Mutex and ConditionVariable have fast paths. They
+// first do super cheap atomic op to check if they can lock and take ownership.
+// And only if they cannot they do the syscall to kernel. So unless you really
+// need semaphore for some reason, mutex + condar is way to go.
 //
 void semaphore_create(Semaphore *semaphore) {
     semaphore->event = CreateSemaphore(NULL, 0, 0x7fffffff, NULL);

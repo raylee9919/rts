@@ -13,6 +13,7 @@
 #include "gfx/include.h"
 #include "renderer/include.h"
 #include "shader_compiler/include.h"
+#include "game.h"
 
 #include "basic/include.cpp"
 #include "math/include.cpp"
@@ -24,76 +25,20 @@
 #include "gfx/include.cpp"
 #include "renderer/include.cpp"
 #include "shader_compiler/include.cpp"
-
-enum Input_Action : u16 {
-    IA_CAMERA_MOVE_FORWARD,
-    IA_CAMERA_MOVE_BACKWARD,
-    IA_CAMERA_MOVE_RIGHT,
-    IA_CAMERA_MOVE_LEFT,
-};
+#include "game.cpp"
 
 //
-#define WORLD_UP            v3{ 0.f,  1.f,  0.f}
-#define FORWARD_VECTOR      v4{ 0.f,  0.f, -1.f, 1.f}
-#define RIGHT_VECTOR        v4{ 1.f,  0.f,  0.f, 1.f}
-#define UP_VECTOR           v4{ 0.f,  1.f,  0.f, 1.f}
-#define NEAR_Z              1e-3f
-#define FAR_Z               1e9f
-#define NUM_ENTITIES        64
 #define MAX_MATERIALS       1024
 
-struct Entity {
-    v3 position;
-
-    Guid material;
-};
-
-struct Camera {
-    v3  position;
-    f32 yaw;
-    f32 pitch;
-};
-
-struct Game_State {
-    f64     time;
-    Entity  entities[NUM_ENTITIES];
-    Camera  camera;
-};
-
-global Game_State game_state;
-global Game_State render_game_state;
-
 //
-global RHI_Buffer          camera_buffer;
-global RHI_Buffer_View     camera_view;
-global void                *camera_ptr;
-
 
 //
 global OS_Handle window        = {};
 global b32 should_close        = false;
-global f32 VIEWPORT_WIDTH      = 1920.f;
-global f32 VIEWPORT_HEIGHT     = 1080.f;
 
 
 //
 global Shader_Compiler     *compiler;
-
-//
-global RHI_Buffer          arguments_buffer;
-global RHI_Buffer_View     arguments_view;
-global void                *arguments_ptr;
-
-//
-global RHI_Buffer          material_buffer;
-global RHI_Buffer_View     material_view;
-global void                *material_ptr;
-
-//
-global Guid         doggo_guid;
-global Guid         pipeline;
-
-global Guid         cube_mesh;
 
 struct Vertex {
     v3 position;
@@ -107,26 +52,13 @@ u32 indices[36];
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
 
-internal GPU_Camera gpu_camera_from_game(Camera *camera) {
-    GPU_Camera result = {};
+void game_tick(Game_State *g, f64 dt) {
+    ProfileScope;
 
-    f32 fov = pi32 * 0.5f;
-    f32 aspect_ratio = (f32)VIEWPORT_WIDTH / (f32)VIEWPORT_HEIGHT;
-    v3 dir = (y_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
+    g->time += dt;
 
-    result.position  = V4(camera->position, 1.f);
-    result.view      = look_to_rh(camera->position, dir, WORLD_UP);
-    result.proj      = persp_fov_rh(fov, aspect_ratio, NEAR_Z, FAR_Z);
-    result.view_proj = result.proj * result.view;
-
-    return result;
-}
-
-void tick_game(Game_State *state, f64 dt) {
-    state->time += dt;
-
-    {
-        Camera *camera = &game_state.camera;
+    if (0) {
+        Camera *camera = &g->camera;
 
         f32 movement_speed = 10.f;
         f32 turn_speed     = 0.25f;
@@ -176,46 +108,71 @@ void tick_game(Game_State *state, f64 dt) {
         }
     }
 
-    for (int i = 0; i < NUM_ENTITIES; ++i) {
-        auto *E = &state->entities[i];
+#if 1 // Temporary
+    int n = g->next_generational_id - 1;
+    for (int i = 0; i < n; ++i) {
+        u64 offset = g->entities[i];
+        Entity *E = entity_from_offset(g, offset);
 
         f32 coef = 30.0f;
         f32 idx = (f32)i;
 
-        E->position.z = coef * m_cos(idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
-        E->position.x = coef * m_sin(idx * (pi32 * 2.0f / (f32)NUM_ENTITIES));
+        E->position.z = coef * m_cos(idx * (pi32 * 2.0f / (f32)n));
+        E->position.x = coef * m_sin(idx * (pi32 * 2.0f / (f32)n));
     }
+#endif
 }
 
 int main_entry(int argc, char **argv)
 {
+    // Init timers
+    f64 time_old        = time_s();
+    f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
+    f64 accumulator     = 0.f;
+
+    // Init Game
+    game_init(time_old);
+
+
     // Open window
     window = os_window_create(1920, 1080, S("RHI"));
 
+
     // Launch render thread
-    Thread render_thread = thread_launch(render_entry, get_native_window_handle(window));
+    Thread render_thread = thread_launch(r_entry, get_native_window_handle(window));
+
 
     // Init shader compiler
     compiler = alloc_t(Shader_Compiler);
     Assert(shader_compiler_init(compiler));
     compiler->include_path = S("C:\\dev\\rts\\src\\shaders\\");
 
+
+    // Init render queue
+    {
+        Construct(&render_queue);
+
+        mutex_create(&render_queue.mutex); 
+        condvar_create(&render_queue.condvar); 
+
+        for (int i = 0; i < array_count(render_queue.entries); ++i) {
+            game_state_init(&render_queue.entries[i].game_state);
+            mutex_create(&render_queue.entries[i].mutex); // @Cleanup
+        }
+    }
+
+
     // Spin-lock until gfx is initted.
     while (!gfx || !gfx->initted) { _mm_pause(); }
 
 
-    // @Temporary: Init camera
-    game_state.camera.position = v3(0.f, 6.f, 15.f);
+    // Init camera
+    game_state->camera.position = v3(0.f, 6.f, 15.f);
+
 
     // Make a cube
     cube_mesh = guid_generate();
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
-
-
-    u64 counter_prev = os_counter();
-    f64 dt = 1.f / 60.f; // Update frequency, Tick rate
-    f64 base_framerate = 1.0 / 60.0;
-    f64 accumulator = 0.f;
 
 
     {
@@ -251,22 +208,22 @@ int main_entry(int argc, char **argv)
             RHI_Pipeline_Desc desc = {};
             desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
 
-            desc.depth_enabled              = true;
-            desc.depth_compare_op           = RHI_COMPARE_LESS_EQUAL;
-            desc.depth_format               = RHI_FORMAT_D32F;
+            desc.depth_enabled               = true;
+            desc.depth_compare_op            = RHI_COMPARE_LESS_EQUAL;
+            desc.depth_format                = RHI_FORMAT_D32F;
 
             desc.num_color_attachments       = 1;
             desc.color_attachment_formats[0] = gfx->surface->textures[0].desc.format;
 
-            desc.blend_enabled[0]           = true;
+            desc.blend_enabled[0]            = true;
 
-            desc.blend_factor_color_src[0]  = RHI_BLEND_FACTOR_SRC_ALPHA;
-            desc.blend_factor_color_dst[0]  = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_op_color[0]          = RHI_BLEND_OP_ADD;
+            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
+            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_op_color[0]           = RHI_BLEND_OP_ADD;
 
-            desc.blend_factor_alpha_src[0]  = RHI_BLEND_FACTOR_ONE;
-            desc.blend_factor_alpha_dst[0]  = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_op_alpha[0]          = RHI_BLEND_OP_ADD;
+            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
+            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_op_alpha[0]           = RHI_BLEND_OP_ADD;
 
             desc.fill_mode = RHI_FILL_SOLID;
             desc.cull_mode = RHI_CULL_CW;
@@ -286,9 +243,6 @@ int main_entry(int argc, char **argv)
 
         gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
 
-
-        // @Temporary
-        auto *mesh = table_find_pointer(&gfx->mesh_table, cube_mesh);
 
         { // Create material buffer and view.
             u64 stride = sizeof(GPU_Material);
@@ -316,7 +270,7 @@ int main_entry(int argc, char **argv)
 
         { // Create arguments buffer and view
             u64 stride = sizeof(Arguments);
-            u64 sz     = stride * NUM_ENTITIES;
+            u64 sz     = stride * 1024; // @Temporary
 
             RHI_Buffer_Desc desc = {};
             desc.memory_type = RHI_MEMORY_UPLOAD;
@@ -388,62 +342,76 @@ int main_entry(int argc, char **argv)
     }
 
 
-    for (int i = 0; i < NUM_ENTITIES; ++i) {
-        Entity *E = &game_state.entities[i];
+    // @Temporary: Initialize entities.
+    for (int i = 0; i < 64; ++i) {
+        Entity *E = entity_alloc(game_state);
 
-        Guid guid = guid_generate();
-        E->material = guid;
+        E->mesh     = cube_mesh;
+        E->material = guid_generate();
 
         GFX_Material material = {};
-        material.albedo = unpack_rgba(xorshift32()).xyz;
+        material.albedo         = unpack_rgba(xorshift32()).xyz;
         material.albedo_texture = doggo_guid;
 
         // ..or read from asset pack.
 
-        gfx_material_alloc(guid, material);
+        gfx_material_alloc(E->material, material);
     }
 
+
     while (!should_close) {
-        ProfileScopeN("main_loop");
+        ProfileScopeN("MainLoop");
+
+
+        // For better latency, placing this block here
+        { ProfileScopeN("WaitForRenderQueueSpace");
+            auto *rq = &render_queue;
+
+            mutex_lock(&rq->mutex);
+
+            while (rq->is_full()) {
+                
+                condvar_sleep(&rq->condvar, &rq->mutex, -1);
+            }
+
+            condvar_wake_all(&rq->condvar);
+            mutex_unlock(&rq->mutex);
+        }
+
 
         // Time
-        u64 counter_now     = os_counter();
-        u64 counter_elapsed = counter_now - counter_prev;
-        f64 time_elapsed    = (f64)counter_elapsed / (f64)os_counter_freq();
-        counter_prev        = counter_now;
+        f64 time_new        = time_s();
+        f64 time_elapsed    = time_new - time_old;
+        time_old            = time_new;
         accumulator        += time_elapsed;
 
-        {
-            ProfileScopeN("InputProcessing");
-            // Clear and poll events.
+
+        // Input processing
+        { ProfileScopeN("InputProcessing");
             os_clear_events();
             os_poll_events();
         }
 
-        // Update
-        memcpy(&render_game_state, &game_state, sizeof(Game_State));
 
+        // Tick with fixed timestep
         for (u32 counter = 0; accumulator >= dt && counter < 10; counter += 1) {
+            ProfileScopeN("TickGame");
             accumulator -= dt;
-            tick_game(&game_state, dt);
+            game_tick(game_state, dt);
         }
 
-        tick_game(&render_game_state, accumulator);
 
+        { // Push state to render thread
+            auto *rq = &render_queue;
 
-        // @Todo: Copy game state ... how?
+            Assert(!rq->is_full());
+            auto* entry = &rq->entries[rq->write_idx];
 
-
-        // Spinlock until the ITC render queue has a room.
-        {
-            ProfileScopeN("SpinlockOnRender_ITC_SPSC_Queue");
-            while (render_queue.is_full()) { _mm_pause(); }
+            { mutex_lock(&entry->mutex);
+                game_copy(entry->game_state, game_state);
+                rq->write_idx = (rq->write_idx + 1) % array_count(rq->entries);
+            } mutex_unlock(&entry->mutex);
         }
-            
-            
-        Render_Entry entry = {};
-
-        render_queue.push(entry);
 
 
         // Close app if needed
@@ -454,9 +422,15 @@ int main_entry(int argc, char **argv)
             b32 window_close_triggered = event->kind == OS_EVENT_WINDOW_CLOSE && event->window == window;
 
             if (esc_pressed || alt_f4_pressed | window_close_triggered) {
-                should_close = true;
-                gfx->should_shutdown = true;
                 os_remove_event(event);
+
+                should_close         = true;
+
+                // Shutdown render thread
+                mutex_lock(&render_queue.mutex);
+                gfx->should_shutdown = true;
+                condvar_wake_all(&render_queue.condvar);
+                mutex_unlock(&render_queue.mutex);
             }
 
             // Fullscreen
@@ -466,8 +440,13 @@ int main_entry(int argc, char **argv)
             }
         }
 
-        clear_temporary_storage();
+        clear_thread_temporary_storage();
     }
 
+    thread_join(render_thread, -1);
+
+    game_shutdown();
+
+    log(LOG_INFO, S("Main thread returned successfully."));
     return 0;
 }

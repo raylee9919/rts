@@ -36,7 +36,7 @@ internal void thread_init();
 internal Temporary_Arena scratch_begin(void);
 internal void            scratch_end(Temporary_Arena tmp);
 
-internal void clear_temporary_storage();
+internal void clear_thread_temporary_storage();
 
 
 

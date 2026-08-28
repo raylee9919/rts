@@ -1,18 +1,69 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-void render(f64 dt, u32 sync_interval)
+global f32 VIEWPORT_WIDTH      = 1920.f;
+global f32 VIEWPORT_HEIGHT     = 1080.f;
+global Guid                 pipeline;
+global Guid                 cube_mesh;
+global RHI_Buffer          arguments_buffer;
+global RHI_Buffer_View     arguments_view;
+global void                *arguments_ptr;
+global RHI_Buffer          material_buffer;
+global RHI_Buffer_View     material_view;
+global void                *material_ptr;
+global Guid                 doggo_guid;
+global RHI_Buffer          camera_buffer;
+global RHI_Buffer_View     camera_view;
+global void                *camera_ptr;
+
+global f64 last_timestamp = 0.f;
+
+void game_tick(Game_State *g, f64 dt);
+
+GPU_Camera gpu_camera_from_game(Camera *camera) 
 {
+    GPU_Camera result = {};
+
+    f32 fov = pi32 * 0.5f;
+    f32 aspect_ratio = (f32)gfx->info.width / (f32)gfx->info.height;
+    v3 dir = (y_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
+
+    result.position  = V4(camera->position, 1.f);
+    result.view      = look_to_rh(camera->position, dir, WORLD_UP);
+    result.proj      = persp_fov_rh(fov, aspect_ratio, NEAR_Z, FAR_Z);
+    result.view_proj = result.proj * result.view;
+
+    return result;
+}
+
+void r_render(Game_State *g, f64 refresh_dt) 
+{
+    ProfileScope;
+
+    // Render tick
+    f64 dt = 0.0;
+    {
+        if (last_timestamp != 0.f) {
+            f64 new_timestamp = last_timestamp + refresh_dt;
+            dt = new_timestamp - g->time;
+            game_tick(g, dt);
+            last_timestamp = new_timestamp;
+        } else {
+            last_timestamp = g->time;
+        }
+    }
+
+
     gfx_pass_begin(RENDER_PASS_GEOMETRY);
     {
-#if 0
         gfx_pass_color_attachment(RENDER_PASS_GEOMETRY, 0, GFX_SURFACE_TEXTURE);
         gfx_pass_clear_color(RENDER_PASS_GEOMETRY, 0xff201010, 0);
 
         gfx_pass_depth_attachment(RENDER_PASS_GEOMETRY, gfx->depth_textures[gfx->current_frame % gfx->info.num_frames]);
         gfx_pass_clear_depth(RENDER_PASS_GEOMETRY, 1.f);
 
-        u32 w = resolutions[resolution_index][0];
-        u32 h = resolutions[resolution_index][1];
+        // @Temporary
+        u32 w = gfx->info.width;
+        u32 h = gfx->info.height;
         gfx_set_viewport(0.f, 0.f, w, h);
         gfx_set_scissor(0, 0, w, h);
 
@@ -32,15 +83,15 @@ void render(f64 dt, u32 sync_interval)
 
             gfx_push_constants(&c, sizeof(c));
 
+            u64 n = g->next_generational_id - 1;
             {
-                auto *state = &game_state;
-
-                for (u32 i = 0; i < NUM_ENTITIES; ++i) {
-                    auto *E = &state->entities[i];
+                for (u32 i = 0; i < n; ++i) {
+                    u64 offset = g->entities[i];
+                    Entity *E = entity_from_offset(g, offset);
 
                     Arguments *args = (Arguments *)arguments_ptr + i;
 
-                    m4x4 m = m4x4_translate(E->position) * y_rotation(state->time);
+                    m4x4 m = m4x4_translate(E->position) * y_rotation(g->time);
                     memcpy(&args->transform, &m, sizeof(args->transform));
 
                     GFX_Material *mat = gfx_material_pointer_from_guid(E->material);
@@ -50,22 +101,24 @@ void render(f64 dt, u32 sync_interval)
                     args->material_id = i;
                 }
 
-                GPU_Camera gpu_camera = gpu_camera_from_game(&state->camera);
+                GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
                 memcpy(camera_ptr, &gpu_camera, sizeof(gpu_camera));
             }
 
-            gfx_draw(cube_mesh, NUM_ENTITIES);
+            gfx_draw(cube_mesh, n);
         }
-#endif
     }
     gfx_pass_end();
 
-    gfx_end(dt, sync_interval);
+    gfx_end(g->time, 1); // @Temporary
 }
 
-void render_entry(void *param) 
+void r_entry(void *param) 
 {
-    thread_set_name(S("Render Thread"));
+    thread_set_name(S("RenderThread"));
+
+    // @Temporary
+    f64 refresh_dt = 1.0 / 120.0;
 
     { // Init
         GFX_Info init = {};
@@ -75,7 +128,7 @@ void render_entry(void *param)
         init.break_on_warning       = true;
 #endif
         init.native_window_handle   = param;
-        init.width                  = 1920; // @Temporaru
+        init.width                  = 1920; // @Temporary
         init.height                 = 1080;
 
         init.num_buffers            = 3;
@@ -84,24 +137,38 @@ void render_entry(void *param)
         gfx_init(init);
     }
 
-    {
-        Construct(&render_queue);
-        semaphore_create(&render_queue.semaphore);
-    }
-
     // Loop
     while (!gfx->should_shutdown) {
-        ProfileScopeN("Render Thread Loop");
+        ProfileScopeN("RenderThreadLoop");
 
-        {
-            ProfileScopeN("SleepOnRender_ITC_SPSC_Queue");
-            semaphore_wait(&render_queue.semaphore, -1);
+        mutex_lock(&render_queue.mutex);
+
+        while (render_queue.is_empty()) {
+            ProfileScopeN("RenderThreadSleepUntilWorkArrives");
+            condvar_sleep(&render_queue.condvar, &render_queue.mutex, -1);
         }
-        Render_Entry entry = render_queue.pop();
 
-        clear_temporary_storage();
+        Assert(!render_queue.is_empty());
+
+        auto *rq = &render_queue;
+
+        Render_Entry *entry = &rq->entries[rq->read_idx];
+        rq->read_idx = (rq->read_idx + 1) % array_count(rq->entries);
+
+        { mutex_lock(&entry->mutex);
+
+            condvar_wake_all(&rq->condvar);
+            mutex_unlock(&render_queue.mutex);
+
+            r_render(entry->game_state, refresh_dt);
+
+        } mutex_unlock(&entry->mutex);
+
+        clear_thread_temporary_storage();
     }
 
     // Cleanup
     gfx_shutdown();
+
+    log(LOG_INFO, S("Render thread returned successfully."));
 }

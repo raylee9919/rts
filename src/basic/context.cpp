@@ -57,6 +57,6 @@ void scratch_end(Temporary_Arena scratch) {
     temporary_arena_end(scratch);
 }
 
-void clear_temporary_storage() {
+void clear_thread_temporary_storage() {
     tctx.temp.proc(ALLOCATOR_MODE_FREE, 0, 0, NULL, &tctx.temp);
 }
