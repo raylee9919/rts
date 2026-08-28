@@ -35,6 +35,7 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
     return result;
 }
 
+// @Todo: Broken... turn off vsync and you'll see.
 void r_render(Game_State *g, f64 refresh_dt) 
 {
     ProfileScope;
@@ -61,7 +62,6 @@ void r_render(Game_State *g, f64 refresh_dt)
         gfx_pass_depth_attachment(RENDER_PASS_GEOMETRY, gfx->depth_textures[gfx->current_frame % gfx->info.num_frames]);
         gfx_pass_clear_depth(RENDER_PASS_GEOMETRY, 1.f);
 
-        // @Temporary
         u32 w = gfx->info.width;
         u32 h = gfx->info.height;
         gfx_set_viewport(0.f, 0.f, w, h);
@@ -71,41 +71,40 @@ void r_render(Game_State *g, f64 refresh_dt)
 
         {
             // @Temporary
-            auto *mesh = table_find_pointer(&gfx->mesh_table, cube_mesh);
 
-            // Bind root constants
-            Constants c = {};
-            c.vertex_buffer_id   = mesh->vertex_buffer_view.bindless;
-            c.linear_sampler_id  = gfx->linear_sampler.bindless;
-            c.camera_id          = camera_view.bindless;
-            c.arguments_id       = arguments_view.bindless;
-            c.material_buffer_id = material_view.bindless;
 
-            gfx_push_constants(&c, sizeof(c));
+            entity_dfs(g, g->root, [](Game_State *g, Entity *E, u64 i) {
+                // Upload arguments
+                Arguments *args = (Arguments *)arguments_ptr + i;
+                m4x4 m = m4x4_translate(E->position) * y_rotation(g->time);
+                memcpy(&args->transform, &m, sizeof(args->transform));
 
-            u64 n = g->next_generational_id - 1;
-            {
-                for (u32 i = 0; i < n; ++i) {
-                    u64 offset = g->entities[i];
-                    Entity *E = entity_from_offset(g, offset);
+                // Upload material
+                GFX_Material *mat = gfx_material_pointer_from_guid(E->material);
+                GPU_Material sm   = gpu_material_from_gfx(mat);
+                GPU_Material *dst = (GPU_Material *)material_ptr + i;
+                memcpy(dst, &sm, sizeof(sm));
+                args->material_id = i;
 
-                    Arguments *args = (Arguments *)arguments_ptr + i;
+                // Upload constants
+                auto *mesh = table_find_pointer(&gfx->mesh_table, cube_mesh);
+                Constants c = {};
+                c.vertex_buffer_id    = mesh->vertex_buffer_view.bindless;
+                c.linear_sampler_id   = gfx->linear_sampler.bindless;
+                c.camera_buffer_id    = camera_view.bindless;
+                c.arguments_buffer_id = arguments_view.bindless;
+                c.material_buffer_id  = material_view.bindless;
+                c.arguments_index = i;
+                gfx_push_constants(&c, sizeof(c));
 
-                    m4x4 m = m4x4_translate(E->position) * y_rotation(g->time);
-                    memcpy(&args->transform, &m, sizeof(args->transform));
+                // Draw
+                gfx_draw(cube_mesh, 1);
+            });
 
-                    GFX_Material *mat = gfx_material_pointer_from_guid(E->material);
-                    GPU_Material sm   = gpu_material_from_gfx(mat);
-                    GPU_Material *dst = (GPU_Material *)material_ptr + i;
-                    memcpy(dst, &sm, sizeof(sm));
-                    args->material_id = i;
-                }
 
-                GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
-                memcpy(camera_ptr, &gpu_camera, sizeof(gpu_camera));
-            }
-
-            gfx_draw(cube_mesh, n);
+            // Upload camera
+            GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
+            memcpy(camera_ptr, &gpu_camera, sizeof(gpu_camera));
         }
     }
     gfx_pass_end();

@@ -35,11 +35,12 @@ struct GPU_Material {
 };
 
 struct Constants {
-    uint32_t        vertex_buffer_id;
-    uint32_t        linear_sampler_id;
-    uint32_t        camera_id;
-    uint32_t        arguments_id;
-    uint32_t        material_buffer_id;
+  uint32_t vertex_buffer_id;
+  uint32_t linear_sampler_id;
+  uint32_t camera_buffer_id;
+  uint32_t arguments_buffer_id;
+  uint32_t arguments_index;
+  uint32_t material_buffer_id;
 };
 
 struct Arguments {

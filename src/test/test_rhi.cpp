@@ -31,11 +31,8 @@
 #define MAX_MATERIALS       1024
 
 //
-
-//
 global OS_Handle window        = {};
 global b32 should_close        = false;
-
 
 //
 global Shader_Compiler     *compiler;
@@ -108,19 +105,11 @@ void game_tick(Game_State *g, f64 dt) {
         }
     }
 
-#if 1 // Temporary
-    int n = g->next_generational_id - 1;
-    for (int i = 0; i < n; ++i) {
-        u64 offset = g->entities[i];
-        Entity *E = entity_from_offset(g, offset);
-
+    entity_dfs(g, g->root, [](Game_State *g, Entity *entity, u64 index) {
         f32 coef = 30.0f;
-        f32 idx = (f32)i;
-
-        E->position.z = coef * m_cos(idx * (pi32 * 2.0f / (f32)n));
-        E->position.x = coef * m_sin(idx * (pi32 * 2.0f / (f32)n));
-    }
-#endif
+        entity->position.z = coef * m_cos(index * (pi32 * 2.0f / (f32)g->num_entities));
+        entity->position.x = coef * m_sin(index * (pi32 * 2.0f / (f32)g->num_entities));
+    });
 }
 
 int main_entry(int argc, char **argv)

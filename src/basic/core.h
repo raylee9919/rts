@@ -118,6 +118,12 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #endif
 
 
+#define KILOBYTES(x)           ((x) * 1024ull)
+#define MEGABYTES(x)  (KILOBYTES(x) * 1024ull)
+#define GIGABYTES(x)  (MEGABYTES(x) * 1024ull)
+#define TERABYTES(x)  (GIGABYTES(x) * 1024ull)
+
+
 #define CACHE_LINE_SIZE 64 // @Temporary
 
 
@@ -425,6 +431,16 @@ force_inline u32 align_up(u32 x, u32 alignment) {
 force_inline u64 align_up(u64 x, u64 alignment) {
     Assert((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
+}
+
+force_inline void *align_up(void *x, uintptr_t alignment) {
+    Assert(alignment != 0);
+    Assert((alignment & (alignment - 1)) == 0);
+
+    uintptr_t p = (uintptr_t)x;
+    p = (p + alignment - 1) & ~(alignment - 1);
+
+    return (void *)p;
 }
 
 
