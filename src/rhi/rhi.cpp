@@ -141,6 +141,18 @@ void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
     }
 }
 
+bool rhi_surface_wait_for_waitable_object(RHI_Surface *surface) {
+    switch (surface->kind) {
+        case RHI_KIND_D3D12:
+            return d3d12_surface_wait_for_waitable_object(surface);
+
+        default:
+            Assert(0);
+    }
+
+    return false;
+}
+
 
 //
 // Buffer

@@ -3,9 +3,6 @@
 #ifndef RTS_RENDERER_H
 #define RTS_RENDERER_H
 
-#include "game.h"
-
-
 struct Game_State;
 
 enum Render_Pass : u32 {
@@ -13,15 +10,15 @@ enum Render_Pass : u32 {
 };
 
 struct Render_Entry {
-    Mutex       mutex;
-    Game_State  *game_state;
+    Mutex           mutex;
+    Game_State      *game_state;
 };
 
 struct Render_SPSC_Queue {
     Mutex           mutex;
     Condvar         condvar;
 
-    Render_Entry    entries[5]; // cap = 4
+    Render_Entry    entries[3]; // cap = 2
     s32             read_idx  = 0;
     s32             write_idx = 0;
 

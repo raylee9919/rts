@@ -42,16 +42,16 @@ void r_render(Game_State *g, f64 refresh_dt)
 
     // Render tick
     f64 dt = 0.0;
-    {
-        if (last_timestamp != 0.f) {
-            f64 new_timestamp = last_timestamp + refresh_dt;
-            dt = new_timestamp - g->time;
-            game_tick(g, dt);
-            last_timestamp = new_timestamp;
-        } else {
-            last_timestamp = g->time;
-        }
-    }
+    // {
+    //     if (last_timestamp != 0.f) {
+    //         f64 new_timestamp = last_timestamp + refresh_dt;
+    //         dt = new_timestamp - g->time;
+    //         game_tick(g, dt);
+    //         last_timestamp = new_timestamp;
+    //     } else {
+    //         last_timestamp = g->time;
+    //     }
+    // }
 
 
     gfx_pass_begin(RENDER_PASS_GEOMETRY);
@@ -135,6 +135,8 @@ void r_entry(void *param)
 
         init.num_buffers            = 3;
         init.num_frames             = 2;
+
+        init.frame_latency_waitable = false;
 
         gfx_init(init);
     }

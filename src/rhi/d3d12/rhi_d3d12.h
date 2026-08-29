@@ -4,7 +4,7 @@
 #define RTS_RHI_D3D12_H
 
 #if USE_PIX
-#include "ThirdParty/WinPixRuntimeEvent/Include/pix3.h"
+#include "third_party/WinPixRuntimeEvent/Include/pix3.h"
 #endif
 
 #define NODE_MASK                       0 // @Todo: Multiple GPUs?
@@ -86,6 +86,7 @@ struct D3D12_Device {
 
 struct D3D12_Surface {
     IDXGISwapChain4 *swap_chain_4;
+    HANDLE frame_waitable_object;
 };
 
 struct D3D12_Buffer {
@@ -138,6 +139,7 @@ internal void  d3d12_sampler_deinit(RHI_Sampler *sampler);
 internal bool  d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void  d3d12_surface_present(RHI_Surface *surface, u32 sync_interval);
 internal void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height);
+internal bool  d3d12_surface_wait_for_waitable_object(RHI_Surface *surface);
 
 internal bool  d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence);
 internal void  d3d12_fence_deinit(RHI_Semaphore *fence);

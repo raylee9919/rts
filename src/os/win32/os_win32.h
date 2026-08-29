@@ -38,14 +38,14 @@ extern "C"
 
 // D3D12
 #pragma comment(lib, "d3d12")
-#include <ThirdParty/DirectX/Include/d3d12.h>
-#include <ThirdParty/DirectX/Include/d3d12shader.h>
-#include <ThirdParty/DirectX/Include/d3dx12/d3dx12.h>
+#include <third_party/DirectX/Include/d3d12.h>
+#include <third_party/DirectX/Include/d3d12shader.h>
+#include <third_party/DirectX/Include/d3dx12/d3dx12.h>
 
 // DXC
 #pragma comment(lib, "dxcompiler")
-#include <ThirdParty/DXC/Include/dxcapi.h>
-#include <ThirdParty/DirectX/Include/d3d12compiler.h>
+#include <third_party/DXC/Include/dxcapi.h>
+#include <third_party/DirectX/Include/d3d12compiler.h>
 
 // PIX
 #if BUILD_PROFILE
@@ -57,10 +57,12 @@ typedef CRITICAL_SECTION Critical_Section;
 
 
 struct Win32_Window {
-    Win32_Window *next;
-    Win32_Window *prev;
-    HWND handle;
+    Win32_Window    *next;
+    Win32_Window    *prev;
+    HWND            handle;
     WINDOWPLACEMENT placement;
+
+    b32             keyboard_focused;
 };
 
 struct Win32_State {

@@ -61,7 +61,7 @@ REM if exist *.pdb del *.pdb
 :: ---------------------------- Tools ---------------------------- ::
 :: FBX
 if "%fbx%" == "1" (
-    call %compiler% %flags_compile% ..\src\importer\fbx_importer.cpp ..\src\ThirdParty\meshoptimizer\*.cpp -Fe:fbx.exe -I../src/ThirdParty/ufbx -link %flags_linker%
+    call %compiler% %flags_compile% ..\src\importer\fbx_importer.cpp ..\src\third_party\meshoptimizer\*.cpp -Fe:fbx.exe -I../src/third_party/ufbx -link %flags_linker%
 )
 
 :: Metaprogramming
@@ -73,7 +73,7 @@ call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
 
 :: RTS
 if "%build_rts%"=="1" (
-    call %compiler% %flags_compile% -I../src/ThirdParty/opengl ..\src\rts.cpp /Fe:rts /link opengl32.lib %flags_linker% logo.res
+    call %compiler% %flags_compile% -I../src/third_party/opengl ..\src\rts.cpp /Fe:rts /link opengl32.lib %flags_linker% logo.res
 )
 
 :: Test

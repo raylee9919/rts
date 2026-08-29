@@ -2,11 +2,11 @@
 
 #define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION
-#include "ThirdParty/stb/stb_image.h"
+#include "third_party/stb/stb_image.h"
 
 #define STBIW_ASSERT(x)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "ThirdParty/stb/stb_image_write.h"
+#include "third_party/stb/stb_image_write.h"
 
 namespace Asset
 {

@@ -3,7 +3,7 @@
 void game_state_init(Game_State **game_state_pptr) {
     // Reserve gigantic memory space and allocate game state in there.
     u64 page_size = os_query_page_size();
-    u64 rsv = align_up(TERABYTES(1), page_size);
+    u64 rsv = align_up(Gigabytes(128), page_size);
     u8 *ptr = (u8*)os_reserve(rsv);
 
     // First commit

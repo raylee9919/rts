@@ -224,6 +224,7 @@ struct RHI_Surface_Desc {
     u32   width;
     u32   height;
     u32   num_back_buffers;
+    b32   frame_latency_waitable;
 };
 
 struct RHI_Surface {
@@ -358,6 +359,7 @@ internal void  rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cm
 internal bool  rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc);
 internal void  rhi_surface_present(RHI_Surface *surface, u32 sync_interval);
 internal void  rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height);
+internal bool  rhi_surface_wait_for_waitable_object(RHI_Surface *surface);
 
 internal bool  rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap);
 internal void  rhi_buffer_deinit(RHI_Buffer *buffer);

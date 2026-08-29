@@ -8,11 +8,13 @@
 #include "os/include.h"
 #include "random/include.h"
 #include "geometry/include.h"
+#include "rect_pack/include.h"
 #include "asset/include.h"
 #include "rhi/include.h"
 #include "gfx/include.h"
 #include "renderer/include.h"
 #include "shader_compiler/include.h"
+#include "input.h"
 #include "game.h"
 #include "audio.h"
 
@@ -21,13 +23,96 @@
 #include "os/include.cpp"
 #include "random/include.cpp"
 #include "geometry/include.cpp"
+#include "rect_pack/include.cpp"
 #include "asset/include.cpp"
 #include "rhi/include.cpp"
 #include "gfx/include.cpp"
 #include "renderer/include.cpp"
 #include "shader_compiler/include.cpp"
+#include "third_party/xxhash3/xxhash.c"
+#include "input.cpp"
 #include "game.cpp"
 #include "audio.cpp"
+
+//
+//
+// TextAsset
+//      IA_MOVE = [2] bool { KeyW, JoystickUp }
+//
+// Binary
+//      231234828 2 0 123123123890 1931923123
+// 
+// THe primal form of assets are stored as human-readable form. Then, if I want
+// to compress it down afterwards, it must be represented as a binary.
+// 
+// 1. String -> uint64
+// Just use XXHash3.
+//
+// 2. Developer's code
+//
+// [i]  get_input("Move Camera");
+//
+//      Computers are fast. I don't think perf is a problem here.
+//
+//      A. Out of the language's type system scope.
+//
+//          get_input("MOve Camera") ---> fat fingered. Will crash at runtime. 
+//
+//          Uh....just don't fat finger?
+//
+//
+// [ii] get_input(IA_MoveCamera);
+//
+//      Hard to crash on strongly-typed language:) If there were no binding
+//      mapped, just return null. All good.
+//
+//      Easy to represent as binary format. It's already binary.
+//
+//
+//
+// IA_MoveCamera : 12 ----> asset stored as 12 ----> IA_MoveCamera : 13 asset
+// loader panics...! It's undefined. For [i], it's easy to fix as all you have 
+// to do it open the file and ctrl + f and modify the value. But for the case 
+// of [ii], you have to program.
+//
+// If stored as asset,
+//
+//      
+// Immediate-mode? Meaning, you as an user of an API, don't have to care about 
+// data's lifetime. If that's the case, it would look something like this: 
+//
+//      vec3 v;
+//
+//      if input(KeyW, IsDown).x {
+//          v = {0, 1, 0};
+//      }
+//
+//      v = input(JoyStick).xyz;
+//
+// Doesn't seem really bad. Now you want to display input bindings to the user.
+//
+//      draw_text("Move Camera", p_0);
+//      draw_text("KeyW",        p_1); // Keyboard
+//      draw_text("JoyStick",    p_2); // Joystick
+//      
+// Things are coupled, so I think it's better off to retain bindings and share 
+// across different places.
+//
+//      Input camera_move = {
+//          .name       = "Move Camera",
+//          .binding_1  = {       KeyW,    Bool },
+//          .binding_2  = { JoyStickUp, Vector3 },
+//      };
+//
+//      register_input(camer_move);
+//
+// The bindings should be capable to be serialized. Users want to keep their 
+// bindings across the sessions. That is, there should be a identifier.
+//
+
+
+
+
 
 //
 #define MAX_MATERIALS       1024
@@ -51,7 +136,7 @@ u32 indices[36];
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
 
-internal void render_ring_init() {
+void render_ring_init() {
     Construct(&render_queue);
 
     mutex_create(&render_queue.mutex); 
@@ -63,7 +148,7 @@ internal void render_ring_init() {
     }
 }
 
-internal void render_ring_deinit() {
+void render_ring_deinit() {
     mutex_destroy(&render_queue.mutex);
     condvar_destroy(&render_queue.condvar);
 
@@ -73,12 +158,41 @@ internal void render_ring_deinit() {
     }
 }
 
-void game_tick(Game_State *g, f64 dt) {
+static b32 input_action(String name, Input_Value *out_value) {
+    b32 result = false;
+
+    Input_Value value = {};
+
+    *out_value = value;
+
+    return result;
+}
+
+void game_tick(Game_State *g, f64 dt) 
+{
     ProfileScope;
 
     g->time += dt;
 
-    if (0) {
+    {
+#if 0
+        static bool initted = false;
+        String name = S("CameraMoveForward");
+
+        if (!initted) {
+            Input_Action action = {};
+            table_add(&input_system.action_table, name, action);
+            initted = true;
+        }
+
+        Input_Value val;
+        if (input_action(name, &val)) {
+
+        }
+#endif
+    }
+
+    {
         Camera *camera = &g->camera;
 
         f32 movement_speed = 10.f;
@@ -86,14 +200,13 @@ void game_tick(Game_State *g, f64 dt) {
 
         static v2 p0 = {};
 
-        list_for(os->first_event, event) {
-            if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT && event->window == window) {
-                os_remove_event(event);
-                p0 = event->position;
-            }
+#if 0
+        if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT && event->window == window) {
+            os_remove_event(event);
+            p0 = event->position;
         }
 
-        if (os->key_is_down[KEY_MOUSE_LEFT]) {
+        if (g->input_state.key_is_down[KEY_MOUSE_LEFT]) {
             v2 p1 = os_get_mouse_position(window);
             v2 dp = p1 - p0;
 
@@ -103,28 +216,29 @@ void game_tick(Game_State *g, f64 dt) {
 
             p0 = p1;
         }
+#endif
 
-        if (os->key_is_down[KEY_W]) {
+        if (g->input_state.key_is_down[KEY_W]) {
             camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
         }
 
-        if (os->key_is_down[KEY_S]) {
+        if (g->input_state.key_is_down[KEY_S]) {
             camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
         }
 
-        if (os->key_is_down[KEY_A]) {
+        if (g->input_state.key_is_down[KEY_A]) {
             camera->position -= dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
         }
 
-        if (os->key_is_down[KEY_D]) {
+        if (g->input_state.key_is_down[KEY_D]) {
             camera->position += dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
         }
 
-        if (os->key_is_down[KEY_E]) {
+        if (g->input_state.key_is_down[KEY_E]) {
             camera->position += dt * movement_speed * UP_VECTOR.xyz;
         }
 
-        if (os->key_is_down[KEY_Q]) {
+        if (g->input_state.key_is_down[KEY_Q]) {
             camera->position -= dt * movement_speed * UP_VECTOR.xyz;
         }
     }
@@ -160,8 +274,11 @@ int main_entry(int argc, char **argv)
     Assert(shader_compiler_init(compiler));
     compiler->include_path = S("C:\\dev\\rts\\src\\shaders\\");
 
-    // Init render queue
+    // Init render ring
     render_ring_init();
+
+    // Init input system
+    input_system_init(window);
 
     // Spin-lock until gfx is initted.
     while (!gfx || !gfx->initted) { _mm_pause(); }
@@ -362,6 +479,10 @@ int main_entry(int argc, char **argv)
         ProfileScopeN("MainLoop");
 
 
+        // Gaming experience in its finesse
+        if (!gfx_wait_for_frame_waitable_object())  log(LOG_WARNING, S("Waiting on frame latency waitable object failed."));
+
+
         // For better latency, placing this block here
         { ProfileScopeN("WaitForRenderQueueSpace");
             auto *rq = &render_queue;
@@ -369,7 +490,6 @@ int main_entry(int argc, char **argv)
             mutex_lock(&rq->mutex);
 
             while (rq->is_full()) {
-                
                 condvar_sleep(&rq->condvar, &rq->mutex, -1);
             }
 
@@ -389,6 +509,7 @@ int main_entry(int argc, char **argv)
         { ProfileScopeN("InputProcessing");
             os_clear_events();
             os_poll_events();
+            input_process(&game_state->input_state);
         }
 
 
@@ -414,8 +535,7 @@ int main_entry(int argc, char **argv)
 
 
         // Close app if needed
-        list_for(os->first_event, event) 
-        {
+        list_for(os->first_event, event)  {
             b32 esc_pressed            = event->kind == OS_EVENT_PRESS && event->key == KEY_ESC;
             b32 alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
             b32 window_close_triggered = event->kind == OS_EVENT_WINDOW_CLOSE && event->window == window;
@@ -445,6 +565,7 @@ int main_entry(int argc, char **argv)
     thread_join(audio_thread, -1);
     thread_join(render_thread, -1);
 
+    input_system_shutdown();
     render_ring_deinit();
     game_deinit();
 

@@ -70,6 +70,8 @@ struct GFX_Info {
 
     u32         num_buffers;
     u32         num_frames;
+
+    b32         frame_latency_waitable;
 };
 
 struct GFX_Mesh { 
@@ -287,6 +289,8 @@ internal void                   gfx_push_constants(void *data, u32 size);
 internal void                   gfx_draw(Guid mesh_id);
 
 internal void                   gfx_end(f64 dt, u32 sync_interval);
+
+internal bool                   gfx_wait_for_frame_waitable_object();
 
 internal void                   gfx_request_swapchain_resize(u32 width, u32 height);
 

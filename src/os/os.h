@@ -120,7 +120,8 @@ struct OS_Window {
 
 // Events
 //
-enum OS_Key : u32 {
+#define KEY_GOOD_CAP 256
+enum OS_Key : u16 {
     KEY_NULL,
 
     KEY_ESC,
@@ -249,6 +250,7 @@ enum OS_Event_Kind : u32 {
 
     OS_EVENT_PRESS,
     OS_EVENT_RELEASE,
+
     OS_EVENT_MOUSE_MOVE,
     OS_EVENT_TEXT,
     OS_EVENT_SCROLL,
@@ -337,8 +339,10 @@ struct OS_State {
 
     // Input
     OS_Key      vk_to_key[512];
+#if 0
     b8          key_is_down[512];
     b8          key_was_down[512];
+#endif
     
     // Path
     String binary_path;

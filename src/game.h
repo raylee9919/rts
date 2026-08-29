@@ -3,7 +3,6 @@
 #ifndef RTS_GAME_H
 #define RTS_GAME_H
 
-
 #define MAX_ENTITIES        16384
 #define WORLD_UP            v3{ 0.f,  1.f,  0.f}
 #define FORWARD_VECTOR      v4{ 0.f,  0.f, -1.f, 1.f}
@@ -12,11 +11,9 @@
 #define NEAR_Z              1e-3f
 #define FAR_Z               1e9f
 
-
-struct Input_State {
-
-};
-
+#ifndef FUCKYOU
+# error ASdaSd
+#endif
 
 struct Handle {
     // You can think of Handle as a pointer. The difference is that while a
@@ -68,6 +65,8 @@ struct Game_State {
     Game_Storage    storage;
 
     f64             time;
+
+    Input_State     input_state;
 
     u64             next_generational_id = 1;
     u64             num_entities;

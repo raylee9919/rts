@@ -434,6 +434,33 @@ bool os_directory_exists(String path) {
 
 // GFX
 //
+static Win32_Window *win32_window_from_handle(OS_Handle handle) {
+    Win32_State *state = (Win32_State *)os->native;
+    HWND hwnd = hwnd_from_os_handle(handle);
+
+    list_for (state->window_first, it) {
+        if (it->handle == hwnd) return it;
+    }
+
+    return NULL;
+}
+
+static Win32_Window *win32_window_alloc() {
+    Win32_State *state = (Win32_State *)os->native;
+    Win32_Window *window = state->window_free_first;
+
+    if (window == NULL) {
+        window = push_struct(state->window_arena, Win32_Window);
+    } else {
+        sll_pop_front(state->window_free_first, state->window_free_last);
+        memset(window, 0, sizeof(*window));
+    }
+
+    dll_push_back(state->window_first, state->window_last, window);
+
+    return window;
+}
+
 OS_Modifiers os_get_modifiers() {
     OS_Modifiers result = 0;
 
@@ -442,6 +469,13 @@ OS_Modifiers os_get_modifiers() {
     if (GetKeyState(VK_MENU)    & 0x8000) result |= OS_MODIFIER_ALT;
 
     return result;
+}
+
+static void window_set_focused(OS_Handle handle, bool focus) {
+    Win32_Window *window = win32_window_from_handle(handle);
+    if (window) {
+        window->keyboard_focused = focus;
+    }
 }
 
 LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -544,7 +578,8 @@ LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             OS_Key        key = KEY_NULL;
             v2            position;
 
-            // Press? Release?
+            // SetCaputre() allows the release event to be triggered even if
+            // release happens outside the window.
             if (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN) {
                 kind = OS_EVENT_PRESS;
                 SetCapture(hwnd);
@@ -553,13 +588,13 @@ LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                 ReleaseCapture();
             }
 
-            // Key?
+            // Key
             if      (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP) key = KEY_MOUSE_LEFT;
             else if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONUP) key = KEY_MOUSE_RIGHT;
             else if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONUP) key = KEY_MOUSE_MIDDLE;
             else assert(!"Undefined key.");
 
-            // Mouse position?
+            // Mouse position
             f32 x = (f32)(s16)LOWORD(lparam);
             f32 y = (f32)(s16)HIWORD(lparam);
             position = v2{x, y};
@@ -612,15 +647,28 @@ LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         } break;
 
 
-        // @Todo: WM_SETCURSOR
-
+        // Keyboard Focus
+        //
         case WM_KILLFOCUS: {
+            window_set_focused(window_handle, false);
+        } break;
+
+        case WM_SETFOCUS: {
+            window_set_focused(window_handle, true);
+        } break;
+
+
+        // Mouse Capture
+        //
+        case WM_CAPTURECHANGED: {
             // @Todo:
         } break;
+
 
         case WM_DPICHANGED: {
             // @Todo:
         } break;
+
 
         case WM_DROPFILES: {
             // @Todo:
@@ -650,33 +698,6 @@ void os_gfx_init() {
     ShowCursor(TRUE);
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-}
-
-static Win32_Window *win32_window_from_handle(OS_Handle handle) {
-    Win32_State *state = (Win32_State *)os->native;
-    HWND hwnd = hwnd_from_os_handle(handle);
-
-    list_for (state->window_first, it) {
-        if (it->handle == hwnd) return it;
-    }
-
-    return NULL;
-}
-
-static Win32_Window *win32_window_alloc() {
-    Win32_State *state = (Win32_State *)os->native;
-    Win32_Window *window = state->window_free_first;
-
-    if (window == NULL) {
-        window = push_struct(state->window_arena, Win32_Window);
-    } else {
-        sll_pop_front(state->window_free_first, state->window_free_last);
-        memset(window, 0, sizeof(*window));
-    }
-
-    dll_push_back(state->window_first, state->window_last, window);
-
-    return window;
 }
 
 void os_window_dealloc(OS_Handle handle) {
@@ -774,7 +795,7 @@ void os_poll_events() {
         }
     }
 
-    // 
+#if 0
     BYTE vk_state[256];
     GetKeyboardState(vk_state);
     u64 sz = sizeof(os->key_is_down[0])*array_count(os->key_is_down);
@@ -783,6 +804,7 @@ void os_poll_events() {
         OS_Key key = os->vk_to_key[vk];
         os->key_is_down[key] = vk_state[vk] & 0x80;
     }
+#endif
 }
 
 OS_Event* os_push_event() {

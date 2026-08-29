@@ -1510,8 +1510,9 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
         swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
         // @Todo
-        //swap_chain_desc.Flags = (DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING |
-        //                         DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT); 
+        swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
+        if (desc->frame_latency_waitable)  swap_chain_desc.Flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
     }
 
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC *fullscreen_desc = NULL;
@@ -1544,7 +1545,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 
         hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
         if (FAILED(hr)) {
-            log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer failed."), string_from_hresult(hr), hr);
+            log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer() failed."), string_from_hresult(hr), hr);
             return false;
         }
 
@@ -1558,7 +1559,21 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
         tex->desc.depth      = 1;
     }
 
+    // Get initial back buffer index.
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
+
+    if (desc->frame_latency_waitable) {
+        // Get frame latency waitable object
+        surface->d3d12.frame_waitable_object = surface->d3d12.swap_chain_4->GetFrameLatencyWaitableObject();
+
+        // It's basically setting the present queue capacity.
+        hr = surface->d3d12.swap_chain_4->SetMaximumFrameLatency(2);
+        if (FAILED(hr)) {
+            log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain2::SetMaximumFrameLatency() failed."), string_from_hresult(hr), hr);
+            return false;
+        }
+    }
+
 
     log(LOG_INFO, S("Initialized d3d12 surface."));
     return true;
@@ -1590,6 +1605,16 @@ void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
     surface->desc.width          = width;
     surface->desc.height         = height;
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
+}
+
+bool d3d12_surface_wait_for_waitable_object(RHI_Surface *surface) {
+    if (surface->d3d12.frame_waitable_object != NULL) {
+        DWORD result = WaitForSingleObjectEx(surface->d3d12.frame_waitable_object, 1000, true);
+        if (result == WAIT_FAILED) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // Fence

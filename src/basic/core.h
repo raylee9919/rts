@@ -118,10 +118,10 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #endif
 
 
-#define KILOBYTES(x)           ((x) * 1024ull)
-#define MEGABYTES(x)  (KILOBYTES(x) * 1024ull)
-#define GIGABYTES(x)  (MEGABYTES(x) * 1024ull)
-#define TERABYTES(x)  (GIGABYTES(x) * 1024ull)
+#define Kilobytes(x)           ((x) * 1024ull)
+#define Megabytes(x)  (Kilobytes(x) * 1024ull)
+#define Gigabytes(x)  (Megabytes(x) * 1024ull)
+#define Terabytes(x)  (Gigabytes(x) * 1024ull)
 
 
 #define CACHE_LINE_SIZE 64 // @Temporary
