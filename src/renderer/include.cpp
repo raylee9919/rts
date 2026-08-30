@@ -35,7 +35,6 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
     return result;
 }
 
-// @Todo: Broken... turn off vsync and you'll see.
 void r_render(Game_State *g, f64 refresh_dt) 
 {
     ProfileScope;
@@ -112,7 +111,7 @@ void r_render(Game_State *g, f64 refresh_dt)
     }
     gfx_pass_end();
 
-    gfx_end(g->time, 1); // @Temporary
+    gfx_end(g->time, gfx->info.vsync_off ? 0 : 1);
 }
 
 void r_entry(void *param) 
@@ -136,7 +135,9 @@ void r_entry(void *param)
         init.num_buffers            = 3;
         init.num_frames             = 2;
 
-        init.frame_latency_waitable = false;
+        init.vsync_off              = false;
+
+        init.frame_latency_waitable = true;
 
         gfx_init(init);
     }

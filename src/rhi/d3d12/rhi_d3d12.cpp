@@ -1219,8 +1219,8 @@ bool d3d12_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *
 
             // @Study: Is setting flags in buffers expensive?
             resource_desc.Flags = (desc->memory_type == RHI_MEMORY_UPLOAD || desc->memory_type == RHI_MEMORY_READBACK ?
-                                    D3D12_RESOURCE_FLAG_NONE :
-                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+                                   D3D12_RESOURCE_FLAG_NONE :
+                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         }
 
         HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE,
@@ -1580,9 +1580,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
 }
 
 void d3d12_surface_present(RHI_Surface *surface, u32 sync_interval) {
-    // @Todo: VSync off
-    UINT flags = 0;
-
+    UINT flags = sync_interval == 0 ? DXGI_PRESENT_ALLOW_TEARING : 0;
     surface->d3d12.swap_chain_4->Present(sync_interval, flags);
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }

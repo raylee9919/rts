@@ -25,7 +25,7 @@ enum {
 };
 
 global read_only constexpr u64 gfx_key_lengths[GFX_KEY_COUNT] = {
-    5, 16, 8
+    5, 16, 16
 };
 global read_only constexpr u64 gfx_key_offsets[GFX_KEY_COUNT] = {
     0,
@@ -51,8 +51,7 @@ struct GFX_Sort_Key {
 // GUID to uint32
 //
 static force_inline u32 gfx_128_to_32(Guid guid) {
-    // @Todo: Not critical as it's used for hash table index, but is there a 
-    //        better way?
+    // @Todo: Not critical as it's just used for hash table index, but is there a better way?
     return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
 }
 
@@ -70,6 +69,8 @@ struct GFX_Info {
 
     u32         num_buffers;
     u32         num_frames;
+
+    b32         vsync_off;
 
     b32         frame_latency_waitable;
 };

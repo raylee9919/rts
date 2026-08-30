@@ -17,6 +17,7 @@
 #include "input.h"
 #include "game.h"
 #include "audio.h"
+#include "serializer.h"
 
 #include "basic/include.cpp"
 #include "math/include.cpp"
@@ -33,84 +34,7 @@
 #include "input.cpp"
 #include "game.cpp"
 #include "audio.cpp"
-
-//
-//
-// TextAsset
-//      IA_MOVE = [2] bool { KeyW, JoystickUp }
-//
-// Binary
-//      231234828 2 0 123123123890 1931923123
-// 
-// THe primal form of assets are stored as human-readable form. Then, if I want
-// to compress it down afterwards, it must be represented as a binary.
-// 
-// 1. String -> uint64
-// Just use XXHash3.
-//
-// 2. Developer's code
-//
-// [i]  get_input("Move Camera");
-//
-//      Computers are fast. I don't think perf is a problem here.
-//
-//      A. Out of the language's type system scope.
-//
-//          get_input("MOve Camera") ---> fat fingered. Will crash at runtime. 
-//
-//          Uh....just don't fat finger?
-//
-//
-// [ii] get_input(IA_MoveCamera);
-//
-//      Hard to crash on strongly-typed language:) If there were no binding
-//      mapped, just return null. All good.
-//
-//      Easy to represent as binary format. It's already binary.
-//
-//
-//
-// IA_MoveCamera : 12 ----> asset stored as 12 ----> IA_MoveCamera : 13 asset
-// loader panics...! It's undefined. For [i], it's easy to fix as all you have 
-// to do it open the file and ctrl + f and modify the value. But for the case 
-// of [ii], you have to program.
-//
-// If stored as asset,
-//
-//      
-// Immediate-mode? Meaning, you as an user of an API, don't have to care about 
-// data's lifetime. If that's the case, it would look something like this: 
-//
-//      vec3 v;
-//
-//      if input(KeyW, IsDown).x {
-//          v = {0, 1, 0};
-//      }
-//
-//      v = input(JoyStick).xyz;
-//
-// Doesn't seem really bad. Now you want to display input bindings to the user.
-//
-//      draw_text("Move Camera", p_0);
-//      draw_text("KeyW",        p_1); // Keyboard
-//      draw_text("JoyStick",    p_2); // Joystick
-//      
-// Things are coupled, so I think it's better off to retain bindings and share 
-// across different places.
-//
-//      Input camera_move = {
-//          .name       = "Move Camera",
-//          .binding_1  = {       KeyW,    Bool },
-//          .binding_2  = { JoyStickUp, Vector3 },
-//      };
-//
-//      register_input(camer_move);
-//
-// The bindings should be capable to be serialized. Users want to keep their 
-// bindings across the sessions. That is, there should be a identifier.
-//
-
-
+#include "serializer.cpp"
 
 
 
@@ -158,16 +82,6 @@ void render_ring_deinit() {
     }
 }
 
-static b32 input_action(String name, Input_Value *out_value) {
-    b32 result = false;
-
-    Input_Value value = {};
-
-    *out_value = value;
-
-    return result;
-}
-
 void game_tick(Game_State *g, f64 dt) 
 {
     ProfileScope;
@@ -192,15 +106,19 @@ void game_tick(Game_State *g, f64 dt)
 #endif
     }
 
+
     {
         Camera *camera = &g->camera;
 
+        Input_State *I = &g->input_state;
+
         f32 movement_speed = 10.f;
         f32 turn_speed     = 0.25f;
+    }
 
-        static v2 p0 = {};
 
 #if 0
+        static v2 p0 = {};
         if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT && event->window == window) {
             os_remove_event(event);
             p0 = event->position;
@@ -218,6 +136,7 @@ void game_tick(Game_State *g, f64 dt)
         }
 #endif
 
+#if 0
         if (g->input_state.key_is_down[KEY_W]) {
             camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
         }
@@ -241,14 +160,22 @@ void game_tick(Game_State *g, f64 dt)
         if (g->input_state.key_is_down[KEY_Q]) {
             camera->position -= dt * movement_speed * UP_VECTOR.xyz;
         }
-    }
+#endif
 
     entity_dfs(g, g->root, [](Game_State *g, Entity *entity, u64 index) {
-        f32 coef = 30.0f;
-        entity->position.z = coef * m_cos(index * (pi32 * 2.0f / (f32)g->num_entities));
-        entity->position.x = coef * m_sin(index * (pi32 * 2.0f / (f32)g->num_entities));
+        f32 spacing = 3.0f;
+
+        u32 x = index % 10;
+        u32 y = (index / 10) % 10;
+        u32 z = index / 100;
+
+        entity->position.x = ((f32)x - 4.5f) * spacing;
+        entity->position.y = ((f32)y - 4.5f) * spacing;
+        entity->position.z = ((f32)z - 4.5f) * spacing;
     });
 }
+
+Serializer srlz = {};
 
 int main_entry(int argc, char **argv)
 {
@@ -287,9 +214,9 @@ int main_entry(int argc, char **argv)
     game_state->camera.position = v3(0.f, 6.f, 15.f);
 
     // Make a cube
-    cube_mesh = guid_generate();
+    cube_mesh._64[0] = 7474; // @Temporary
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
-
+    
 
     {
         String shader_source = read_entire_file(S("../src/shaders/shader.hlsl"), tctx.allocator);
@@ -386,7 +313,7 @@ int main_entry(int argc, char **argv)
 
         { // Create arguments buffer and view
             u64 stride = sizeof(Arguments);
-            u64 sz     = stride * 1024; // @Temporary
+            u64 sz     = stride * 16777216; // @Temporary
 
             RHI_Buffer_Desc desc = {};
             desc.memory_type = RHI_MEMORY_UPLOAD;
@@ -459,22 +386,22 @@ int main_entry(int argc, char **argv)
 
 
     // @Temporary: Initialize entities.
-    for (int i = 0; i < 64; ++i) {
+    for (int i = 0; i < 256; ++i) {
         Entity *E = entity_alloc(game_state);
 
         E->mesh     = cube_mesh;
-        E->material = guid_generate();
+        E->material._64[0] = 6969; // @Temporary
+
+        // ..or read from asset pack.
 
         GFX_Material material = {};
         material.albedo         = unpack_rgba(xorshift32()).xyz;
         material.albedo_texture = doggo_guid;
 
-        // ..or read from asset pack.
-
         gfx_material_alloc(E->material, material);
     }
 
-
+    
     while (!should_close) {
         ProfileScopeN("MainLoop");
 

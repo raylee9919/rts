@@ -766,6 +766,7 @@ void gfx_end(f64 time, u32 sync_interval)
 }
 
 bool gfx_wait_for_frame_waitable_object() {
+    ProfileScope;
     return rhi_surface_wait_for_waitable_object(gfx->surface);
 }
 

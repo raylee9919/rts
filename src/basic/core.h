@@ -57,10 +57,17 @@
 #  define per_thread __thread
 #endif
 
-#ifdef _MSC_VER
+#ifdef COMPILER_CL
 #  define force_inline  __forceinline
 #else
 #  define force_inline  __attribute__((always_inline))
+#endif
+
+
+#if COMPILER_CL
+#  define FUNCTION_SIGNATURE __FUNCSIG__
+#elif COMPILER_CLANG || COMPILER_GCC
+#  define FUNCTION_SIGNATURE __PRETTY_FUNCTION__
 #endif
 
 
@@ -76,7 +83,7 @@
 
 // NOTE: Address Sanitizer
 //
-#if COMPILER_MSVC
+#if COMPILER_CL
 # if defined(__SANITIZE_ADDRESS__)
 #  define ASAN_ENABLED 1
 #  define NO_ASAN __declspec(no_sanitize_address)

@@ -11,9 +11,6 @@
 #define NEAR_Z              1e-3f
 #define FAR_Z               1e9f
 
-#ifndef FUCKYOU
-# error ASdaSd
-#endif
 
 struct Handle {
     // You can think of Handle as a pointer. The difference is that while a

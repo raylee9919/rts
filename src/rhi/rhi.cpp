@@ -118,6 +118,8 @@ bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc
 }
 
 void rhi_surface_present(RHI_Surface *surface, u32 sync_interval) {
+    ProfileScope;
+
     switch (surface->kind) {
         case RHI_KIND_D3D12:
             d3d12_surface_present(surface, sync_interval);
