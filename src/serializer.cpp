@@ -120,9 +120,8 @@ internal void serialize(Serializer *s, Guid *data) {
     s->cursor += sz;
 }
 
-// Game
-//
-internal void serialize(Serializer *s, Entity *entity) {
+internal void serialize(Serializer *s, Entity *entity) 
+{
     SRLZ_ADD( VER_0, entity, position );
     SRLZ_ADD( VER_0, entity, mesh );
     SRLZ_ADD( VER_0, entity, material );

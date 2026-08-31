@@ -776,7 +776,8 @@ void gfx_request_swapchain_resize(u32 width, u32 height) {
     gfx->resize_height    = height;
 }
 
-GPU_Material gpu_material_from_gfx(GFX_Material *material) {
+GPU_Material gpu_material_from_gfx(GFX_Material *material) 
+{
     GPU_Material result = {};
 
     result.albedo    = material->albedo;
@@ -785,6 +786,9 @@ GPU_Material gpu_material_from_gfx(GFX_Material *material) {
 
     result.albedo_id = gfx_bindless_from_texture(material->albedo_texture, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
     result.orm_id    = gfx_bindless_from_texture(material->orm_texture, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
+
+    if (material->flags & GFX_MATERIAL_FLAG_PARALLAX)  
+        result.flags |= GPU_MATERIAL_FLAG_PARALLAX;
 
     return result;
 }

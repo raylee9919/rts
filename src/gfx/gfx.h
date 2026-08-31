@@ -119,13 +119,20 @@ enum {
 };
 static_assert(GFX_PASS_FLAG_CLEAR_COLOR_MAX_OPL == (1 << RHI_MAX_COLOR_ATTACHMENTS));
 
-struct GFX_Material {
-    v3          albedo         = v3{1.f, 1.f, 1.f};
-    f32         metallic       = 0.f;
-    f32         roughness      = 1.f;
+typedef u16 GFX_Material_Flags;
+enum {
+    GFX_MATERIAL_FLAG_PARALLAX = (1 << 0),
+};
 
-    Guid        albedo_texture = NULL_GUID;
-    Guid        orm_texture    = NULL_GUID;
+struct GFX_Material {
+    v3                  albedo         = v3{1.f, 1.f, 1.f};
+    f32                 metallic       = 0.f;
+    f32                 roughness      = 1.f;
+
+    Guid                albedo_texture = NULL_GUID;
+    Guid                orm_texture    = NULL_GUID;
+
+    GFX_Material_Flags  flags           = 0;
 };
 
 struct GFX_Pass_State {

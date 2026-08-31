@@ -25,6 +25,8 @@ struct GPU_Camera {
     m4x4 view_proj;
 };
 
+#define GPU_MATERIAL_FLAG_PARALLAX  (1 << 0)
+
 struct GPU_Material {
     v3              albedo;
     float           metallic;
@@ -32,15 +34,17 @@ struct GPU_Material {
 
     uint32_t        albedo_id;
     uint32_t        orm_id;
+
+    uint32_t        flags;
 };
 
 struct Constants {
-  uint32_t vertex_buffer_id;
-  uint32_t linear_sampler_id;
-  uint32_t camera_buffer_id;
-  uint32_t arguments_buffer_id;
-  uint32_t arguments_index;
-  uint32_t material_buffer_id;
+    uint32_t        vertex_buffer_id;
+    uint32_t        linear_sampler_id;
+    uint32_t        camera_buffer_id;
+    uint32_t        arguments_buffer_id;
+    uint32_t        arguments_index;
+    uint32_t        material_buffer_id;
 };
 
 struct Arguments {

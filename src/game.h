@@ -12,11 +12,11 @@
 #define FAR_Z               1e9f
 
 
+// You can think of Handle as a pointer. The difference is that while a
+// "real" pointers is in the process's address space, a Handle is an offset
+// into the Game_Storage's HUGE reserved address space.
+//
 struct Handle {
-    // You can think of Handle as a pointer. The difference is that while a
-    // "real" pointers is in the process's address space, a Handle is an offset
-    // into the Game_Storage's HUGE reserved address space.
-    //
     u64             offset;
     u64             generational_id;
 
@@ -25,6 +25,7 @@ struct Handle {
     force_inline bool is_null() { return ((offset == 0) && (generational_id == 0)); }
 };
 
+// Be meticulous whenever you add or remove a field from the entitiy struct!
 struct Entity {
     u64             generational_id;
 

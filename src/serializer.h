@@ -19,11 +19,6 @@
     }
 
 
-enum Serialize_Mode {
-    SERIALIZE_BINARY            = 0,
-    SERIALIZE_HUMAN_READABLE    = 1,
-};
-
 enum Data_Version : s32 {
     VER_0 = 0,
     VER_LATEST
@@ -37,6 +32,5 @@ struct Serializer {
 };
 
 internal void serializer_init(Serializer *s, Data_Version version, void *ptr, b32 is_writing);
-
 
 #endif // RTS_SERIALIZER_H
