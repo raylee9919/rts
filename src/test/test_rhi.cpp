@@ -23,6 +23,7 @@
 #include "math/include.cpp"
 #include "os/include.cpp"
 #include "random/include.cpp"
+#include "third_party/xxhash3/xxhash.c"
 #include "geometry/include.cpp"
 #include "rect_pack/include.cpp"
 #include "asset/include.cpp"
@@ -30,7 +31,6 @@
 #include "gfx/include.cpp"
 #include "renderer/include.cpp"
 #include "shader_compiler/include.cpp"
-#include "third_party/xxhash3/xxhash.c"
 #include "input.cpp"
 #include "game.cpp"
 #include "audio.cpp"
@@ -174,8 +174,6 @@ void game_tick(Game_State *g, f64 dt)
         entity->position.z = ((f32)z - 4.5f) * spacing;
     });
 }
-
-Serializer srlz = {};
 
 int main_entry(int argc, char **argv)
 {
@@ -403,8 +401,7 @@ int main_entry(int argc, char **argv)
 
     
     while (!should_close) {
-        ProfileScopeN("MainLoop");
-
+        ProfileFrameMark;
 
         // Gaming experience in its finesse
         if (!gfx_wait_for_frame_waitable_object())  log(LOG_WARNING, S("Waiting on frame latency waitable object failed."));

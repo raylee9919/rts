@@ -5,17 +5,6 @@
 
 #define COM_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
 
-#define NOMINMAX
-#define UNICODE
-#define _UNICODE
-#include <windows.h>
-#include <windowsx.h>
-#include <shlobj.h>
-#include <Xinput.h>
-#include <psapi.h>
-#include <uxtheme.h>
-#include <vssym32.h>
-
 #pragma comment(lib, "user32")
 #pragma comment(lib, "gdi32")
 #pragma comment(lib, "uxtheme")
@@ -30,22 +19,11 @@ extern "C"
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
-// DXGI
+// DXGI, D3D12, DXC
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "dxguid")
-#include <dxgi1_6.h>
-#include <dxgidebug.h>
-
-// D3D12
 #pragma comment(lib, "d3d12")
-#include <third_party/DirectX/Include/d3d12.h>
-#include <third_party/DirectX/Include/d3d12shader.h>
-#include <third_party/DirectX/Include/d3dx12/d3dx12.h>
-
-// DXC
 #pragma comment(lib, "dxcompiler")
-#include <third_party/DXC/Include/dxcapi.h>
-#include <third_party/DirectX/Include/d3d12compiler.h>
 
 // PIX
 #if BUILD_PROFILE

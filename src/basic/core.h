@@ -135,13 +135,6 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 
 
 
-// 3rd-party include
-//
-#include <stdint.h>
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
-
 #define internal        static
 #define global          static
 #define local_persist   static

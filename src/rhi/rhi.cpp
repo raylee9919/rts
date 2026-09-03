@@ -160,6 +160,8 @@ bool rhi_surface_wait_for_waitable_object(RHI_Surface *surface) {
 // Buffer
 //
 bool rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap) {
+    ProfileScope;
+
     buffer->kind = device->kind;
     buffer->desc = *desc;
 
@@ -209,6 +211,8 @@ void rhi_buffer_unmap(RHI_Buffer *buffer) {
 }
 
 void rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc) {
+    ProfileScope;
+
     view->kind = device->kind;
     view->desc = *desc;
 
@@ -224,6 +228,8 @@ void rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer 
 }
 
 void rhi_buffer_view_deinit(RHI_Buffer_View *view) {
+    ProfileScope;
+
     switch (view->kind) {
         case RHI_KIND_D3D12:
             d3d12_buffer_view_deinit(view);
@@ -240,6 +246,8 @@ void rhi_buffer_view_deinit(RHI_Buffer_View *view) {
 // Texture
 //
 bool rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
+    ProfileScope;
+
     texture->kind = device->kind;
     texture->desc = *desc;
 
@@ -266,6 +274,8 @@ void rhi_texture_deinit(RHI_Texture *texture) {
 }
 
 void rhi_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc) {
+    ProfileScope;
+
     view->kind = device->kind;
     view->desc = *desc;
 
@@ -281,6 +291,8 @@ void rhi_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Textu
 }
 
 void rhi_texture_view_deinit(RHI_Texture_View *view) {
+    ProfileScope;
+
     switch (view->kind) {
         case RHI_KIND_D3D12:
             d3d12_texture_view_deinit(view);

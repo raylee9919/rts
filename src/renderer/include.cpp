@@ -51,7 +51,10 @@ void r_render(Game_State *g, f64 refresh_dt)
     //         last_timestamp = g->time;
     //     }
     // }
+    
+    GFX_Pass pass1 = {};
 
+    GFX_Pass pass2 = {};
 
     gfx_pass_begin(RENDER_PASS_GEOMETRY);
     {
@@ -95,7 +98,7 @@ void r_render(Game_State *g, f64 refresh_dt)
                     c.camera_buffer_id    = camera_view.bindless;
                     c.arguments_buffer_id = arguments_view.bindless;
                     c.material_buffer_id  = material_view.bindless;
-                    c.arguments_index = i;
+                    c.arguments_index     = i;
                     gfx_push_constants(&c, sizeof(c));
 
                     // Draw

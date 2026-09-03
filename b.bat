@@ -26,9 +26,10 @@ if "%release%"=="1" set debug=0 && echo [Release Build]
 
 if "%fbx%"=="1"    set build_fbx=1
 if "%rts%"=="1"    set build_rts=1
+if "%pch%"=="1"    set build_pch=1
 if "%t%"=="1"      set build_test=1
 
-if not defined build_fbx if not defined build_rts if not defined build_test (
+if not defined build_fbx if not defined build_rts if not defined build_pch if not defined build_test (
     set "build_rts=1"
     echo building all..
 )
@@ -56,7 +57,12 @@ if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address && 
 if not exist build mkdir build
 pushd build
 
-REM if exist *.pdb del *.pdb
+if not exist pch.obj  set build_pch=1
+
+:: PCH
+if "%build_pch%" == "1" (
+    call %compiler% /c %flags_compile% /Yc"pch.h" /Fp:pch.pch /Fo:pch.obj ..\src\pch.cpp || exit /b 1
+)
 
 :: ---------------------------- Tools ---------------------------- ::
 :: FBX
@@ -79,11 +85,10 @@ if "%build_rts%"=="1" (
 :: Test
 if "%build_test%"=="1" (
     REM call %compiler% %flags_compile% ..\src\Test\test_ds.cpp  /Fe:test_ds  /link %flags_linker%
-    call %compiler% %flags_compile% ..\src\Test\test_rhi.cpp /Fe:test_rhi /link %flags_linker%
+    call %compiler% %flags_compile% /Yu"pch.h" /Fp:pch.pch /FI"pch.h" ..\src\Test\test_rhi.cpp pch.obj /Fe:test_rhi /link %flags_linker%
     REM call %compiler% %flags_compile% ..\src\Test\test_thread.cpp /Fe:test_thread /link %flags_linker%
 )
 
-del *.obj *.res >nul
 popd
 
 :: CTIME End

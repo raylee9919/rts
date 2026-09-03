@@ -3,10 +3,7 @@
 #ifndef RTS_GFX_H
 #define RTS_GFX_H
 
-#define GFX_PASS_NULL               0xffffffffffffffff
-#define GFX_PIPELINE_INVALID        UINT64_MAX
-
-#define GFX_FIRST_PUSH_CONSTANTS    0
+#define GFX_INVALID                 UINT64_MAX
 
 // Minimum and maximum count of set of frame resources.
 #define GFX_MIN_FRAME_COUNT         1
@@ -24,17 +21,17 @@ enum {
     GFX_KEY_COUNT
 };
 
+// Each bitfield's length in sort key.
 global read_only constexpr u64 gfx_key_lengths[GFX_KEY_COUNT] = {
     5, 16, 16
 };
-global read_only constexpr u64 gfx_key_offsets[GFX_KEY_COUNT] = {
-    0,
-    gfx_key_lengths[0],
-    gfx_key_lengths[0] + gfx_key_lengths[1],
-};
 
-global read_only constexpr u64 GFX_MAX_PASS      = (1ull << gfx_key_lengths[GFX_KEY_PASS]);
-global read_only constexpr u64 GFX_MAX_PIPELINES = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
+// Each bitfield's offset in sort key. Filled at initialization.
+global u64 gfx_key_offsets[GFX_KEY_COUNT] = { 0 };
+
+global read_only constexpr u64 GFX_MAX_PASS             = (1ull << gfx_key_lengths[GFX_KEY_PASS]);
+global read_only constexpr u64 GFX_MAX_PIPELINES        = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
+global read_only constexpr u64 GFX_MAX_PUSH_CONSTANTS   = (1ull << gfx_key_lengths[GFX_KEY_CONSTANTS]);
 
 static_assert([] {
     u64 sum = 0;
@@ -148,6 +145,10 @@ struct GFX_Pass_State {
     f32                 depth;
 };
 
+struct GFX_Pass {
+    
+};
+
 struct GFX_Command {
     u64          pipeline_index;
     u32          push_constant_index;
@@ -222,16 +223,22 @@ struct GFX_State {
 
     // gfx's draw calls encode commands into the buffer by the current context.
     // Later commands get sorted by key and submitted to the GPU.
-    u64                                     current_pass = GFX_PASS_NULL;
+    u64                                     context_pass = GFX_INVALID;
+
 
     // Transient pipeline frame data
-    u64                                     context_pipeline = GFX_PIPELINE_INVALID;  // Currently set transient pipeline index
-    u64                                     next_pipeline    = 0;                     // Next transient pipeline index to acquire
-    Array<Guid>                             pipelines;                                // pipelines[transient pipeline index] = guid
-    Table <Guid, u64, gfx_128_to_32>        pipeline_to_index_this_frame;             // increments index if new pipeline was encountered this frame
+    u64                                     context_pipeline        = GFX_INVALID;  // Currently set transient pipeline index. Draw calls incorporates this.
+    u64                                     next_pipeline           = 0;            // Next transient pipeline index to acquire.
+    Array<Guid>                             pipelines;                              // pipelines[transient pipeline index] = guid.
+    Table <Guid, u64, gfx_128_to_32>        pipeline_to_index_this_frame;           // increments index if new pipeline was encountered this frame.
 
-    u64                                     current_push_constants = 0;
+
+    // Transient push constants data
+    u64                                     context_push_constants = GFX_INVALID;
+    u64                                     next_push_constants    = 0;
     Array<GFX_Push_Constants>               push_constants;
+    Table <u64, u64>                        push_constants_to_index_this_frame;
+
 
     Array<GFX_Sort_Key>                     sort_keys;
     Array<GFX_Command>                      commands;
