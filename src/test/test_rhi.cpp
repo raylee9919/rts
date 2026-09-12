@@ -1,40 +1,25 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-
-#include "profiler/include.h"
-
-#include "basic/include.h"
-#include "math/include.h"
-#include "os/include.h"
-#include "random/include.h"
-#include "geometry/include.h"
-#include "rect_pack/include.h"
-#include "asset/include.h"
-#include "rhi/include.h"
-#include "gfx/include.h"
-#include "renderer/include.h"
-#include "shader_compiler/include.h"
+#include "basic/core.h"
+#include "basic/allocator.h"
+#include "basic/context.h"
+#include "basic/log.h"
+#include "basic/string.h"
+#include "math/math.h"
+#include "os/os.h"
+#include "random/random.h"
+#include "geometry/geogen.h"
+#include "asset/texture_v2.h"
+#include "rhi/rhi.h"
+#include "gfx/gfx.h"
+#include "renderer/renderer.h"
+#include "shader_compiler/shader.h"
+#include "shader_compiler/dxc/dxc.h"
+#include "shaders/shared.h"
+#include "profiler/profiler.h"
 #include "input.h"
 #include "game.h"
 #include "audio.h"
-#include "serializer.h"
-
-#include "basic/include.cpp"
-#include "math/include.cpp"
-#include "os/include.cpp"
-#include "random/include.cpp"
-#include "third_party/xxhash3/xxhash.c"
-#include "geometry/include.cpp"
-#include "rect_pack/include.cpp"
-#include "asset/include.cpp"
-#include "rhi/include.cpp"
-#include "gfx/include.cpp"
-#include "renderer/include.cpp"
-#include "shader_compiler/include.cpp"
-#include "input.cpp"
-#include "game.cpp"
-#include "audio.cpp"
-#include "serializer.cpp"
 
 
 
@@ -178,7 +163,7 @@ void game_tick(Game_State *g, f64 dt)
 int main_entry(int argc, char **argv)
 {
     // Init timers
-    f64 time_old        = time_s();
+    f64 time_old        = time_seconds();
     f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
     f64 accumulator     = 0.f;
 
@@ -187,6 +172,9 @@ int main_entry(int argc, char **argv)
 
     // Open window
     window = os_window_create(1920, 1080, S("RHI"));
+
+    // Init render ring
+    render_ring_init();
 
     // Launch render thread
     Thread render_thread = thread_launch(r_entry, get_native_window_handle(window));
@@ -197,10 +185,7 @@ int main_entry(int argc, char **argv)
     // Init shader compiler
     compiler = alloc_t(Shader_Compiler);
     Assert(shader_compiler_init(compiler));
-    compiler->include_path = S("C:\\dev\\rts\\src\\shaders\\");
-
-    // Init render ring
-    render_ring_init();
+    compiler->include_path = S("C:/dev/rts/src/shaders/"); // @Temporary
 
     // Init input system
     input_system_init(window);
@@ -254,7 +239,7 @@ int main_entry(int argc, char **argv)
             desc.depth_format                = RHI_FORMAT_D32F;
 
             desc.num_color_attachments       = 1;
-            desc.color_attachment_formats[0] = gfx->surface->textures[0].desc.format;
+            desc.color_attachment_formats[0] = gfx->surface_textures[0].desc.format; // @Temporary
 
             desc.blend_enabled[0]            = true;
 
@@ -423,7 +408,7 @@ int main_entry(int argc, char **argv)
 
 
         // Time
-        f64 time_new        = time_s();
+        f64 time_new        = time_seconds();
         f64 time_elapsed    = time_new - time_old;
         time_old            = time_new;
         accumulator        += time_elapsed;
@@ -458,7 +443,6 @@ int main_entry(int argc, char **argv)
         }
 
 
-        // Close app if needed
         list_for(os->first_event, event)  {
             b32 esc_pressed            = event->kind == OS_EVENT_PRESS && event->key == KEY_ESC;
             b32 alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
@@ -467,7 +451,7 @@ int main_entry(int argc, char **argv)
             if (esc_pressed || alt_f4_pressed | window_close_triggered) {
                 os_remove_event(event);
 
-                should_close         = true;
+                should_close = true;
 
                 // Shutdown render thread
                 mutex_lock(&render_queue.mutex);
@@ -486,7 +470,7 @@ int main_entry(int argc, char **argv)
         clear_thread_temporary_storage();
     }
 
-    thread_join(audio_thread, -1);
+    thread_join(audio_thread,  -1);
     thread_join(render_thread, -1);
 
     input_system_shutdown();

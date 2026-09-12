@@ -210,7 +210,7 @@ render_texture_alloc(void)
     if (texture != NULL)
     {
         sll_pop_front(renderer->texture_free_first, renderer->texture_free_last);
-        zero_memory(texture, sizeof(Render_Texture));
+        memset(texture, 0, sizeof(Render_Texture));
     }
     else
     {

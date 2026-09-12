@@ -1,5 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "geometry/geogen.h"
+
 void geo_make_cube(void *out_vertices, int vertex_stride,
                    int position_offset,
                    int normal_offset,

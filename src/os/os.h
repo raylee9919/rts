@@ -3,6 +3,18 @@
 #ifndef RTS_OS_H
 #define RTS_OS_H
 
+#include "basic/core.h"
+#include "basic/arena.h"
+#include "basic/allocator.h"
+#include "basic/string.h"
+#include "math/math.h"
+
+#if OS_WINDOWS
+#  include "os/win32/os_win32.h"
+#else
+#  error Undefined OS
+#endif
+
 
 struct Thread;
 struct Thread_Group;
@@ -357,103 +369,139 @@ struct OS_State {
     OS_Thing *first_thing[OS_THING_KIND_OPL - 1];
     OS_Thing *last_thing[OS_THING_KIND_OPL - 1];
 };
-global OS_State *os;
+extern OS_State *os;
 
 
 // APIs
 //
-internal void               os_init();
+void               os_init();
 
 // Memory
-internal void*              os_reserve(u64 size);
-internal bool               os_commit(void* ptr, u64 size);
-internal void               os_decommit(void* ptr, u64 size);
-internal void               os_release(void* ptr, u64 size);
-internal void*              os_heap_alloc(u64 size);
-internal void               os_heap_free(void* ptr);
+void*              os_reserve(u64 size);
+bool               os_commit(void* ptr, u64 size);
+void               os_decommit(void* ptr, u64 size);
+void               os_release(void* ptr, u64 size);
+void*              os_heap_alloc(u64 size);
+void               os_heap_free(void* ptr);
 
 // System Info.
-internal u32                os_query_core_count();
-internal u32                os_query_page_size();
-internal u32                os_query_caret_blink_time();
+u32                os_query_core_count();
+u32                os_query_page_size();
+u32                os_query_caret_blink_time();
 
 // Time
-internal f64                time_s();
-internal f64                time_ms();
-internal f64                time_us();
+f64                time_seconds();
+f64                time_ms();
+f64                time_us();
 
 // Handle Translation
-internal bool               operator == (OS_Handle& l, OS_Handle& r);
-internal OS_Handle          os_handle_from_hwnd(HWND hwnd);
-internal OS_Handle          os_handle_from_win32_handle(HANDLE handle);
-internal HWND               hwnd_from_os_handle(OS_Handle handle);
-internal HANDLE             win32_handle_from_os_handle(OS_Handle handle);
-internal void*              get_native_window_handle(OS_Handle window);
+bool               operator == (OS_Handle& l, OS_Handle& r);
+OS_Handle          os_handle_from_hwnd(HWND hwnd);
+OS_Handle          os_handle_from_win32_handle(HANDLE handle);
+HWND               hwnd_from_os_handle(OS_Handle handle);
+HANDLE             win32_handle_from_os_handle(OS_Handle handle);
+void*              get_native_window_handle(OS_Handle window);
 
 // File
-internal OS_Handle          os_open_file(String path, OS_Access_Flags flags);
-internal void               os_close_file(OS_Handle file);
-internal u64                os_read_file(OS_Handle file, u64 offset, u64 size, void* out);
-internal bool               os_delete_file(String path);
-internal bool               os_copy_file(String dst, String src);
-internal File_Properties    os_get_file_properties(OS_Handle file);
-internal File_Properties    os_get_file_properties(String path);
-internal u64                os_get_file_size(OS_Handle file);
-internal u64                os_get_file_size(String path);
-internal bool               os_create_directory(String path);
-internal bool               os_directory_exists(String path);
+OS_Handle          os_open_file(String path, OS_Access_Flags flags);
+void               os_close_file(OS_Handle file);
+u64                os_read_file(OS_Handle file, u64 offset, u64 size, void* out);
+bool               os_delete_file(String path);
+bool               os_copy_file(String dst, String src);
+File_Properties    os_get_file_properties(OS_Handle file);
+File_Properties    os_get_file_properties(String path);
+u64                os_get_file_size(OS_Handle file);
+u64                os_get_file_size(String path);
+bool               os_create_directory(String path);
+bool               os_directory_exists(String path);
+String             read_entire_file(Arena* arena, String file_path);
+String             read_entire_file(String file_path, Allocator allocator);
 
 // GFX
-internal void               os_gfx_init();
-internal OS_Handle          os_window_create(int w, int h, String name);
-internal void               os_window_toggle_fullscreen(OS_Handle window);
-internal v2                 os_window_size(OS_Handle window);
-internal v2                 os_get_mouse_position(OS_Handle window);
+void               os_gfx_init();
+OS_Handle          os_window_create(int w, int h, String name);
+void               os_window_toggle_fullscreen(OS_Handle window);
+v2                 os_window_size(OS_Handle window);
+v2                 os_get_mouse_position(OS_Handle window);
 
 // Event
-internal void               os_poll_events();
-internal OS_Event*          os_push_event();
-internal void               os_remove_event(OS_Event* event);
-internal void               os_clear_events();
+void               os_poll_events();
+OS_Event*          os_push_event();
+void               os_remove_event(OS_Event* event);
+void               os_clear_events();
 
 // Mutex (non-re-entrant, meaning, 'lock -> lock' is invalid)
-internal void               mutex_create(Mutex *mutex);
-internal void               mutex_destroy(Mutex *mutex);
-internal void               mutex_lock(Mutex *mutex);
-internal void               mutex_unlock(Mutex *mutex);
+void               mutex_create(Mutex *mutex);
+void               mutex_destroy(Mutex *mutex);
+void               mutex_lock(Mutex *mutex);
+void               mutex_unlock(Mutex *mutex);
 
 // Condition Variable
-internal void               condvar_create(Condvar *condvar);
-internal void               condvar_destroy(Condvar *condvar);
-internal Wait_Result        condvar_sleep(Condvar *condvar, Mutex *mutex, s64 timeout_ms);
-internal void               condvar_wake_one(Condvar *condvar);
-internal void               condvar_wake_all(Condvar *condvar);
+void               condvar_create(Condvar *condvar);
+void               condvar_destroy(Condvar *condvar);
+Wait_Result        condvar_sleep(Condvar *condvar, Mutex *mutex, s64 timeout_ms);
+void               condvar_wake_one(Condvar *condvar);
+void               condvar_wake_all(Condvar *condvar);
 
 // Semaphore
-internal void               semaphore_create(Semaphore *semaphore);
-internal void               semaphore_destroy(Semaphore *semaphore);
-internal void               semaphore_signal(Semaphore *semaphore);
-internal Wait_Result        semaphore_wait(Semaphore *semaphore, s32 milliseconds); // Pass in negative number to wait indefinitely.
+void               semaphore_create(Semaphore *semaphore);
+void               semaphore_destroy(Semaphore *semaphore);
+void               semaphore_signal(Semaphore *semaphore);
+Wait_Result        semaphore_wait(Semaphore *semaphore, s32 milliseconds); // Pass in negative number to wait indefinitely.
 
 // Thread
-internal Thread             thread_launch(void (*proc)(void *), void *param);
-internal bool               thread_join(Thread thread, s32 endt_us);
-internal void               thread_set_name(String name);
+Thread             thread_launch(void (*proc)(void *), void *param);
+bool               thread_join(Thread thread, s32 endt_us);
+void               thread_set_name(String name);
 
 // Thread Group
-internal void               thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name);
-internal void               thread_group_shutdown(Thread_Group *group);
-internal void               thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param);
-internal void               thread_group_complete_all_work(Thread_Group *group);
+void               thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, String group_name);
+void               thread_group_shutdown(Thread_Group *group);
+void               thread_group_add_work(Thread_Group *group, void (*proc)(void *), void *param);
+void               thread_group_complete_all_work(Thread_Group *group);
 
 // UUID/GUID
-internal Guid               guid_generate();
+Guid               guid_generate();
 
 // Atomic
-internal void               atomic_increment(volatile s32 *x);
+void               atomic_increment(volatile s32 *x);
 
 template<typename F> 
-internal void parallel_for(Thread_Group *group, s64 count, F&& func);
+void parallel_for(Thread_Group *group, s64 count, F&& func) {
+    if (count <= 0)  return;
+
+    s64 chunk_size = (count + group->count - 1) / group->count;
+
+    struct Context {
+        F  *func;
+        s64 begin;
+        s64 end;
+    };
+
+    auto proc = [](void *param) {
+        Context *ctx = (Context *)param;
+
+        for (s64 i = ctx->begin; i < ctx->end; ++i) {
+            (*ctx->func)(i);
+        }
+    };
+
+    for (s32 i = 0; i < group->count; ++i) {
+        s64 begin = i * chunk_size;
+        s64 end   = min(begin + chunk_size, count);
+
+        if (begin >= end)  break;
+
+        Context *ctx = push_struct(group->arena, Context);
+        ctx->func  = &func;
+        ctx->begin = begin;
+        ctx->end   = end;
+
+        thread_group_add_work(group, proc, ctx);
+    }
+
+    thread_group_complete_all_work(group);
+}
 
 
 #endif // RTS_OS_H

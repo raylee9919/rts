@@ -3,9 +3,9 @@
 #ifndef RTS_GEOMETRY_GENERATOR_H
 #define RTS_GEOMETRY_GENERATOR_H
 
-#include "./cdt.h"
+#include "basic/core.h"
 
-internal void 
+void
 geo_make_cube(void *out_vertices, int vertex_stride,
               int position_offset,
               int normal_offset,

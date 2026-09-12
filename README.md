@@ -1,6 +1,6 @@
 [한국어](README.ko.md)
 
-# Handmade RTS
+# RTS
 ![Status](data/branding/battle.gif "Status")  
 StarCraft has always held a special place in my heart. It was the game that first inspired me to dream of 
 becoming a game developer. It planted a question in my mind, <i>how does this all work under the hood?</i> 

@@ -1,6 +1,6 @@
 [English](README.md)
 
-# 핸드메이드 RTS
+# RTS
 ![Status](data/branding/battle.gif "Status")  
 스타크래프트는 언제나 제 마음속에 특별한 자리를 차지하고 있습니다.
 제가 처음으로 게임 개발자가 되고 싶다는 꿈을 가지게 된 계기가 바로 이 게임이었습니다.

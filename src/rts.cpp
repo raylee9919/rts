@@ -2,7 +2,7 @@
 
 // .h
 //
-#include "Profiler/profiler.h"
+#include "profiler/include.h"
 
 #include "Basic/include.h"
 #include "Math/include.h"
@@ -31,7 +31,7 @@ global RHI_State  *g_rhi_state;
 
 // .cpp
 //
-#include "Profiler/profiler.h"
+#include "profiler/include.h"
 #include "ThirdParty/xxhash3/xxhash.c"
 
 #include "Basic/include.cpp"

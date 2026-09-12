@@ -1,5 +1,11 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#ifndef RTS_ASSET_TEXTURE_H
+#define RTS_ASSET_TEXTURE_H
+
+#include "basic/core.h"
+#include "basic/string.h"
+#include "asset/system.h"
 
 #include "third_party/stb/stb_image.h"
 #include "third_party/stb/stb_image_write.h"
@@ -7,7 +13,7 @@
 
 namespace Asset
 {
-    struct Texture 
+    struct Texture
     {
         // @Todo: Stable ID?
         // Unstable ID. May differ every time you play a game.
@@ -45,3 +51,5 @@ namespace Asset
     //
     Texture_Layout determine_layout(u32 bytes_per_channel, u32 num_channels);
 }
+
+#endif // RTS_ASSET_TEXTURE_H

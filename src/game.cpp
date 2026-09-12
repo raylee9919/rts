@@ -1,5 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "game.h"
+#include "basic/log.h"
+#include "os/os.h"
+#include "profiler/profiler.h"
+
+Game_State *game_state;
+
 void game_state_init(Game_State **game_state_pptr) {
     // Reserve gigantic memory space and allocate game state in there.
     u64 page_size = os_query_page_size();

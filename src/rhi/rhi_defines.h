@@ -3,6 +3,8 @@
 #ifndef RHI_ENUM_H
 #define RHI_ENUM_H
 
+#include "basic/core.h"
+
 
 #define RHI_MIN_BUFFER_COUNT            2
 #define RHI_MAX_BUFFER_COUNT            3

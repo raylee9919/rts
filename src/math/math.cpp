@@ -1,5 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "math/math.h"
+
 
 // Sloppy
 //
@@ -60,7 +62,7 @@ f32 map(f32 x, f32 min, f32 max) {
 }
 
 f32 map_unorm(f32 x, f32 min, f32 max) {
-    return clamp01(map(x, min, max));
+    return clamp(map(x, min, max), 0.f, 1.f);
 }
 
 f32 map_snorm(f32 x, f32 min, f32 max) {
@@ -288,7 +290,7 @@ v3 operator - (v3 l, v3 r) {
     return v;
 }
 
-internal v3&
+v3&
 operator += (v3& a, v3 b) 
 {
     a.x += b.x;
@@ -298,7 +300,7 @@ operator += (v3& a, v3 b)
     return a;
 }
 
-internal v3&
+v3&
 operator -= (v3& a, v3 b) 
 {
     a.x -= b.x;
@@ -308,7 +310,7 @@ operator -= (v3& a, v3 b)
     return a;
 }
 
-internal v3&
+v3&
 operator *= (v3& a, f32 b) 
 {
     a.x *= b;
@@ -428,13 +430,13 @@ v4::v4(f32 f)
     sse = _mm_set1_ps(f);
 }
 
-internal v4
+v4
 V4(f32 x) 
 {
     return v4{x,x,x,x};
 }
 
-internal v4
+v4
 V4(f32 r, f32 g, f32 b, f32 a) 
 {
     v4 v = {};
@@ -445,7 +447,7 @@ V4(f32 r, f32 g, f32 b, f32 a)
     return v;
 }
 
-internal v4
+v4
 V4(v2 rg, f32 b, f32 a)
 {
     v4 v = {};
@@ -456,7 +458,7 @@ V4(v2 rg, f32 b, f32 a)
     return v;
 }
 
-internal v4
+v4
 V4(v3 rgb, f32 a) 
 {
     v4 v = {};
@@ -618,7 +620,7 @@ Quaternion slerp(Quaternion q1, f32 t, Quaternion q2)
 
 // m4x4
 //
-__m128 lincomb(__m128 a, m4x4 b)
+static __m128 lincomb(__m128 a, m4x4 b)
 {
     __m128 m;
     m = _mm_mul_ps(_mm_shuffle_ps(a, a, 0x00), b.rows[0].sse);
@@ -875,7 +877,7 @@ Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
     return q;
 }
 
-internal m4x4
+m4x4
 scale(m4x4 transform, v3 factor) 
 {
     m4x4 result = transform;
@@ -885,7 +887,7 @@ scale(m4x4 transform, v3 factor)
     return result;
 }
 
-internal m4x4
+m4x4
 scale(m4x4 transform, f32 factor) 
 {
     m4x4 result = transform;
@@ -917,7 +919,7 @@ m4x4 m4x4_scale(f32 x, f32 y, f32 z) {
 
 // Rect
 //
-internal Rect2
+Rect2
 rect2_min_max(v2 min, v2 max)
 {
     Rect2 result = {};
@@ -926,7 +928,7 @@ rect2_min_max(v2 min, v2 max)
     return result;
 }
 
-internal Rect2
+Rect2
 rect2_cen_half_dim(v2 cen, v2 h_dim)
 {
     Rect2 result = {};
@@ -935,7 +937,7 @@ rect2_cen_half_dim(v2 cen, v2 h_dim)
     return result;
 }
 
-internal Rect2
+Rect2
 rect2_min_dim(v2 min, v2 dim)
 {
     Rect2 result = {};
@@ -944,7 +946,7 @@ rect2_min_dim(v2 min, v2 dim)
     return result;
 }
 
-internal Rect2
+Rect2
 rect2_inv_inf()
 {
     Rect2 result = {};
@@ -955,7 +957,7 @@ rect2_inv_inf()
     return result;
 }
 
-internal Rect2
+Rect2
 offset(Rect2 rect, v2 offset)
 {
     Rect2 result = {};
@@ -964,7 +966,7 @@ offset(Rect2 rect, v2 offset)
     return result;
 }
 
-internal Rect2
+Rect2
 add_radius_to(Rect2 rect, v2 radius)
 {
     Rect2 result = rect;
@@ -1015,7 +1017,7 @@ m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale)
     return m;
 }
 
-internal Quaternion
+Quaternion
 build_quaternion(v3 axis, f32 radian)
 {
     f32 c = m_cos(radian*0.5f);
@@ -1025,14 +1027,14 @@ build_quaternion(v3 axis, f32 radian)
     return result;
 }
 
-internal Quaternion 
+Quaternion 
 rotate(Quaternion q0, v3 axis, f32 radian)
 {
     Quaternion result = build_quaternion(axis, radian) * q0;
     return result;
 }
 
-internal v3
+v3
 project(v3 p, m4x4 view_proj)
 {
     v4 res = view_proj * v4{p.x, p.y, p.z, 1};
@@ -1042,7 +1044,7 @@ project(v3 p, m4x4 view_proj)
     return res.xyz;
 }
 
-internal v2
+v2
 V2(v2u v) 
 {
     v2 result = v2{(f32)v.x, (f32)v.y};
@@ -1050,7 +1052,7 @@ V2(v2u v)
 }
 
 // @Todo: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
-internal m4x4
+m4x4
 ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z) 
 {
     f32 a = safe_ratio(2.0f, max_x - min_x);
@@ -1070,13 +1072,13 @@ ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z)
     return result;
 }
 
-internal f32
+f32
 radian_from_degree(f32 d) 
 {
     return d*pi32*0.005556f;
 }
 
-internal f32
+f32
 normalize01(v2 range, f32 val)
 {
     f32 result = 0.0f;
@@ -1087,7 +1089,7 @@ normalize01(v2 range, f32 val)
     return result;
 }
 
-internal b32
+b32
 intersects(AABB2 box, v2 point)
 {
     b32 result = false;
@@ -1098,7 +1100,7 @@ intersects(AABB2 box, v2 point)
     return result;
 }
 
-internal b32
+b32
 intersects(AABB2 a, AABB2 b)
 {
     b32 result = false;
@@ -1110,7 +1112,7 @@ intersects(AABB2 a, AABB2 b)
     return result;
 }
 
-internal AABB2
+AABB2
 intersection(AABB2 a, AABB2 b)
 {
     AABB2 result = {};
@@ -1124,7 +1126,7 @@ intersection(AABB2 a, AABB2 b)
     return result;
 }
 
-internal AABB2
+AABB2
 aabb2_infinite(void)
 {
     AABB2 result = {};

@@ -1,5 +1,13 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "basic/context.h"
+#include "basic/arena.h"
+
+#include <stdlib.h>
+
+per_thread Context      tctx;
+per_thread Thread_State thread_state;
+
 void context_push(Context context) {
     auto *ts = &thread_state;
     Assert(ts->context_stack_pointer < (s64)array_count(ts->context_stack));

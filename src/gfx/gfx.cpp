@@ -1,6 +1,24 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "gfx/gfx.h"
+#include "basic/arena.h"
+#include "basic/log.h"
+#include "os/os.h"
+#include "profiler/profiler.h"
 
+#include "third_party/xxhash3/xxhash.h"
+
+GFX_State *gfx;
+u64        gfx_key_offsets[GFX_KEY_COUNT] = { 0 };
+
+static RHI_Texture *rhi_texture_from_guid(Guid guid) {
+    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+    if (entry)  return &entry->texture;
+
+    return nullptr;
+}
+
+// @Todo: Move this shii to renderer
 static void gfx_create_swapchain_depth_textures(u32 width, u32 height) {
     RHI_Texture_Desc desc = {}; 
     desc.type           = RHI_TEXTURE_TYPE_2D;
@@ -12,6 +30,7 @@ static void gfx_create_swapchain_depth_textures(u32 width, u32 height) {
     desc.depth          = 1;
     desc.clear          = true;
     desc.clear_depth    = 1.f;
+    desc.name           = S("DepthTexture");
 
     for (int i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
         gfx->depth_textures[i] = guid_generate();
@@ -43,7 +62,10 @@ static void gfx_deinit_samplers() {
     rhi_sampler_deinit(&gfx->linear_sampler);
 }
 
-static void gfx_init_swapchain(void *native_window_handle, u32 width, u32 height, u32 num_back_buffers, b32 frame_latency_waitable) {
+static void gfx_init_swapchain(void *native_window_handle, 
+                               u32 width, u32 height, 
+                               u32 num_back_buffers, 
+                               b32 frame_latency_waitable) {
     RHI_Surface_Desc desc = {};
     desc.native_window_handle   = native_window_handle;
     desc.width                  = width;
@@ -51,38 +73,35 @@ static void gfx_init_swapchain(void *native_window_handle, u32 width, u32 height
     desc.num_back_buffers       = num_back_buffers;
     desc.frame_latency_waitable = frame_latency_waitable;
 
-    Assert(rhi_surface_init(gfx->device, gfx->surface, &desc));
+    Assert(rhi_surface_init(gfx->device, gfx->surface, &desc, gfx->surface_textures));
 }
 
 static void gfx_deinit_swapchain() {
     // rhi_surface_deinit(gfx->surface);
 }
 
-static void gfx_init_swapchain_views() {
-    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i)  {
-        RHI_Texture_View_Desc desc = {};
-        desc.type              = RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET;
-        desc.dimension         = RHI_TEXTURE_TYPE_2D;
-        desc.format            = gfx->surface->textures[i].desc.format;
-        desc.base_mip_level    = 0;
-        rhi_texture_view_init(gfx->device, &gfx->surface_views[i], &gfx->surface->textures[i], &desc);
+static void gfx_register_swapchain_textures() {
+    // No need to unregister, because we'll free the allocator.
+    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
+        GFX_Texture_Entry entry = {};
+        entry.texture = gfx->surface_textures[i];
+        entry.has_srv = false;
+        entry.has_uav = false;
+
+        table_add(&gfx->texture_table, gfx->surface_guids[i], entry);
     }
 }
 
 static void gfx_resize_swapchain(u32 width, u32 height) {
     rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
 
-    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i)  {
-        rhi_texture_view_deinit(&gfx->surface_views[i]);
-    }
-    rhi_surface_resize(gfx->surface, width, height);
-    gfx_init_swapchain_views();
+    rhi_surface_resize(gfx->surface, width, height, gfx->surface_textures);
+    gfx_register_swapchain_textures();
     gfx_destroy_swapchain_depth_textures();
     gfx_create_swapchain_depth_textures(width, height);
 }
 
-static void gfx_init_uploader(u64 buffer_size)
-{
+static void gfx_init_uploader(u64 buffer_size) {
     RHI_Buffer_Desc desc = {};
     desc.memory_type = RHI_MEMORY_UPLOAD;
     desc.size        = buffer_size;
@@ -110,11 +129,19 @@ static void gfx_reset_per_frame_data() {
     array_reset_keeping_memory(&gfx->push_constants);
     table_reset_keeping_memory(&gfx->push_constants_to_index_this_frame);
 
+    // Sort key and commands
+    for (u32 i = 0; i < array_count(gfx->sort_keys); ++i) {
+        array_reset_keeping_memory(&gfx->sort_keys[i]);
+        array_reset_keeping_memory(&gfx->commands[i]);
+    }
 
-    array_reset_keeping_memory(&gfx->sort_keys);
-    array_reset_keeping_memory(&gfx->commands);
+    // Frame graph
+    for (int i = 0; i < array_count(gfx->out_edges); ++i) {
+        array_reset_keeping_memory(&gfx->out_edges[i]);
+    }
 
-    memset(&gfx->pass_states[0], 0, sizeof(gfx->pass_states[0]) * GFX_MAX_PASS);
+    // Pass states
+    memset(&gfx->pass_states[0], 0, sizeof(gfx->pass_states));
 }
 
 static void gfx_add_callback(GFX_Callback_Entry entry)
@@ -136,7 +163,7 @@ static void gfx_execute_callbacks(u64 completed_value)
     }
 }
 
-void gfx_init(GFX_Info info) {
+void gfx_init(GFX_Info info, u32 num_backbuffers) {
     { // Alloc, Construct
         Allocator arena = arena_allocator_alloc();
         gfx = (GFX_State *)alloc(sizeof(GFX_State), arena);
@@ -148,19 +175,28 @@ void gfx_init(GFX_Info info) {
 
     gfx->info = info;
 
-    Assert(info.num_frames >= GFX_MIN_FRAME_COUNT && info.num_frames <= GFX_MAX_FRAME_COUNT);
+    Assert(num_backbuffers >= RHI_MIN_BUFFER_COUNT && 
+           num_backbuffers <= RHI_MAX_BUFFER_COUNT);
 
     // Allocate memory and initialize RHI
     gfx->device = (RHI_Device *)alloc(sizeof(RHI_Device), gfx->arena);
     Assert(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning));
 
 
-    // Create swapchain and its textures
+    // Create swapchain
     gfx->surface = (RHI_Surface *)alloc(sizeof(RHI_Surface), gfx->arena);
-    gfx_init_swapchain(info.native_window_handle, info.width, info.height, info.num_buffers, info.frame_latency_waitable);
-    gfx_init_swapchain_views();
-    gfx_create_swapchain_depth_textures(info.width, info.height);
+    gfx_init_swapchain(info.native_window_handle, info.width, info.height, num_backbuffers, info.frame_latency_waitable);
 
+
+    // Register swapchain texture
+    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
+        gfx->surface_guids[i] = guid_generate();
+    }
+    gfx_register_swapchain_textures();
+    
+
+    // @Temporary: depth texture
+    gfx_create_swapchain_depth_textures(info.width, info.height);
 
     // Initialize frame semaphore
     rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
@@ -176,15 +212,14 @@ void gfx_init(GFX_Info info) {
     }
 
 
+
     gfx_init_uploader(Megabytes(128)); // @Temporary
 
     // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) {
+    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
         Assert(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
         Assert(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
     }
-
-    GFX_SURFACE_TEXTURE = guid_generate();
 
     gfx->initted = true;
 }
@@ -194,7 +229,7 @@ void gfx_shutdown() {
     rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
 
     // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < GFX_MAX_FRAME_COUNT; ++i) {
+    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
         rhi_command_buffer_deinit(&gfx->command_buffers[i]);
         rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
     }
@@ -265,7 +300,7 @@ void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_siz
     gfx_create_gpu_buffer(&ib, num_indices * index_size);
     gfx_create_structured_view(&view, &vb, num_vertices, vertex_size);
 
-    GFX_Mesh entry;
+    GFX_Mesh entry = {};
     entry.vertex_buffer      = vb;
     entry.vertex_buffer_view = view;
     entry.index_buffer       = ib;
@@ -344,23 +379,27 @@ void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
 
     Assert( rhi_texture_init(gfx->device, &entry.texture, &desc, NULL) );
 
-    RHI_Texture_View_Type view_type = 0;
+    auto CreateView = [&](RHI_Texture_View *view, RHI_Texture_View_Type type) {
+        RHI_Texture_View_Desc vdesc = {};
+        vdesc.type               = type;
+        vdesc.dimension          = desc.type;
+        vdesc.format             = desc.format;
+        vdesc.base_mip_level     = 0;
+        vdesc.base_array_layer   = 0;
+        vdesc.mip_levels         = desc.mip_levels;
+        vdesc.depth              = desc.depth;
 
-    for (u32 flag = 0x1; flag < RHI_TEXTURE_USAGE_OPL_BIT; flag <<= 1) {
-        if (desc.usage & flag) { 
-            RHI_Texture_View_Desc vdesc = {};
-            vdesc.type               = view_type;
-            vdesc.dimension          = desc.type;
-            vdesc.format             = desc.format;
-            vdesc.base_mip_level     = 0;
-            vdesc.base_array_layer   = 0;
-            vdesc.mip_levels         = desc.mip_levels;
-            vdesc.depth              = desc.depth;
+        rhi_texture_view_init(gfx->device, view, &entry.texture, &vdesc);
+    };
 
-            rhi_texture_view_init(gfx->device, &entry.views[view_type], &entry.texture, &vdesc);
-        }
+    if (desc.usage & RHI_TEXTURE_USAGE_SAMPLED) {
+        CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
+        entry.has_srv = 1;
+    }
 
-        view_type += 1;
+    if (desc.usage & RHI_TEXTURE_USAGE_STORAGE) {
+        CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS);
+        entry.has_uav = 1;
     }
 
     table_add(&gfx->texture_table, guid, entry);
@@ -369,13 +408,9 @@ void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
 void gfx_texture_destroy(Guid guid) {
     auto *entry = table_find_pointer(&gfx->texture_table, guid);
     if (entry) {
-        for (u16 i = 0; i < RHI_TEXTURE_VIEW_TYPE_COUNT; ++i) {
-            if (entry->views[i].kind != RHI_KIND_INVALID) {
-                rhi_texture_view_deinit(&entry->views[i]);
-            }
-        }
+        if (entry->srv.kind != RHI_KIND_INVALID)  rhi_texture_view_deinit(&entry->srv);
+        if (entry->srv.kind != RHI_KIND_INVALID)  rhi_texture_view_deinit(&entry->uav);
         rhi_texture_deinit(&entry->texture);
-
         table_remove(&gfx->texture_table, guid);
     }
 }
@@ -384,7 +419,7 @@ void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 
     auto *tex = table_find_pointer(&gfx->texture_table, guid);
 
     if (tex) {
-        // @Todo: I know, I know. Correct alignment for BC and other formats and 
+        // @Todo: I know, I know. Correct alignment for BC and other formats and
         // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
         u8 *ptr = (u8 *)rhi_buffer_map(&gfx->upload_buffer);
         u8 *dst = ptr;
@@ -418,78 +453,66 @@ void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 
     }
 }
 
-u32 gfx_bindless_from_texture(Guid guid, RHI_Texture_View_Type view_type) {
-    u32 id = GFX_INVALID_BINDLESS;
+RHI_Texture_View *gfx_srv_from_texture(Guid guid) {
     GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry) {
-        id = entry->views[view_type].bindless;
-    }
-    return id;
+    if (entry && entry->has_srv)  return &entry->srv;
+    return nullptr;
 }
 
-void gfx_pass_begin(u32 pass_index) {
+RHI_Texture_View *gfx_uav_from_texture(Guid guid) {
+    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+    if (entry && entry->has_uav)  return &entry->uav;
+    return nullptr;
+}
+
+u32 gfx_srv_bindless_from_texture(Guid guid) {
+    if (auto *view = gfx_srv_from_texture(guid))  return view->bindless;
+    return GFX_INVALID_BINDLESS;
+}
+
+u32 gfx_uav_bindless_from_texture(Guid guid) {
+    if (auto *view = gfx_uav_from_texture(guid))  return view->bindless;
+    return GFX_INVALID_BINDLESS;
+}
+
+void gfx_pass_begin(u32 pass_index, GFX_Pass *pass) {
     Assert(pass_index < GFX_MAX_PASS);
     gfx->context_pass = pass_index;
+
+    memcpy(&gfx->pass_states[pass_index], pass, sizeof(GFX_Pass));
 }
 
 void gfx_pass_end() {
     gfx->context_pass = GFX_INVALID;
 }
 
-void gfx_pass_color_attachment(u32 pass_index, u32 color_attachment_index, Guid guid) {
-    Assert(pass_index < GFX_MAX_PASS);
+void gfx_pass_connect(Guid resource,
+                      u32 src_pass, 
+                      u32 dst_pass, 
+                      RHI_Resource_State dst_state) {
+    Assert(resource != NULL_GUID);
+    Assert( (src_pass == -1) || (src_pass < GFX_MAX_PASS && dst_pass < GFX_MAX_PASS) );
 
-    auto *pass = &gfx->pass_states[pass_index];
+    GFX_Edge edge = {};
+    edge.resource  = resource;
+    edge.dst_pass  = dst_pass;
+    edge.dst_state = dst_state;
 
-    pass->color_attachments[color_attachment_index] = guid;
+    if (src_pass == -1)  src_pass = GFX_MAX_PASS; // nil
+
+    array_add(&gfx->out_edges[src_pass], edge);
 }
 
-void gfx_pass_depth_attachment(u32 pass_index, Guid guid) {
-    Assert(pass_index < GFX_MAX_PASS);
-
-    auto *pass = &gfx->pass_states[pass_index];
-
-    pass->depth_attachment = guid;
+u32 gfx_backbuffer_index() {
+    return gfx->surface->current_frame_index;
 }
 
-void gfx_set_viewport(f32 top_left_x, f32 top_left_y, f32 width, f32 height) {
-    Assert(gfx->context_pass < GFX_MAX_PASS);
-
-    auto *vp = &gfx->pass_states[gfx->context_pass].viewport;
-
-    vp->set = true;
-    vp->x = top_left_x;
-    vp->y = top_left_y;
-    vp->w = width;
-    vp->h = height;
+Guid gfx_frame_texture() {
+    return gfx->surface_guids[gfx_backbuffer_index()];
 }
 
-void gfx_set_scissor(u32 top_left_x, u32 top_left_y, u32 width, u32 height) {
-    Assert(gfx->context_pass < GFX_MAX_PASS);
-
-    auto *sc = &gfx->pass_states[gfx->context_pass].scissor;
-
-    sc->set = true;
-    sc->x = top_left_x;
-    sc->y = top_left_y;
-    sc->w = width;
-    sc->h = height;
-}
-
-void gfx_pass_clear_color(u32 pass_index, u32 clear_color, u32 color_attachment_index)
-{
-    Assert(pass_index < GFX_MAX_PASS && color_attachment_index < RHI_MAX_COLOR_ATTACHMENTS);
-
-    gfx->pass_states[pass_index].flags |= (1 << color_attachment_index);
-    gfx->pass_states[pass_index].colors[color_attachment_index] = clear_color;
-}
-
-void gfx_pass_clear_depth(u32 pass_index, f32 clear_depth)
-{
-    Assert(pass_index < GFX_MAX_PASS);
-
-    gfx->pass_states[pass_index].flags |= GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL;
-    gfx->pass_states[pass_index].depth  = clear_depth;
+u32 gfx_backbuffer_count(){
+    return gfx->surface->desc.num_back_buffers;
 }
 
 void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) {
@@ -563,99 +586,147 @@ void gfx_draw(Guid mesh_id, u32 num_instances) {
 
     if (mesh) {
         u64 subkeys[GFX_KEY_COUNT]  = {};
-        subkeys[GFX_KEY_PASS]       = gfx->context_pass;
         subkeys[GFX_KEY_PIPELINE]   = gfx->context_pipeline;
         subkeys[GFX_KEY_CONSTANTS]  = gfx->context_push_constants;
 
+        u32 pass = gfx->context_pass;
+
         GFX_Sort_Key key = {};
         key.bits      = gfx_encode_key(subkeys);
-        key.cmd_index = gfx->commands.count;
+        key.cmd_index = gfx->commands[pass].count;
 
-        array_add(&gfx->sort_keys, key);
+        array_add(&gfx->sort_keys[pass], key);
 
         GFX_Command cmd = {};
-        cmd.pipeline_index      = gfx->context_pipeline;
-        cmd.push_constant_index = gfx->context_push_constants;
         cmd.mesh_handle         = mesh_id;
         cmd.num_instances       = num_instances;
 
-        array_add(&gfx->commands, cmd);
+        array_add(&gfx->commands[pass], cmd);
     } else if (gfx->info.debug) {
         log(LOG_WARNING, S("Draw attempted with an unregistered mesh."));
         Assert(0);
     }
 }
 
-static void gfx_begin_pass_and_set_viewport_scissor(u64 pass_idx, RHI_Pass *pass, RHI_Command_Buffer *cmd_buffer) {
+static RHI_Pass rhi_pass_from_gfx(GFX_Pass *pass)
+{
+    RHI_Pass result = {};
 
-    auto *p = &gfx->pass_states[pass_idx];
-    auto vp = p->viewport;
-    auto sc = p->scissor;
+    // Set name
+    result.name = pass->name;
 
+    // Allocate RTV or DSV.
+    auto AllocViewAndFillAttachment = [](Guid guid, RHI_Texture_View_Type type, RHI_Attachment *attachment) ->RHI_Texture_View {
+        GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+        Assert(entry);
+
+        RHI_Texture *texture = &entry->texture;
+        RHI_Texture_View view = {};
+
+        RHI_Texture_View_Desc desc = {};
+        desc.type               = type;
+        desc.dimension          = texture->desc.type;
+        desc.format             = texture->desc.format;
+        desc.base_mip_level     = 0;
+        desc.base_array_layer   = 0;
+        desc.mip_levels         = texture->desc.mip_levels;
+        desc.depth              = texture->desc.depth;
+
+        rhi_texture_view_init(gfx->device, &view, texture, &desc);
+
+        attachment->view     = view;
+        attachment->load_op  = texture->desc.clear ? RHI_LOAD_OP_CLEAR : RHI_LOAD_OP_LOAD;
+        attachment->store_op = RHI_STORE_OP_STORE;
+
+        if (type == RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET) {
+            memcpy(attachment->clear_color, texture->desc.clear_color, sizeof(attachment->clear_color));
+        } else if (type == RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL) {
+            attachment->clear_depth = texture->desc.clear_depth;
+        } else {
+            Assert(!"Invalid code path");
+        }
+
+        return view;
+    };
+
+    // As I'm regarding RTV and DSV as transient, release them after this frame.
+    auto ReleaseViewAfterFrame = [](RHI_Texture_View view) {
+        GFX_Callback_Entry callback = {};
+        callback.semaphore_value_to_execute = gfx->current_frame;
+        callback.view = view;
+        callback.proc = [](GFX_Callback_Entry CE) {
+            rhi_texture_view_deinit(&CE.view);
+        };
+        gfx_add_callback(callback);
+    };
+
+    // Determine if the pass has depth attachment and set it
+    if (pass->depth_attachment != NULL_GUID) {
+        result.has_depth_attachment = true;
+        RHI_Texture_View dsv = AllocViewAndFillAttachment(pass->depth_attachment, 
+                                                          RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL, 
+                                                          &result.depth_attachment);
+        ReleaseViewAfterFrame(dsv);
+    }
+
+    // Compute number of color attachments and fill in
     for (u32 i = 0; i < RHI_MAX_COLOR_ATTACHMENTS; ++i) {
-        if (p->color_attachments[i] != NULL_GUID) {
-            pass->num_color_attachments += 1;
+        if (pass->color_attachments[i] != NULL_GUID) {
+            result.num_color_attachments += 1;
+            RHI_Texture_View rtv = AllocViewAndFillAttachment(pass->color_attachments[i], 
+                                                              RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET,
+                                                              &result.color_attachments[i]);
+            ReleaseViewAfterFrame(rtv);
         }
     }
 
-    if (p->depth_attachment != NULL_GUID) {
-        pass->has_depth_attachment = true;
+    return result;
+}
+
+/* Topologically sort frame graph and return array of passes in resolved order. */
+static Array<u32> gfx_sort_frame_graph()
+{
+    const u32 N = array_count(gfx->out_edges);
+
+    Array<u32> result = {};
+    result.allocator = tctx.temp;
+    array_reserve(&result, N);
+    memset(result.data, 0xff, sizeof(result.data[0]) * N); // For debugging purpose
+
+    u32 in_degree[N] = {};
+
+    Queue<u32> q = {};
+    q.array.allocator = tctx.temp;
+
+    // Compute in-degree.
+    for (u32 src = 0; src < N; ++src) {
+        auto *edges = &gfx->out_edges[src];
+
+        for (int e = 0; e < edges->count; ++e) {
+            GFX_Edge *edge = &edges->data[e];
+            in_degree[edge->dst_pass] += 1;
+        }
     }
 
-    for (u16 color_idx = 0; color_idx < RHI_MAX_COLOR_ATTACHMENTS; ++color_idx) {
-        if (p->flags & (GFX_PASS_FLAG_CLEAR_COLOR_0 << (color_idx))) {
-            Guid guid = p->color_attachments[color_idx];
+    // Push NIL
+    queue_push(&q, (u32)GFX_MAX_PASS);
 
-            // @Cleanup: I don't like this additional code path.
-            if (guid != GFX_SURFACE_TEXTURE) {
-                auto *tex = table_find_pointer(&gfx->texture_table, guid);
-                if (tex) {
-                    auto *attachment = &pass->color_attachments[color_idx];
-                    attachment->view = tex->views[RHI_TEXTURE_VIEW_TYPE_RENDER_TARGET];
+    // Resolve with Kahn's
+    while (q.count != 0) {
+        u32 p = queue_front(&q);
+        queue_pop(&q);
 
-                    attachment->load_op = RHI_LOAD_OP_CLEAR;
+        array_add(&result, p);
 
-                    u32 c_packed = p->colors[color_idx];
-                    v4 c_unpacked = unpack_rgba(c_packed);
-                    memcpy(attachment->clear_color, &c_unpacked, sizeof(f32) * 4);
-                } else {
-                    // @Todo: Error-handling.
-                    log(LOG_ERROR, S("Color attachment texture wasn't found."));
-                    Assert(0);
-                }
-            } else {
-                auto *attachment = &pass->color_attachments[color_idx];
-                attachment->view = gfx->surface_views[gfx->surface->current_frame_index];
-
-                attachment->load_op = RHI_LOAD_OP_CLEAR;
-
-                u32 c_packed = p->colors[color_idx];
-                v4 c_unpacked = unpack_rgba(c_packed);
-                memcpy(attachment->clear_color, &c_unpacked, sizeof(f32) * 4);
+        for (GFX_Edge &edge : gfx->out_edges[p]) {
+            in_degree[edge.dst_pass] -= 1;
+            if (in_degree[edge.dst_pass] == 0) {
+                queue_push(&q, edge.dst_pass);
             }
         }
     }
 
-    if (p->flags & GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL) {
-        Guid guid = p->depth_attachment;
-        auto *tex = table_find_pointer(&gfx->texture_table, guid);
-
-        if (tex) {
-            auto *attachment = &pass->depth_attachment;
-            attachment->view        = tex->views[RHI_TEXTURE_VIEW_TYPE_DEPTH_STENCIL];;
-            attachment->load_op     = RHI_LOAD_OP_CLEAR;
-            attachment->clear_depth = p->depth;
-        } else {
-            // @Todo: Error-handling.
-            log(LOG_ERROR, S("Depth attachment texture wasn't found."));
-            Assert(0);
-        }
-    }
-
-    rhi_pass_begin(cmd_buffer, pass);
-
-    rhi_cmd_set_viewport(cmd_buffer, vp.x, vp.y, vp.w, vp.h, 0.f, 1.f);
-    rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
+    return result;
 }
 
 void gfx_end(f64 time, u32 sync_interval)
@@ -671,114 +742,122 @@ void gfx_end(f64 time, u32 sync_interval)
     // Update shader time
     gfx->time = time; // @Todo: do dt trick from Witness.
 
-    auto *cmd_buffer = &gfx->command_buffers[gfx->current_frame % gfx->info.num_frames];
+    auto *cmd_buffer = &gfx->command_buffers[gfx_backbuffer_index()];
 
     // Wait on frame semaphore.
-    if (gfx->current_frame > gfx->info.num_frames) {
-        rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx->info.num_frames, -1);
+    if (gfx->current_frame > gfx_backbuffer_count()) {
+        rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - gfx_backbuffer_count(), -1);
     }
 
+    // Sort frame graph dependencies
+    Array<u32> passes_in_order = gfx_sort_frame_graph();
+
     // Sort keys
-    radix_sort_u64(gfx->sort_keys.data, gfx->sort_keys.count, sizeof(GFX_Sort_Key), offset_of(GFX_Sort_Key, bits));
+    for (u32 i = 0; i < GFX_MAX_PASS; ++i) {
+        radix_sort_u64(gfx->sort_keys[i].data,
+                       gfx->sort_keys[i].count, 
+                       sizeof(GFX_Sort_Key),
+                       offset_of(GFX_Sort_Key, bits));
+    }
 
     // @Temporary
     rhi_command_buffer_begin(cmd_buffer);
     {
-        RHI_Pass pass = {};
-
-        u64 current_keys[GFX_KEY_COUNT];
-        for (u16 i = 0; i < GFX_KEY_COUNT; ++i)  current_keys[i] = GFX_INVALID;
-
-        for (auto& key : gfx->sort_keys) {
-            // Decode the key.
-            u64 keys[GFX_KEY_COUNT];
-            gfx_decode_key(key.bits, keys);
-
-            u64 pass_idx            = keys[GFX_KEY_PASS];
-            u64 pipeline            = keys[GFX_KEY_PIPELINE];
-            u64 push_constant_index = keys[GFX_KEY_CONSTANTS];
+        // Execute passes in sorted order
+        for (u32 pass_id : passes_in_order)
+        {
+            // If it's NIL, just go set barriers
+            if (pass_id != GFX_MAX_PASS) 
+            {
+                // Translate pass
+                GFX_Pass *gfx_pass = &gfx->pass_states[pass_id];
+                RHI_Pass pass   = rhi_pass_from_gfx(gfx_pass);
+                GFX_Viewport vp = gfx_pass->viewport;
+                GFX_Scissor sc  = gfx_pass->scissor;
 
 
-            // Get the corresponding command.
-            GFX_Command cmd = gfx->commands[key.cmd_index];
+                // Begin pass
+                rhi_pass_begin(cmd_buffer, &pass);
+                rhi_cmd_set_viewport(cmd_buffer, vp.x, vp.y, vp.w, vp.h, gfx_pass->min_depth, gfx_pass->max_depth);
+                rhi_cmd_set_scissor(cmd_buffer, sc.x, sc.y, sc.w, sc.h);
 
 
-            // @Todo: Automate barrier installation.
-            //
-            if (current_keys[GFX_KEY_PASS] != pass_idx) {
-                if (current_keys[GFX_KEY_PASS] != GFX_INVALID) {
-                    rhi_pass_end(cmd_buffer, &pass);
-                    rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-                    Guid depth_attachment_guid = gfx->pass_states[pass_idx].depth_attachment;
-                    if (depth_attachment_guid != NULL_GUID) {
-                        auto *entry = table_find_pointer(&gfx->texture_table, depth_attachment_guid);
-                        if (entry) {
-                            rhi_cmd_texture_barrier(cmd_buffer, &entry->texture, RHI_RESOURCE_STATE_DEPTH_WRITE, RHI_RESOURCE_STATE_COMMON, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-                        }
-                    }
-                }
-                current_keys[GFX_KEY_PASS] = pass_idx;
-
-                rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_RENDER_TARGET, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-                Guid depth_attachment_guid = gfx->pass_states[pass_idx].depth_attachment;
-                if (depth_attachment_guid != NULL_GUID) {
-                    auto *entry = table_find_pointer(&gfx->texture_table, depth_attachment_guid);
-                    if (entry) {
-                        rhi_cmd_texture_barrier(cmd_buffer, &entry->texture, RHI_RESOURCE_STATE_COMMON, RHI_RESOURCE_STATE_DEPTH_WRITE, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-                    }
-                }
-
-                gfx_begin_pass_and_set_viewport_scissor(pass_idx, &pass, cmd_buffer);
-            }
-
-            // Update pipeline?
-            if (current_keys[GFX_KEY_PIPELINE] != cmd.pipeline_index) {
-                current_keys[GFX_KEY_PIPELINE] = cmd.pipeline_index;
-                Guid pipeline_guid = gfx->pipelines[cmd.pipeline_index];
-                auto *entry = table_find_pointer(&gfx->pipeline_table, pipeline_guid);
-                Assert(entry);
-                rhi_cmd_set_pipeline(cmd_buffer, &entry->rhi_pipeline);
+                // Key states
+                u64 current_keys[GFX_KEY_COUNT];
+                for (u16 i = 0; i < GFX_KEY_COUNT; ++i)  current_keys[i] = GFX_INVALID;
 
 
-                // Push shader global data
+                // For keys in the pass's bucket
+                for (auto& key : gfx->sort_keys[pass_id]) 
                 {
-                    GPU_Global g = {};
-                    g.time = gfx->time;
+                    // Decode the key.
+                    u64 keys[GFX_KEY_COUNT];
+                    gfx_decode_key(key.bits, keys);
 
-                    rhi_cmd_push_constants(cmd_buffer, GFX_CONSTANTS_INDEX_GLOBAL, &g, sizeof(g));
+                    u64 pipeline_index      = keys[GFX_KEY_PIPELINE];
+                    u64 push_constant_index = keys[GFX_KEY_CONSTANTS];
+
+
+                    // Get the corresponding command.
+                    GFX_Command cmd = gfx->commands[pass_id][key.cmd_index];
+
+
+                    // Update pipeline?
+                    if (current_keys[GFX_KEY_PIPELINE] != pipeline_index) {
+                        current_keys[GFX_KEY_PIPELINE] = pipeline_index;
+
+                        Guid pipeline_guid = gfx->pipelines[pipeline_index];
+                        auto *entry = table_find_pointer(&gfx->pipeline_table, pipeline_guid);
+                        Assert(entry);
+                        rhi_cmd_set_pipeline(cmd_buffer, &entry->rhi_pipeline);
+                    }
+
+
+                    // @Fix: Blindly pushing constants
+                    if (push_constant_index != GFX_INVALID) {
+                        GFX_Push_Constants *constants = &gfx->push_constants.data[push_constant_index];
+                        rhi_cmd_push_constants(cmd_buffer, GFX_CONSTANTS_INDEX_USER, constants->data, constants->size);
+                    }
+
+
+                    // Draw mesh.
+                    auto *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
+                    if (mesh) {
+                        rhi_cmd_draw_indexed(cmd_buffer, 
+                                             &mesh->index_buffer, mesh->index_size, mesh->num_indices, 
+                                             cmd.num_instances, 0, 0, 0);
+                    }
+                }
+
+                // End pass
+                rhi_pass_end(cmd_buffer, &pass);
+            }
+
+            { // Install barriers for the next passses in the graph.
+                auto *edges = &gfx->out_edges[pass_id];
+
+                for (u32 i = 0; i < edges->count; ++i) {
+                    auto *edge = &edges->data[i];
+
+                    auto *tex = rhi_texture_from_guid(edge->resource);
+                    Assert(tex);
+
+                    if (tex) {
+                        rhi_cmd_texture_barrier(cmd_buffer, tex, edge->dst_state, RHI_ALL_MIPS, RHI_ALL_LAYERS);
+                    } else {
+                        Assert(!"Texture not found."); // @Todo: Error-handling
+                    }
                 }
             }
 
-            // @Fix: Duplicate?
-            // And the real push constants.
-            if (cmd.push_constant_index != GFX_INVALID) {
-                GFX_Push_Constants *constants = &gfx->push_constants.data[cmd.push_constant_index];
-                rhi_cmd_push_constants(cmd_buffer, GFX_CONSTANTS_INDEX_USER, constants->data, constants->size);
-            }
+        } // for passes
 
-            // Draw mesh.
-            auto *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
-            if (mesh) {
-                rhi_cmd_draw_indexed(cmd_buffer, &mesh->index_buffer, mesh->index_size, mesh->num_indices, cmd.num_instances, 0, 0, 0);
-            }
-        }
-
-        if (current_keys[GFX_KEY_PASS] != GFX_INVALID) {
-            rhi_pass_end(cmd_buffer, &pass);
-            rhi_cmd_texture_barrier(cmd_buffer, &gfx->surface->textures[gfx->surface->current_frame_index], RHI_RESOURCE_STATE_RENDER_TARGET, RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-
-            Guid depth_attachment_guid = gfx->pass_states[current_keys[GFX_KEY_PASS]].depth_attachment;
-            if (depth_attachment_guid != NULL_GUID) {
-                auto *entry = table_find_pointer(&gfx->texture_table, depth_attachment_guid);
-                if (entry) {
-                    rhi_cmd_texture_barrier(cmd_buffer, &entry->texture, RHI_RESOURCE_STATE_DEPTH_WRITE, RHI_RESOURCE_STATE_COMMON, RHI_ALL_MIPS, RHI_ALL_LAYERS);
-                }
-            }
-        }
+        rhi_cmd_texture_barrier(cmd_buffer, 
+                                &gfx->surface_textures[gfx_backbuffer_index()], 
+                                RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
     }
     rhi_command_buffer_end(cmd_buffer);
+    
 
 
     // Submit command buffer
@@ -812,19 +891,15 @@ void gfx_request_swapchain_resize(u32 width, u32 height) {
     gfx->resize_height    = height;
 }
 
-GPU_Material gpu_material_from_gfx(GFX_Material *material) 
-{
+GPU_Material gpu_material_from_gfx(GFX_Material *material)  {
     GPU_Material result = {};
 
     result.albedo    = material->albedo;
     result.metallic  = material->metallic;
     result.roughness = material->roughness;
 
-    result.albedo_id = gfx_bindless_from_texture(material->albedo_texture, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
-    result.orm_id    = gfx_bindless_from_texture(material->orm_texture, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
-
-    if (material->flags & GFX_MATERIAL_FLAG_PARALLAX)  
-        result.flags |= GPU_MATERIAL_FLAG_PARALLAX;
+    result.albedo_id = gfx_srv_bindless_from_texture(material->albedo_texture);
+    result.orm_id    = gfx_srv_bindless_from_texture(material->orm_texture);
 
     return result;
 }

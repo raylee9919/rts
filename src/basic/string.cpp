@@ -1,6 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 
+#include "basic/string.h"
+#include "basic/core.h"
+#include "basic/arena.h"
+#include "basic/allocator.h"
+#include "basic/context.h"
+
 // Faster 'sprintf' than stdlib.
 #define STB_SPRINTF_IMPLEMENTATION
 #include "basic/vendor/stb_sprintf.h"
@@ -9,7 +15,7 @@
 //
 // c-string
 //
-internal u64
+u64
 string_length(const char *string)
 {
     u32 len = 0;
@@ -26,7 +32,7 @@ int cstrlen(const char *cstr)
     return len;
 }
 
-internal b32
+b32
 string_equal(char *str1, u64 len1, char *str2, u64 len2) 
 {
     b32 result = (len1 == len2);
@@ -45,19 +51,19 @@ string_equal(char *str1, u64 len1, char *str2, u64 len2)
     return result;
 }
 
-internal b32
+b32
 string_equal(char *str1, u64 len1, char *str2) 
 {
     return string_equal(str1, len1, str2, string_length(str2));
 }
 
-internal bool
+bool
 string_equal(const char *str1, char *str2, u64 len2) 
 {
     return string_equal((char *)str1, string_length((char *)str1), str2, len2);
 }
 
-internal b32
+b32
 string_equal(char *str1, char *str2) 
 {
     return string_equal(str1, string_length(str1), str2, string_length(str2));
@@ -65,13 +71,13 @@ string_equal(char *str1, char *str2)
 
 
 
-internal String
+String
 utf8_copy(Arena *arena, String utf)
 {
     String result;
     result.len = utf.len;
     result.str = push_array_noz(arena, u8, utf.len + 1);
-    memory_copy(result.str, utf.str, utf.len);
+    memcpy(result.str, utf.str, utf.len);
     result.str[utf.len] = 0;
     return result;
 }
@@ -149,7 +155,7 @@ String utf8c(u8 *ptr)
     return result;
 }
 
-internal Utf16
+Utf16
 utf16(u16 *str, u64 len)
 {
     Utf16 result = {};
@@ -158,7 +164,7 @@ utf16(u16 *str, u64 len)
     return result;
 }
 
-internal Utf16
+Utf16
 utf16c(u16 *ptr)
 {
     u16 *p = ptr;
@@ -167,7 +173,7 @@ utf16c(u16 *ptr)
     return result;
 }
 
-internal Utf32
+Utf32
 utf32(u32 *str, u64 len)
 {
     Utf32 result = {};
@@ -178,7 +184,7 @@ utf32(u32 *str, u64 len)
 
 // # Note: Encoding/Decoding.
 //
-internal Unicode_Decode
+Unicode_Decode
 utf8_decode(u8 *str, u64 max)
 {
     Unicode_Decode result = {1, U32_MAX};
@@ -235,7 +241,7 @@ utf8_decode(u8 *str, u64 max)
     return result;
 }
 
-internal Unicode_Decode
+Unicode_Decode
 utf16_decode(u16 *str, u64 max)
 {
     Unicode_Decode result = {1, U32_MAX};
@@ -249,7 +255,7 @@ utf16_decode(u16 *str, u64 max)
     return result;
 }
 
-internal u32
+u32
 utf8_encode(u8 *str, u32 codepoint)
 {
     u32 inc = 0;
@@ -287,7 +293,7 @@ utf8_encode(u8 *str, u32 codepoint)
     return inc;
 }
 
-internal u32
+u32
 utf16_encode(u16 *str, u32 codepoint)
 {
     u32 inc = 1;
@@ -399,7 +405,7 @@ Utf16 to_utf16(Allocator allocator, String in) {
 
 // # Note: Manipulation.
 //
-internal b32
+b32
 utf8_match(String a, String b, Str_Match_Flags flags)
 {
     b32 result = 0;
@@ -427,7 +433,7 @@ utf8_match(String a, String b, Str_Match_Flags flags)
     return result;
 }
 
-internal String
+String
 utf8_substr(String str, s64 min, s64 max)
 {
     if (max > str.len)
@@ -449,7 +455,7 @@ utf8_substr(String str, s64 min, s64 max)
     return str;
 }
 
-internal s64
+s64
 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags)
 {
     b32 found = 0;
@@ -471,7 +477,7 @@ utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags 
     return found_idx;
 }
 
-internal String
+String
 utf8_path_chop_last_slash(String string)
 {
     Str_Match_Flags flags = STR_MATCH_SLASH_INSENTISIVE|STR_MATCH_FIND_LAST;
@@ -486,7 +492,7 @@ utf8_path_chop_last_slash(String string)
 // 
 // Chop/Slash Helpers.
 //
-internal String
+String
 utf8_skip_whitespace(String str)
 {
     s64 first_non_ws = 0;
@@ -505,7 +511,7 @@ utf8_skip_whitespace(String str)
     return utf8_substr(str, first_non_ws, str.len);
 }
 
-internal String
+String
 utf8_chop_whitespace(String str)
 {
     u64 first_ws_at_end = str.len;
@@ -520,7 +526,7 @@ utf8_chop_whitespace(String str)
     return utf8_substr(str, 0, first_ws_at_end);
 }
 
-internal String
+String
 utf8_skip_chop_whitespace(String str)
 {
     return utf8_skip_whitespace(utf8_chop_whitespace(str));

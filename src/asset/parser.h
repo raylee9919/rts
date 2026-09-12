@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "basic/core.h"
+#include "basic/arena.h"
+#include "basic/string.h"
+#include "math/math.h"
+
 namespace Asset
 {
     struct Parser

@@ -3,7 +3,9 @@
 #ifndef RTS_BASE_CONTEXT_H
 #define RTS_BASE_CONTEXT_H
 
-struct Arena;
+#include "basic/core.h"
+#include "basic/arena.h"
+#include "basic/allocator.h"
 
 struct Context {
     Arena *scratch_arena;
@@ -14,14 +16,14 @@ struct Context {
 
     Allocator temp;
 };
-per_thread Context tctx;
+extern per_thread Context tctx;
 
 
 struct Thread_State {
     Context context_stack[32]     = {};
     s64     context_stack_pointer = -1;
 };
-per_thread Thread_State thread_state;
+extern per_thread Thread_State thread_state;
 
 
 void    context_push(Context context);
@@ -31,12 +33,12 @@ void    context_pop();
 
 
 
-internal void thread_init();
+void thread_init();
 
-internal Temporary_Arena scratch_begin(void);
-internal void            scratch_end(Temporary_Arena tmp);
+Temporary_Arena scratch_begin(void);
+void            scratch_end(Temporary_Arena tmp);
 
-internal void clear_thread_temporary_storage();
+void clear_thread_temporary_storage();
 
 
 

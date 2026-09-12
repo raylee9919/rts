@@ -3,9 +3,12 @@
 #ifndef RTS_ARENA_H
 #define RTS_ARENA_H
 
+#include "basic/core.h"
+#include "basic/allocator.h"
+
 
 #define ARENA_DEFAULT_RESERVE_SIZE  (64ull * 1024 * 1024)
-#define ARENA_DEFAULT_COMMIT_SIZE   (64ull)
+#define ARENA_DEFAULT_COMMIT_SIZE   (64ull * 1024 * 1024)
 #define ARENA_HEADER_SIZE           (128ull)
 
 
@@ -28,32 +31,36 @@ struct Temporary_Arena {
 };
 
 
-internal Arena* arena_alloc_(u64 rsv_size, u64 cmt_size);
+Arena* arena_alloc_(u64 rsv_size, u64 cmt_size);
 #define arena_alloc() arena_alloc_(ARENA_DEFAULT_RESERVE_SIZE, ARENA_DEFAULT_COMMIT_SIZE)
-internal void arena_release(Arena *arena);
+void arena_release(Arena *arena);
 
-internal void* arena_push(Arena *arena, u64 size, u64 align);
+void* arena_push(Arena *arena, u64 size, u64 align);
 
-internal u64 arena_pos(Arena *arena);
-internal void arena_pop_to(Arena *arena, u64 pos);
-internal void arena_clear(Arena *arena);
-internal void arena_pop(Arena *arena, u64 size);
+u64 arena_pos(Arena *arena);
+void arena_pop_to(Arena *arena, u64 pos);
+void arena_clear(Arena *arena);
+void arena_pop(Arena *arena, u64 size);
 
-#define push_array_noz_aligned(a, T, n, align)  (T *)arena_push((a), sizeof(T)*(n), (align))
-#define push_array_aligned(a, T, n, align)      (T *)zero_memory(push_array_noz_aligned(a, T, n, align), sizeof(T)*(n))
-#define push_array_noz(a, T, n)                      push_array_noz_aligned(a, T, n, max(8, align_of(T)))
-#define push_array(a, T, n)                          push_array_aligned(a, T, n, max(8, align_of(T)))
- 
+#define push_array_noz_aligned(a, T, n, align)  (T *)arena_push((a), sizeof(T)*(n), (u64)(align))
+#define push_array_aligned(a, T, n, align)      (T *)memset(push_array_noz_aligned(a, T, n, (u64)align), 0, sizeof(T)*(n))
+#define push_array_noz(a, T, n)                      push_array_noz_aligned(a, T, n, max(8ull, (u64)align_of(T)))
+#define push_array(a, T, n)                          push_array_aligned(a, T, n, max(8ull, (u64)align_of(T)))
+
 #define push_struct_noz(a, T)                        push_array_noz(a, T, 1)
 #define push_struct(a, T)                            push_array(a, T, 1)
- 
+
 #define push_size(a, s)                              arena_push(a, s, 8)
 
 
-internal Temporary_Arena    temporary_arena_begin(Arena* arena);
-internal void               temporary_arena_end(Temporary_Arena temp);
-//internal Temporary_Arena    scratch_begin(void);
-//internal void               scratch_end(Temporary_Arena tmp);
+Temporary_Arena    temporary_arena_begin(Arena* arena);
+void               temporary_arena_end(Temporary_Arena temp);
+//Temporary_Arena    scratch_begin(void);
+//void               scratch_end(Temporary_Arena tmp);
+
+
+void              *arena_allocator_proc(Allocator_Mode mode, u64 size, u64 old_size, void *old_memory, void *data);
+Allocator          arena_allocator_alloc();
 
 
 #endif // RTS_ARENA_H

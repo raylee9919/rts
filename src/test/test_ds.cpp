@@ -1,12 +1,11 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#include "Basic/include.h"
-#include "Math/include.h"
-#include "OS/os.h"
+#include "basic/core.h"
+#include "basic/array.h"
+#include "basic/hash_table.h"
+#include "os/os.h"
 
-#include "Basic/include.cpp"
-#include "Math/include.cpp"
-#include "OS/os.cpp"
+#include <stdio.h>
 
 static void test_array();
 static void test_table();

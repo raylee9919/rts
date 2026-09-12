@@ -39,7 +39,7 @@
 #elif (COMPILER_CLANG && OS_LINUX)
 #  define read_only __attribute__((section(".rodata")))
 #else
-// TODO: GCC
+// @Todo: GCC
 #  define read_only
 #endif
 
@@ -48,7 +48,7 @@
 #  define write_barrier() _WriteBarrier()
 #elif COMPILER_CLANG
 #  include <x86intrin.h>
-#  define write_barrier()  // TODO:
+#  define write_barrier()  // @Todo
 #endif
 
 #if COMPILER_CL
@@ -135,6 +135,16 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 
 
 
+// 3rd-party include
+//
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <math.h>
+#include <string.h>
+#include <new>
+
 #define internal        static
 #define global          static
 #define local_persist   static
@@ -153,14 +163,6 @@ typedef s32         b32;
 typedef float       f32; 
 typedef double      f64; 
 
-typedef u8 Axis2;
-enum
-{
-    AXIS2_X,
-    AXIS2_Y,
-    AXIS2_COUNT
-};
-
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
 #undef assert
@@ -169,36 +171,27 @@ enum
 #define assert(exp)  if (!(exp)) do { debug_break(); } while(0)
 #define INVALID_CODE_PATH Assert(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
-#define max(a, b) ( ((a) > (b)) ? (a) : (b) )
-#define min(a, b) ( ((a) < (b)) ? (a) : (b) )
 #define defer_loop(start, end) for(int CONCAT2(_i_,__LINE__) = ((start), 0); CONCAT2(_i_,__LINE__) == 0; (CONCAT2(_i_,__LINE__) += 1, (end)))
 
-// -------------------------------------
-// NOTE: Clamp
+
+template <typename T>
+force_inline T min(T a, T b) { return (a < b) ? a : b; }
+
+template <typename T>
+force_inline T max(T a, T b) { return (a > b) ? a : b; }
+
+template <typename T>
+force_inline T clamp(T a, T lo, T hi) { return min(max(a, lo), hi); }
+
 
 #define array_count(array) ( sizeof(array) / sizeof(array[0]) )
 #define int_from_ptr(p) (u64)(((u8*)p) - 0)
 #define ptr_from_int(i) (void*)(((u8*)0) + i)
 #define offset_of(type, member) int_from_ptr(&((type *)0)->member)
 #define base_from_member(type, member_name, ptr) (type *)((u8 *)(ptr) - offset_of(type, member_name))
-#define align_pow2(x,b)      (((x) + (b) - 1)&(~((b) - 1)))
-#define align_down_pow2(x,b) ((x)&(~((b) - 1)))
-#define clamp(a, lo, hi)    (min(max(a, lo), hi))
-#define clamp_lo(a, lo)     (max(a, lo))
-#define clamp_hi(a, hi)     (min(a, hi))
-#define clamp01(a)          clamp(a, 0, 1)
+
 
 #define quick_sort(base, type, count, cmp) qsort((base), (count), sizeof(type), (int(*)(const void *, const void *))(cmp))
-
-// ----------------------------------
-// NOTE: Memory Operations
-#define memory_copy(dst, src, size) memmove((dst), (src), (size))
-#define memory_set(dst, byte, size) memset((dst), (byte), (size))
-#define memory_compare(a, b, size)  memcmp((a), (b), (size))
-#define memory_match(a, b, size)    (memory_compare((a), (b), (size)) == 0)
-#define zero_memory(ptr, size)      memory_set((ptr), 0, (size))
-#define zero_struct(ptr)            memory_set((ptr), 0, sizeof(*(ptr)))
-#define zero_array(ptr, count)      memory_set((ptr), 0, sizeof(*(ptr))*(count))
 
 // ----------------------------------
 // NOTE: Data Structure Macros
@@ -268,8 +261,14 @@ enum
     ( (zchk(f)||zchk(l)) ? (0) : _dll_sort(f, l, sizeof(type), offset_of(type, next), offset_of(type,prev), cmp) )
 #define dll_sort(f, l, type, cmp) dll_sort_npz(f, l, type, cmp, next, prev, check_null)
 
-internal void *_dll_np(void *node, u64 np);
-internal void _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
+void *_dll_np(void *node, u64 np);
+void _dll_sort(void *first, void *last, u64 size, u64 next, u64 prev, int(*cmp)(void*,void*));
+
+u16 to_u16_safe(u32 x);
+u32 to_u32_safe(u64 x);
+s32 to_s32_safe(s64 x);
+
+void radix_sort_u64(void *data, s64 count, s64 stride, s64 key_offset);
 
 
 // 

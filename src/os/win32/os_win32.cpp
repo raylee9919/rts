@@ -1,5 +1,28 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+// ----------------------------------
+// NOTE: Memory Operations
+#define memory_compare(a, b, size)  memcmp((a), (b), (size))
+#define memory_match(a, b, size)    (memory_compare((a), (b), (size)) == 0)
+
+
+#include "os/os.h"
+#include "os/win32/os_win32.h"
+#include "basic/arena.h"
+#include "basic/string.h"
+#include "basic/context.h"
+
+#include <windowsx.h>
+#include <shlobj.h>
+
+extern "C"
+{
+    __declspec(dllexport) DWORD NvOptimusEnablement = 1;
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+
+OS_State *os;
+
 
 // Init
 //
@@ -203,7 +226,7 @@ u32 os_query_caret_blink_time() {
 
 // Time
 // @Todo: This is kinda sloppy...
-f64 time_s() {
+f64 time_seconds() {
     Win32_State *win32 = (Win32_State *)os->native;
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
@@ -212,11 +235,11 @@ f64 time_s() {
 }
 
 f64 time_ms() {
-    return time_s() * 1000.0;
+    return time_seconds() * 1000.0;
 }
 
 f64 time_us() {
-    return time_s() * 1000000.0;
+    return time_seconds() * 1000000.0;
 }
 
 
@@ -1162,44 +1185,6 @@ void thread_group_complete_all_work(Thread_Group *group) {
     temporary_arena_end(group->temp);
     group->temp = temporary_arena_begin(group->arena);
 }
-
-template<typename F>
-void parallel_for(Thread_Group *group, s64 count, F&& func) {
-    if (count <= 0)  return;
-
-    s64 chunk_size = (count + group->count - 1) / group->count;
-
-    struct Context {
-        F  *func;
-        s64 begin;
-        s64 end;
-    };
-
-    auto proc = [](void *param) {
-        Context *ctx = (Context *)param;
-
-        for (s64 i = ctx->begin; i < ctx->end; ++i) {
-            (*ctx->func)(i);
-        }
-    };
-
-    for (s32 i = 0; i < group->count; ++i) {
-        s64 begin = i * chunk_size;
-        s64 end   = min(begin + chunk_size, count);
-
-        if (begin >= end)  break;
-
-        Context *ctx = push_struct(group->arena, Context);
-        ctx->func  = &func;
-        ctx->begin = begin;
-        ctx->end   = end;
-
-        thread_group_add_work(group, proc, ctx);
-    }
-
-    thread_group_complete_all_work(group);
-}
-
 
 // UUID/GUID
 //

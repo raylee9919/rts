@@ -1,5 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#ifndef RTS_SHADER_H
+#define RTS_SHADER_H
+
+#include "basic/core.h"
+#include "basic/allocator.h"
+#include "basic/string.h"
+
 struct Shader_Compiler;
 
 enum Shader_Stage : u8 {
@@ -28,7 +35,9 @@ struct Shader_Compile_Result {
     u32 num_texture_loads; // Texture load instructions
 };
 
-internal bool shader_compiler_init(Shader_Compiler *compiler);
-internal void shader_compiler_deinit(Shader_Compiler *compiler);
+bool shader_compiler_init(Shader_Compiler *compiler);
+void shader_compiler_deinit(Shader_Compiler *compiler);
 // Allocator allocates memory for the compiled binary blob.
-internal bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, bool debug, Shader_Compile_Result *out_result, Allocator allocator);
+bool shader_compile(Shader_Compiler *compiler, Shader_Compile_Options options, bool debug, Shader_Compile_Result *out_result, Allocator allocator);
+
+#endif // RTS_SHADER_H

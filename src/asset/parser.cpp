@@ -1,5 +1,9 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "asset/parser.h"
+#include "basic/arena.h"
+#include "basic/string.h"
+
 namespace Asset
 {
     void init(Parser* p, void *ptr, u64 size)
@@ -193,7 +197,7 @@ namespace Asset
 
         result.len = len;
         result.str = push_array(arena, u8, len + 1);
-        memory_copy(result.str, p->cursor - len, len);
+        memcpy(result.str, p->cursor - len, len);
 
         return result;
     }
@@ -207,7 +211,7 @@ namespace Asset
 
         result.len = length;
         result.str = push_array(arena, u8, length + 1);
-        memory_copy(result.str, p->cursor, length);
+        memcpy(result.str, p->cursor, length);
 
         p->cursor += length;
 

@@ -1,5 +1,8 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "basic/allocator.h"
+#include "basic/context.h"
+
 void *alloc(u64 size, Allocator allocator) {
     auto a = (allocator.proc == NULL) ? tctx.allocator : allocator;
     return a.proc(ALLOCATOR_MODE_ALLOCATE, size, 0, NULL, a.data);

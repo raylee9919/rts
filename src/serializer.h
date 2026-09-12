@@ -3,6 +3,13 @@
 #ifndef RTS_SERIALIZER_H
 #define RTS_SERIALIZER_H
 
+#include "basic/core.h"
+#include "basic/string.h"
+#include "math/math.h"
+#include "os/os.h"
+
+struct Entity;
+
 
 // https://handmade.network/p/29/swedish-cubes-for-unity/blog/p/2723-how_media_molecule_does_serialization
 
@@ -31,6 +38,24 @@ struct Serializer {
     b32             is_writing;
 };
 
-internal void serializer_init(Serializer *s, Data_Version version, void *ptr, b32 is_writing);
+void serializer_init(Serializer *s, Data_Version version, void *ptr, b32 is_writing);
+
+void serialize(Serializer *s, String str);
+void serialize(Serializer *s, s8 *data);
+void serialize(Serializer *s, s16 *data);
+void serialize(Serializer *s, s32 *data);
+void serialize(Serializer *s, s64 *data);
+void serialize(Serializer *s, u8 *data);
+void serialize(Serializer *s, u16 *data);
+void serialize(Serializer *s, u32 *data);
+void serialize(Serializer *s, u64 *data);
+void serialize(Serializer *s, f32 *data);
+void serialize(Serializer *s, f64 *data);
+void serialize(Serializer *s, v2 *data);
+void serialize(Serializer *s, v3 *data);
+void serialize(Serializer *s, v4 *data);
+void serialize(Serializer *s, m4x4 *data);
+void serialize(Serializer *s, Guid *data);
+void serialize(Serializer *s, Entity *entity);
 
 #endif // RTS_SERIALIZER_H

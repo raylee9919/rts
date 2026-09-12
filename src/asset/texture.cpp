@@ -1,5 +1,14 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "asset/texture.h"
+#include "asset/parser.h"
+#include "asset/system.h"
+#include "basic/arena.h"
+#include "basic/context.h"
+#include "os/os.h"
+
+#include <stdio.h>
+
 #define STBI_ASSERT(x)
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
@@ -30,7 +39,7 @@ namespace Asset
         eat_whitespace(&p);
         // @Todo: Alloc data properly.
         tex->data = new u8[tex->size];
-        memory_copy(tex->data, p.cursor, tex->size);
+        memcpy(tex->data, p.cursor, tex->size);
         p.cursor += tex->size;
 
         assert(is_eof(&p));
@@ -73,7 +82,7 @@ namespace Asset
 
         // @Todo: Alloc data properly.
         tex->data = new u8[tex->size];
-        memory_copy(tex->data, data, tex->size);
+        memcpy(tex->data, data, tex->size);
 
         stbi_image_free(data);
     }

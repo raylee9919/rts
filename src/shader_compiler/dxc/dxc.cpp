@@ -1,5 +1,13 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "shader_compiler/dxc/dxc.h"
+#include "shader_compiler/shader.h"
+#include "basic/context.h"
+#include "basic/log.h"
+#include "os/os.h"
+
+#include "third_party/DirectX/Include/d3d12shader.h"
+
 static String shader_profile_from_stage(Shader_Stage stage) {
     switch (stage) {
         case SHADER_STAGE_VS: return S("vs_6_6");

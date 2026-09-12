@@ -1,5 +1,18 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "rhi/d3d12/rhi_d3d12.h"
+#include "rhi/rhi.h"
+#include "basic/allocator.h"
+#include "basic/context.h"
+#include "basic/log.h"
+#include "os/os.h"
+
+extern "C"
+{
+    __declspec(dllexport) extern const u32 D3D12SDKVersion = 619;
+    __declspec(dllexport) extern const char *D3D12SDKPath = ".\\.";
+}
+
 // @Todo: Allocator
 
 // Translation
@@ -386,7 +399,7 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
     // @Todo: Cleanup on failure.
     bool result = false;
-    HRESULT hr = S_OK;
+    HRESULT hr  = S_OK;
     auto *d3d12 = &device->d3d12;
 
     IDXGIDebug       *dxgi_debug        = NULL;
@@ -1326,6 +1339,15 @@ bool d3d12_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_De
             log(LOG_ERROR, S("HRESULT: %S, %x. CreateCommittedResource failed."), string_from_hresult(hr), hr);
             return false;
         }
+
+        // Set name
+        if (desc->name.len && desc->name.str) {
+            Utf16 name_16 = to_utf16(tctx.temp, desc->name);
+            texture->d3d12.resource->SetName((LPWSTR)name_16.str);
+        }
+
+        // Initial state
+        texture->state = RHI_RESOURCE_STATE_COMMON; // Must match the initial state of d3d12's
     }
 
     log(LOG_INFO, S("Initialized d3d12 texture."));
@@ -1481,7 +1503,11 @@ void d3d12_sampler_deinit(RHI_Sampler *sampler) {
 
 // Surface
 //
-bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc) {
+bool d3d12_surface_init(RHI_Device *device, 
+                        RHI_Surface *surface, 
+                        RHI_Surface_Desc *desc,
+                        RHI_Texture *out_textures) 
+{
     HWND hwnd = (HWND)desc->native_window_handle;
 
     DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM; // @Todo: HDR
@@ -1535,28 +1561,42 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
         return false;
     }
 
+
     // Disable Alt + Enter changing monitor resolution to match window size.
     device->d3d12.dxgi_factory_6->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
 
 
     // Get resources from the swap chain and create render target views.
     for (u32 i = 0; i < desc->num_back_buffers; ++i) {
-        auto *tex = &surface->textures[i];
+        RHI_Texture *out_tex = &out_textures[i];
 
-        hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&tex->d3d12.resource));
+        hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&out_tex->d3d12.resource));
         if (FAILED(hr)) {
             log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain1::GetBuffer() failed."), string_from_hresult(hr), hr);
             return false;
         }
 
-        tex->kind = RHI_KIND_D3D12;
-        tex->desc.type       = RHI_TEXTURE_TYPE_2D;
-        tex->desc.format     = rhi_texture_format_from_d3d12(format);
-        tex->desc.usage      = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT;
-        tex->desc.width      = desc->width;
-        tex->desc.height     = desc->height;
-        tex->desc.mip_levels = 1;
-        tex->desc.depth      = 1;
+        out_tex->kind = RHI_KIND_D3D12;
+        out_tex->desc.type           = RHI_TEXTURE_TYPE_2D;
+        out_tex->desc.name           = S("SwapChain");
+        out_tex->desc.format         = rhi_texture_format_from_d3d12(format);
+        out_tex->desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT;
+        out_tex->desc.width          = desc->width;
+        out_tex->desc.height         = desc->height;
+        out_tex->desc.mip_levels     = 1;
+        out_tex->desc.depth          = 1;
+        out_tex->desc.clear          = true;
+        out_tex->desc.clear_color[0] = 0.f;
+        out_tex->desc.clear_color[1] = 0.f;
+        out_tex->desc.clear_color[2] = 0.f;
+        out_tex->desc.clear_color[3] = 0.f;
+        out_tex->state               = RHI_RESOURCE_STATE_COMMON;
+
+        // Set name
+        if (out_tex->desc.name.len && out_tex->desc.name.str) {
+            Utf16 name_16 = to_utf16(tctx.temp, out_tex->desc.name);
+            out_tex->d3d12.resource->SetName((LPWSTR)name_16.str);
+        }
     }
 
     // Get initial back buffer index.
@@ -1567,7 +1607,7 @@ bool d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_De
         surface->d3d12.frame_waitable_object = surface->d3d12.swap_chain_4->GetFrameLatencyWaitableObject();
 
         // It's basically setting the present queue capacity.
-        hr = surface->d3d12.swap_chain_4->SetMaximumFrameLatency(2);
+        hr = surface->d3d12.swap_chain_4->SetMaximumFrameLatency(desc->num_back_buffers - 1);
         if (FAILED(hr)) {
             log(LOG_ERROR, S("HRESULT: %S, %x. IDXGISwapChain2::SetMaximumFrameLatency() failed."), string_from_hresult(hr), hr);
             return false;
@@ -1585,9 +1625,9 @@ void d3d12_surface_present(RHI_Surface *surface, u32 sync_interval) {
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }
 
-void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
+void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *textures) {
     for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
-        COM_SAFE_RELEASE(&surface->textures[i].d3d12.resource);
+        COM_SAFE_RELEASE(&textures[i].d3d12.resource);
     }
 
     DXGI_SWAP_CHAIN_DESC1 desc = {};
@@ -1595,9 +1635,9 @@ void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
     surface->d3d12.swap_chain_4->ResizeBuffers(surface->desc.num_back_buffers, width, height, desc.Format, desc.Flags);
 
     for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
-        surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&surface->textures[i].d3d12.resource));
-        surface->textures[i].desc.width  = width;
-        surface->textures[i].desc.height = height;
+        surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&textures[i].d3d12.resource));
+        textures[i].desc.width  = width;
+        textures[i].desc.height = height;
     }
 
     surface->desc.width          = width;
@@ -1801,16 +1841,15 @@ static D3D12_BARRIER_ACCESS d3d12_barrier_access_from_rhi(RHI_Resource_State sta
 }
 
 void d3d12_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, 
-                               RHI_Resource_State before, RHI_Resource_State after,
-                               u32 mip, u32 slice) {
+                               RHI_Resource_State after, u32 mip, u32 slice) {
 
     D3D12_TEXTURE_BARRIER barrier = {};
     {
-        barrier.SyncBefore      = d3d12_barrier_sync_from_rhi(before);
+        barrier.SyncBefore      = d3d12_barrier_sync_from_rhi(texture->state);
         barrier.SyncAfter       = d3d12_barrier_sync_from_rhi(after);
-        barrier.AccessBefore    = d3d12_barrier_access_from_rhi(before);
+        barrier.AccessBefore    = d3d12_barrier_access_from_rhi(texture->state);
         barrier.AccessAfter     = d3d12_barrier_access_from_rhi(after);
-        barrier.LayoutBefore    = d3d12_barrier_layout_from_rhi(before);
+        barrier.LayoutBefore    = d3d12_barrier_layout_from_rhi(texture->state);
         barrier.LayoutAfter     = d3d12_barrier_layout_from_rhi(after);
         barrier.pResource       = texture->d3d12.resource;
         barrier.Flags           = D3D12_TEXTURE_BARRIER_FLAG_NONE;

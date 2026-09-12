@@ -1,5 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#ifndef RTS_SHADERS_SHARED_H
+#define RTS_SHADERS_SHARED_H
+
+#if !SCOPE_SHADER
+#  include "math/math.h"
+#endif
+
 #define GFX_INVALID_BINDLESS            0
 
 #define GFX_CONSTANTS_INDEX_GLOBAL      0
@@ -11,12 +18,12 @@
 #  define PUSH_CONSTANTS(Struct) ConstantBuffer<Struct> push : register(CONCAT(b, GFX_CONSTANTS_INDEX_USER))
 #endif
 
-struct GPU_Global {
-    float time;
-};
-#if SCOPE_SHADER
-ConstantBuffer<GPU_Global> global : register(b0);
-#endif
+// struct GPU_Global {
+//     float time;
+// };
+// #if SCOPE_SHADER
+//   ConstantBuffer<GPU_Global> global : register(b0);
+// #endif
 
 struct GPU_Camera {
     v4   position;
@@ -25,8 +32,6 @@ struct GPU_Camera {
     m4x4 view_proj;
 };
 
-#define GPU_MATERIAL_FLAG_PARALLAX  (1 << 0)
-
 struct GPU_Material {
     v3              albedo;
     float           metallic;
@@ -34,8 +39,6 @@ struct GPU_Material {
 
     uint32_t        albedo_id;
     uint32_t        orm_id;
-
-    uint32_t        flags;
 };
 
 struct Constants {
@@ -51,3 +54,5 @@ struct Arguments {
     float           transform[4][4];
     uint32_t        material_id;
 };
+
+#endif // RTS_SHADERS_SHARED_H

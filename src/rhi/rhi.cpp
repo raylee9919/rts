@@ -1,5 +1,10 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "rhi/rhi.h"
+#include "rhi/d3d12/rhi_d3d12.h"
+#include "basic/log.h"
+#include "profiler/profiler.h"
+
 bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning) {
     memset(device, 0, sizeof(*device));
     device->kind = kind;
@@ -95,20 +100,21 @@ void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers)
 //
 // Surface
 //
-bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc) {
+bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures) {
     memset(surface, 0, sizeof(*surface));
     RHI_Kind kind = device->kind;
     surface->kind = kind;
     surface->desc = *desc;
 
-    if (!(desc->num_back_buffers >= RHI_MAX_BUFFER_COUNT && desc->num_back_buffers <= RHI_MAX_BUFFER_COUNT)) {
+    if (!(desc->num_back_buffers >= RHI_MIN_BUFFER_COUNT && 
+          desc->num_back_buffers <= RHI_MAX_BUFFER_COUNT)) {
         log(LOG_ERROR, S("Number of backbuffers must be an integer between [%d, %d]."), RHI_MIN_BUFFER_COUNT, RHI_MAX_BUFFER_COUNT);
         return false;
     }
 
     switch (kind) {
         case RHI_KIND_D3D12:
-            return d3d12_surface_init(device, surface, desc);
+            return d3d12_surface_init(device, surface, desc, out_textures);
 
         default:
             Assert(0);
@@ -131,10 +137,10 @@ void rhi_surface_present(RHI_Surface *surface, u32 sync_interval) {
     }
 }
 
-void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height) {
+void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *textures) {
     switch (surface->kind) {
         case RHI_KIND_D3D12:
-            d3d12_surface_resize(surface, width, height);
+            d3d12_surface_resize(surface, width, height, textures);
             break;
 
         default:
@@ -472,16 +478,24 @@ void rhi_pipeline_deinit(RHI_Pipeline *pipeline) {
 //
 // Commands
 //
-void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, RHI_Texture *texture, RHI_Resource_State before, RHI_Resource_State after, u32 mip, u32 slice) {
+void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, 
+                             RHI_Texture *texture, 
+                             RHI_Resource_State after, 
+                             u32 mip, u32 slice) {
+
+    if (texture->state == after)  return;
+
     switch (cmd_buffer->kind) {
         case RHI_KIND_D3D12:
-            d3d12_cmd_texture_barrier(cmd_buffer, texture, before, after, mip, slice);
+            d3d12_cmd_texture_barrier(cmd_buffer, texture, after, mip, slice);
             break;
 
         default:
             Assert(0);
             break;
     }
+
+    texture->state = after;
 }
 
 void rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline) {

@@ -3,6 +3,12 @@
 #ifndef RTS_OS_WIN32_H
 #define RTS_OS_WIN32_H
 
+#include <windows.h>
+
+#include "basic/core.h"
+#include "basic/arena.h"
+#include "basic/string.h"
+
 #define COM_SAFE_RELEASE(ppT) if (*(ppT)) { (*(ppT))->Release(); *(ppT) = NULL; }
 
 #pragma comment(lib, "user32")
@@ -13,16 +19,14 @@
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "rpcrt4")
 
-extern "C" 
-{
-    __declspec(dllexport) DWORD NvOptimusEnablement = 1;
-    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
-}
-
-// DXGI, D3D12, DXC
+// DXGI
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "dxguid")
+
+// D3D12
 #pragma comment(lib, "d3d12")
+
+// DXC
 #pragma comment(lib, "dxcompiler")
 
 // PIX
@@ -66,6 +70,7 @@ struct Semaphore {
 };
 
 
+String string_from_hresult(HRESULT hr);
 
 
 #endif // RTS_OS_WIN32_H

@@ -1,96 +1,61 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 cd /D "%~dp0"
+
+set preset=debug
+set force_configure=
+set target=
+
+for %%a in (%*) do (
+    if /I "%%a"=="debug" (
+        set preset=debug
+    ) else if /I "%%a"=="release" (
+        set preset=release
+    ) else if /I "%%a"=="profile" (
+        set preset=profile
+    ) else if /I "%%a"=="asan" (
+        set preset=asan
+    ) else if /I "%%a"=="configure" ( 
+        set force_configure=1
+    ) else (
+        set target=%%a 
+    )
+)
 
 :: CTIME Begin
 if not exist misc mkdir misc
 call "util/ctime" -begin misc/rts_build_time.ctm
 
 :: Get cl.exe
-where cl >nul 2>nul
-if %errorlevel%==1 (
-    echo Looking for 'vcvars64.bat'.. Recommended to run from the Developer Command Prompt.
-    @call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-)
+where /q cl && goto :have_cl
+set "vswhere=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if not exist "%vswhere%" goto :no_cl
+for /f "usebackq tokens=*" %%i in (`"%vswhere%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "vs_path=%%i"
+if not defined vs_path goto :no_cl
+call "%vs_path%\VC\Auxiliary\Build\vcvars64.bat" >nul
+where /q cl || goto :no_cl
+:have_cl
 
-where /q cl || (
-    echo [ERROR]: "cl" not found - please run this from the MSVC x64 native tools command prompt.
-    exit /b 1
-)
+echo [%preset%]
 
-:: Unpack Arguments.
-for %%a in (%*) do set "%%a=1"
-if not "%release%"=="1" set debug=1
-if "%debug%"=="1" set release=0 && echo [Debug Build]
-if "%release%"=="1" set debug=0 && echo [Release Build]
+if defined force_configure goto :configure
+if exist "build\%preset%\build.ninja" goto :build
+:configure
+cmake --preset %preset% || goto :fail
 
-if "%fbx%"=="1"    set build_fbx=1
-if "%rts%"=="1"    set build_rts=1
-if "%pch%"=="1"    set build_pch=1
-if "%t%"=="1"      set build_test=1
-
-if not defined build_fbx if not defined build_rts if not defined build_pch if not defined build_test (
-    set "build_rts=1"
-    echo building all..
-)
-
-set compiler=cl
-set flags_common=/std:c++17 /nologo /FC /Zi /EHsc- /utf-8 /I..\src
-set flags_debug=/Od /DBUILD_DEBUG=1
-set flags_release=/O2 /DBUILD_DEBUG=0
-:: 4100: unreferenced formal parameter
-:: 4189: local variable is initialized but not referenced
-:: 4456: declaration hides previous local declaration
-:: 4244::::::::::::::::::::::::::::::::::::::::::::::::::
-set flags_warning=/W3 /WX /D_CRT_SECURE_NO_WARNINGS -wd4201 -wd4505 -wd4100 -wd4189 -wd4244 -wd4127
-set flags_linker=/incremental:no /opt:ref
-
-:: Choose Compile/Link Lines
-                        set flags_compile=%flags_common% %flags_warning%
-if "%debug%"=="1"       set flags_compile=%flags_compile% %flags_debug%
-if "%release%"=="1"     set flags_compile=%flags_compile% %flags_release%
-if "%profile%"=="1"     set flags_compile=%flags_compile% -DBUILD_PROFILE=1  && echo [Profiler Enabled]
-if "%asan%"=="1"        set flags_compile=%flags_compile% -fsanitize=address && echo [ASAN Enabled]
-
-
-:: ---------------------------- Projects ---------------------------- ::
-if not exist build mkdir build
-pushd build
-
-if not exist pch.obj  set build_pch=1
-
-:: PCH
-if "%build_pch%" == "1" (
-    call %compiler% /c %flags_compile% /Yc"pch.h" /Fp:pch.pch /Fo:pch.obj ..\src\pch.cpp || exit /b 1
-)
-
-:: ---------------------------- Tools ---------------------------- ::
-:: FBX
-if "%fbx%" == "1" (
-    call %compiler% %flags_compile% ..\src\importer\fbx_importer.cpp ..\src\third_party\meshoptimizer\*.cpp -Fe:fbx.exe -I../src/third_party/ufbx -link %flags_linker%
-)
-
-:: Metaprogramming
-REM call %compiler% ..\src\meta\rts_meta.cpp /Fe:rts_meta.exe %flags_compile% /link %flags_linker%
-REM rts_meta.exe
-
-:: ---------------------------- Build ---------------------------- ::
-call rc /nologo /fo logo.res ..\data\logo.rc || exit /b 1
-
-:: RTS
-if "%build_rts%"=="1" (
-    call %compiler% %flags_compile% -I../src/third_party/opengl ..\src\rts.cpp /Fe:rts /link opengl32.lib %flags_linker% logo.res
-)
-
-:: Test
-if "%build_test%"=="1" (
-    REM call %compiler% %flags_compile% ..\src\Test\test_ds.cpp  /Fe:test_ds  /link %flags_linker%
-    call %compiler% %flags_compile% /Yu"pch.h" /Fp:pch.pch /FI"pch.h" ..\src\Test\test_rhi.cpp pch.obj /Fe:test_rhi /link %flags_linker%
-    REM call %compiler% %flags_compile% ..\src\Test\test_thread.cpp /Fe:test_thread /link %flags_linker%
-)
-
-popd
+:build
+set target_arg=
+if defined target set target_arg=--target %target%
+cmake --build --preset %preset% %target_arg% || goto :fail
 
 :: CTIME End
 call "util/ctime" -end misc/rts_build_time.ctm
-rem call "util/ctime" -stats misc/rts_build_time.ctm
+exit /b 0
+
+:fail
+call "util/ctime" -end misc/rts_build_time.ctm
+exit /b 1
+
+:no_cl
+echo [ERROR]: "cl" not found - install Visual Studio with the C++ workload, or run this from the x64 Native Tools command prompt.
+exit /b 1

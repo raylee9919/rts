@@ -3,16 +3,14 @@
 #ifndef RTS_PCH_H
 #define RTS_PCH_H
 
-
+// Standard library / CRT
+#include <intrin.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
 
-
-#define NOMINMAX
-#define UNICODE
-#define _UNICODE
+// Windows / DXGI / D3D12 / DXC
 #include <windows.h>
 #include <windowsx.h>
 #include <shlobj.h>
@@ -27,6 +25,5 @@
 #include <third_party/DirectX/Include/d3dx12/d3dx12.h>
 #include <third_party/DXC/Include/dxcapi.h>
 #include <third_party/DirectX/Include/d3d12compiler.h>
-
 
 #endif // RTS_PCH_H

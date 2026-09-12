@@ -1,5 +1,9 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "asset/texture_v2.h"
+
+#include "third_party/stb/stb_image.h"
+
 static Bitmap_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit) {
     if (is_hdr) {
         Assert(!"X"); // @Todo: HDR

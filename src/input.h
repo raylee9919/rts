@@ -3,6 +3,13 @@
 #ifndef RTS_INPUT_H
 #define RTS_INPUT_H
 
+#include "basic/core.h"
+#include "basic/arena.h"
+#include "basic/hash_table.h"
+#include "basic/string.h"
+#include "math/math.h"
+#include "os/os.h"
+
 enum Input_Sample_Kind : u16 {
     INPUT_SAMPLE_BOOLEAN,
     INPUT_SAMPLE_SCALAR,
@@ -26,7 +33,7 @@ struct Input_Action {
 };
 
 
-internal u32 input_string_hash(String str);
+u32 input_string_hash(String str);
 
 struct Input_State {
     b8  key_is_down[KEY_GOOD_CAP];
@@ -36,12 +43,20 @@ struct Input_State {
 struct Input_System {
     Arena       *arena;
     OS_Handle   window;
-    Table <String, Input_Action, input_string_hash> action_table; 
+    Table <String, Input_Action, input_string_hash> action_table;
 };
-global Input_System *input_system;
+extern Input_System *input_system;
 
 
-internal void input_process(Input_State *state);
+void          input_system_init(OS_Handle window);
+void          input_system_shutdown();
+
+void          input_action_register(Input_Action action, String name);
+void          input_action_unregister(String name);
+Input_Action *input_action_from_string(String name);
+Input_Sample  input_sample_from_string(Input_State *state, String name);
+
+void          input_process(Input_State *state);
 
 
 #endif // RTS_INPUT_H

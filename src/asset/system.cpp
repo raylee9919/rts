@@ -1,5 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "asset/system.h"
+
 namespace Asset
 {
     void init(System *sys)

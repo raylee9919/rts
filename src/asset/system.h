@@ -3,6 +3,8 @@
 #ifndef RTS_ASSET_SYSTEM_H
 #define RTS_ASSET_SYSTEM_H
 
+#include "basic/core.h"
+
 namespace Asset
 {
     struct System
@@ -20,7 +22,7 @@ struct Asset_System {
     u64         next_incremental_id;
 };
 
-internal void asset_system_init(Asset_System *sys);
+void asset_system_init(Asset_System *sys);
 
 
 #endif // RTS_ASSET_SYSTEM_H

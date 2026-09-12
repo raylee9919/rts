@@ -3,6 +3,11 @@
 #ifndef RTS_GAME_H
 #define RTS_GAME_H
 
+#include "basic/core.h"
+#include "math/math.h"
+#include "os/os.h"
+#include "input.h"
+
 #define MAX_ENTITIES        16384
 #define WORLD_UP            v3{ 0.f,  1.f,  0.f}
 #define FORWARD_VECTOR      v4{ 0.f,  0.f, -1.f, 1.f}
@@ -78,25 +83,26 @@ struct Game_State {
 };
 
 
-global Game_State   *game_state;
+extern Game_State   *game_state;
 
 
-internal void       game_state_init(Game_State **game_state_pptr);
-internal void       game_init(f64 time_init);
-internal void       game_deinit();
-internal void       game_copy(Game_State *dst, Game_State *src);
-internal void      *game_alloc(Game_State *g, u64 size, u64 alignment);
+void       game_state_init(Game_State **game_state_pptr);
+void       game_state_deinit(Game_State *g);
+void       game_init(f64 time_init);
+void       game_deinit();
+void       game_copy(Game_State *dst, Game_State *src);
+void      *game_alloc(Game_State *g, u64 size, u64 alignment);
 
-internal Entity    *entity_alloc(Game_State *g);
-internal void       entity_dealloc(Game_State *g);
+Entity    *entity_alloc(Game_State *g);
+void       entity_dealloc(Game_State *g);
 
-internal Entity    *entity_from_handle(Game_State *g, Handle handle);
-internal Handle     handle_from_entity(Game_State *g, Entity *entity);
+Entity    *entity_from_handle(Game_State *g, Handle handle);
+Handle     handle_from_entity(Game_State *g, Entity *entity);
 
-internal void       entity_add_child(Game_State *g, Handle parent, Handle child);
-internal void       entity_remove_child(Game_State *g, Handle parent, Handle child);
+void       entity_add_child(Game_State *g, Handle parent, Handle child);
+void       entity_remove_child(Game_State *g, Handle parent, Handle child);
 
-internal void       entity_dfs(Game_State *g, Handle root, void (*proc)(Game_State *g, Entity *entity, u64 index));
+void       entity_dfs(Game_State *g, Handle root, void (*proc)(Game_State *g, Entity *entity, u64 index));
 
 
 #endif // RTS_GAME_H

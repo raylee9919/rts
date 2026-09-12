@@ -1,7 +1,13 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "basic/log.h"
+#include "basic/string.h"
 
-void _log_internal(Log_Level level, String fmt, String file, int line, ...) 
+#include <stdarg.h>
+#include <stdio.h>
+
+
+void _log_internal(Log_Level level, String fmt, String file, int line, ...)
 {
     {
         String str_level = {};
@@ -15,7 +21,7 @@ void _log_internal(Log_Level level, String fmt, String file, int line, ...)
         printf((char *)str_level.str);
     }
 
-    if (0) 
+    if (0)
     {
         String file_line_fmt = S("%S(%d)  ");
         String file_line = tprint(file_line_fmt, file, line);

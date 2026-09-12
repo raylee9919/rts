@@ -3,6 +3,9 @@
 #ifndef RTS_LOG_H
 #define RTS_LOG_H
 
+#include "basic/core.h"
+#include "basic/string.h"
+
 
 #define ANSI_COLOR_RESET            "\033[0m"
 #define ANSI_COLOR_RED              "\033[31m"
@@ -21,7 +24,7 @@
 #define ANSI_COLOR_BRIGHT_CYAN      "\033[96m"
 #define ANSI_COLOR_BRIGHT_WHITE     "\033[97m"
 
-enum Log_Level : u8 { 
+enum Log_Level : u8 {
     LOG_TRACE,
     LOG_DEBUG,
     LOG_INFO,
@@ -32,7 +35,7 @@ enum Log_Level : u8 {
 
 #define log(level, fmt, ...) \
     _log_internal(level, fmt, S(__FILE__), __LINE__,  ##__VA_ARGS__)
-internal void _log_internal(Log_Level level, String fmt, String file, int line, ...);
+void _log_internal(Log_Level level, String fmt, String file, int line, ...);
 
 
 #endif // RTS_LOG_H
