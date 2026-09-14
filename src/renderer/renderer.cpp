@@ -13,8 +13,9 @@
 
 Render_SPSC_Queue render_queue;
 
-global f32 VIEWPORT_WIDTH      = 1920.f;
-global f32 VIEWPORT_HEIGHT     = 1080.f;
+/* Call 'r_init' before use. */
+Renderer *renderer;
+
 Guid                 pipeline;
 Guid                 cube_mesh;
 RHI_Buffer           arguments_buffer;
@@ -27,11 +28,7 @@ Guid                 doggo_guid;
 RHI_Buffer           camera_buffer;
 RHI_Buffer_View      camera_view;
 void                *camera_ptr;
-Guid                 color_gbuffer;
-Guid                 scene_buffer;
 
-
-global f64 last_timestamp = 0.f;
 
 void game_tick(Game_State *g, f64 dt);
 
@@ -51,17 +48,17 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
     return result;
 }
 
-static void geometry_pass(Game_State *g)
+static void r_pass_scene(Game_State *g)
 {
     u32 w = gfx->info.width;
     u32 h = gfx->info.height;
 
     GFX_Pass pass  = {};
-    pass.name                 = S("Gemoetry Pass");
+    pass.name                 = S("GemoetryPass");
     pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
     pass.scissor              = {0, 0, w, h};
-    pass.color_attachments[0] = color_gbuffer;
-    pass.depth_attachment     = gfx->depth_textures[gfx_backbuffer_index()];
+    pass.color_attachments[0] = renderer->gbuffer_color[gfx_backbuffer_index()];
+    pass.depth_attachment     = renderer->scene_depth[gfx_backbuffer_index()];
     pass.min_depth            = 0.f;
     pass.max_depth            = 1.f;
 
@@ -85,7 +82,7 @@ static void geometry_pass(Game_State *g)
                 args->material_id = i;
 
                 // Upload constants
-                auto *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
+                GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
 
                 if (mesh) {
                     Constants c = {};
@@ -111,114 +108,56 @@ static void geometry_pass(Game_State *g)
     gfx_pass_end();
 }
 
-static void postprocess_pass(Game_State *g)
+static void r_pass_postprocess(Game_State *g)
 {
     u32 w = gfx->info.width;
     u32 h = gfx->info.height;
 
     GFX_Pass pass  = {};
-    pass.name                 = S("Postprocess Pass");
+    pass.name                 = S("PostprocessPass");
     pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
     pass.scissor              = {0, 0, w, h};
-    pass.color_attachments[0] = scene_buffer;
+    pass.color_attachments[0] = renderer->scene[gfx_backbuffer_index()];
 
     gfx_pass_begin(R_PASS_POSTPROCESS, &pass);
     {
-        gfx_set_pipeline(pipeline);
-        {
-        }
     }
     gfx_pass_end();
 }
 
-static void composition_pass(Game_State *g)
+static void r_pass_composition(Game_State *g)
 {
     u32 w = gfx->info.width;
     u32 h = gfx->info.height;
 
     GFX_Pass pass  = {};
-    pass.name                 = S("Composition Pass");
+    pass.name                 = S("CompositionPass");
     pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
     pass.scissor              = {0, 0, w, h};
-    pass.color_attachments[0] = gfx_frame_texture();
+    pass.color_attachments[0] = gfx_surface_texture();
 
     gfx_pass_begin(R_PASS_COMPOSITION, &pass);
     {
-        gfx_set_pipeline(pipeline);
-        {
-        }
     }
     gfx_pass_end();
 }
 
-void r_render(Game_State *g, f64 refresh_dt)
+void r_init(void *native_window_handle) 
 {
-    ProfileScope;
-
-    // Render tick
-    f64 dt = 0.0;
-    // {
-    //     if (last_timestamp != 0.f) {
-    //         f64 new_timestamp = last_timestamp + refresh_dt;
-    //         dt = new_timestamp - g->time;
-    //         game_tick(g, dt);
-    //         last_timestamp = new_timestamp;
-    //     } else {
-    //         last_timestamp = g->time;
-    //     }
-    // }
-
-
-    { // Build frame graph
-        gfx_pass_connect(color_gbuffer, 
-                         -1, R_PASS_GEOMETRY, 
-                         RHI_RESOURCE_STATE_RENDER_TARGET);
-
-        gfx_pass_connect(gfx->depth_textures[gfx_backbuffer_index()], 
-                         -1, R_PASS_GEOMETRY, 
-                         RHI_RESOURCE_STATE_DEPTH_WRITE);
-
-        gfx_pass_connect(color_gbuffer, 
-                         R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
-                         RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
-
-        gfx_pass_connect(scene_buffer, 
-                         R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
-                         RHI_RESOURCE_STATE_RENDER_TARGET);
-
-        gfx_pass_connect(scene_buffer, 
-                         R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
-                         RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
-
-        gfx_pass_connect(gfx_frame_texture(), 
-                         -1, R_PASS_COMPOSITION, 
-                         RHI_RESOURCE_STATE_RENDER_TARGET);
-    }
-
-    geometry_pass(g);
-    postprocess_pass(g);
-    composition_pass(g);
-
-    gfx_end(g->time, gfx->info.vsync_off ? 0 : 1);
-}
-
-void r_entry(void *param)
-{
-    thread_set_name(S("RenderThread"));
-
     // @Temporary
-    f64 refresh_dt = 1.0 / 120.0;
+    u32 width  = 1920;
+    u32 height = 1080;
 
-    { // Init
+    { // Init GFX
         GFX_Info init = {};
         init.kind                   = RHI_KIND_D3D12;
 #if BUILD_DEBUG
         init.debug                  = true;
         init.break_on_warning       = true;
 #endif
-        init.native_window_handle   = param;
-        init.width                  = 1920; // @Temporary
-        init.height                 = 1080;
+        init.native_window_handle   = native_window_handle;
+        init.width                  = width;
+        init.height                 = height;
 
         init.vsync_off              = false;
 
@@ -227,52 +166,132 @@ void r_entry(void *param)
         gfx_init(init, 3);
     }
 
-    { // Init renderer's resources
 
-        { // G-Buffer: Color
-            color_gbuffer = guid_generate();
-            RHI_Texture_Desc desc = {};
-            {
-                desc.name           = S("G-Buffer: Color");
-                desc.type           = RHI_TEXTURE_TYPE_2D;
-                desc.format         = RHI_FORMAT_RGBA8_UNORM;
-                desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
-                desc.width          = 1920; // @Temporary
-                desc.height         = 1080;
-                desc.mip_levels     = 1;
-                desc.depth          = 1;
-                desc.clear          = true;
-                desc.clear_color[0] = 0.f;
-                desc.clear_color[1] = 0.f;
-                desc.clear_color[2] = 0.f;
-                desc.clear_color[3] = 0.f;
-            }
-            gfx_texture_create(color_gbuffer, desc);
-        }
+    { // Allocate and construct renderer
+        Arena *arena = arena_alloc();
+        renderer = push_struct(arena, Renderer);
 
-        { // Composited
-            scene_buffer = guid_generate();
-            RHI_Texture_Desc desc = {};
-            {
-                desc.name           = S("Composited");
-                desc.type           = RHI_TEXTURE_TYPE_2D;
-                desc.format         = RHI_FORMAT_RGBA8_UNORM;
-                desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
-                desc.width          = 1920; // @Temporary
-                desc.height         = 1080;
-                desc.mip_levels     = 1;
-                desc.depth          = 1;
-                desc.clear          = true;
-                desc.clear_color[0] = 0.f;
-                desc.clear_color[1] = 0.f;
-                desc.clear_color[2] = 0.f;
-                desc.clear_color[3] = 0.f;
-            }
-            gfx_texture_create(scene_buffer, desc);
-        }
+        Construct(renderer);
+
+        renderer->arena = arena; 
     }
 
-    // Loop
+    Renderer *r = renderer;
+
+
+    { // Init renderer's resources
+
+        for (u32 i = 0; i < gfx_backbuffer_count(); ++i) 
+        {
+            { // SceneDepth
+                r->scene_depth[i]  = guid_generate();
+
+                RHI_Texture_Desc desc = {}; 
+                desc.name           = S("SceneDepth");
+                desc.type           = RHI_TEXTURE_TYPE_2D;
+                desc.format         = RHI_FORMAT_D32F;
+                desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
+                desc.width          = width;
+                desc.height         = height;
+                desc.mip_levels     = 1;
+                desc.depth          = 1;
+                desc.clear          = true;
+                desc.clear_depth    = 1.f;
+
+                gfx_texture_create(r->scene_depth[i], desc);
+            }
+
+            { // GBufferColor
+                r->gbuffer_color[i] = guid_generate();
+
+                RHI_Texture_Desc desc = {};
+                desc.name           = S("GBufferColor");
+                desc.type           = RHI_TEXTURE_TYPE_2D;
+                desc.format         = RHI_FORMAT_RGBA16F;
+                desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
+                desc.width          = width;
+                desc.height         = height;
+                desc.mip_levels     = 1;
+                desc.depth          = 1;
+                desc.clear          = true;
+
+                gfx_texture_create(r->gbuffer_color[i], desc);
+            }
+
+            { // Scene
+                r->scene[i] = guid_generate();
+
+                RHI_Texture_Desc desc = {};
+                {
+                    desc.name           = S("Scene");
+                    desc.type           = RHI_TEXTURE_TYPE_2D;
+                    desc.format         = RHI_FORMAT_RGBA8_UNORM;
+                    desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
+                    desc.width          = width;
+                    desc.height         = height;
+                    desc.mip_levels     = 1;
+                    desc.depth          = 1;
+                    desc.clear          = true;
+                }
+                gfx_texture_create(r->scene[i], desc);
+            }
+        }
+    }
+}
+
+void r_render(Game_State *g, f64 refresh_dt)
+{
+    ProfileScope;
+
+    Renderer *r = renderer;
+
+    { // Build frame graph
+        // @Todo: Backbuffer index is hassle. Renderer might want to make a 
+        // frame resource once and be oblivious about it.
+        gfx_pass_connect(r->gbuffer_color[gfx_backbuffer_index()],
+                         -1, R_PASS_GEOMETRY, 
+                         RHI_RESOURCE_STATE_RENDER_TARGET);
+
+        gfx_pass_connect(r->scene_depth[gfx_backbuffer_index()], 
+                         -1, R_PASS_GEOMETRY, 
+                         RHI_RESOURCE_STATE_DEPTH_WRITE);
+
+        gfx_pass_connect(r->gbuffer_color[gfx_backbuffer_index()],
+                         R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
+                         RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+
+        gfx_pass_connect(r->scene[gfx_backbuffer_index()],
+                         R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
+                         RHI_RESOURCE_STATE_RENDER_TARGET);
+
+        gfx_pass_connect(r->scene[gfx_backbuffer_index()], 
+                         R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
+                         RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+
+        gfx_pass_connect(gfx_surface_texture(), 
+                         -1, R_PASS_COMPOSITION, 
+                         RHI_RESOURCE_STATE_RENDER_TARGET);
+    }
+
+    // Passes are sorted and executed afterward in 'gfx_end'.
+    r_pass_scene(g);
+    r_pass_postprocess(g);
+    r_pass_composition(g);
+
+    gfx_end(g->time, gfx->info.vsync_off ? 0 : 1);
+}
+
+void r_entry(void *param)
+{
+    String name = S("RenderThread");
+    thread_set_name(name);
+
+
+    /* Initialize */
+    r_init(param);
+
+
+    /* Loop */
     while (!gfx->should_shutdown) {
         ProfileScopeN("RenderThreadLoop");
 
@@ -285,7 +304,7 @@ void r_entry(void *param)
 
         Assert(!render_queue.is_empty());
 
-        auto *rq = &render_queue;
+        Render_SPSC_Queue *rq = &render_queue;
 
         Render_Entry *entry = &rq->entries[rq->read_idx];
         rq->read_idx = (rq->read_idx + 1) % array_count(rq->entries);
@@ -295,6 +314,8 @@ void r_entry(void *param)
             condvar_wake_all(&rq->condvar);
             mutex_unlock(&render_queue.mutex);
 
+
+            f64 refresh_dt = 1.0 / 120.0; // @Temporary
             r_render(entry->game_state, refresh_dt);
 
         } mutex_unlock(&entry->mutex);
@@ -302,8 +323,7 @@ void r_entry(void *param)
         clear_thread_temporary_storage();
     }
 
-    // Cleanup
-    gfx_shutdown();
 
-    log(LOG_INFO, S("Render thread returned successfully."));
+    /* Cleanup */
+    gfx_shutdown();
 }

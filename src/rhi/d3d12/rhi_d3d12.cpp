@@ -5,7 +5,6 @@
 #include "basic/allocator.h"
 #include "basic/context.h"
 #include "basic/log.h"
-#include "os/os.h"
 
 extern "C"
 {
@@ -764,8 +763,6 @@ void d3d12_command_list_end(D3D12_Command_List *list) {
 }
 
 void d3d12_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffer) { 
-    auto **cmd_lists = (ID3D12CommandList **)alloc(sizeof(ID3D12CommandList *)*count, tctx.temp);
-
     // @Todo: Is it slow?
     for (u32 i = 0; i < count; ++i) {
         auto *queue = device->d3d12.queues[cmd_buffer[i]->type].queue_0;
@@ -1506,7 +1503,7 @@ void d3d12_sampler_deinit(RHI_Sampler *sampler) {
 bool d3d12_surface_init(RHI_Device *device, 
                         RHI_Surface *surface, 
                         RHI_Surface_Desc *desc,
-                        RHI_Texture *out_textures) 
+                        RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]) 
 {
     HWND hwnd = (HWND)desc->native_window_handle;
 
@@ -1568,7 +1565,9 @@ bool d3d12_surface_init(RHI_Device *device,
 
     // Get resources from the swap chain and create render target views.
     for (u32 i = 0; i < desc->num_back_buffers; ++i) {
-        RHI_Texture *out_tex = &out_textures[i];
+        RHI_Texture *out_tex = out_textures[i];
+
+        Assert(out_tex != NULL);
 
         hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&out_tex->d3d12.resource));
         if (FAILED(hr)) {
@@ -1625,9 +1624,12 @@ void d3d12_surface_present(RHI_Surface *surface, u32 sync_interval) {
     surface->current_frame_index = surface->d3d12.swap_chain_4->GetCurrentBackBufferIndex();
 }
 
-void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *textures) {
+void d3d12_surface_resize(RHI_Surface *surface, 
+                          u32 width, u32 height, 
+                          RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT]) 
+{
     for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
-        COM_SAFE_RELEASE(&textures[i].d3d12.resource);
+        COM_SAFE_RELEASE(&in_out_textures[i]->d3d12.resource);
     }
 
     DXGI_SWAP_CHAIN_DESC1 desc = {};
@@ -1635,9 +1637,9 @@ void d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Textu
     surface->d3d12.swap_chain_4->ResizeBuffers(surface->desc.num_back_buffers, width, height, desc.Format, desc.Flags);
 
     for (u32 i = 0; i < surface->desc.num_back_buffers; i++) {
-        surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&textures[i].d3d12.resource));
-        textures[i].desc.width  = width;
-        textures[i].desc.height = height;
+        surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&in_out_textures[i]->d3d12.resource));
+        in_out_textures[i]->desc.width  = width;
+        in_out_textures[i]->desc.height = height;
     }
 
     surface->desc.width          = width;
@@ -2035,11 +2037,11 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
                         if (desc->blend_enabled[i]) {
                             bs->SrcBlend               = d3d12_blend_factor_from_rhi(desc->blend_factor_color_src[i]);
                             bs->DestBlend              = d3d12_blend_factor_from_rhi(desc->blend_factor_color_dst[i]);
-                            bs->BlendOp                = d3d12_blend_op_from_rhi(desc->blend_op_color[i]);
+                            bs->BlendOp                = d3d12_blend_op_from_rhi(desc->blend_color_op[i]);
 
                             bs->SrcBlendAlpha          = d3d12_blend_factor_from_rhi(desc->blend_factor_alpha_src[i]);
                             bs->DestBlendAlpha         = d3d12_blend_factor_from_rhi(desc->blend_factor_alpha_dst[i]);
-                            bs->BlendOpAlpha           = d3d12_blend_op_from_rhi(desc->blend_op_alpha[i]);
+                            bs->BlendOpAlpha           = d3d12_blend_op_from_rhi(desc->blend_alpha_op[i]);
                         }
 
                         bs->LogicOpEnable          = FALSE;

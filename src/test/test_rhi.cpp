@@ -239,17 +239,17 @@ int main_entry(int argc, char **argv)
             desc.depth_format                = RHI_FORMAT_D32F;
 
             desc.num_color_attachments       = 1;
-            desc.color_attachment_formats[0] = gfx->surface_textures[0].desc.format; // @Temporary
+            desc.color_attachment_formats[0] = RHI_FORMAT_RGBA16F;
 
             desc.blend_enabled[0]            = true;
 
             desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
             desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_op_color[0]           = RHI_BLEND_OP_ADD;
+            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
 
             desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
             desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_op_alpha[0]           = RHI_BLEND_OP_ADD;
+            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
 
             desc.fill_mode = RHI_FILL_SOLID;
             desc.cull_mode = RHI_CULL_CW;

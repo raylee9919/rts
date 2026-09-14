@@ -6,3 +6,4 @@ data/map/backup
 *.ctm
 *.sln
 compile_commands.json
+.clangd

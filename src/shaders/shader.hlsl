@@ -5,7 +5,7 @@
 #include "./basic.hlsl"
 #include "./shared.h"
 
-PUSH_CONSTANTS(Constants);
+PUSH_CONSTANTS(Constants, push);
 
 struct Camera {
     float4   position;

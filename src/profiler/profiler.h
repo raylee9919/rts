@@ -14,10 +14,10 @@
 #  define ProfileScopeN    ZoneScopedN
 #  define ProfileScopeNC   ZoneScopedNC
 #else
-#  define ProfileFrameMark
-#  define ProfileScope
-#  define ProfileScopeN
-#  define ProfileScopeNC
+#  define ProfileFrameMark    ((void)0)
+#  define ProfileScope        ((void)0)
+#  define ProfileScopeN(...)  ((void)0)
+#  define ProfileScopeNC(...) ((void)0)
 #endif
 
 

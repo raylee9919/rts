@@ -140,9 +140,9 @@ void  d3d12_texture_view_deinit(RHI_Texture_View *view);
 void  d3d12_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_Desc *desc);
 void  d3d12_sampler_deinit(RHI_Sampler *sampler);
 
-bool  d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures);
+bool  d3d12_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]);
 void  d3d12_surface_present(RHI_Surface *surface, u32 sync_interval);
-void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *textures);
+void  d3d12_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT]);
 bool  d3d12_surface_wait_for_waitable_object(RHI_Surface *surface);
 
 bool  d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence);

@@ -40,6 +40,14 @@ struct Render_SPSC_Queue {
     }
 };
 
+struct Renderer {
+    Arena *arena;
+
+    Guid scene_depth[RHI_MAX_BUFFER_COUNT];
+    Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
+    Guid scene[RHI_MAX_BUFFER_COUNT];
+};
+
 extern Render_SPSC_Queue render_queue;
 
 
@@ -56,10 +64,9 @@ extern RHI_Buffer           camera_buffer;
 extern RHI_Buffer_View      camera_view;
 extern void                *camera_ptr;
 
-extern Guid                 color_gbuffer;
-
 
 GPU_Camera gpu_camera_from_game(Camera *camera);
+
 void       r_render(Game_State *g, f64 refresh_dt);
 void       r_entry(void *param);
 

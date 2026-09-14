@@ -100,7 +100,7 @@ void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers)
 //
 // Surface
 //
-bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures) {
+bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]) {
     memset(surface, 0, sizeof(*surface));
     RHI_Kind kind = device->kind;
     surface->kind = kind;
@@ -137,10 +137,10 @@ void rhi_surface_present(RHI_Surface *surface, u32 sync_interval) {
     }
 }
 
-void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *textures) {
+void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT]) {
     switch (surface->kind) {
         case RHI_KIND_D3D12:
-            d3d12_surface_resize(surface, width, height, textures);
+            d3d12_surface_resize(surface, width, height, in_out_textures);
             break;
 
         default:

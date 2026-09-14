@@ -83,11 +83,9 @@ struct GFX_Mesh {
 };
 
 struct GFX_Texture_Entry {
-    RHI_Texture        *texture;
+    RHI_Texture         texture;
     RHI_Texture_View    srv;
     RHI_Texture_View    uav;
-    b8                  has_srv;
-    b8                  has_uav;
 };
 
 struct GFX_Pipeline_Entry {
@@ -200,7 +198,6 @@ struct GFX_State {
 
     // I'll just have a single swapchain.
     RHI_Surface                            *surface;
-    RHI_Texture                             surface_textures[RHI_MAX_BUFFER_COUNT];
     Guid                                    surface_guids[RHI_MAX_BUFFER_COUNT];
 
     RHI_Sampler                             linear_sampler;
@@ -253,9 +250,6 @@ struct GFX_State {
     b32 resize_requested = false;
     u32 resize_width;
     u32 resize_height;
-
-    // Framebuffer Depth Textures
-    Guid depth_textures[RHI_MAX_BUFFER_COUNT];
 
     // Frame Graph
     Array<GFX_Edge> out_edges[GFX_MAX_PASS + 1]; // Index 'GFX_MAX_PASS' is nil
@@ -311,10 +305,13 @@ void gfx_pass_connect(Guid resource, u32 src_pass, u32 dst_pass, RHI_Resource_St
 u32 gfx_backbuffer_index();
 
 // Returns the swapchain's texture for this frame.
-Guid gfx_frame_texture();
+Guid gfx_surface_texture();
 
 // Returns current number of backbuffers.
 u32 gfx_backbuffer_count();
+
+// Returns Swapchain textures' format.
+RHI_Format gfx_surface_format();
 
 
 void                   gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc);

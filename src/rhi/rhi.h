@@ -286,47 +286,55 @@ struct RHI_Semaphore {
 };
 
 
-//
 // Pipeline
 //
 struct RHI_Pipeline_Desc {
     RHI_Pipeline_Type   type;
 
-    // Cache
-    void               *cache;
-    u64                 cache_size;
 
-    // Depth Stencil
+    /* Depth Stencil */
     b32                 depth_enabled;
     RHI_Compare         depth_compare_op;
     RHI_Format          depth_format;
 
-    // Color attachments
+
+    /* Color attachments */
     u32                 num_color_attachments;
     RHI_Format          color_attachment_formats[RHI_MAX_COLOR_ATTACHMENTS];
+    
     b32                 blend_enabled[RHI_MAX_COLOR_ATTACHMENTS];
+
     RHI_Blend_Factor    blend_factor_color_src[RHI_MAX_COLOR_ATTACHMENTS];
     RHI_Blend_Factor    blend_factor_color_dst[RHI_MAX_COLOR_ATTACHMENTS];
-    RHI_Blend_Op        blend_op_color[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Op        blend_color_op[RHI_MAX_COLOR_ATTACHMENTS];
+
     RHI_Blend_Factor    blend_factor_alpha_src[RHI_MAX_COLOR_ATTACHMENTS];
     RHI_Blend_Factor    blend_factor_alpha_dst[RHI_MAX_COLOR_ATTACHMENTS];
-    RHI_Blend_Op        blend_op_alpha[RHI_MAX_COLOR_ATTACHMENTS];
+    RHI_Blend_Op        blend_alpha_op[RHI_MAX_COLOR_ATTACHMENTS];
 
-    // Raster State
+
+    /* Raster State */
     RHI_Fill_Mode       fill_mode;
     RHI_Cull_Mode       cull_mode;
     b32                 disable_depth_clip;
     b32                 conservative_raster;
 
-    // Topology
+
+    /* Topology */
     RHI_Topology        topology;
 
-    // Binaries
+
+    /* Binaries */
     void               *vs_data;
     u64                 vs_size;
 
     void               *ps_data;
     u64                 ps_size;
+
+
+    /* Cache */
+    void               *cache;
+    u64                 cache_size;
 };
 
 struct RHI_Pipeline {
@@ -360,9 +368,9 @@ void  rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer);
 
 void  rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers);
 
-bool  rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures);
+bool  rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]);
 void  rhi_surface_present(RHI_Surface *surface, u32 sync_interval);
-void  rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *textures);
+void  rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT]);
 bool  rhi_surface_wait_for_waitable_object(RHI_Surface *surface);
 
 bool  rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap);

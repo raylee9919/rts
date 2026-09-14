@@ -18,32 +18,6 @@ static RHI_Texture *rhi_texture_from_guid(Guid guid) {
     return nullptr;
 }
 
-// @Todo: Move this shii to renderer
-static void gfx_create_swapchain_depth_textures(u32 width, u32 height) {
-    RHI_Texture_Desc desc = {}; 
-    desc.type           = RHI_TEXTURE_TYPE_2D;
-    desc.format         = RHI_FORMAT_D32F;
-    desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
-    desc.width          = width;
-    desc.height         = height;
-    desc.mip_levels     = 1;
-    desc.depth          = 1;
-    desc.clear          = true;
-    desc.clear_depth    = 1.f;
-    desc.name           = S("DepthTexture");
-
-    for (int i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
-        gfx->depth_textures[i] = guid_generate();
-        gfx_texture_create(gfx->depth_textures[i], desc);
-    }
-}
-
-static void gfx_destroy_swapchain_depth_textures() {
-    for (int i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
-        gfx_texture_destroy(gfx->depth_textures[i]);
-    }
-}
-
 static void gfx_init_samplers() {
     RHI_Sampler_Desc desc = {};
     desc.filter             = RHI_FILTER_LINEAR;
@@ -62,43 +36,34 @@ static void gfx_deinit_samplers() {
     rhi_sampler_deinit(&gfx->linear_sampler);
 }
 
-static void gfx_init_swapchain(void *native_window_handle, 
-                               u32 width, u32 height, 
+static void gfx_swapchain_init(GFX_Info info, 
                                u32 num_back_buffers, 
-                               b32 frame_latency_waitable) {
+                               RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]) {
     RHI_Surface_Desc desc = {};
-    desc.native_window_handle   = native_window_handle;
-    desc.width                  = width;
-    desc.height                 = height;
+    desc.native_window_handle   = info.native_window_handle;
+    desc.width                  = info.width;
+    desc.height                 = info.height;
     desc.num_back_buffers       = num_back_buffers;
-    desc.frame_latency_waitable = frame_latency_waitable;
+    desc.frame_latency_waitable = info.frame_latency_waitable;
 
-    Assert(rhi_surface_init(gfx->device, gfx->surface, &desc, gfx->surface_textures));
+    Assert(rhi_surface_init(gfx->device, gfx->surface, &desc, out_textures));
 }
 
-static void gfx_deinit_swapchain() {
+static void gfx_swapchain_deinit() {
     // rhi_surface_deinit(gfx->surface);
 }
 
-static void gfx_register_swapchain_textures() {
-    // No need to unregister, because we'll free the allocator.
-    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
-        GFX_Texture_Entry entry = {};
-        entry.texture = gfx->surface_textures[i];
-        entry.has_srv = false;
-        entry.has_uav = false;
-
-        table_add(&gfx->texture_table, gfx->surface_guids[i], entry);
-    }
-}
-
-static void gfx_resize_swapchain(u32 width, u32 height) {
+static void gfx_swapchain_resize(u32 width, u32 height) {
     rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
 
-    rhi_surface_resize(gfx->surface, width, height, gfx->surface_textures);
-    gfx_register_swapchain_textures();
-    gfx_destroy_swapchain_depth_textures();
-    gfx_create_swapchain_depth_textures(width, height);
+    RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT] = {};
+    u32 ptr = 0;
+
+    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
+        in_out_textures[ptr++] = rhi_texture_from_guid(gfx->surface_guids[i]);
+    }
+
+    rhi_surface_resize(gfx->surface, width, height, in_out_textures);
 }
 
 static void gfx_init_uploader(u64 buffer_size) {
@@ -155,7 +120,7 @@ static void gfx_execute_callbacks(u64 completed_value)
 
     while (gfx->callbacks.count > 0)
     {
-        auto entry = queue_front(&gfx->callbacks);
+        GFX_Callback_Entry entry = queue_front(&gfx->callbacks);
         if (entry.semaphore_value_to_execute > completed_value)  break;
 
         entry.proc(entry);
@@ -184,19 +149,22 @@ void gfx_init(GFX_Info info, u32 num_backbuffers) {
 
 
     // Create swapchain
-    gfx->surface = (RHI_Surface *)alloc(sizeof(RHI_Surface), gfx->arena);
-    gfx_init_swapchain(info.native_window_handle, info.width, info.height, num_backbuffers, info.frame_latency_waitable);
+    {
+        RHI_Texture *out_swapchain_textures[RHI_MAX_BUFFER_COUNT] = {};
 
+        // Register entries to the table and fill in the pointers to the RHI_Texture to be filled.
+        for (u32 i = 0; i < num_backbuffers; ++i) {
+            Guid guid = guid_generate();
+            gfx->surface_guids[i] = guid;
+            GFX_Texture_Entry *entry = table_add(&gfx->texture_table, guid, {});
+            out_swapchain_textures[i] = &entry->texture;
+        }
 
-    // Register swapchain texture
-    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
-        gfx->surface_guids[i] = guid_generate();
+        // Init swapchain and get textures
+        gfx->surface = (RHI_Surface *)alloc(sizeof(RHI_Surface), gfx->arena);
+        gfx_swapchain_init(info, num_backbuffers, out_swapchain_textures);
     }
-    gfx_register_swapchain_textures();
-    
 
-    // @Temporary: depth texture
-    gfx_create_swapchain_depth_textures(info.width, info.height);
 
     // Initialize frame semaphore
     rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
@@ -212,8 +180,8 @@ void gfx_init(GFX_Info info, u32 num_backbuffers) {
     }
 
 
-
     gfx_init_uploader(Megabytes(128)); // @Temporary
+
 
     // @Temporary: These will go to encoding threads.
     for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
@@ -238,7 +206,7 @@ void gfx_shutdown() {
 
     gfx_deinit_samplers();
     rhi_semaphore_deinit(&gfx->frame_semaphore);
-    gfx_deinit_swapchain();
+    gfx_swapchain_deinit();
     rhi_device_deinit(gfx->device);
 
     release(gfx->arena);
@@ -338,7 +306,7 @@ void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_siz
 
 static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
 {
-    auto *mesh = table_find_pointer(&gfx->mesh_table, entry.mesh_id);
+    GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, entry.mesh_id);
     if (mesh)
     {
         rhi_buffer_view_deinit(&mesh->vertex_buffer_view);
@@ -394,29 +362,33 @@ void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
 
     if (desc.usage & RHI_TEXTURE_USAGE_SAMPLED) {
         CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
-        entry.has_srv = 1;
     }
 
     if (desc.usage & RHI_TEXTURE_USAGE_STORAGE) {
         CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS);
-        entry.has_uav = 1;
     }
 
     table_add(&gfx->texture_table, guid, entry);
 }
 
 void gfx_texture_destroy(Guid guid) {
-    auto *entry = table_find_pointer(&gfx->texture_table, guid);
+    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
     if (entry) {
-        if (entry->srv.kind != RHI_KIND_INVALID)  rhi_texture_view_deinit(&entry->srv);
-        if (entry->srv.kind != RHI_KIND_INVALID)  rhi_texture_view_deinit(&entry->uav);
+        if (entry->srv.kind != RHI_KIND_INVALID) {
+            rhi_texture_view_deinit(&entry->srv);
+        }
+
+        if (entry->srv.kind != RHI_KIND_INVALID) {
+            rhi_texture_view_deinit(&entry->uav);
+        }
+
         rhi_texture_deinit(&entry->texture);
         table_remove(&gfx->texture_table, guid);
     }
 }
 
 void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height) {
-    auto *tex = table_find_pointer(&gfx->texture_table, guid);
+    GFX_Texture_Entry *tex = table_find_pointer(&gfx->texture_table, guid);
 
     if (tex) {
         // @Todo: I know, I know. Correct alignment for BC and other formats and
@@ -455,13 +427,13 @@ void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 
 
 RHI_Texture_View *gfx_srv_from_texture(Guid guid) {
     GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry && entry->has_srv)  return &entry->srv;
+    if (entry && entry->srv.kind != RHI_KIND_INVALID)  return &entry->srv;
     return nullptr;
 }
 
 RHI_Texture_View *gfx_uav_from_texture(Guid guid) {
     GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry && entry->has_uav)  return &entry->uav;
+    if (entry && entry->uav.kind != RHI_KIND_INVALID)  return &entry->uav;
     return nullptr;
 }
 
@@ -507,12 +479,16 @@ u32 gfx_backbuffer_index() {
     return gfx->surface->current_frame_index;
 }
 
-Guid gfx_frame_texture() {
+Guid gfx_surface_texture() {
     return gfx->surface_guids[gfx_backbuffer_index()];
 }
 
 u32 gfx_backbuffer_count(){
     return gfx->surface->desc.num_back_buffers;
+}
+
+RHI_Format gfx_surface_format() {
+    return rhi_texture_from_guid(gfx->surface_guids[0])->desc.format;
 }
 
 void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) {
@@ -735,14 +711,14 @@ void gfx_end(f64 time, u32 sync_interval)
 
     // Resize swapchain if requested
     if (gfx->resize_requested) {
-        gfx_resize_swapchain(gfx->resize_width, gfx->resize_height);
+        gfx_swapchain_resize(gfx->resize_width, gfx->resize_height);
         gfx->resize_requested = false;
     }
 
     // Update shader time
     gfx->time = time; // @Todo: do dt trick from Witness.
 
-    auto *cmd_buffer = &gfx->command_buffers[gfx_backbuffer_index()];
+    RHI_Command_Buffer *cmd_buffer = &gfx->command_buffers[gfx_backbuffer_index()];
 
     // Wait on frame semaphore.
     if (gfx->current_frame > gfx_backbuffer_count()) {
@@ -853,7 +829,7 @@ void gfx_end(f64 time, u32 sync_interval)
         } // for passes
 
         rhi_cmd_texture_barrier(cmd_buffer, 
-                                &gfx->surface_textures[gfx_backbuffer_index()], 
+                                rhi_texture_from_guid(gfx->surface_guids[gfx_backbuffer_index()]),
                                 RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
     }
     rhi_command_buffer_end(cmd_buffer);

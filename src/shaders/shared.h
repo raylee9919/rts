@@ -15,7 +15,7 @@
 #if SCOPE_SHADER
 #  define CONCAT_(A, B) A##B
 #  define CONCAT(A, B) CONCAT_(A, B)
-#  define PUSH_CONSTANTS(Struct) ConstantBuffer<Struct> push : register(CONCAT(b, GFX_CONSTANTS_INDEX_USER))
+#  define PUSH_CONSTANTS(Struct, Name) ConstantBuffer<Struct> Name : register(CONCAT(b, GFX_CONSTANTS_INDEX_USER))
 #endif
 
 // struct GPU_Global {
@@ -48,6 +48,11 @@ struct Constants {
     uint32_t        arguments_buffer_id;
     uint32_t        arguments_index;
     uint32_t        material_buffer_id;
+};
+
+struct PC_Composition {
+    uint32_t        dot_sampler_id;
+    uint32_t        scene_texture_id;
 };
 
 struct Arguments {
