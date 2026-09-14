@@ -1,194 +1,194 @@
 [
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS /Od -MT -Z7 /utf-8 /FC /FoCMakeFiles\\rts_third_party.dir\\src\\third_party\\xxhash3\\xxhash.c.obj /FdCMakeFiles\\rts_third_party.dir\\rts_third_party.pdb /FS -c C:\\dev\\rts_pull\\src\\third_party\\xxhash3\\xxhash.c",
-  "file": "C:/dev/rts_pull/src/third_party/xxhash3/xxhash.c",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_third_party.dir/src/third_party/xxhash3/xxhash.c.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS /Od -MT -Z7 /utf-8 /FC /FoCMakeFiles\\rts_third_party.dir\\src\\third_party\\xxhash3\\xxhash.c.obj /FdCMakeFiles\\rts_third_party.dir\\rts_third_party.pdb /FS -c C:\\dev\\rts\\src\\third_party\\xxhash3\\xxhash.c",
+  "file": "C:/dev/rts/src/third_party/xxhash3/xxhash.c",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_third_party.dir/src/third_party/xxhash3/xxhash.c.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YcC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\cmake_pch.cxx.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\build\\debug\\CMakeFiles\\rts_engine.dir\\cmake_pch.cxx",
-  "file": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.cxx",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.cxx.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YcC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\cmake_pch.cxx.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\build\\debug\\CMakeFiles\\rts_engine.dir\\cmake_pch.cxx",
+  "file": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.cxx",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.cxx.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\allocator.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\allocator.cpp",
-  "file": "C:/dev/rts_pull/src/basic/allocator.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/allocator.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\allocator.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\allocator.cpp",
+  "file": "C:/dev/rts/src/basic/allocator.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/allocator.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\arena.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\arena.cpp",
-  "file": "C:/dev/rts_pull/src/basic/arena.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/arena.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\arena.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\arena.cpp",
+  "file": "C:/dev/rts/src/basic/arena.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/arena.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\context.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\context.cpp",
-  "file": "C:/dev/rts_pull/src/basic/context.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/context.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\context.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\context.cpp",
+  "file": "C:/dev/rts/src/basic/context.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/context.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\core.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\core.cpp",
-  "file": "C:/dev/rts_pull/src/basic/core.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/core.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\core.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\core.cpp",
+  "file": "C:/dev/rts/src/basic/core.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/core.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\hash.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\hash.cpp",
-  "file": "C:/dev/rts_pull/src/basic/hash.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/hash.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\hash.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\hash.cpp",
+  "file": "C:/dev/rts/src/basic/hash.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/hash.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\log.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\log.cpp",
-  "file": "C:/dev/rts_pull/src/basic/log.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/log.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\log.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\log.cpp",
+  "file": "C:/dev/rts/src/basic/log.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/log.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\string.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\basic\\string.cpp",
-  "file": "C:/dev/rts_pull/src/basic/string.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/basic/string.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\basic\\string.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\basic\\string.cpp",
+  "file": "C:/dev/rts/src/basic/string.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/basic/string.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\math\\math.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\math\\math.cpp",
-  "file": "C:/dev/rts_pull/src/math/math.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/math/math.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\math\\math.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\math\\math.cpp",
+  "file": "C:/dev/rts/src/math/math.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/math/math.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\os\\os.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\os\\os.cpp",
-  "file": "C:/dev/rts_pull/src/os/os.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/os/os.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\os\\os.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\os\\os.cpp",
+  "file": "C:/dev/rts/src/os/os.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/os/os.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\os\\win32\\os_win32.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\os\\win32\\os_win32.cpp",
-  "file": "C:/dev/rts_pull/src/os/win32/os_win32.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/os/win32/os_win32.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\os\\win32\\os_win32.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\os\\win32\\os_win32.cpp",
+  "file": "C:/dev/rts/src/os/win32/os_win32.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/os/win32/os_win32.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\random\\random.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\random\\random.cpp",
-  "file": "C:/dev/rts_pull/src/random/random.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/random/random.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\random\\random.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\random\\random.cpp",
+  "file": "C:/dev/rts/src/random/random.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/random/random.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\geometry\\cdt.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\geometry\\cdt.cpp",
-  "file": "C:/dev/rts_pull/src/geometry/cdt.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/geometry/cdt.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\geometry\\cdt.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\geometry\\cdt.cpp",
+  "file": "C:/dev/rts/src/geometry/cdt.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/geometry/cdt.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\geometry\\geogen.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\geometry\\geogen.cpp",
-  "file": "C:/dev/rts_pull/src/geometry/geogen.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/geometry/geogen.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\geometry\\geogen.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\geometry\\geogen.cpp",
+  "file": "C:/dev/rts/src/geometry/geogen.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/geometry/geogen.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\rect_pack\\rect_pack.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\rect_pack\\rect_pack.cpp",
-  "file": "C:/dev/rts_pull/src/rect_pack/rect_pack.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/rect_pack/rect_pack.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\rect_pack\\rect_pack.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\rect_pack\\rect_pack.cpp",
+  "file": "C:/dev/rts/src/rect_pack/rect_pack.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/rect_pack/rect_pack.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\parser.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\asset\\parser.cpp",
-  "file": "C:/dev/rts_pull/src/asset/parser.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/asset/parser.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\parser.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\asset\\parser.cpp",
+  "file": "C:/dev/rts/src/asset/parser.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/asset/parser.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\system.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\asset\\system.cpp",
-  "file": "C:/dev/rts_pull/src/asset/system.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/asset/system.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\system.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\asset\\system.cpp",
+  "file": "C:/dev/rts/src/asset/system.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/asset/system.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\texture.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\asset\\texture.cpp",
-  "file": "C:/dev/rts_pull/src/asset/texture.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/asset/texture.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\texture.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\asset\\texture.cpp",
+  "file": "C:/dev/rts/src/asset/texture.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/asset/texture.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\texture_v2.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\asset\\texture_v2.cpp",
-  "file": "C:/dev/rts_pull/src/asset/texture_v2.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/asset/texture_v2.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\asset\\texture_v2.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\asset\\texture_v2.cpp",
+  "file": "C:/dev/rts/src/asset/texture_v2.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/asset/texture_v2.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\rhi\\rhi.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\rhi\\rhi.cpp",
-  "file": "C:/dev/rts_pull/src/rhi/rhi.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/rhi/rhi.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\rhi\\rhi.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\rhi\\rhi.cpp",
+  "file": "C:/dev/rts/src/rhi/rhi.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/rhi/rhi.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\rhi\\d3d12\\rhi_d3d12.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\rhi\\d3d12\\rhi_d3d12.cpp",
-  "file": "C:/dev/rts_pull/src/rhi/d3d12/rhi_d3d12.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/rhi/d3d12/rhi_d3d12.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\rhi\\d3d12\\rhi_d3d12.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\rhi\\d3d12\\rhi_d3d12.cpp",
+  "file": "C:/dev/rts/src/rhi/d3d12/rhi_d3d12.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/rhi/d3d12/rhi_d3d12.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\gfx\\gfx.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\gfx\\gfx.cpp",
-  "file": "C:/dev/rts_pull/src/gfx/gfx.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/gfx/gfx.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\gfx\\gfx.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\gfx\\gfx.cpp",
+  "file": "C:/dev/rts/src/gfx/gfx.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/gfx/gfx.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\renderer\\renderer.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\renderer\\renderer.cpp",
-  "file": "C:/dev/rts_pull/src/renderer/renderer.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/renderer/renderer.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\renderer\\renderer.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\renderer\\renderer.cpp",
+  "file": "C:/dev/rts/src/renderer/renderer.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/renderer/renderer.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\shader_compiler\\dxc\\dxc.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\shader_compiler\\dxc\\dxc.cpp",
-  "file": "C:/dev/rts_pull/src/shader_compiler/dxc/dxc.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/shader_compiler/dxc/dxc.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\shader_compiler\\dxc\\dxc.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\shader_compiler\\dxc\\dxc.cpp",
+  "file": "C:/dev/rts/src/shader_compiler/dxc/dxc.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/shader_compiler/dxc/dxc.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\audio.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\audio.cpp",
-  "file": "C:/dev/rts_pull/src/audio.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/audio.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\audio.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\audio.cpp",
+  "file": "C:/dev/rts/src/audio.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/audio.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\game.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\game.cpp",
-  "file": "C:/dev/rts_pull/src/game.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/game.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\game.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\game.cpp",
+  "file": "C:/dev/rts/src/game.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/game.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\input.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\input.cpp",
-  "file": "C:/dev/rts_pull/src/input.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/input.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\input.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\input.cpp",
+  "file": "C:/dev/rts/src/input.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/input.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\serializer.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\serializer.cpp",
-  "file": "C:/dev/rts_pull/src/serializer.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/src/serializer.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\rts_engine.dir\\src\\serializer.cpp.obj /FdCMakeFiles\\rts_engine.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\serializer.cpp",
+  "file": "C:/dev/rts/src/serializer.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/src/serializer.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\test_rhi.dir\\src\\test\\test_rhi.cpp.obj /FdCMakeFiles\\test_rhi.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\test\\test_rhi.cpp",
-  "file": "C:/dev/rts_pull/src/test/test_rhi.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/test_rhi.dir/src/test/test_rhi.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\test_rhi.dir\\src\\test\\test_rhi.cpp.obj /FdCMakeFiles\\test_rhi.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\test\\test_rhi.cpp",
+  "file": "C:/dev/rts/src/test/test_rhi.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/test_rhi.dir/src/test/test_rhi.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\test_ds.dir\\src\\test\\test_ds.cpp.obj /FdCMakeFiles\\test_ds.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\test\\test_ds.cpp",
-  "file": "C:/dev/rts_pull/src/test/test_ds.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/test_ds.dir/src/test/test_ds.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\test_ds.dir\\src\\test\\test_ds.cpp.obj /FdCMakeFiles\\test_ds.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\test\\test_ds.cpp",
+  "file": "C:/dev/rts/src/test/test_ds.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/test_ds.dir/src/test/test_ds.cpp.obj"
 },
 {
-  "directory": "C:/dev/rts_pull/build/debug",
-  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts_pull\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts_pull/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\test_thread.dir\\src\\test\\test_thread.cpp.obj /FdCMakeFiles\\test_thread.dir\\rts_engine.pdb /FS -c C:\\dev\\rts_pull\\src\\test\\test_thread.cpp",
-  "file": "C:/dev/rts_pull/src/test/test_thread.cpp",
-  "output": "C:/dev/rts_pull/build/debug/CMakeFiles/test_thread.dir/src/test/test_thread.cpp.obj"
+  "directory": "C:/dev/rts/build/debug",
+  "command": "\"C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\Hostx64\\x64\\cl.exe\"  /nologo /TP -DBUILD_DEBUG=1 -DNOMINMAX -DUNICODE -D_CRT_SECURE_NO_WARNINGS -D_UNICODE -IC:\\dev\\rts\\src /DWIN32 /D_WINDOWS  /Od -std:c++17 -MT -Z7 /utf-8 /FC /EHsc- /W3 /WX /wd4201 /wd4505 /wd4100 /wd4189 /wd4244 /wd4127 /YuC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FpC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/.//cmake_pch.cxx.pch /FIC:/dev/rts/build/debug/CMakeFiles/rts_engine.dir/cmake_pch.hxx /FoCMakeFiles\\test_thread.dir\\src\\test\\test_thread.cpp.obj /FdCMakeFiles\\test_thread.dir\\rts_engine.pdb /FS -c C:\\dev\\rts\\src\\test\\test_thread.cpp",
+  "file": "C:/dev/rts/src/test/test_thread.cpp",
+  "output": "C:/dev/rts/build/debug/CMakeFiles/test_thread.dir/src/test/test_thread.cpp.obj"
 }
 ]

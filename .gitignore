@@ -5,3 +5,4 @@ data/map/backup
 *.cap
 *.ctm
 *.sln
+compile_commands.json
