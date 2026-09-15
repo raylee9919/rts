@@ -179,12 +179,12 @@ static void d3d12_flush_messages(ID3D12InfoQueue1 *info_queue) {
 
             if (sz > allocated) {
                 if (msg) {
-                    dealloc(msg);
+                    dealloc(msg, tctx.temp);
                     msg = NULL;
                     allocated = 0;
                 }
 
-                msg = (D3D12_MESSAGE *)alloc(sz);
+                msg = (D3D12_MESSAGE *)alloc(sz, tctx.temp);
                 allocated = sz;
             }
 
@@ -194,7 +194,7 @@ static void d3d12_flush_messages(ID3D12InfoQueue1 *info_queue) {
             }
         }
 
-        if (msg) dealloc(msg);
+        if (msg) dealloc(msg, tctx.temp);
 
         info_queue->ClearStoredMessages();
     }
@@ -276,7 +276,8 @@ static void d3d12_queue_deinit(D3D12_Command_Queue *queue) {
 static bool d3d12_descriptor_heap_init(D3D12_Device *device, 
                                        D3D12_Descriptor_Heap *heap, 
                                        D3D12_DESCRIPTOR_HEAP_TYPE type, 
-                                       UINT minimum_descriptors) {
+                                       UINT minimum_descriptors, 
+                                       Allocator allocator) {
     static_assert(D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES == 4);
 
     heap->type = type;
@@ -314,11 +315,11 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
 
     // Make a free list.
     u32 n = allocated / 64u;
-    u64 *free_list = (u64 *)alloc(sizeof(u64) * n);
+    u64 *free_list = (u64 *)alloc(sizeof(u64) * n, allocator);
     memset(free_list, 0xff, sizeof(u64) * n);
     heap->free_list = free_list;
     heap->free_list_node_count = n;
-    
+
     heap->allocated = allocated;
     heap->count     = 0;
 
@@ -336,7 +337,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
 static void d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap) {
     if (heap) {
         COM_SAFE_RELEASE(&heap->heap_0);
-        dealloc(heap->free_list);
+        dealloc(heap->free_list, heap->device->allocator);
     }
 }
 
@@ -389,7 +390,7 @@ static void d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) {
 
 // Device
 //
-bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
+bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning, Allocator allocator) {
 #if USE_PIX
     log(LOG_INFO, S("USE_PIX = %d"), USE_PIX);
 #else
@@ -572,11 +573,11 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning) {
 
 
     // Create RTV and DSV heap.
-    // @Todo: growable.
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         1024)) return false;
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_DSV,          512)) return false;
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->resource_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2048)) return false;
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->sampler_heap,  D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,      256)) return false;
+    // @Todo: growable?
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         1024, allocator)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_DSV,          512, allocator)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->resource_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2048, allocator)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->sampler_heap,  D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,      256, allocator)) return false;
 
 
     // Create command queues.

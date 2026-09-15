@@ -5,13 +5,14 @@
 #include "basic/log.h"
 #include "profiler/profiler.h"
 
-bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning) {
+bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning, Allocator allocator) {
     memset(device, 0, sizeof(*device));
-    device->kind = kind;
+    device->kind      = kind;
+    device->allocator = allocator;
 
     switch (kind) {
         case RHI_KIND_D3D12:
-            return d3d12_device_init(device, debug, break_on_warning);
+            return d3d12_device_init(device, debug, break_on_warning, allocator);
 
         default:
             Assert(0);

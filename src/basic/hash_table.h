@@ -10,7 +10,6 @@
 
 #include "basic/core.h"
 #include "basic/allocator.h"
-#include "basic/context.h"
 #include "basic/array.h"
 #include "basic/hash.h"
 
@@ -99,11 +98,10 @@ V *table_add(Table<K, V, H, L> *table, K key, V value) {
 
         auto old_entries = table->entries;
 
-        if (!table->allocator.proc) {
-            table->allocator = tctx.allocator;
-        }
+        Assert(table->allocator.proc);
 
         table->entries = Array<Table<K, V, H, L>::Entry>{};
+        table->entries.allocator = table->allocator;
         array_reserve(&table->entries, new_allocated);
 
         // 'count' and 'slots_filled' will be incremented by 'table_add'.
@@ -135,7 +133,7 @@ V *table_add(Table<K, V, H, L> *table, K key, V value) {
 
     u32 probe_increment = 1;
 
-    while (u32 h = table->entries[index].hash) {
+    while (table->entries[index].hash) {
         auto *entry = &table->entries[index];
 
         // Refill
@@ -172,7 +170,7 @@ bool table_remove(Table<K, V, H, L> *table, K key) {
 
     u32 probe_increment = 1;
 
-    while (u32 h = table->entries[index].hash) {
+    while (table->entries[index].hash) {
         auto *entry = &table->entries[index];
 
         if ((entry->hash == hash) && (entry->key == key)) {
@@ -221,7 +219,7 @@ V *table_find_pointer(Table<K, V, H, L> *table, K key) {
 
         u32 probe_increment = 1;
 
-        while (u32 h = table->entries[index].hash) {
+        while (table->entries[index].hash) {
             auto *entry = &table->entries[index];
 
             if ((entry->hash == hash) && (entry->key == key)) {

@@ -46,9 +46,6 @@ void thread_init() {
 
     // @Temporary
     {
-        tctx.allocator.proc = crt_proc;
-        tctx.allocator.data = NULL;
-
         tctx.temp.proc = arena_allocator_proc;
         tctx.temp.data = arena_alloc();
     }

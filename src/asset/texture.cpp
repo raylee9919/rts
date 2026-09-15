@@ -49,10 +49,7 @@ namespace Asset
     {
         assert(tex);
 
-        Temporary_Arena scratch = scratch_begin();
-        defer(scratch_end(scratch));
-
-        String contents = read_entire_file(scratch.arena, file_path);
+        String contents = read_entire_file(file_path, tctx.temp);
 
         load_texture(sys, tex, contents.str, contents.len);
     }
@@ -61,10 +58,7 @@ namespace Asset
     {
         assert(tex);
 
-        Temporary_Arena scratch = scratch_begin();
-        defer(scratch_end(scratch));
-
-        String contents = read_entire_file(scratch.arena, file_path);
+        String contents = read_entire_file(file_path, tctx.temp);
 
         stbi_set_flip_vertically_on_load(flip);
         int x, y, num_channels;

@@ -3,12 +3,12 @@
 #include "renderer/renderer.h"
 #include "basic/context.h"
 #include "basic/hash_table.h"
-#include "basic/log.h"
 #include "gfx/gfx.h"
 #include "math/math.h"
 #include "os/os.h"
 #include "profiler/profiler.h"
 #include "shaders/shared.h"
+#include "third_party/xxhash3/xxhash.h"
 #include "game.h"
 
 Render_SPSC_Queue render_queue;
@@ -16,7 +16,6 @@ Render_SPSC_Queue render_queue;
 /* Call 'r_init' before use. */
 Renderer *renderer;
 
-Guid                 pipeline;
 Guid                 cube_mesh;
 RHI_Buffer           arguments_buffer;
 RHI_Buffer_View      arguments_view;
@@ -24,7 +23,6 @@ void                *arguments_ptr;
 RHI_Buffer           material_buffer;
 RHI_Buffer_View      material_view;
 void                *material_ptr;
-Guid                 doggo_guid;
 RHI_Buffer           camera_buffer;
 RHI_Buffer_View      camera_view;
 void                *camera_ptr;
@@ -64,19 +62,19 @@ static void r_pass_scene(Game_State *g)
 
     gfx_pass_begin(R_PASS_GEOMETRY, &pass);
     {
-        gfx_set_pipeline(pipeline);
         {
-            // @Temporary
-
             entity_dfs(g, g->root, [](Game_State *g, Entity *E, u64 i) {
+                Material *material = r_material_from_guid(E->material);
+                gfx_set_pipeline(material->pipeline);
+
                 // Upload arguments
                 Arguments *args = (Arguments *)arguments_ptr + i;
                 m4x4 m = m4x4_translate(E->position) * y_rotation(g->time);
                 memcpy(&args->transform, &m, sizeof(args->transform));
 
                 // Upload material
-                GFX_Material *mat = gfx_material_pointer_from_guid(E->material);
-                GPU_Material sm   = gpu_material_from_gfx(mat);
+                Material *mat   = r_material_from_guid(E->material);
+                GPU_Material sm   = to_gpu_material(mat);
                 GPU_Material *dst = (GPU_Material *)material_ptr + i;
                 memcpy(dst, &sm, sizeof(sm));
                 args->material_id = i;
@@ -174,9 +172,14 @@ void r_init(void *native_window_handle)
         Construct(renderer);
 
         renderer->arena = arena; 
+        renderer->heap  = { crt_proc, nullptr };
     }
 
     Renderer *r = renderer;
+
+    { // Assign allocator
+        r->material_table.allocator = r->heap;
+    }
 
 
     { // Init renderer's resources
@@ -189,7 +192,7 @@ void r_init(void *native_window_handle)
                 RHI_Texture_Desc desc = {}; 
                 desc.name           = S("SceneDepth");
                 desc.type           = RHI_TEXTURE_TYPE_2D;
-                desc.format         = RHI_FORMAT_D32F;
+                desc.format         = R_DEPTH_FORMAT;
                 desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
                 desc.width          = width;
                 desc.height         = height;
@@ -207,7 +210,7 @@ void r_init(void *native_window_handle)
                 RHI_Texture_Desc desc = {};
                 desc.name           = S("GBufferColor");
                 desc.type           = RHI_TEXTURE_TYPE_2D;
-                desc.format         = RHI_FORMAT_RGBA16F;
+                desc.format         = R_COLOR_FORMAT;
                 desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
                 desc.width          = width;
                 desc.height         = height;
@@ -225,7 +228,7 @@ void r_init(void *native_window_handle)
                 {
                     desc.name           = S("Scene");
                     desc.type           = RHI_TEXTURE_TYPE_2D;
-                    desc.format         = RHI_FORMAT_RGBA8_UNORM;
+                    desc.format         = R_COLOR_FORMAT;
                     desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
                     desc.width          = width;
                     desc.height         = height;
@@ -237,6 +240,12 @@ void r_init(void *native_window_handle)
             }
         }
     }
+}
+
+void r_shutdown()
+{
+    release(renderer->heap);
+    arena_release(renderer->arena);
 }
 
 void r_render(Game_State *g, f64 refresh_dt)
@@ -326,4 +335,31 @@ void r_entry(void *param)
 
     /* Cleanup */
     gfx_shutdown();
+    r_shutdown();
+}
+
+Material *r_material_alloc(Guid guid) {
+    return table_add(&renderer->material_table, guid, Material{});
+}
+
+void r_material_dealloc(Guid guid) {
+    table_remove(&renderer->material_table, guid);
+}
+
+Material *r_material_from_guid(Guid guid) {
+    Material *result = table_find_pointer(&renderer->material_table, guid);
+    return result;
+}
+
+GPU_Material to_gpu_material(Material *material)  {
+    GPU_Material result = {};
+
+    result.albedo    = material->albedo;
+    result.metallic  = material->metallic;
+    result.roughness = material->roughness;
+
+    result.albedo_id = gfx_srv_bindless_from_texture(material->albedo_texture);
+    result.orm_id    = gfx_srv_bindless_from_texture(material->orm_texture);
+
+    return result;
 }

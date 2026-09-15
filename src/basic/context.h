@@ -12,8 +12,6 @@ struct Context {
 
     Arena *temporary_arena;
 
-    Allocator allocator;
-
     Allocator temp;
 };
 extern per_thread Context tctx;
@@ -30,6 +28,7 @@ void    context_push(Context context);
 void    context_pop();
 #define push_context(CTX) defer_loop(context_push(CTX), context_pop())
 
+void *crt_proc(Allocator_Mode mode, u64 size, u64 old_size, void *old_memory, void *data);
 
 
 

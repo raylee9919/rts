@@ -11,6 +11,7 @@
 #include "basic/arena.h"
 #include "basic/string.h"
 #include "basic/context.h"
+#include "basic/log.h"
 
 #include <windowsx.h>
 #include <shlobj.h>
@@ -141,7 +142,6 @@ void os_init() {
         }
         {
             os->binary_path  = utf8_copy(os->arena, binary_path);
-            os->initial_path = os->binary_path;
             os->appdata_path = utf8_copy(os->arena, appdata_path);
         }
     }
@@ -270,191 +270,201 @@ HANDLE win32_handle_from_os_handle(OS_Handle handle) {
 }
 
 
+//
 // File
 //
-OS_Handle os_open_file(String path, OS_Access_Flags flags) {
-    // (https://stackoverflow.com/a/14469641)
-    //                          |                    When the file...
-    // This argument:           |             Exists            Does not exist
-    // -------------------------+------------------------------------------------------
-    // CREATE_ALWAYS            |            Truncates             Creates
-    // CREATE_NEW         +-----------+        Fails               Creates
-    // OPEN_ALWAYS     ===| does this |===>    Opens               Creates
-    // OPEN_EXISTING      +-----------+        Opens                Fails
-    // TRUNCATE_EXISTING        |            Truncates              Fails
-    //
-    Temporary_Arena scratch = scratch_begin();
-
-    OS_Handle result = {};
-    Utf16 path16 = to_utf16(scratch.arena, path);
-
-    // make access flags.
-    DWORD access = 0;
-    if (flags & OS_ACCESS_FLAG_READ)    access |= GENERIC_READ;
-    if (flags & OS_ACCESS_FLAG_WRITE)   access |= GENERIC_WRITE;
-    if (flags & OS_ACCESS_FLAG_APPEND)  access |= FILE_APPEND_DATA;
-    if (flags & OS_ACCESS_FLAG_EXECUTE) access |= GENERIC_EXECUTE;
-
-    // make share mode flags.
-    DWORD share = 0;
-    if (flags & OS_ACCESS_FLAG_SHARE_READ)  share |= FILE_SHARE_READ;
-    if (flags & OS_ACCESS_FLAG_SHARE_WRITE) share |= FILE_SHARE_WRITE;
-
-    SECURITY_ATTRIBUTES security = { sizeof(SECURITY_ATTRIBUTES), NULL, FALSE };
-
-    // make creation disposition value.
-    DWORD creation_disposition = OPEN_EXISTING;
-    if (flags & OS_ACCESS_FLAG_WRITE)  creation_disposition = CREATE_ALWAYS;
-    if (flags & OS_ACCESS_FLAG_APPEND) creation_disposition = OPEN_ALWAYS;
-
-    HANDLE handle = CreateFileW((WCHAR*)path16.str, access, share, &security, 
-                                creation_disposition, FILE_ATTRIBUTE_NORMAL, NULL);
-
-    if (handle != INVALID_HANDLE_VALUE) {
-        result = os_handle_from_win32_handle(handle);
+File file_open(String name, bool for_writing, bool keep_existing_content) {
+    HANDLE handle = {};
+    LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, name).str;
+    if (for_writing) {
+        u32 mode = keep_existing_content ? OPEN_ALWAYS : CREATE_ALWAYS;
+        handle = CreateFileW(c_name, FILE_GENERIC_READ | FILE_GENERIC_WRITE, FILE_SHARE_READ, NULL, mode, 0, NULL);
     } else {
-        DWORD error = GetLastError();
-        (void)error;
+        handle = CreateFileW(c_name, FILE_GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     }
 
-    scratch_end(scratch);
-    return result;
-}
-
-void os_close_file(OS_Handle file) {
-    HANDLE handle = win32_handle_from_os_handle(file);
-    BOOL ok = CloseHandle(handle);
-    (void)ok;
-}
-
-u64 os_read_file(OS_Handle file, u64 offset, u64 size, void* out) {
-    assert(size > 0);
-
-    u64 result = 0;
-    HANDLE handle = win32_handle_from_os_handle(file);
-    u64 file_size = 0;
-
-    // clamp read size by file size.
-    GetFileSizeEx(handle, (LARGE_INTEGER*)&file_size);
-    assert(file_size >= offset);
-    size = min(size, file_size - offset);
-
-    while (result < size) {
-        u64 size64 = size - result;
-        u32 size32 = size64 > U32_MAX ? U32_MAX : (u32)size64;
-
-        DWORD read_size = 0;
-
-        OVERLAPPED overlapped = {};
-        overlapped.Offset     = (u32)offset;
-        overlapped.OffsetHigh = (u32)(offset >> 32);
-
-        ReadFile(handle, (u8*)out + result, size32, &read_size, &overlapped);
-
-        offset += read_size;
-        result += read_size;
-
-        if (read_size != size32) break;
+    if (handle == INVALID_HANDLE_VALUE) {
+        DWORD error_code = GetLastError();
+        log(LOG_ERROR, S("Could not open file %S: code %d"), name, error_code);
+        return {};
     }
 
-    return result;
+    File file = {};
+    file.handle = handle;
+
+    return file;
 }
 
-bool os_delete_file(String path) {
-    Temporary_Arena scratch = scratch_begin();
-    Utf16 path16 = to_utf16(scratch.arena, path);
-    bool result = DeleteFileW((WCHAR*)path16.str);
-    scratch_end(scratch);
-    return result;
+void file_close(File *file) {
+    if (file->handle != INVALID_HANDLE_VALUE) {
+        CloseHandle(file->handle);
+        file->handle = INVALID_HANDLE_VALUE;
+    }
 }
 
-bool os_copy_file(String dst, String src) {
-    Temporary_Arena scratch = scratch_begin();
-    Utf16 dst16 = to_utf16(scratch.arena, dst);
-    Utf16 src16 = to_utf16(scratch.arena, src);
-    BOOL fail_if_exists = FALSE;
-    bool result = CopyFileW((WCHAR*)src16.str, (WCHAR*)dst16.str, fail_if_exists);
-    scratch_end(scratch);
-    return result;
+bool file_move(String name_old, String name_new) {
+    LPCWSTR c_name_old = (LPCWSTR)to_utf16(tctx.temp, name_old).str;
+    LPCWSTR c_name_new = (LPCWSTR)to_utf16(tctx.temp, name_new).str;
+    return MoveFileW(c_name_old, c_name_new);
 }
 
-File_Properties os_get_file_properties(OS_Handle file) {
-    File_Properties result = {};
+bool file_delete(String name) {
+    LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, name).str;
+    return DeleteFileW(c_name) != 0; // @Todo(swL): Error-message
+}
 
-    HANDLE handle = win32_handle_from_os_handle(file);
-    BY_HANDLE_FILE_INFORMATION info = {};
+// Handle must not have been opened with 'FILE_FLAG_OVERLAPPED' (async mode)
+// More advanced handling of pipes is not supported.
+b32 file_read(File file, void *vdata, s64 bytes_to_read) {
+    u8 *data = (u8 *)vdata;
 
-    if (GetFileInformationByHandle(handle, &info)) {
-        u32 size_lo = info.nFileSizeLow;
-        u32 size_hi = info.nFileSizeHigh;
-        result.size = (((u64)size_hi) << 32) | (u64)size_lo;
-        result.is_directory = info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+    if (bytes_to_read <= 0)  return false;
+    if (data == NULL)        return false;
+
+    s64 total_read = 0;
+
+    while (total_read < bytes_to_read) {
+        s64 remaining = bytes_to_read - total_read;
+        DWORD to_read = 0;
+        if (remaining <= 0x7fffffff) {
+            to_read = (DWORD)remaining;
+        } else {
+            to_read = 0x7fffffff;
+        }
+
+        DWORD single_read_length = 0;
+        BOOL read_success = ReadFile(file.handle, data + total_read, to_read, &single_read_length, NULL);
+        total_read += single_read_length;
+        if (!read_success) {
+            return false;
+        }
+
+        if (single_read_length == 0) {
+            return true;
+        }
     }
 
-    return result;
+    return true;
 }
 
-File_Properties os_get_file_properties(String path) {
-    Temporary_Arena scratch = scratch_begin();
-
-    WIN32_FIND_DATAW find_data = {};
-    Utf16 path16 = to_utf16(scratch.arena, path);
-
-    HANDLE handle = FindFirstFileW((WCHAR*)path16.str, &find_data);
-    File_Properties result = {};
-
-    if (handle != INVALID_HANDLE_VALUE) {
-        result.size = (((u64)find_data.nFileSizeHigh) << 32) | (u64)find_data.nFileSizeLow;
-        result.is_directory = find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+s64 file_length(File file) {
+    LARGE_INTEGER size = {};
+    if (GetFileSizeEx(file.handle, &size) == 0) {
+        return -1;
     } else {
-        assert(!"X");
+        return size.QuadPart;
+    }
+}
+
+s64 file_current_position(File file) {
+    LARGE_INTEGER li = {}, zero = {};
+    if (SetFilePointerEx(file.handle, zero, &li, FILE_CURRENT) == 0) {
+        return -1;
+    } else {
+        return li.QuadPart;
+    }
+}
+
+b32 file_set_position(File file, s64 pos) {
+    LARGE_INTEGER li = {};
+    li.QuadPart = pos;
+    if (SetFilePointerEx(file.handle, li, NULL, FILE_BEGIN) == 0){ 
+        return false;
+    } else {
+        return true;
+    }
+}
+
+String read_entire_file(File file, Allocator allocator, bool zero_terminated) {
+    String s = {};
+
+    LARGE_INTEGER size_struct = {};
+    BOOL size_success = GetFileSizeEx(file.handle, &size_struct);
+    if (!size_success)  return s;
+
+    s64 length = size_struct.QuadPart;
+    s64 zero_termination_size = 0;
+    if (zero_terminated)  zero_termination_size = 1;
+
+    u8 *data = (u8 *)alloc(length + zero_termination_size, allocator);
+    if (data == NULL)  return s;
+
+    DWORD single_read_length = 0;
+    s64 total_read = 0;
+
+    s64 previous_pos = file_current_position(file);
+    if (previous_pos == -1)  return s;
+
+    b32 set_success = file_set_position(file, 0);
+    if (!set_success)  return s;
+
+    while (total_read < length) {
+        s64 remaining = length - total_read;
+        DWORD to_read = 0;
+        if (remaining <= 0x7fffffff) {
+            to_read = (DWORD)remaining;
+        } else {
+            to_read = 0x7fffffff;
+        }
+
+        ReadFile(file.handle, data + total_read, to_read, &single_read_length, NULL);
+        if (single_read_length <= 0) {
+            dealloc(data, allocator);
+            return s;
+        }
+
+        total_read += single_read_length;
     }
 
-    FindClose(handle);
-    scratch_end(scratch);
-    return result;
-}
+    s.len = length;
+    s.str = data;
 
-u64 os_get_file_size(OS_Handle file) {
-    HANDLE handle = win32_handle_from_os_handle(file);
-    u64 size = 0;
-    GetFileSizeEx(handle, (LARGE_INTEGER*)&size);
-    return size;
-}
+    if (zero_terminated)  s.str[length] = 0;
 
-u64 os_get_file_size(String path) {
-    return os_get_file_properties(path).size;
-}
-
-bool os_create_directory(String path) {
-    Temporary_Arena scratch = scratch_begin();
-
-    bool result = false;
-    Utf16 path16 = to_utf16(scratch.arena, path);
-    WIN32_FILE_ATTRIBUTE_DATA attrib;
-
-    GetFileAttributesExW((WCHAR*)path16.str, GetFileExInfoStandard, &attrib);
-
-    if (attrib.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        result = true;
-    } else if (CreateDirectoryW((WCHAR*)path16.str, NULL)) {
-        result = true;
+    if (!file_set_position(file, previous_pos)) {
+        return s;
     }
 
-    scratch_end(scratch);
-    return result;
+    return s;
 }
 
-bool os_directory_exists(String path) {
-    Temporary_Arena scratch = scratch_begin();
-    Utf16 path16 = to_utf16(scratch.arena, path);
-    DWORD attrib = GetFileAttributesW((WCHAR *)path16.str);
+String read_entire_file(String name, Allocator allocator, bool zero_terminated) {
+    String s = {};
+    File file = file_open(name);
+    if (file_is_valid(file)) {
+        s = read_entire_file(file, allocator, zero_terminated);
+        file_close(&file);
+    }
+
+    return s;
+}
+
+bool file_write(File file, void *data, s64 size) {
+    // WritreFile maybe blocks unitl it writes everything, as long as the file it not set to nonblocking.
+    // @Todo(swL): Deal with inputs > 32 bits.
+
+    u32 size32 = (u32)size;
+    Assert(size32 == size);
+
+    DWORD written = 0;
+    BOOL status = WriteFile(file.handle, data, size32, &written, NULL);
+
+    return (bool)status;
+}
+
+b32 file_is_valid(File file) {
+    return file.handle != NULL;
+}
+
+b32 directory_exists(String name) {
+    LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, name).str;
+    DWORD attrib = GetFileAttributesW(c_name);
     bool result = (attrib != INVALID_FILE_ATTRIBUTES) && (attrib & FILE_ATTRIBUTE_DIRECTORY);
-    scratch_end(scratch);
     return result;
 }
 
 
+//
 // GFX
 //
 static Win32_Window *win32_window_from_handle(OS_Handle handle) {

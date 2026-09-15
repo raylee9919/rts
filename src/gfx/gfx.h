@@ -13,8 +13,10 @@
 #include "rhi/rhi.h"
 #include "shaders/shared.h"
 
+
 #define GFX_INVALID                 UINT64_MAX
-#define GFX_MAX_PASS                32
+#define GFX_MAX_PASS                64
+#define GFX_SCENE_DEPTH_FORAMT      RHI_FORMAT_D32F
 
 
 /* Sort Keys */
@@ -100,32 +102,6 @@ struct GFX_Scissor {
     u32 x, y, w, h; // top-left x and y.
 };
 
-typedef u16 GFX_Pass_Flags;
-enum {
-    // CLEAR_COLOR flags 'MUST' be in sequential order.
-    GFX_PASS_FLAG_CLEAR_COLOR_0       = (1 << 0),
-    GFX_PASS_FLAG_CLEAR_COLOR_1       = (1 << 1),
-    GFX_PASS_FLAG_CLEAR_COLOR_2       = (1 << 2),
-    GFX_PASS_FLAG_CLEAR_COLOR_3       = (1 << 3),
-    GFX_PASS_FLAG_CLEAR_COLOR_4       = (1 << 4),
-    GFX_PASS_FLAG_CLEAR_COLOR_5       = (1 << 5),
-    GFX_PASS_FLAG_CLEAR_COLOR_6       = (1 << 6),
-    GFX_PASS_FLAG_CLEAR_COLOR_7       = (1 << 7),
-    GFX_PASS_FLAG_CLEAR_COLOR_MAX_OPL = (1 << 8),
-
-    GFX_PASS_FLAG_CLEAR_DEPTH_STENCIL = (1 << 9),
-};
-static_assert(GFX_PASS_FLAG_CLEAR_COLOR_MAX_OPL == (1 << RHI_MAX_COLOR_ATTACHMENTS));
-
-struct GFX_Material {
-    v3                  albedo         = v3{1.f, 1.f, 1.f};
-    f32                 metallic       = 0.f;
-    f32                 roughness      = 1.f;
-
-    Guid                albedo_texture = NULL_GUID;
-    Guid                orm_texture    = NULL_GUID;
-};
-
 struct GFX_Pass {
     String          name;
     GFX_Viewport    viewport;
@@ -163,6 +139,7 @@ struct GFX_Edge {
 
 struct GFX_State {
     Allocator                               arena;
+    Allocator                               heap;
 
     bool                                    initted = false;
     bool                                    should_shutdown = false;
@@ -239,7 +216,6 @@ struct GFX_State {
 
     // Resource tables
     Table <Guid,           GFX_Mesh, gfx_128_to_32>     mesh_table;
-    Table <Guid,       GFX_Material, gfx_128_to_32>     material_table;
     Table <Guid,  GFX_Texture_Entry, gfx_128_to_32>     texture_table;
     Table <Guid, GFX_Pipeline_Entry, gfx_128_to_32>     pipeline_table;
 
@@ -259,16 +235,11 @@ extern GFX_State *gfx;
 
 
 
-void                   gfx_init(GFX_Info info, u32 num_backbuffers);
-void                   gfx_shutdown();
+void gfx_init(GFX_Info info, u32 num_backbuffers);
+void gfx_shutdown();
 
-void                   gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
-void                   gfx_mesh_destroy(Guid guid);
-
-void                   gfx_material_alloc(Guid guid, GFX_Material material);
-void                   gfx_material_dealloc(Guid guid);
-GFX_Material          *gfx_material_pointer_from_guid(Guid guid);
-
+void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
+void gfx_mesh_destroy(Guid guid);
 
 // Creates texture, SRV and UAV according to the desc's usage flags.
 void gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
@@ -290,12 +261,10 @@ u32 gfx_srv_bindless_from_texture(Guid guid);
 // Get bindless handle of UAV from texture GUID. returns GFX_INVALID_BINDLESS if it doesn't exist.
 u32 gfx_uav_bindless_from_texture(Guid guid);
 
-
-// The last state you set will be submitted to the GPU. The system isn't smart 
-// enough to untangle the order in which you called them.
-void                   gfx_pass_begin(u32 pass_index, GFX_Pass *pass);
-void                   gfx_pass_end();
-
+// The last pass state you set will be submitted to the GPU. The system isn't
+// smart enough to untangle the order in which you called them.
+void gfx_pass_begin(u32 pass_index, GFX_Pass *pass);
+void gfx_pass_end();
 
 // Immediate-mode pass connection built every frame. No need to disconnect manually.
 // Pass 'src_pass' as -1 to indicate the pass with no dependencies.
@@ -327,8 +296,6 @@ void                   gfx_end(f64 dt, u32 sync_interval);
 bool                   gfx_wait_for_frame_waitable_object();
 
 void                   gfx_request_swapchain_resize(u32 width, u32 height);
-
-GPU_Material           gpu_material_from_gfx(GFX_Material *material);
 
 
 #endif // RTS_GFX_H

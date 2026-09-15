@@ -23,8 +23,9 @@
 struct String {
     u8 *str;
     s64 len;
-};
 
+    force_inline u64 size() { return sizeof(str[0]) * (u64)len; }
+};
 
 struct Utf16 {
     u16 *str;
@@ -76,9 +77,8 @@ u8   to_lowercase(u8 c);
 u8   to_forward_slash(u8 c);
 
 //
-// Constructors.
+// Constructors
 //
-#define utf8lit(str) utf8((u8 *)str, sizeof(str) - 1)
 #define S(str) String{(u8 *)str, sizeof(str) - 1}
 String utf8(u8 *str, u64 len);
 String utf8c(u8 *ptr);
@@ -88,7 +88,7 @@ Utf16 utf16c(u16 *ptr);
 Utf32 utf32(u32 *str, u64 len);
 
 //
-// Encoding/Decoding.
+// Encoding/Decoding
 //
 Unicode_Decode utf8_decode(u8 *str, u64 max);
 Unicode_Decode utf16_decode(u16 *str, u64 max);
@@ -96,7 +96,7 @@ u32 utf8_encode(u8 *str, u32 codepoint);
 u32 utf16_encode(u16 *str, u32 codepoint);
 
 //
-// Conversion.
+// Conversion
 //
 String to_utf8(Arena *arena, Utf16 in);
 String to_utf8(Allocator allocator, Utf16 in);
@@ -104,7 +104,7 @@ Utf16 to_utf16(Arena *arena, String in);
 Utf16 to_utf16(Allocator allocator, String in);
 
 //
-// Manipulation.
+// Manipulation
 //
 b32 utf8_match(String a, String b, Str_Match_Flags flags);
 String utf8_substr(String str, s64 min, s64 max);

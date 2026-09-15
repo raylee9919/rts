@@ -37,21 +37,22 @@ struct D3D12_Command_List {
 };
 
 struct D3D12_Descriptor_Heap {
-    D3D12_DESCRIPTOR_HEAP_TYPE type;
+    D3D12_DESCRIPTOR_HEAP_TYPE  type;
 
-    ID3D12DescriptorHeap *heap_0;
+    ID3D12DescriptorHeap       *heap_0;
+
+    RHI_Device                 *device;
 
     D3D12_CPU_DESCRIPTOR_HANDLE base_cpu_handle;
     D3D12_GPU_DESCRIPTOR_HANDLE base_gpu_handle; // valid if visible on gpu.
 
-    u32 descriptor_size;
+    u32                         descriptor_size;
+    
+    u64                        *free_list;  // set bit means it's free.
+    u32                         free_list_node_count;
 
-    // set bit means it's free.
-    u64 *free_list; 
-    u32 free_list_node_count;
-
-    u32 allocated;  // number of every slots.
-    u32 count;      // number of active descriptors.
+    u32                         allocated;  // number of every slots.
+    u32                         count;      // number of active descriptors.
 };
 
 struct D3D12_Descriptor {
@@ -67,6 +68,8 @@ struct D3D12_Heap {
 };
 
 struct D3D12_Device {
+    Allocator               allocator;
+
     IDXGIFactory6          *dxgi_factory_6;
     ID3D12Device           *device_0;
     ID3D12Device10         *device_10;
@@ -110,7 +113,7 @@ struct D3D12_Pipeline {
     ID3D12PipelineState *state;
 };
 
-bool  d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning);
+bool  d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning, Allocator allocator);
 void  d3d12_device_deinit(RHI_Device *device);
 
 bool  d3d12_command_list_init(RHI_Device *device, RHI_Command_Buffer *cmd_buffer, RHI_Command_Type type);

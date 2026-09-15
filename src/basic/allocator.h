@@ -25,10 +25,9 @@ struct Allocator {
 //
 // Each call passes corresponding mode to the allocating procedure.
 //
-#define alloc_t(T, ...)     (T *)alloc(sizeof(T), ##__VA_ARGS__)
-void *alloc(u64 size, Allocator allocator = {});
-void *realloc(void *memory, u64 size, u64 old_size, Allocator allocator = {});
-void  dealloc(void *memory, Allocator allocator = {});
+u8   *alloc(u64 size, Allocator allocator);
+void *realloc(void *memory, u64 size, u64 old_size, Allocator allocator);
+void  dealloc(void *memory, Allocator allocator);
 void  release(Allocator allocator);
 
 #endif // RTS_ALLOCATOR_H

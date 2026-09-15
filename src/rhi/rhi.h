@@ -17,7 +17,8 @@ enum RHI_Kind : u8 {
 };
 
 struct RHI_Device {
-    RHI_Kind kind;
+    RHI_Kind  kind;
+    Allocator allocator;
     union {
         D3D12_Device d3d12;
     };
@@ -358,7 +359,7 @@ struct RHI_Box {
 //
 // API
 //
-bool  rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning);
+bool  rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning, Allocator allocator);
 void  rhi_device_deinit(RHI_Device *device);
 
 bool  rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *cmd, RHI_Command_Type type);

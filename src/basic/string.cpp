@@ -480,8 +480,8 @@ utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags 
 String
 utf8_path_chop_last_slash(String string)
 {
-    Str_Match_Flags flags = STR_MATCH_SLASH_INSENTISIVE|STR_MATCH_FIND_LAST;
-    s64 slash_pos = utf8_find_substr(string, utf8lit("/"), 0, flags);
+    Str_Match_Flags flags = STR_MATCH_SLASH_INSENTISIVE | STR_MATCH_FIND_LAST;
+    s64 slash_pos = utf8_find_substr(string, S("/"), 0, flags);
     if(slash_pos < string.len)
     {
         string.len = slash_pos;

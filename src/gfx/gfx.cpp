@@ -136,6 +136,7 @@ void gfx_init(GFX_Info info, u32 num_backbuffers) {
         Construct(gfx);
 
         gfx->arena = arena; 
+        gfx->heap  = { crt_proc, nullptr };
     }
 
     gfx->info = info;
@@ -145,7 +146,31 @@ void gfx_init(GFX_Info info, u32 num_backbuffers) {
 
     // Allocate memory and initialize RHI
     gfx->device = (RHI_Device *)alloc(sizeof(RHI_Device), gfx->arena);
-    Assert(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning));
+    Assert(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning, gfx->heap));
+
+
+    { // Assign allocators
+        gfx->callbacks.array.allocator = gfx->heap;
+
+        gfx->pipelines.allocator = gfx->heap;
+        gfx->pipeline_to_index_this_frame.allocator = gfx->heap;
+
+        gfx->push_constants.allocator = gfx->heap;
+        gfx->push_constants_to_index_this_frame.allocator = gfx->heap;
+
+        for (u32 i = 0; i < array_count(gfx->sort_keys); ++i) {
+            gfx->sort_keys[i].allocator = gfx->heap;
+            gfx->commands[i].allocator  = gfx->heap;
+        }
+
+        gfx->mesh_table.allocator     = gfx->heap;
+        gfx->texture_table.allocator  = gfx->heap;
+        gfx->pipeline_table.allocator = gfx->heap;
+
+        for (u32 i = 0; i < array_count(gfx->out_edges); ++i) {
+            gfx->out_edges[i].allocator = gfx->heap;
+        }
+    }
 
 
     // Create swapchain
@@ -209,6 +234,7 @@ void gfx_shutdown() {
     gfx_swapchain_deinit();
     rhi_device_deinit(gfx->device);
 
+    release(gfx->heap);
     release(gfx->arena);
 }
 
@@ -327,19 +353,6 @@ void gfx_mesh_destroy(Guid guid) {
     entry.mesh_id = guid;
 
     gfx_add_callback(entry);
-}
-
-void gfx_material_alloc(Guid guid, GFX_Material material) {
-    table_add(&gfx->material_table, guid, material);
-}
-
-void gfx_material_dealloc(Guid guid) {
-    table_remove(&gfx->material_table, guid);
-}
-
-GFX_Material *gfx_material_pointer_from_guid(Guid guid) {
-    GFX_Material *result = table_find_pointer(&gfx->material_table, guid);
-    return result;
 }
 
 void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
@@ -492,6 +505,7 @@ RHI_Format gfx_surface_format() {
 }
 
 void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) {
+    Assert(guid != NULL_GUID);
     Assert(gfx->pipeline_table.count <= GFX_MAX_PIPELINES);
 
     GFX_Pipeline_Entry entry = {};
@@ -865,17 +879,4 @@ void gfx_request_swapchain_resize(u32 width, u32 height) {
     gfx->resize_requested = true;
     gfx->resize_width     = width;
     gfx->resize_height    = height;
-}
-
-GPU_Material gpu_material_from_gfx(GFX_Material *material)  {
-    GPU_Material result = {};
-
-    result.albedo    = material->albedo;
-    result.metallic  = material->metallic;
-    result.roughness = material->roughness;
-
-    result.albedo_id = gfx_srv_bindless_from_texture(material->albedo_texture);
-    result.orm_id    = gfx_srv_bindless_from_texture(material->orm_texture);
-
-    return result;
 }

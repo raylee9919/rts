@@ -101,25 +101,6 @@ enum Wait_Result : u8 {
 };
 
 
-// File
-//
-typedef u32 OS_Access_Flags;
-enum
-{
-    OS_ACCESS_FLAG_READ        =  0x1,
-    OS_ACCESS_FLAG_WRITE       =  0x2,
-    OS_ACCESS_FLAG_APPEND      =  0x4,
-    OS_ACCESS_FLAG_EXECUTE     =  0x8,
-    OS_ACCESS_FLAG_SHARE_READ  = 0x10,
-    OS_ACCESS_FLAG_SHARE_WRITE = 0x20,
-};
-
-struct File_Properties {
-    u64  size;
-    bool is_directory;
-};
-
-
 // GFX
 //
 struct OS_Window {
@@ -328,10 +309,10 @@ struct Guid {
     }
 
     bool operator != (const Guid& other) {
-        return memcmp(u, other.u, sizeof(u)) == 1;
+        return memcmp(u, other.u, sizeof(u)) != 0;
     }
 };
-global read_only const Guid NULL_GUID = {0};
+global read_only const Guid NULL_GUID = {};
 
 
 // Global OS State
@@ -358,7 +339,6 @@ struct OS_State {
     
     // Path
     String binary_path;
-    String initial_path;
     String appdata_path;
 
     // Thing Free List
@@ -402,20 +382,46 @@ HWND               hwnd_from_os_handle(OS_Handle handle);
 HANDLE             win32_handle_from_os_handle(OS_Handle handle);
 void*              get_native_window_handle(OS_Handle window);
 
+
+//
 // File
-OS_Handle          os_open_file(String path, OS_Access_Flags flags);
-void               os_close_file(OS_Handle file);
-u64                os_read_file(OS_Handle file, u64 offset, u64 size, void* out);
-bool               os_delete_file(String path);
-bool               os_copy_file(String dst, String src);
-File_Properties    os_get_file_properties(OS_Handle file);
-File_Properties    os_get_file_properties(String path);
-u64                os_get_file_size(OS_Handle file);
-u64                os_get_file_size(String path);
-bool               os_create_directory(String path);
-bool               os_directory_exists(String path);
-String             read_entire_file(Arena* arena, String file_path);
-String             read_entire_file(String file_path, Allocator allocator);
+//
+struct File {
+    HANDLE handle;
+};
+
+File file_open(String name, bool for_writing = false, bool keep_existing_content = false);
+
+void file_close(File *file);
+
+bool file_move(String name_old, String name_new);
+
+bool file_delete(String name);
+
+// Returns true on success.
+b32 file_read(File file, void *vdata, s64 bytes_to_read);
+
+// Returns length of the file. Returns -1 on error.
+s64 file_length(File file);
+
+// Returns the current file pointer offset. Returns -1 on error.
+s64 file_current_position(File file);
+
+// Sets file pointer offset. Returns false on error.
+b32 file_set_position(File file, s64 pos);
+
+String read_entire_file(File file, Allocator allocator, bool zero_terminated = false);
+
+String read_entire_file(String name, Allocator allocator, bool zero_terminated = false);
+
+bool file_write(File file, void *data, s64 size);
+
+b32 file_is_valid(File file);
+
+b32 delete_directory(String dirname);
+
+b32 directory_exists(String path);
+
 
 // GFX
 void               os_gfx_init();
@@ -462,6 +468,8 @@ void               thread_group_complete_all_work(Thread_Group *group);
 
 // UUID/GUID
 Guid               guid_generate();
+Guid               guid_from_bytes(void *bytes, u64 size);
+Guid               guid_from_string(String str);
 
 // Atomic
 void               atomic_increment(volatile s32 *x);

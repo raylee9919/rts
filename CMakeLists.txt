@@ -111,6 +111,8 @@ add_library(rts_engine STATIC
     src/game.cpp
     src/input.cpp
     src/serializer.cpp
+
+    src/shared.cpp
 )
 target_link_libraries(rts_engine
     PUBLIC  rts_options rts_third_party
@@ -133,8 +135,6 @@ function(rts_add_executable name)
 endfunction()
 
 rts_add_executable(test_rhi    src/test/test_rhi.cpp)
-rts_add_executable(test_ds     src/test/test_ds.cpp)
-rts_add_executable(test_thread src/test/test_thread.cpp)
 
 
 add_custom_target(compile_commands ALL

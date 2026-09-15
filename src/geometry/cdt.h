@@ -1,9 +1,6 @@
 #ifndef CDT_INCLUDE_CDT_H
 #define CDT_INCLUDE_CDT_H
 
-#include <stdlib.h>
-#include <string.h>
-
 #include "basic/core.h"
 
 // @Fix: x: 0x40e1493d, y: 0x4112b416 Infinite loop in locate_point

@@ -6,7 +6,11 @@
 #include "basic/core.h"
 #include "os/os.h"
 #include "rhi/rhi.h"
+#include "gfx/gfx.h"
 #include "shaders/shared.h"
+
+#define R_DEPTH_FORMAT  RHI_FORMAT_D32F
+#define R_COLOR_FORMAT  RHI_FORMAT_RGBA16F
 
 struct Game_State;
 struct Camera;
@@ -19,16 +23,16 @@ enum Render_Pass : u32 {
 
 struct Render_Entry {
     Mutex           mutex;
-    Game_State      *game_state;
+    Game_State     *game_state;
 };
 
 struct Render_SPSC_Queue {
-    Mutex           mutex;
-    Condvar         condvar;
+    Mutex           mutex      = {};
+    Condvar         condvar    = {};
 
-    Render_Entry    entries[3]; // cap = 2
-    s32             read_idx  = 0;
-    s32             write_idx = 0;
+    Render_Entry    entries[3] = {}; // cap = 2
+    s32             read_idx   = 0;
+    s32             write_idx  = 0;
 
 
     b32 is_empty() {
@@ -40,18 +44,47 @@ struct Render_SPSC_Queue {
     }
 };
 
+
+enum R_Shading_Model {
+    SHADING_MODEL_OPAQUE      = 0,
+    SHADING_MODEL_TRANSLUCENT = 1,
+};
+
+force_inline bool r_should_enable_depth(R_Shading_Model sm) {
+    return sm == SHADING_MODEL_TRANSLUCENT;
+}
+
+force_inline bool r_should_enable_blend(R_Shading_Model sm) {
+    return sm == SHADING_MODEL_TRANSLUCENT;
+}
+
+struct Material {
+    R_Shading_Model shading_model = {};
+
+    v3      albedo         = v3{1.f, 1.f, 1.f};
+    f32     metallic       = 0.f;
+    f32     roughness      = 1.f;
+
+    Guid    albedo_texture = NULL_GUID;
+    Guid    orm_texture    = NULL_GUID;
+
+    Guid    pipeline       = NULL_GUID;
+};
+
 struct Renderer {
     Arena *arena;
+    Allocator heap;
 
     Guid scene_depth[RHI_MAX_BUFFER_COUNT];
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
     Guid scene[RHI_MAX_BUFFER_COUNT];
+
+    Table<Guid, Material, gfx_128_to_32> material_table;
 };
 
 extern Render_SPSC_Queue render_queue;
 
 
-extern Guid                 pipeline;
 extern Guid                 cube_mesh;
 extern RHI_Buffer           arguments_buffer;
 extern RHI_Buffer_View      arguments_view;
@@ -59,16 +92,22 @@ extern void                *arguments_ptr;
 extern RHI_Buffer           material_buffer;
 extern RHI_Buffer_View      material_view;
 extern void                *material_ptr;
-extern Guid                 doggo_guid;
 extern RHI_Buffer           camera_buffer;
 extern RHI_Buffer_View      camera_view;
 extern void                *camera_ptr;
-
 
 GPU_Camera gpu_camera_from_game(Camera *camera);
 
 void       r_render(Game_State *g, f64 refresh_dt);
 void       r_entry(void *param);
+
+
+Material     *r_material_alloc(Guid guid);
+void            r_material_dealloc(Guid guid);
+Material     *r_material_from_guid(Guid guid);
+GPU_Material    to_gpu_material(Material *material);
+
+
 
 
 #endif

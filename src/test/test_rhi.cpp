@@ -5,9 +5,9 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "basic/string.h"
+#include "basic/context.h"
 #include "math/math.h"
 #include "os/os.h"
-#include "random/random.h"
 #include "geometry/geogen.h"
 #include "asset/texture_v2.h"
 #include "rhi/rhi.h"
@@ -20,18 +20,20 @@
 #include "input.h"
 #include "game.h"
 #include "audio.h"
+#include "shared.h"
+#include "third_party/xxhash3/xxhash.h"
 
 
 
 //
-#define MAX_MATERIALS       1024
+#define MAX_MATERIALS 1024
 
 //
-global OS_Handle window = {};
-global b32 should_close = false;
+OS_Handle window = {};
+b32 should_close = false;
 
 //
-global Shader_Compiler     *compiler;
+Shader_Compiler *compiler;
 
 struct Vertex {
     v3 position;
@@ -44,6 +46,10 @@ u32 indices[36];
 
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
+
+//
+Guid doggo_guid;
+
 
 void render_ring_init() {
     Construct(&render_queue);
@@ -160,8 +166,89 @@ void game_tick(Game_State *g, f64 dt)
     });
 }
 
+void r_pipeline_create(Guid id,
+                       String shader_filepath, 
+                       R_Shading_Model shading_model)
+{
+    // Read shader source code
+    String shader_source = read_entire_file(shader_filepath, tctx.temp);
+
+    // Compile vertex and pixel shader into IL bytes.
+    Shader_Compile_Result vs = {};
+    Shader_Compile_Result ps = {};
+    {
+        Shader_Compile_Options vs_opts = {};
+        {
+            vs_opts.stage  = SHADER_STAGE_VS;
+            vs_opts.entry  = S("main_vs");
+            vs_opts.source = shader_source;
+        }
+        Assert(shader_compile(compiler, vs_opts, true, &vs, tctx.temp));
+
+        Shader_Compile_Options ps_opts = {};
+        {
+            ps_opts.stage  = SHADER_STAGE_PS;
+            ps_opts.entry  = S("main_ps");
+            ps_opts.source = shader_source;
+        }
+        Assert(shader_compile(compiler, ps_opts, true, &ps, tctx.temp));
+    }
+
+    { // Create pipeline state object(PSO)
+        bool enable_depth = r_should_enable_depth(shading_model);
+        bool enable_blend = r_should_enable_blend(shading_model);
+
+        RHI_Pipeline_Desc desc = {};
+        desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
+
+        desc.depth_enabled               = enable_depth;
+        desc.depth_compare_op            = RHI_COMPARE_LESS_EQUAL;
+        desc.depth_format                = RHI_FORMAT_D32F;
+
+        desc.num_color_attachments       = 1;
+        {
+            desc.color_attachment_formats[0] = RHI_FORMAT_RGBA16F;
+
+            desc.blend_enabled[0]            = enable_blend;
+
+            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
+            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
+
+            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
+            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
+        }
+
+        desc.fill_mode = RHI_FILL_SOLID;
+        desc.cull_mode = RHI_CULL_CW;
+
+        desc.topology = RHI_TOPOLOGY_TRIANGLES;
+
+        desc.vs_data = vs.data;
+        desc.vs_size = vs.size;
+
+        desc.ps_data = ps.data;
+        desc.ps_size = ps.size;
+
+        gfx_pipeline_create(id, desc);
+    }
+}
+
+void r_pipeline_destroy(Guid id)
+{
+    gfx_pipeline_destroy(id);
+}
+
 int main_entry(int argc, char **argv)
 {
+    Allocator temp = {};
+    temp.data = nullptr;
+    temp.proc = crt_proc;
+
+    // Init shared state
+    shared_init();
+
     // Init timers
     f64 time_old        = time_seconds();
     f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
@@ -183,7 +270,7 @@ int main_entry(int argc, char **argv)
     Thread audio_thread = thread_launch(audio_entry, NULL);
 
     // Init shader compiler
-    compiler = alloc_t(Shader_Compiler);
+    compiler = (Shader_Compiler *)alloc(sizeof(Shader_Compiler), temp);
     Assert(shader_compiler_init(compiler));
     compiler->include_path = S("C:/dev/rts/src/shaders/"); // @Temporary
 
@@ -191,7 +278,7 @@ int main_entry(int argc, char **argv)
     input_system_init(window);
 
     // Spin-lock until gfx is initted.
-    while (!gfx || !gfx->initted) { _mm_pause(); }
+    while (!gfx || !gfx->initted) {}
 
     // Init camera
     game_state->camera.position = v3(0.f, 6.f, 15.f);
@@ -202,71 +289,6 @@ int main_entry(int argc, char **argv)
     
 
     {
-        String shader_source = read_entire_file(S("../src/shaders/shader.hlsl"), tctx.allocator);
-
-        Shader_Compile_Result vs = {};
-        Shader_Compile_Result ps = {};
-        { // Compile shader
-            Shader_Compile_Options vs_opts = {};
-            {
-                // @Temporary
-                vs_opts.stage  = SHADER_STAGE_VS;
-                vs_opts.entry  = S("main_vs");
-                vs_opts.source = shader_source;
-            }
-            Assert(shader_compile(compiler, vs_opts, true, &vs, tctx.allocator));
-
-
-            Shader_Compile_Options ps_opts = {};
-            {
-                // @Temporary
-                ps_opts.stage  = SHADER_STAGE_PS;
-                ps_opts.entry  = S("main_ps");
-                ps_opts.source = shader_source;
-            }
-            Assert(shader_compile(compiler, ps_opts, true, &ps, tctx.allocator));
-
-            // ..or you read bytes from your asset file
-        }
-
-
-        { // Create pipeline state object(PSO)
-            RHI_Pipeline_Desc desc = {};
-            desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
-
-            desc.depth_enabled               = true;
-            desc.depth_compare_op            = RHI_COMPARE_LESS_EQUAL;
-            desc.depth_format                = RHI_FORMAT_D32F;
-
-            desc.num_color_attachments       = 1;
-            desc.color_attachment_formats[0] = RHI_FORMAT_RGBA16F;
-
-            desc.blend_enabled[0]            = true;
-
-            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
-            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
-
-            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
-            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
-
-            desc.fill_mode = RHI_FILL_SOLID;
-            desc.cull_mode = RHI_CULL_CW;
-
-            desc.topology = RHI_TOPOLOGY_TRIANGLES;
-
-            desc.vs_data = vs.data;
-            desc.vs_size = vs.size;
-
-            desc.ps_data = ps.data;
-            desc.ps_size = ps.size;
-
-            pipeline = guid_generate();
-            gfx_pipeline_create(pipeline, desc);
-        }
-
-
         gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
 
 
@@ -345,7 +367,7 @@ int main_entry(int argc, char **argv)
 
         // Load image
         doggo_guid = guid_generate();
-        String contents = read_entire_file(S("C:/Users/swl/Desktop/doggo.png"), tctx.allocator);
+        String contents = read_entire_file(tprint(S("%S/../data/input/texture/doggo.png"), shared->data_path), tctx.temp);
         Bitmap bitmap   = bitmap_import(contents.str, contents.len);
 
 
@@ -368,28 +390,32 @@ int main_entry(int argc, char **argv)
     }
 
 
-    // @Temporary: Initialize entities.
+    String material_name = S("M_Doggo");
+    Guid base_material_id = guid_from_string(material_name);
+    r_pipeline_create(base_material_id, tprint(S("%S/shaders/shader.hlsl"), shared->source_path), SHADING_MODEL_OPAQUE);
+
+
+    // @Temporary
     for (int i = 0; i < 256; ++i) {
+        Guid derived_mtl_id = guid_generate();
+        Material *mtl = r_material_alloc(derived_mtl_id);
+        mtl->pipeline = base_material_id;
+        mtl->albedo   = v3{(f32)i * 0.002f, 0.2f, 0.2f};
+
         Entity *E = entity_alloc(game_state);
-
         E->mesh     = cube_mesh;
-        E->material._64[0] = 6969; // @Temporary
-
-        // ..or read from asset pack.
-
-        GFX_Material material = {};
-        material.albedo         = unpack_rgba(xorshift32()).xyz;
-        material.albedo_texture = doggo_guid;
-
-        gfx_material_alloc(E->material, material);
+        E->material = derived_mtl_id;
     }
 
     
+    /* Main Loop */
     while (!should_close) {
         ProfileFrameMark;
 
         // Gaming experience in its finesse
-        if (!gfx_wait_for_frame_waitable_object())  log(LOG_WARNING, S("Waiting on frame latency waitable object failed."));
+        if (!gfx_wait_for_frame_waitable_object()) {
+            log(LOG_WARNING, S("Waiting on frame latency waitable object failed."));
+        }
 
 
         // For better latency, placing this block here
@@ -470,13 +496,17 @@ int main_entry(int argc, char **argv)
         clear_thread_temporary_storage();
     }
 
+
+    /* Join Threads */
     thread_join(audio_thread,  -1);
     thread_join(render_thread, -1);
 
+
+    /* Shutdown Systems */
     input_system_shutdown();
     render_ring_deinit();
     game_deinit();
 
-    log(LOG_INFO, S("Main thread returned successfully."));
+
     return 0;
 }
