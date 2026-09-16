@@ -7,6 +7,8 @@
 #include "basic/allocator.h"
 #include "basic/string.h"
 
+#include "./dxc/dxc.h"
+
 struct Shader_Compiler;
 
 enum Shader_Stage : u8 {
@@ -36,7 +38,7 @@ struct Shader_Compile_Result {
 };
 
 bool shader_compiler_init(Shader_Compiler *compiler);
-void shader_compiler_deinit(Shader_Compiler *compiler);
+void shader_compiler_shutdown(Shader_Compiler *compiler);
 
 // Allocator allocates memory for the compiled binary blob.
 bool shader_compile(Shader_Compiler *compiler, 

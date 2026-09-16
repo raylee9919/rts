@@ -7,6 +7,7 @@
 #include "basic/arena.h"
 #include "basic/allocator.h"
 #include "basic/string.h"
+#include "basic/array.h"
 #include "math/math.h"
 
 #if OS_WINDOWS
@@ -113,6 +114,8 @@ struct OS_Window {
 
 // Events
 //
+// @Cleanup
+#if 0
 #define KEY_GOOD_CAP 256
 enum OS_Key : u16 {
     KEY_NULL,
@@ -229,42 +232,151 @@ enum OS_Key : u16 {
     KEY_MOUSE_RIGHT,
     KEY_MOUSE_MIDDLE,
 };
+#endif
 
-typedef u32 OS_Modifiers;
-enum
-{
-    OS_MODIFIER_CTRL  = 0x1,
-    OS_MODIFIER_SHIFT = 0x2,
-    OS_MODIFIER_ALT   = 0x4,
+enum Event_Type : u32 {
+    EVENT_UNINITIALIZED       = 0,
+    EVENT_KEYBOARD            = 1,
+    EVENT_TEXT_INPUT          = 2,
+    EVENT_WINDOW              = 3,
+    EVENT_MOUSE_WHEEL         = 4,
+    EVENT_QUIT                = 5,
+    EVENT_DRAG_AND_DROP_FILES = 6,
 };
 
-enum OS_Event_Kind : u32 {
-    OS_EVENT_NULL,
-
-    OS_EVENT_PRESS,
-    OS_EVENT_RELEASE,
-
-    OS_EVENT_MOUSE_MOVE,
-    OS_EVENT_TEXT,
-    OS_EVENT_SCROLL,
-    OS_EVENT_WINDOW_CLOSE,
-    OS_EVENT_FILE_DROP,
+typedef u32 Key_State;
+enum {
+    KEY_STATE_NONE  = 0x0,
+    KEY_STATE_DOWN  = 0x1,
+    KEY_STATE_START = 0x4,
+    KEY_STATE_END   = 0x8,
 };
 
-struct OS_Event {
-    OS_Event*       next;
-    OS_Event*       prev;
+// We reserve 32 buttons for each gamepad.
+#define GAMEPAD_BUTTON_COUNT 32
 
-    OS_Event_Kind   kind;
-    OS_Modifiers    modifiers;
+enum Key_Code : u32 {
+    KEY_UNKNOWN     = 0,
 
-    OS_Handle       window;
-    OS_Key          key;
-    v2              position;
-    v2              delta;
-    u32             codepoint;
-    bool            is_repeat;
-    u16             repeat_count;
+    // Non-tectual keys that have placements in the ASCII table
+    // (and thus in Unicode):
+    
+    KEY_BACKSPACE   = 8,
+    KEY_TAB         = 9,
+    KEY_LINEFEED    = 10,
+    KEY_ENTER       = 13,
+    KEY_ESCAPE      = 27,
+    KEY_SPACEBAR    = 32,
+
+    // The letters A-Z live in here as well and may be returned
+    // by keyboard events.
+
+    KEY_DELETE      = 127,
+
+    KEY_ARROW_UP    = 128,
+    KEY_ARROW_DOWN  = 129,
+    KEY_ARROW_LEFT  = 130,
+    KEY_ARROW_RIGHT = 131,
+
+    KEY_PAGE_UP     = 132,
+    KEY_PAGE_DOWN   = 133,
+
+    KEY_HOME        = 134,
+    KEY_END         = 135,
+
+    KEY_INSERT      = 136,
+
+    KEY_PAUSE       = 137,
+    KEY_SCROLL_LOCK = 138,
+
+    KEY_ALT,
+    KEY_CTRL,
+    KEY_SHIFT,
+    KEY_CMD,
+
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_F11,
+    KEY_F12,
+    KEY_F13,
+    KEY_F14,
+    KEY_F15,
+    KEY_F16,
+    KEY_F17,
+    KEY_F18,
+    KEY_F19,
+    KEY_F20,
+    KEY_F21,
+    KEY_F22,
+    KEY_F23,
+    KEY_F24,
+
+    KEY_PRINT_SCREEN,
+
+    MOUSE_BUTTON_LEFT,
+    MOUSE_BUTTON_MIDDLE,
+    MOUSE_BUTTON_RIGHT,
+
+    MOUSE_WHEEL_UP,
+    MOUSE_WHEEL_DOWN,
+
+    MOUSE_BUTTON_EXTRA_1,
+    MOUSE_BUTTON_EXTRA_2,
+
+    // We reserve button codes for up to 4 gamepads.
+    GAMEPAD_0_BEGIN,
+    GAMEPAD_0_END = GAMEPAD_0_BEGIN + GAMEPAD_BUTTON_COUNT,
+    GAMEPAD_1_BEGIN,
+    GAMEPAD_1_END = GAMEPAD_1_BEGIN + GAMEPAD_BUTTON_COUNT,
+    GAMEPAD_2_BEGIN,
+    GAMEPAD_2_END = GAMEPAD_2_BEGIN + GAMEPAD_BUTTON_COUNT,
+    GAMEPAD_3_BEGIN,
+    GAMEPAD_3_END = GAMEPAD_3_BEGIN + GAMEPAD_BUTTON_COUNT,
+
+    // WARNING(swL)
+    //
+    // We make an array whose size is controlled 
+    // by the last enum value in this array, so if you make 
+    // really big values to match Unicode code points, our 
+    // memmory usage will become quite sorry.
+
+    KEY_CODE_MAX
+};
+
+struct Event {
+    struct Modifier_Flags {
+        union {
+            u32 packed = 0;
+            struct {
+                b8 shift_pressed;
+                b8 ctrl_pressed;
+                b8 alt_pressed;
+                b8 cmd_meta_pressed;
+            };
+        };
+    };
+
+    Event_Type type = EVENT_UNINITIALIZED;
+
+    u32 key_pressed; // If not pressed, it's a key release.
+    Key_Code key_code = KEY_UNKNOWN;
+
+    Modifier_Flags modifier_flags;
+
+    u32 utf32;              // If TEXT_INPUT event.
+    b32 repeat = false;     // If KEYBOARD event.
+    u16 text_input_count;   // If KEYBOARD event that also generated TEXT_INPUT events, this will tell you how many TEXT_INPUT events after this KEYBOARD event were generated.
+
+    s32 typical_wheel_delta; // Used only for mouse events.
+    s32 wheel_delta;         // Used only for mouse events.
 };
 
 
@@ -275,7 +387,7 @@ enum OS_Thing_Kind : u8 {
 
     OS_THING_KIND_THREAD,
 
-    OS_THING_KIND_OPL // one-past-last
+    OS_THING_KIND_COUNT
 };
 
 struct OS_Thing {
@@ -315,45 +427,47 @@ struct Guid {
 global read_only const Guid NULL_GUID = {};
 
 
-// Global OS State
+//
+// OS State
 //
 struct OS_State {
-    Arena *arena;
+    Allocator arena;
 
     // Platform-specific
     void *native;
 
-    // Events
-    Arena*      event_arena;
-    OS_Event*   first_event;
-    OS_Event*   last_event;
-    OS_Event*   first_free_event;
-    OS_Event*   last_free_event;
-
-    // Input
-    OS_Key      vk_to_key[512];
-#if 0
-    b8          key_is_down[512];
-    b8          key_was_down[512];
-#endif
     
-    // Path
-    String binary_path;
-    String appdata_path;
+    //
+    // Input
+    //
+    Array<Event> events; // Events this frame
+    Key_State input_button_states[KEY_CODE_MAX];
+    b32 input_application_has_focus;
 
-    // Thing Free List
+    // Per-frame mouse deltas:
+    s64 mouse_delta_x;
+    s64 mouse_delta_y;
+    s64 mouse_delta_z;
+
+
+    //
+    // Thing
+    //
+    // Free list
     OS_Thing *first_free_thing;
     OS_Thing *last_free_thing;
 
-    // Thing list
-    OS_Thing *first_thing[OS_THING_KIND_OPL - 1];
-    OS_Thing *last_thing[OS_THING_KIND_OPL - 1];
+    // Active list
+    OS_Thing *first_thing[OS_THING_KIND_COUNT];
+    OS_Thing *last_thing[OS_THING_KIND_COUNT];
 };
 extern OS_State *os;
 
 
-// APIs
-//
+// System
+String get_path_of_running_executable(Allocator allocator);
+
+// Initialize
 void               os_init();
 
 // Memory
@@ -427,14 +541,13 @@ b32 directory_exists(String path);
 void               os_gfx_init();
 OS_Handle          os_window_create(int w, int h, String name);
 void               os_window_toggle_fullscreen(OS_Handle window);
-v2                 os_window_size(OS_Handle window);
-v2                 os_get_mouse_position(OS_Handle window);
+vec2               os_window_size(OS_Handle window);
+vec2               os_get_mouse_position(OS_Handle window);
 
-// Event
-void               os_poll_events();
-OS_Event*          os_push_event();
-void               os_remove_event(OS_Event* event);
-void               os_clear_events();
+// Input
+void update_window_events();
+void input_per_frame_event_and_flag_update();
+
 
 // Mutex (non-re-entrant, meaning, 'lock -> lock' is invalid)
 void               mutex_create(Mutex *mutex);
@@ -473,6 +586,8 @@ Guid               guid_from_string(String str);
 
 // Atomic
 void               atomic_increment(volatile s32 *x);
+void               atomic_store(volatile s32 *dst, s32 val);
+void               atomic_store(volatile s64 *dst, s64 val);
 
 template<typename F> 
 void parallel_for(Thread_Group *group, s64 count, F&& func) {

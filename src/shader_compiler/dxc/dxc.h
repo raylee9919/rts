@@ -7,7 +7,6 @@
 #include "third_party/DXC/Include/dxcapi.h"
 
 #include "basic/string.h"
-#include "shader_compiler/shader.h"
 
 
 struct Shader_Compiler {

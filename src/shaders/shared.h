@@ -26,14 +26,14 @@
 // #endif
 
 struct GPU_Camera {
-    v4   position;
+    vec4   position;
     m4x4 view;
     m4x4 proj;
     m4x4 view_proj;
 };
 
 struct GPU_Material {
-    v3              albedo;
+    vec3            albedo;
     float           metallic;
     float           roughness;
 

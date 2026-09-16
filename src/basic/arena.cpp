@@ -152,7 +152,6 @@ void *arena_allocator_proc(Allocator_Mode mode, u64 size, u64 old_size, void *ol
         memcpy(ptr, old_memory, old_size);
         return ptr;
     } else if (mode == ALLOCATOR_MODE_FREE) {
-        arena_clear(arena);
         return NULL;
     } else if (mode == ALLOCATOR_MODE_RELEASE) {
         arena_release(arena);

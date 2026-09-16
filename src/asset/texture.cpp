@@ -3,7 +3,6 @@
 #include "asset/texture.h"
 #include "asset/parser.h"
 #include "asset/system.h"
-#include "basic/arena.h"
 #include "basic/context.h"
 #include "os/os.h"
 

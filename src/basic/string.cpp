@@ -69,14 +69,10 @@ string_equal(char *str1, char *str2)
     return string_equal(str1, string_length(str1), str2, string_length(str2));
 }
 
-
-
-String
-utf8_copy(Arena *arena, String utf)
-{
+String str_copy(String utf, Allocator allocator) {
     String result;
     result.len = utf.len;
-    result.str = push_array_noz(arena, u8, utf.len + 1);
+    result.str = alloc(sizeof(u8) * (utf.len + 1), allocator);
     memcpy(result.str, utf.str, utf.len);
     result.str[utf.len] = 0;
     return result;
@@ -97,7 +93,7 @@ bool is_digit(int c) {
 }
 
 bool is_hexdigit(int c) {
-    return (((c >= '0') && (c <= '9')) || (((c & 0xdf) >= 'A') && ((c & 0xdf) <= 'Z')));
+    return (((c >= '0') && (c <= '9')) || (((c & 0xdf) >= 'A') && ((c & 0xdf) <= 'F')));
 }
 
 bool is_alnum(int c) {
@@ -353,7 +349,6 @@ String to_utf8(Allocator allocator, Utf16 in) {
             size += utf8_encode(str + size, consume.codepoint);
         }
         str[size] = 0;
-        //arena_pop(arena, (cap - size));
         result = utf8(str, size);
     }
     return result;
@@ -489,60 +484,73 @@ utf8_path_chop_last_slash(String string)
     return string;
 }
 
-// 
-// Chop/Slash Helpers.
+
+
+String eat_trailing_spaces(String _s) {
+    String s = _s;
+    while (s.len > 0 && ((s.str[s.len - 1] == ' ') || (s.str[s.len - 1] == 9))) {
+        s.len -= 1;
+    }
+
+    return s;
+}
+
+b32 begins_with(String s, String prefix) {
+    if (s.len < prefix.len)  return false;
+
+    String t = slice(s, 0, prefix.len);
+
+    return t == prefix;
+}
+
+b32 ends_with(String s, String suffix) {
+    if (s.len < suffix.len)  return false;
+
+    String t = slice(s, s.len - suffix.len, suffix.len);
+
+    return t == suffix;
+}
+
+String slice(String s, s64 index, s64 count) {
+    Assert(index >= 0);
+    Assert(count >= 0);
+
+    if (index >= s.len)  return {};
+
+    if (index + count > s.len) {
+        count = s.len - index;
+    }
+
+    String c;
+    c.str = s.str + index;
+    c.len = count;
+    return c;
+}
+
+static bool is_any(u8 c, String chars) {
+    for (s64 i = 0; i < chars.len; ++i) {
+        if (c == chars.str[i])  return true;
+    }
+    return false;
+}
+
+s64 find_index_of_any_from_right(String s, String bytes) {
+    s64 cursor = s.len - 1;
+    while (cursor >= 0) {
+        if (is_any(s.str[cursor], bytes))  return cursor;
+        cursor -= 1;
+    }
+
+    return -1;
+}
+
 //
-String
-utf8_skip_whitespace(String str)
-{
-    s64 first_non_ws = 0;
-    for (s64 idx = 0; idx < str.len; idx += 1)
-    {
-        first_non_ws = idx;
-        if (! is_whitespace(str.str[idx]))
-        {
-            break;
-        }
-        else if (idx == str.len - 1)
-        {
-            first_non_ws = 1;
-        }
-    }
-    return utf8_substr(str, first_non_ws, str.len);
-}
-
-String
-utf8_chop_whitespace(String str)
-{
-    u64 first_ws_at_end = str.len;
-    for (s64 idx = str.len - 1; idx < str.len; idx -= 1)
-    {
-        if(! is_whitespace(str.str[idx]))
-        {
-            break;
-        }
-        first_ws_at_end = idx;
-    }
-    return utf8_substr(str, 0, first_ws_at_end);
-}
-
-String
-utf8_skip_chop_whitespace(String str)
-{
-    return utf8_skip_whitespace(utf8_chop_whitespace(str));
-}
-
-bool operator == (String l, String r) {
-    if (l.len != r.len) {
-        return false;
-    }
-
-    for (u32 i = 0; i < l.len; ++i) {
-        if (l.str[i] != r.str[i]) {
-            return false;
-        }
-    }
-    return true;
+// Path
+//
+String path_strip_filename(String path) {
+    s64 index = find_index_of_any_from_right(path, S("\\/"));
+    if (index < 0)  return {};
+    return slice(path, 0, index + 1);
 }
 
 String tprint(char *fmt, va_list args) {

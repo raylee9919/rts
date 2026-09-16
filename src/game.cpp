@@ -113,9 +113,16 @@ Entity *entity_alloc(Game_State *g) {
     return entity;
 }
 
-void entity_dealloc(Game_State *g) { 
+void entity_dealloc(Game_State *g, Entity *entity) {
     // @Todo: Must remove from the tree, decommit page?
     g->num_entities -= 1;
+}
+
+void entity_dealloc(Game_State *g, Handle handle) { 
+    Entity *entity = entity_from_handle(g, handle);
+    if (entity) {
+        entity_dealloc(g, entity);
+    }
 }
 
 Entity *entity_from_handle(Game_State *g, Handle handle) {

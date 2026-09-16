@@ -16,6 +16,13 @@
 #include "basic/vendor/stb_sprintf.h"
 
 
+#if OS_WINDOWS
+#  define PATH_SEPARATOR '\\'
+#else
+#  define PATH_SEPARATOR '/'
+#endif
+
+
 
 //
 // UTF-8 string.
@@ -24,7 +31,10 @@ struct String {
     u8 *str;
     s64 len;
 
-    force_inline u64 size() { return sizeof(str[0]) * (u64)len; }
+    bool operator == (const String& other) {
+        if (len != other.len)  return false;
+        return memcmp(str, other.str, len) == 0;
+    }
 };
 
 struct Utf16 {
@@ -82,7 +92,7 @@ u8   to_forward_slash(u8 c);
 #define S(str) String{(u8 *)str, sizeof(str) - 1}
 String utf8(u8 *str, u64 len);
 String utf8c(u8 *ptr);
-String utf8_copy(Arena *arena, String utf);
+String str_copy(String str, Allocator allocator);
 Utf16 utf16(u16 *str, u64 len);
 Utf16 utf16c(u16 *ptr);
 Utf32 utf32(u32 *str, u64 len);
@@ -104,28 +114,30 @@ Utf16 to_utf16(Arena *arena, String in);
 Utf16 to_utf16(Allocator allocator, String in);
 
 //
-// Manipulation
+// Manipulation (Old)
 //
 b32 utf8_match(String a, String b, Str_Match_Flags flags);
 String utf8_substr(String str, s64 min, s64 max);
 s64 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags);
 String utf8_path_chop_last_slash(String string);
 
-//
-// Chop/Slash Helpers.
-//
-String utf8_skip_whitespace(String str);
-String utf8_chop_whitespace(String str);
-String utf8_skip_chop_whitespace(String str);
 
+/* Manipulation */
+String  eat_trailing_spaces(String s);
+b32     begins_with(String s, String prefix);
+b32     ends_with(String s, String suffix);
+String  slice(String s, s64 index, s64 count);
+s64     find_index_of_any_from_right(String s, String bytes);
+
+
+/* String Format */
 String tprint(char *fmt, va_list args);
 String tprint(char *fmt, ...);
 String tprint(String fmt, ...);
 
-//
-// Operators
-//
-bool operator == (String l, String r);
+
+/* Path */
+String path_strip_filename(String path);
 
 
 #endif // RTS_STRING_H

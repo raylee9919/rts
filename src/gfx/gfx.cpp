@@ -213,8 +213,6 @@ void gfx_init(GFX_Info info, u32 num_backbuffers) {
         Assert(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
         Assert(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
     }
-
-    gfx->initted = true;
 }
 
 void gfx_shutdown() {
@@ -378,7 +376,7 @@ void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
     }
 
     if (desc.usage & RHI_TEXTURE_USAGE_STORAGE) {
-        CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS);
+        CreateView(&entry.uav, RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS);
     }
 
     table_add(&gfx->texture_table, guid, entry);

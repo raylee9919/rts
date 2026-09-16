@@ -29,11 +29,11 @@ namespace Asset
 
     f32 parse_f32(Parser *p);
 
-    v2 parse_v2(Parser *p);
+    vec2 parse_v2(Parser *p);
 
-    v3 parse_v3(Parser *p);
+    vec3 parse_v3(Parser *p);
 
-    v4 parse_v4(Parser *p);
+    vec4 parse_v4(Parser *p);
 
     m4x4 parse_m4x4(Parser *p);
 

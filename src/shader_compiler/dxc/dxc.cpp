@@ -52,7 +52,7 @@ bool shader_compiler_init(Shader_Compiler *compiler) {
     return true;
 }
 
-void shader_compiler_deinit(Shader_Compiler *compiler) {
+void shader_compiler_shutdown(Shader_Compiler *compiler) {
     COM_SAFE_RELEASE(&compiler->compiler_3);
     COM_SAFE_RELEASE(&compiler->utils);
 

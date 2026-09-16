@@ -133,26 +133,26 @@ namespace Asset
         return result;
     }
 
-    v2 parse_v2(Parser *p) 
+    vec2 parse_v2(Parser *p) 
     {
-        v2 result;
+        vec2 result;
         result.x = parse_f32(p);
         result.y = parse_f32(p);
         return result;
     }
 
-    v3 parse_v3(Parser *p) 
+    vec3 parse_v3(Parser *p) 
     {
-        v3 result;
+        vec3 result;
         result.x = parse_f32(p);
         result.y = parse_f32(p);
         result.z = parse_f32(p);
         return result;
     }
 
-    v4 parse_v4(Parser *p) 
+    vec4 parse_v4(Parser *p) 
     {
-        v4 result;
+        vec4 result;
         result.r = parse_f32(p);
         result.g = parse_f32(p);
         result.b = parse_f32(p);

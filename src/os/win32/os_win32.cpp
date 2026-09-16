@@ -1,17 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-// ----------------------------------
-// NOTE: Memory Operations
-#define memory_compare(a, b, size)  memcmp((a), (b), (size))
-#define memory_match(a, b, size)    (memory_compare((a), (b), (size)) == 0)
-
-
 #include "os/os.h"
 #include "os/win32/os_win32.h"
 #include "basic/arena.h"
 #include "basic/string.h"
 #include "basic/context.h"
 #include "basic/log.h"
+#include "basic/hash_table.h"
 
 #include <windowsx.h>
 #include <shlobj.h>
@@ -22,139 +17,203 @@ extern "C"
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
+
 OS_State *os;
+static Table<WPARAM, Key_Code> vk_to_key_code;
+static Table<Key_Code, WPARAM> key_code_to_vk;
+static Table<WPARAM, bool>     key_down_table;
+static bool shift_state = false;
+static bool ctrl_state  = false;
+static bool alt_state   = false;
 
 
-// Init
+struct VK_To_Key_Code {
+    u32 vk;
+    Key_Code key_code;
+} vk_to_key_code_array[] = {
+    { VK_LBUTTON,       MOUSE_BUTTON_LEFT },
+    { VK_MBUTTON,       MOUSE_BUTTON_MIDDLE },
+    { VK_RBUTTON,       MOUSE_BUTTON_RIGHT },
+    { VK_SPACE,         (Key_Code)32 },
+    { VK_HOME,          KEY_HOME },
+    { VK_END,           KEY_END },
+    { VK_PRIOR,         KEY_PAGE_UP },
+    { VK_NEXT,          KEY_PAGE_DOWN },
+    { VK_LEFT,          KEY_ARROW_LEFT },
+    { VK_RIGHT,         KEY_ARROW_RIGHT },
+    { VK_UP,            KEY_ARROW_UP },
+    { VK_DOWN,          KEY_ARROW_DOWN },
+    { VK_MENU,          KEY_ALT },
+    { VK_SHIFT,         KEY_SHIFT },
+    { VK_CONTROL,       KEY_CTRL },
+    { VK_BACK,          KEY_BACKSPACE },
+    { VK_DELETE,        KEY_DELETE },
+    { VK_INSERT,        KEY_INSERT },
+    { VK_ESCAPE,        KEY_ESCAPE },
+    { VK_RETURN,        KEY_ENTER },
+    { VK_TAB,           KEY_TAB },
+    { VK_OEM_1,         (Key_Code)';' },
+    { VK_OEM_2,         (Key_Code)'/' },
+    { VK_OEM_3,         (Key_Code)'`' },
+    { VK_OEM_4,         (Key_Code)'[' },
+    { VK_OEM_5,         (Key_Code)'\\' },
+    { VK_OEM_6,         (Key_Code)']' },
+    { VK_OEM_7,         (Key_Code)'\'' },
+    { VK_OEM_PLUS,      (Key_Code)'+' },
+    { VK_OEM_MINUS,     (Key_Code)'-' },
+    { VK_OEM_PERIOD,    (Key_Code)'.' },
+    { VK_OEM_COMMA,     (Key_Code)',' },
+    { VK_SNAPSHOT,      KEY_PRINT_SCREEN },
+    { VK_PAUSE,         KEY_PAUSE },
+    { VK_SCROLL,        KEY_SCROLL_LOCK },
+};
+
+
 //
+// Utf
+//
+static String wide_to_utf8(u16 *data, s32 length, Allocator allocator) {
+    if (length == 0)  return {};
+    
+    // length of -1 means it's zero-terminated.
+    int query_result = WideCharToMultiByte(CP_UTF8, 0, (LPCWCH)data, length, NULL, 0, NULL, NULL);
+
+    if (query_result <= 0)  return {};
+
+    if (length != -1) {
+        query_result += 1;
+    }
+
+    String name = {};
+    u8 *name_bytes = alloc(sizeof(u8) * query_result, allocator);
+    int result = WideCharToMultiByte(CP_UTF8, 0, (LPCWCH)data, length, (LPSTR)name_bytes, query_result, NULL, NULL);
+    
+    if (result <= 0) {
+        return {};
+    }
+
+    Assert(result <= query_result);
+
+    name.str = name_bytes;
+    if (length == -1) {
+        name.len = result - 1;
+    } else {
+        name.len = result;
+        name.str[name.len] = 0;
+    }
+
+    return name;
+}
+
+
+
+//
+// System
+//
+String get_path_of_running_executable(Allocator allocator) {
+    u16 buf[MAX_PATH] = {};
+
+    HMODULE my_handle = GetModuleHandleW(NULL);
+    DWORD success = GetModuleFileNameW(my_handle, (LPWSTR)buf, MAX_PATH);
+
+    if (success <= 0) {
+        return {};
+    } else {
+        auto convert_slashes = [](String s) {
+            for (s64 i = 0; i < s.len; ++i) {
+                if (s.str[i] == '\\')  s.str[i] = '/';
+            }
+        };
+
+        String exe_name = wide_to_utf8(buf, -1, allocator);
+        convert_slashes(exe_name);
+
+        return exe_name;
+    }
+}
+
+
+
+//
+// Initialize
+//
+static Key_Code get_key_code(WPARAM wParam) {
+    auto t = table_find(&vk_to_key_code, wParam);
+    if (t.found) return t.value;
+    return KEY_UNKNOWN;
+}
+
+static u64 get_vk(Key_Code key) {
+    auto t = table_find(&key_code_to_vk, key);
+    if (t.found) return t.value;
+    return 0;
+}
+
+static void init_key_code_tables() {
+    auto add_code = [](WPARAM vk, Key_Code key_code) {
+        table_add(&vk_to_key_code, vk, key_code);
+        table_add(&key_code_to_vk, key_code, vk);
+    };
+
+    vk_to_key_code.allocator = os->arena;
+    key_code_to_vk.allocator = os->arena;
+    key_down_table.allocator = os->arena;
+
+    // ASCII characters:
+    for (u32 i = 48; i <= 90; ++i) {
+        add_code(i, (Key_Code)i);
+    }
+
+    // Function keys:
+    for (u32 i = VK_F1; i <= VK_F16; ++i) {
+        u32 delta = i - VK_F1;
+        add_code(i, (Key_Code)(KEY_F1 + delta));
+    }
+
+    // Numeric keypad:
+    for (u32 i = VK_NUMPAD0; i <= VK_NUMPAD9; ++i) {
+        u32 delta = i - VK_NUMPAD0;
+        add_code(i, (Key_Code)((u32)'0' + delta));
+    }
+
+    // Entries defined by the array in this file:
+    for (u32 i = 0; i < array_count(vk_to_key_code_array); ++i) {
+        add_code(vk_to_key_code_array[i].vk, vk_to_key_code_array[i].key_code);
+    }
+}
+
 void os_init() {
-    Arena *arena = arena_alloc();
-    os = push_struct(arena, OS_State);
+    // Bootstrap arena
+    Allocator arena = arena_allocator_alloc();
+    os = (OS_State*)alloc(sizeof(OS_State), arena);
     os->arena = arena;
 
     // Win32 State
-    os->native = push_struct(arena, Win32_State);
+    os->native = (Win32_State*)alloc(sizeof(Win32_State), arena);
     Win32_State *win32 = (Win32_State *)os->native;
     win32->window_arena = arena_alloc();
 
     // Events
-    os->event_arena = arena_alloc();
+    os->events.allocator = os->arena;
 
-    // Build virtual key code to 'OS_Key' table.
-    for (u32 vk = 'A', k = KEY_A; vk <= 'Z'; ++vk, ++k) {
-        os->vk_to_key[vk] = (OS_Key)k;
-    }
+    init_key_code_tables();
 
-    for (u32 vk = '0', k = KEY_0; vk <= '9'; ++vk, ++k) {
-        os->vk_to_key[vk] = (OS_Key)k;
-    }
-
-    for (u32 vk = VK_F1, k = KEY_F1; vk <= VK_F24; ++vk, ++k) {
-        os->vk_to_key[vk] = (OS_Key)k;
-    }
-
-    os->vk_to_key[VK_ESCAPE]        = KEY_ESC;
-    os->vk_to_key[VK_OEM_3]         = KEY_TILDE;
-    os->vk_to_key[VK_OEM_MINUS]     = KEY_MINUS;
-    os->vk_to_key[VK_OEM_PLUS]      = KEY_EQUAL;
-    os->vk_to_key[VK_BACK]          = KEY_BACKSPACE;
-    os->vk_to_key[VK_TAB]           = KEY_TAB;
-    os->vk_to_key[VK_SPACE]         = KEY_SPACE;
-    os->vk_to_key[VK_RETURN]        = KEY_RETURN;
-    os->vk_to_key[VK_CONTROL]       = KEY_CTRL;
-    os->vk_to_key[VK_LCONTROL]      = KEY_CTRL;
-    os->vk_to_key[VK_RCONTROL]      = KEY_CTRL;
-    os->vk_to_key[VK_SHIFT]         = KEY_SHIFT;
-    os->vk_to_key[VK_LSHIFT]        = KEY_SHIFT;
-    os->vk_to_key[VK_RSHIFT]        = KEY_SHIFT;
-    os->vk_to_key[VK_MENU]          = KEY_ALT;
-    os->vk_to_key[VK_LMENU]         = KEY_ALT;
-    os->vk_to_key[VK_RMENU]         = KEY_ALT;
-    os->vk_to_key[VK_UP]            = KEY_UP;
-    os->vk_to_key[VK_LEFT]          = KEY_LEFT;
-    os->vk_to_key[VK_DOWN]          = KEY_DOWN;
-    os->vk_to_key[VK_RIGHT]         = KEY_RIGHT;
-    os->vk_to_key[VK_DELETE]        = KEY_DELETE;
-    os->vk_to_key[VK_PRIOR]         = KEY_PAGE_UP;
-    os->vk_to_key[VK_NEXT]          = KEY_PAGE_DOWN;
-    os->vk_to_key[VK_HOME]          = KEY_HOME;
-    os->vk_to_key[VK_END]           = KEY_END;
-    os->vk_to_key[VK_OEM_2]         = KEY_SLASH;
-    os->vk_to_key[VK_OEM_5]         = KEY_BACK_SLASH;
-    os->vk_to_key[VK_OEM_PERIOD]    = KEY_PERIOD;
-    os->vk_to_key[VK_OEM_COMMA]     = KEY_COMMA;
-    os->vk_to_key[VK_OEM_7]         = KEY_QUOTE;
-    os->vk_to_key[VK_OEM_4]         = KEY_LEFT_BRACKET;
-    os->vk_to_key[VK_OEM_6]         = KEY_RIGHT_BRACKET;
-    os->vk_to_key[VK_INSERT]        = KEY_INSERT;
-    os->vk_to_key[VK_OEM_1]         = KEY_SEMICOLON;
-    os->vk_to_key[VK_PAUSE]         = KEY_PAUSE;
-    os->vk_to_key[VK_CAPITAL]       = KEY_CAPS_LOCK;
-    os->vk_to_key[VK_NUMLOCK]       = KEY_NUMS_LOCK;
-    os->vk_to_key[VK_SCROLL]        = KEY_SCROLL_LOCK;
-    os->vk_to_key[VK_APPS]          = KEY_MENU;
-
-    // Numpad
-    os->vk_to_key[VK_DIVIDE]        = KEY_NUM_DIVIDE;
-    os->vk_to_key[VK_MULTIPLY]      = KEY_NUM_MULTIPLY;
-    os->vk_to_key[VK_SUBTRACT]      = KEY_NUM_SUBTRACT;
-    os->vk_to_key[VK_ADD]           = KEY_NUM_ADD;
-    os->vk_to_key[VK_DECIMAL]       = KEY_NUM_DECIMAL;
-
-    // Mouse
-    os->vk_to_key[VK_LBUTTON]       = KEY_MOUSE_LEFT;
-    os->vk_to_key[VK_RBUTTON]       = KEY_MOUSE_RIGHT;
-    os->vk_to_key[VK_MBUTTON]       = KEY_MOUSE_MIDDLE;
-
-
-    
     { // Cache QPC frequency
         LARGE_INTEGER li;
         QueryPerformanceFrequency(&li);
         win32->qpc_frequency = li.QuadPart;
     }
-
-
-    // Gather paths.
-    {
-        String binary_path = {};
-        String appdata_path = {};
-        {
-            Temporary_Arena tmp = temporary_arena_begin(os->arena);
-
-            {
-                DWORD size = 32 * 1024;
-                u16 *buffer = push_array_noz(tmp.arena, u16, size);
-                DWORD length = GetModuleFileNameW(0, (WCHAR *)buffer, size);
-                binary_path = to_utf8(tmp.arena, utf16(buffer, length));
-                binary_path = utf8_path_chop_last_slash(binary_path);
-            }
-
-            {
-                DWORD size = 32 * 1024;
-                u16 *buffer = push_array_noz(tmp.arena, u16, size);
-                if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, (WCHAR *)buffer))) {
-                    appdata_path = to_utf8(tmp.arena, utf16c(buffer));
-                }
-            }
-
-            temporary_arena_end(tmp);
-        }
-        {
-            os->binary_path  = utf8_copy(os->arena, binary_path);
-            os->appdata_path = utf8_copy(os->arena, appdata_path);
-        }
-    }
 }
 
 
+//
 // Thing
 //
 static OS_Thing *os_thing_alloc(OS_Thing_Kind kind) {
     OS_Thing *thing = os->first_free_thing;
 
     if (thing == NULL) {
-        thing = push_struct(os->arena, OS_Thing);
+        thing = (OS_Thing*)alloc(sizeof(OS_Thing), os->arena);
     } else {
         sll_pop_front(os->first_free_thing, os->last_free_thing);
         memset(thing, 0, sizeof(*thing));
@@ -494,221 +553,243 @@ static Win32_Window *win32_window_alloc() {
     return window;
 }
 
-OS_Modifiers os_get_modifiers() {
-    OS_Modifiers result = 0;
-
-    if (GetKeyState(VK_CONTROL) & 0x8000) result |= OS_MODIFIER_CTRL;
-    if (GetKeyState(VK_SHIFT)   & 0x8000) result |= OS_MODIFIER_SHIFT;
-    if (GetKeyState(VK_MENU)    & 0x8000) result |= OS_MODIFIER_ALT;
-
-    return result;
-}
-
-static void window_set_focused(OS_Handle handle, bool focus) {
-    Win32_Window *window = win32_window_from_handle(handle);
-    if (window) {
-        window->keyboard_focused = focus;
+static bool set_key_down_state(WPARAM vkey, bool is_down) {
+    bool was_down = table_find_pointer(&key_down_table, vkey) != NULL;
+    if (is_down && !was_down) {
+        table_add(&key_down_table, vkey, true);
+    } else if (was_down && !is_down) {
+        table_remove(&key_down_table, vkey);
     }
+
+    return was_down;
 }
 
-LRESULT win32_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-    LRESULT result = 0;
+static void send_key_event(Key_Code key_code, bool key_down, bool repeat = false) {
+    if (key_code == KEY_ALT)    alt_state   = key_down;
+    if (key_code == KEY_SHIFT)  shift_state = key_down;
+    if (key_code == KEY_CTRL)   ctrl_state  = key_down;
 
-    OS_Handle window_handle = os_handle_from_hwnd(hwnd);
+    Event event = {};
+    event.type = EVENT_KEYBOARD;
+    event.key_pressed = key_down;
+    event.key_code = key_code;
+    event.modifier_flags.packed = 0;
+    event.modifier_flags.shift_pressed = shift_state;
+    event.modifier_flags.ctrl_pressed  = ctrl_state;
+    event.modifier_flags.alt_pressed   = alt_state;
+    event.repeat = repeat;
+    array_add(&os->events, event);
+
+    os->input_button_states[key_code] |= ( key_down ? (KEY_STATE_DOWN | KEY_STATE_START) : KEY_STATE_END) ;
+}
+
+static void maybe_send_vkey_event(u64 vkey, bool key_down, bool repeat = false) {
+    bool was_down = set_key_down_state((u32)vkey, key_down);
+    if (!key_down && !was_down) {
+        // redundant key_up event
+        return;
+    }
+
+    if (key_down && repeat && !was_down) {
+        // key was pressed while we didn't have focus so the first 
+        // event we see is incorrectly labeled as a repeat.
+        repeat = false;
+    }
+
+    send_key_event(get_key_code(vkey), key_down, repeat);
+}
+
+LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+    LRESULT result = 0;
 
     switch(msg) 
     {
-        default: 
-        {
-            result = DefWindowProcW(hwnd, msg, wparam, lparam);
-        } break;
+        case WM_SYSCOMMAND:
+        return DefWindowProcW(hwnd, msg, wparam, lparam);
 
-        case WM_SIZE:
-        case WM_PAINT: 
-        {
-            PAINTSTRUCT paint;
-            BeginPaint(hwnd, &paint);
-            EndPaint(hwnd, &paint);
-        } break;
+        case WM_ACTIVATEAPP: {
+            if (wparam) { // We are being activated.
 
-
-        case WM_CLOSE: 
-        {
-            // https://learn.microsoft.com/en-us/windows/win32/learnwin32/closing-the-window
-            // Guess I don't need WM_QUIT, WM_DESTROY ?
-            OS_Event* event = os_push_event();
-            event->kind   = OS_EVENT_WINDOW_CLOSE;
-            event->window = window_handle;
-        } break;
-
-
-        case WM_CHAR: 
-        case WM_SYSCHAR: 
-        {
-            // WM_CHAR is uncode (UTF-16). If you need full unicode codepoint, 
-            // you need to maintain state to handle surrogate pairs.
-            // @Todo: Win + . to test it.
-            //
-            if (wparam >= 0xd800 && wparam <= 0xdbff) {
-                assert(!"Surrogate pairs not supported yet.");
             }
 
-            u32 codepoint = wparam;
-
-            OS_Event* event = os_push_event();
-            event->kind      = OS_EVENT_TEXT;
-            event->window    = window_handle;
-            event->codepoint = codepoint;
-        } break;
-
+            return DefWindowProcW(hwnd, msg, wparam, lparam);
+        }
 
         case WM_SYSKEYDOWN:
-        case WM_SYSKEYUP:
-        case WM_KEYDOWN:
-        case WM_KEYUP: 
-        {
-            OS_Event_Kind kind;
-            bool          is_repeat = false;
-            u16           repeat_count;
-            OS_Key        key;
+        case WM_SYSKEYUP: {
 
-            // Extract
-            s16 lo = HIWORD(lparam);
-            int is_down  = !(lo & KF_UP);
-            int was_down =  (lo & KF_REPEAT);
+            bool repeat = (((s32)lparam) & 0x40000000) != 0;
+            maybe_send_vkey_event(wparam, true, repeat);
 
-            // Press? Release?
-            kind = is_down ? OS_EVENT_PRESS : OS_EVENT_RELEASE;
-
-            // Repeat?
-            if (is_down && was_down) is_repeat = true;
-
-            // Extract repeat count.
-            repeat_count = lparam & 0xffff;
-
-            // Get OS agnostic key.
-            key = os->vk_to_key[wparam];
-
-            OS_Event* event = os_push_event();
-            event->kind          = kind;
-            event->window        = window_handle;
-            event->key           = key;
-            event->is_repeat     = is_repeat;
-            event->repeat_count  = repeat_count;
         } break;
 
-        
+        case WM_KEYDOWN:
+        case WM_KEYUP: {
+
+            maybe_send_vkey_event(wparam, false);
+
+        } break;
+
+
+        case WM_SYSCHAR: 
+        // This is here to prevent beeps when a Alt key combo is pressed. if we don't return 0, 
+        // windows helpfully emits a beep sound to indicate the user that the key wasn't handled.
+        break;
+
+        case WM_CHAR: 
+        {
+            WPARAM keycode = wparam;
+
+            if (keycode > 31) {
+                Event event = {};
+                event.type = EVENT_TEXT_INPUT;
+                event.utf32 = keycode;
+
+                array_add(&os->events, event);
+            }
+        } break;
+
+        case WM_SETFOCUS: 
+        os->input_application_has_focus = true;
+        break;
+
+        case WM_KILLFOCUS: 
+        os->input_application_has_focus = false;
+        break;
+
+        case WM_PAINT: 
+        {
+            // Windows maintains lists of "dirty" triangles that window must redraw.
+            // Then it calls WM_PAINT and expectation is that window redraws those regions.
+            // Classically you did that with BeginPaint/EndPaint and GDI, but as we are on 
+            // Direct3D, calling ValidateRect with NULL simply says that whole window 
+            // region is valid. No need to worry about individual dirty rectangles.
+            ValidateRect(hwnd, NULL);
+            return DefWindowProcW(hwnd, msg, wparam, lparam);
+        }
+
         case WM_LBUTTONDOWN:
-        case WM_RBUTTONDOWN:
-        case WM_MBUTTONDOWN:
         case WM_LBUTTONUP:
+        {
+            maybe_send_vkey_event(VK_LBUTTON, msg == WM_LBUTTONDOWN);
+
+            if (msg == WM_LBUTTONDOWN) SetCapture(hwnd);
+            else ReleaseCapture();
+        } break;
+
+        case WM_RBUTTONDOWN:
         case WM_RBUTTONUP:
+        {
+            maybe_send_vkey_event(VK_RBUTTON, msg == WM_RBUTTONDOWN);
+        } break;
+
+        case WM_MBUTTONDOWN:
         case WM_MBUTTONUP:
         {
-            // @Todo: Extended button
-
-            OS_Event_Kind kind;
-            OS_Key        key = KEY_NULL;
-            v2            position;
-
-            // SetCaputre() allows the release event to be triggered even if
-            // release happens outside the window.
-            if (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN) {
-                kind = OS_EVENT_PRESS;
-                SetCapture(hwnd);
-            } else {
-                kind = OS_EVENT_RELEASE;
-                ReleaseCapture();
-            }
-
-            // Key
-            if      (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP) key = KEY_MOUSE_LEFT;
-            else if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONUP) key = KEY_MOUSE_RIGHT;
-            else if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONUP) key = KEY_MOUSE_MIDDLE;
-            else assert(!"Undefined key.");
-
-            // Mouse position
-            f32 x = (f32)(s16)LOWORD(lparam);
-            f32 y = (f32)(s16)HIWORD(lparam);
-            position = v2{x, y};
-
-            OS_Event* event = os_push_event();
-            event->kind     = kind;
-            event->window   = window_handle;
-            event->key      = key;
-            event->position = position;
+            maybe_send_vkey_event(VK_MBUTTON, msg == WM_MBUTTONDOWN);
         } break;
 
 
         case WM_MOUSEMOVE:
         {
+#if 0
             f32 x = (f32)(s16)LOWORD(lparam);
             f32 y = (f32)(s16)HIWORD(lparam);
-            v2 position = v2{x, y};
+            vec2 position = vec2{x, y};
 
             OS_Event* event = os_push_event();
             event->kind     = OS_EVENT_MOUSE_MOVE;
             event->window   = window_handle;
             event->position = position;
+#endif
         } break;
 
 
         case WM_MOUSEWHEEL:
         case WM_MOUSEHWHEEL:
         {
-            // Get scroll delta.
-            f32 delta = (f32)HIWORD(wparam) / (f32)WHEEL_DELTA;
+            Event event = {};
+            event.type = EVENT_MOUSE_WHEEL;
+            event.typical_wheel_delta = WHEEL_DELTA;
+            event.wheel_delta = (s16)(wparam >> 16);
+            array_add(&os->events, event);
 
-            // Convert screen-space mouse position to client space.
-            POINT p;
-            p.x = (s32)GET_X_LPARAM(lparam);
-            p.y = (s32)GET_Y_LPARAM(lparam);
-            ScreenToClient(hwnd, &p);
-
-            // Make vec2.
-            v2 position = v2{(f32)p.x, (f32)p.y};
-
-            OS_Event* event = os_push_event();
-            event->kind     = OS_EVENT_SCROLL;
-            event->window   = window_handle;
-            event->position = position;
-
-            if (msg == WM_MOUSEWHEEL)
-                event->delta = v2{0.f, delta};
-            else
-                event->delta = v2{delta, 0.f};
+            os->mouse_delta_z += event.wheel_delta;
         } break;
 
 
-        // Keyboard Focus
-        //
-        case WM_KILLFOCUS: {
-            window_set_focused(window_handle, false);
-        } break;
-
-        case WM_SETFOCUS: {
-            window_set_focused(window_handle, true);
-        } break;
-
-
-        // Mouse Capture
-        //
-        case WM_CAPTURECHANGED: {
-            // @Todo:
-        } break;
+        case WM_CLOSE: 
+        case WM_QUIT:
+        {
+            Event event = {};
+            event.type = EVENT_QUIT;
+            array_add(&os->events, event);
+            return DefWindowProcW(hwnd, msg, wparam, lparam);
+        }
 
 
-        case WM_DPICHANGED: {
-            // @Todo:
-        } break;
+        case WM_SIZE:
+        return 0;
 
+        case WM_MOVE:
+        return 0;
 
-        case WM_DROPFILES: {
-            // @Todo:
-        } break;
+        case WM_EXITSIZEMOVE:
+        return 0;
+
+        case WM_DPICHANGED:
+        return 0;
+
+        case WM_DROPFILES:
+        return 0;
+
+        case WM_CAPTURECHANGED:
+        return 0;
+
+        default:
+        return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
 
     return result;
+}
+
+void update_window_events() {
+    input_per_frame_event_and_flag_update();
+
+    // GetAsyncKeyState actually checks the key, not to be confused with GetKeyState, which does nothing.
+    if (alt_state || (os->input_button_states[KEY_ALT] & KEY_STATE_DOWN)) {
+        SHORT state = GetAsyncKeyState(VK_MENU);
+        if (!(state & 0x8000)) {
+            alt_state = false;
+            os->input_button_states[KEY_ALT] |= KEY_STATE_END;
+        }
+    }
+
+    if (ctrl_state || (os->input_button_states[KEY_CTRL] & KEY_STATE_DOWN)) {
+        SHORT state = GetAsyncKeyState(VK_CONTROL);
+        if (!(state & 0x8000)) {
+            ctrl_state = false;
+            os->input_button_states[KEY_CTRL] |= KEY_STATE_END;
+        }
+    }
+
+    if (shift_state || (os->input_button_states[KEY_SHIFT] & KEY_STATE_DOWN)) {
+        SHORT state = GetAsyncKeyState(VK_SHIFT);
+        if (!(state & 0x8000)) {
+            shift_state = false;
+            os->input_button_states[KEY_SHIFT] |= KEY_STATE_END;
+        }
+    }
+
+    for (;;) {
+        MSG msg = {};
+
+        BOOL result = PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE);
+        if (!result)  break;
+
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
 }
 
 void os_gfx_init() {
@@ -718,13 +799,12 @@ void os_gfx_init() {
     {
         wcex.cbSize         = sizeof(wcex);
         wcex.style          = CS_HREDRAW | CS_VREDRAW;
-        wcex.lpfnWndProc    = win32_window_proc;
+        wcex.lpfnWndProc    = RtsWindowProc;
         wcex.hInstance      = hinst;
-        wcex.hIcon          = LoadIconW(hinst, L"Icon");;
-        wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);;
+        wcex.hIcon          = LoadIconW(hinst, L"Icon");
+        wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
         wcex.hbrBackground  = CreateSolidBrush(RGB(30, 20, 20));
-        wcex.lpszClassName  = L"GFX-Class";
-        wcex.hIconSm;
+        wcex.lpszClassName  = L"RtsWindowClass";
     }
     RegisterClassExW(&wcex);
 
@@ -735,9 +815,11 @@ void os_gfx_init() {
 
 void os_window_dealloc(OS_Handle handle) {
     Win32_State *state = (Win32_State *)os->native;
-    auto *window = win32_window_from_handle(handle);
-    dll_remove(state->window_first, state->window_last, window);
-    sll_push_back(state->window_free_first, state->window_free_last, window);
+    Win32_Window *window = win32_window_from_handle(handle);
+    if (window) {
+        dll_remove(state->window_first, state->window_last, window);
+        sll_push_back(state->window_free_first, state->window_free_last, window);
+    }
 }
 
 OS_Handle os_window_create(int w, int h, String name) {
@@ -746,7 +828,7 @@ OS_Handle os_window_create(int w, int h, String name) {
 
     HINSTANCE hinst = GetModuleHandleW(0);
 
-    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, L"GFX-Class", (LPCWSTR)to_utf16(scratch.arena, name).str, 
+    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, L"RtsWindowClass", (LPCWSTR)to_utf16(scratch.arena, name).str, 
                                 WS_OVERLAPPEDWINDOW | WS_SIZEBOX | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, w, h, 
                                 0, 0, hinst, 0);
     DragAcceptFiles(hwnd, 1);
@@ -792,85 +874,27 @@ void os_window_toggle_fullscreen(OS_Handle window_handle) {
     }
 }
 
-v2 os_window_size(OS_Handle window) {
+vec2 os_window_size(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
     RECT rect;
     GetClientRect(hwnd, &rect);
     f32 x = rect.right - rect.left;
     f32 y = rect.bottom - rect.top;
-    return v2{x, y};
+    return vec2{x, y};
 }
 
-v2 os_get_mouse_position(OS_Handle window) {
+vec2 os_get_mouse_position(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
     POINT p;
     GetCursorPos(&p);
     ScreenToClient(hwnd, &p);
-    return v2{(f32)p.x, (f32)p.y};
+    return vec2{(f32)p.x, (f32)p.y};
 }
 
 void* get_native_window_handle(OS_Handle window) {
     return (void *)hwnd_from_os_handle(window);
 }
 
-
-// Events
-// 
-void os_poll_events() {
-    MSG msg;
-
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-        if (msg.message == WM_QUIT) {
-
-        } else {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
-        }
-    }
-
-#if 0
-    BYTE vk_state[256];
-    GetKeyboardState(vk_state);
-    u64 sz = sizeof(os->key_is_down[0])*array_count(os->key_is_down);
-    memcpy(os->key_was_down, os->key_is_down, sz);
-    for (int vk = 0; vk < array_count(vk_state); ++vk) {
-        OS_Key key = os->vk_to_key[vk];
-        os->key_is_down[key] = vk_state[vk] & 0x80;
-    }
-#endif
-}
-
-OS_Event* os_push_event() {
-    OS_Event* event = os->first_free_event;
-
-    // Alloc
-    if (event == NULL) {
-        event = push_struct(os->event_arena, OS_Event);
-    } else {
-        sll_pop_front(os->first_free_event, os->last_free_event);
-        memset(event, 0, sizeof(*event));
-    }
-
-    // Append to the list.
-    dll_push_back(os->first_event, os->last_event, event);
-
-    // Set modifiers.
-    event->modifiers = os_get_modifiers();
-
-    return event;
-}
-
-void os_remove_event(OS_Event* event) {
-    dll_remove(os->first_event, os->last_event, event);
-    sll_push_back(os->first_free_event, os->last_free_event, event);
-    // @Todo: Freeing logic?
-}
-
-void os_clear_events() {
-    list_for (os->first_event, event) {
-        os_remove_event(event);
-    }
-}
 
 
 // Mutex
@@ -911,8 +935,11 @@ void condvar_destroy(Condvar *condvar) {
 Wait_Result condvar_sleep(Condvar *condvar, Mutex *mutex, s64 timeout_ms) {
     DWORD ms = timeout_ms == -1 ? INFINITE : (DWORD)timeout_ms;
     BOOL res = SleepConditionVariableSRW(&condvar->var, &mutex->lock, ms, 0);
-    if (res == 0)  return WAIT_RESULT_ERROR;
-    else           return WAIT_RESULT_SUCCESS;
+    if (res == 0) {
+        if (GetLastError() == ERROR_TIMEOUT) return WAIT_RESULT_TIMEOUT;
+        else return WAIT_RESULT_ERROR; 
+    }
+    return WAIT_RESULT_SUCCESS;
 }
 
 void condvar_wake_one(Condvar *condvar) {
@@ -959,6 +986,7 @@ Wait_Result semaphore_wait(Semaphore *semaphore, s32 milliseconds) {
 }
 
 
+//
 // Thread
 //
 static DWORD _win32_thread_entry(void *ptr) {
@@ -978,7 +1006,7 @@ Thread thread_launch(void (*proc)(void *), void *param) {
     OS_Thing_Kind kind = OS_THING_KIND_THREAD;
     OS_Thing *thing = os_thing_alloc(kind);
 
-    auto *thread = &thing->thread;
+    Thread *thread = &thing->thread;
 
     thread->proc  = proc;
     thread->param = param;
@@ -1027,6 +1055,7 @@ void thread_set_name(String name) {
 }
 
 
+//
 // Thread Group
 //
 static void work_list_init(Work_List *list) {
@@ -1196,6 +1225,7 @@ void thread_group_complete_all_work(Thread_Group *group) {
     group->temp = temporary_arena_begin(group->arena);
 }
 
+//
 // UUID/GUID
 //
 Guid guid_generate() {
@@ -1221,6 +1251,14 @@ Guid guid_generate() {
 //
 void atomic_increment(volatile s32 *x) {
     InterlockedIncrement((LONG *)x);
+}
+
+void atomic_store(volatile s32 *dst, s32 val) {
+    InterlockedExchange((LONG *)dst, val);
+}
+
+void atomic_store(volatile s64 *dst, s64 val) {
+    InterlockedExchange64(dst, val);
 }
 
 

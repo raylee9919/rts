@@ -5,13 +5,13 @@
 
 #include "basic/core.h"
 #include "math/math.h"
-#include "input.h"
+#include "asset/asset.h"
 
 #define MAX_ENTITIES        16384
-#define WORLD_UP            v3{ 0.f,  1.f,  0.f}
-#define FORWARD_VECTOR      v4{ 0.f,  0.f, -1.f, 1.f}
-#define RIGHT_VECTOR        v4{ 1.f,  0.f,  0.f, 1.f}
-#define UP_VECTOR           v4{ 0.f,  1.f,  0.f, 1.f}
+#define WORLD_UP            vec3{ 0.f,  1.f,  0.f}
+#define FORWARD_VECTOR      vec4{ 0.f,  0.f, -1.f, 1.f}
+#define RIGHT_VECTOR        vec4{ 1.f,  0.f,  0.f, 1.f}
+#define UP_VECTOR           vec4{ 0.f,  1.f,  0.f, 1.f}
 #define NEAR_Z              1e-3f
 #define FAR_Z               1e9f
 
@@ -39,14 +39,13 @@ struct Entity {
     Handle          next;  // next sibling
     Handle          prev;  // prev sibling
 
-    v3              position;
+    vec3            position;
 
-    Guid            mesh;
-    Guid            material;
+    Guid            asset_ids[ASSET_KIND_COUNT];
 };
 
 struct Camera {
-    v3              position;
+    vec3            position;
     f32             yaw;
     f32             pitch;
 };
@@ -67,8 +66,6 @@ struct Game_State {
     Game_Storage    storage;
 
     f64             time;
-
-    Input_State     input_state;
 
     u64             next_generational_id = 1;
     u64             num_entities;
@@ -93,7 +90,8 @@ void       game_copy(Game_State *dst, Game_State *src);
 void      *game_alloc(Game_State *g, u64 size, u64 alignment);
 
 Entity    *entity_alloc(Game_State *g);
-void       entity_dealloc(Game_State *g);
+void       entity_dealloc(Game_State *g, Entity *entity);
+void       entity_dealloc(Game_State *g, Handle handle);
 
 Entity    *entity_from_handle(Game_State *g, Handle handle);
 Handle     handle_from_entity(Game_State *g, Entity *entity);

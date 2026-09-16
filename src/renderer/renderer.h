@@ -61,7 +61,7 @@ force_inline bool r_should_enable_blend(R_Shading_Model sm) {
 struct Material {
     R_Shading_Model shading_model = {};
 
-    v3      albedo         = v3{1.f, 1.f, 1.f};
+    vec3    albedo         = vec3{1.f, 1.f, 1.f};
     f32     metallic       = 0.f;
     f32     roughness      = 1.f;
 
@@ -75,6 +75,8 @@ struct Renderer {
     Arena *arena;
     Allocator heap;
 
+    volatile b32 initted;
+
     Guid scene_depth[RHI_MAX_BUFFER_COUNT];
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
     Guid scene[RHI_MAX_BUFFER_COUNT];
@@ -82,6 +84,7 @@ struct Renderer {
     Table<Guid, Material, gfx_128_to_32> material_table;
 };
 
+extern Renderer *renderer;
 extern Render_SPSC_Queue render_queue;
 
 
@@ -103,9 +106,9 @@ void       r_entry(void *param);
 
 
 Material     *r_material_alloc(Guid guid);
-void            r_material_dealloc(Guid guid);
+void          r_material_dealloc(Guid guid);
 Material     *r_material_from_guid(Guid guid);
-GPU_Material    to_gpu_material(Material *material);
+GPU_Material  to_gpu_material(Material *material);
 
 
 

@@ -14,12 +14,11 @@
 #include "gfx/gfx.h"
 #include "renderer/renderer.h"
 #include "shader_compiler/shader.h"
-#include "shader_compiler/dxc/dxc.h"
 #include "shaders/shared.h"
 #include "profiler/profiler.h"
-#include "input.h"
 #include "game.h"
-#include "audio.h"
+#include "asset/asset.h"
+#include "audio/audio.h"
 #include "shared.h"
 #include "third_party/xxhash3/xxhash.h"
 
@@ -33,22 +32,25 @@ OS_Handle window = {};
 b32 should_close = false;
 
 //
-Shader_Compiler *compiler;
-
 struct Vertex {
-    v3 position;
-    v3 normal;
-    v2 uv;
+    vec3 position;
+    vec3 normal;
+    vec2 uv;
 };
 
-Vertex vertices[24];
-u32 indices[36];
+Vertex  vertices[24];
+u32     indices[36];
 
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
 
 //
 Guid doggo_guid;
+
+struct Development {
+    Allocator heap;
+};
+
 
 
 void render_ring_init() {
@@ -100,8 +102,6 @@ void game_tick(Game_State *g, f64 dt)
 
     {
         Camera *camera = &g->camera;
-
-        Input_State *I = &g->input_state;
 
         f32 movement_speed = 10.f;
         f32 turn_speed     = 0.25f;
@@ -183,7 +183,7 @@ void r_pipeline_create(Guid id,
             vs_opts.entry  = S("main_vs");
             vs_opts.source = shader_source;
         }
-        Assert(shader_compile(compiler, vs_opts, true, &vs, tctx.temp));
+        Assert(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
 
         Shader_Compile_Options ps_opts = {};
         {
@@ -191,7 +191,7 @@ void r_pipeline_create(Guid id,
             ps_opts.entry  = S("main_ps");
             ps_opts.source = shader_source;
         }
-        Assert(shader_compile(compiler, ps_opts, true, &ps, tctx.temp));
+        Assert(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
     }
 
     { // Create pipeline state object(PSO)
@@ -242,6 +242,7 @@ void r_pipeline_destroy(Guid id)
 
 int main_entry(int argc, char **argv)
 {
+    // @Temporary
     Allocator temp = {};
     temp.data = nullptr;
     temp.proc = crt_proc;
@@ -253,6 +254,9 @@ int main_entry(int argc, char **argv)
     f64 time_old        = time_seconds();
     f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
     f64 accumulator     = 0.f;
+
+    // Init asset system
+    asset_system_init();
 
     // Init Game
     game_init(time_old);
@@ -269,19 +273,11 @@ int main_entry(int argc, char **argv)
     // Launch audio thread
     Thread audio_thread = thread_launch(audio_entry, NULL);
 
-    // Init shader compiler
-    compiler = (Shader_Compiler *)alloc(sizeof(Shader_Compiler), temp);
-    Assert(shader_compiler_init(compiler));
-    compiler->include_path = S("C:/dev/rts/src/shaders/"); // @Temporary
-
-    // Init input system
-    input_system_init(window);
-
-    // Spin-lock until gfx is initted.
-    while (!gfx || !gfx->initted) {}
+    // Spin-lock until renderer is initted.
+    while (!renderer || !renderer->initted) {}
 
     // Init camera
-    game_state->camera.position = v3(0.f, 6.f, 15.f);
+    game_state->camera.position = vec3(0.f, 6.f, 15.f);
 
     // Make a cube
     cube_mesh._64[0] = 7474; // @Temporary
@@ -400,11 +396,15 @@ int main_entry(int argc, char **argv)
         Guid derived_mtl_id = guid_generate();
         Material *mtl = r_material_alloc(derived_mtl_id);
         mtl->pipeline = base_material_id;
-        mtl->albedo   = v3{(f32)i * 0.002f, 0.2f, 0.2f};
+        mtl->albedo   = vec3{(f32)i * 0.002f, 0.2f, 0.2f};
 
         Entity *E = entity_alloc(game_state);
-        E->mesh     = cube_mesh;
-        E->material = derived_mtl_id;
+        E->asset_ids[ASSET_MESH]     = cube_mesh;
+        E->asset_ids[ASSET_MATERIAL] = derived_mtl_id;
+
+        if (i == 0 || i == 255) {
+            entity_dealloc(game_state, E);
+        }
     }
 
     
@@ -442,9 +442,7 @@ int main_entry(int argc, char **argv)
 
         // Input processing
         { ProfileScopeN("InputProcessing");
-            os_clear_events();
-            os_poll_events();
-            input_process(&game_state->input_state);
+            update_window_events();
         }
 
 
@@ -469,6 +467,7 @@ int main_entry(int argc, char **argv)
         }
 
 
+#if 0
         list_for(os->first_event, event)  {
             b32 esc_pressed            = event->kind == OS_EVENT_PRESS && event->key == KEY_ESC;
             b32 alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
@@ -492,6 +491,7 @@ int main_entry(int argc, char **argv)
                 os_window_toggle_fullscreen(window);
             }
         }
+#endif
 
         clear_thread_temporary_storage();
     }
@@ -503,10 +503,9 @@ int main_entry(int argc, char **argv)
 
 
     /* Shutdown Systems */
-    input_system_shutdown();
     render_ring_deinit();
     game_deinit();
-
+    asset_system_shutdown();
 
     return 0;
 }

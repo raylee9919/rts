@@ -43,8 +43,6 @@ struct Win32_Window {
     Win32_Window    *prev;
     HWND            handle;
     WINDOWPLACEMENT placement;
-
-    b32             keyboard_focused;
 };
 
 struct Win32_State {

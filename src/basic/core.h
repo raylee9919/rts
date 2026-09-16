@@ -143,7 +143,6 @@ extern "C" void __asan_unpoison_memory_region(void const volatile *addr, size_t 
 #include <stdarg.h>
 #include <math.h>
 #include <string.h>
-#include <new>
 
 #define internal        static
 #define global          static
@@ -432,6 +431,7 @@ force_inline void *align_up(void *x, uintptr_t alignment) {
     return (void *)p;
 }
 
+#include "basic/allocator.h"
 
 // Returns 64 if there's no set bit. That's why TZCNT is better than BSF.
 // @Todo: Some old chips might not support tzcnt
@@ -448,4 +448,5 @@ template <typename T, typename... Args>
 T* Construct(T* memory, Args&&... args) {
     return new (memory) T(static_cast<Args&&>(args)...);
 }
+
 #endif // RTS_BASIC_CORE_H

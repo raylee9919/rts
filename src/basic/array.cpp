@@ -1,5 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "basic/array.h"
+
 template<typename T>
 T& Array <T>::operator [] (u64 idx) {
     return data[idx];
@@ -42,6 +44,7 @@ void array_reset_keeping_memory(Array<T>* arr) {
 template <typename T>
 void array_reset(Array<T> *arr) {
     dealloc(arr->data, arr->allocator);
-    arr->data = NULL;
-    arr->count = 0;
+    arr->data      = NULL;
+    arr->count     = 0;
+    arr->allocated = 0;
 }

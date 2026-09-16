@@ -90,69 +90,59 @@ f32 hermite(f32 min, f32 max, f32 x) {
 
 // Vector2
 //
-v2::v2(f32 f) {
-    e[0] = f;
-    e[1] = f;
-}
-
-v2::v2(f32 x_, f32 y_) {
-    e[0] = x_;
-    e[1] = y_;
-}
-
-v2 operator - (v2& in) {
-    v2 V;
+vec2 operator - (vec2& in) {
+    vec2 V;
     V.x = -in.x;
     V.y = -in.y;
     return V;
 }
 
-v2 operator * (f32 f, v2 v) {
+vec2 operator * (f32 f, vec2 v) {
     v.x *= f;
     v.y *= f;
     return v;
 }
 
-v2 operator * (v2 v, f32 f) {
+vec2 operator * (vec2 v, f32 f) {
     v.x *= f;
     v.y *= f;
     return v;
 }
 
-v2 operator + (v2 a, v2 b) {
-    v2 v;
+vec2 operator + (vec2 a, vec2 b) {
+    vec2 v;
     v.x = a.x + b.x;
     v.y = a.y + b.y;
     return v;
 }
 
-v2 operator - (v2 a, v2 b) {
-    v2 v;
+vec2 operator - (vec2 a, vec2 b) {
+    vec2 v;
     v.x = a.x - b.x;
     v.y = a.y - b.y;
     return v;
 }
 
-v2& operator += (v2& a, v2 b) {
+vec2& operator += (vec2& a, vec2 b) {
     a.x += b.x;
     a.y += b.y;
     return a;
 }
 
-v2& operator-=(v2& a, v2 b) {
+vec2& operator-=(vec2& a, vec2 b) {
     a.x -= b.x;
     a.y -= b.y;
     return a;
 }
 
-v2& operator *= (v2& a, f32 b) {
+vec2& operator *= (vec2& a, f32 b) {
     a.x *= b;
     a.y *= b;
     return a;
 }
 
-v2 operator * (v2 l, v2 r) {
-    v2 v = { l.x * r.x, l.y * r.y };
+vec2 operator * (vec2 l, vec2 r) {
+    vec2 v = { l.x * r.x, l.y * r.y };
     return v;
 }
 
@@ -160,9 +150,9 @@ v2 operator * (v2 l, v2 r) {
 
 
 
-f32 triarea2(v2 a, v2 b, v2 c) {
-    v2 p = c - b;
-    v2 q = a - b;
+f32 triarea2(vec2 a, vec2 b, vec2 c) {
+    vec2 p = c - b;
+    vec2 q = a - b;
     return p.x*q.y - p.y*q.x;
 }
 
@@ -178,42 +168,42 @@ f32 fmod_cycling(f32 x, f32 y)
     return (f32)fmod_cycling((f64)x, (f64)y);
 }
 
-f32 sqlen(v2 v) {
+f32 sqlen(vec2 v) {
     return dot(v,v);
 }
 
-f32 sqlen(v3 v) {
+f32 sqlen(vec3 v) {
     return dot(v,v);
 }
 
-f32 invsqlen(v2 v) {
+f32 invsqlen(vec2 v) {
     f32 result = 1.f / dot(v, v);
     return result;
 }
 
-f32 invsqlen(v3 v) {
+f32 invsqlen(vec3 v) {
     f32 result = 1.f / dot(v, v);
     return result;
 }
 
-f32 invsqlen(v4 v) {
+f32 invsqlen(vec4 v) {
     f32 result = 1.f / dot(v, v);
     return result;
 }
 
-f32 length(v2 v) {
+f32 length(vec2 v) {
     f32 len = m_sqrt(sqlen(v));
     return len;
 }
 
-v2 lerp(v2 a, f32 t, v2 b) {
-    v2 v;
+vec2 lerp(vec2 a, f32 t, vec2 b) {
+    vec2 v;
     v.x = lerp(a.x, t, b.x);
     v.y = lerp(a.y, t, b.y);
     return v;
 }
 
-v2 normalize(v2 v) {
+vec2 normalize(vec2 v) {
     f32 d = m_rsqrt(v.x * v.x + v.y * v.y);
     v.x *= d;
     v.y *= d;
@@ -221,44 +211,26 @@ v2 normalize(v2 v) {
 }
 
 
-v3::v3(f32 x_, f32 y_, f32 z_) {
-    e[0] = x_;
-    e[1] = y_;
-    e[2] = z_;
-}
-
-v3::v3(f32 f) {
-    e[0] = f;
-    e[1] = f;
-    e[2] = f;
-}
-
-v3::v3(v2 xy, f32 z_) {
-    e[0] = xy.x;
-    e[1] = xy.y;
-    e[2] = z_;
-}
-
-v3 operator - (const v3 &in) {
-    v3 V;
+vec3 operator - (const vec3 &in) {
+    vec3 V;
     V.x = -in.x;
     V.y = -in.y;
     V.z = -in.z;
     return V;
 }
 
-v3 operator * (f32 f, v3 v) {
+vec3 operator * (f32 f, vec3 v) {
     v.x = f * v.x;
     v.y = f * v.y;
     v.z = f * v.z;
     return v;
 }
 
-v3 operator * (v3 v, f32 f) {
+vec3 operator * (vec3 v, f32 f) {
     return f * v;
 }
 
-v3 operator / (v3 v, f32 f) {
+vec3 operator / (vec3 v, f32 f) {
     f32 r = 1.f / f;
     v.x *= r;
     v.y *= r;
@@ -266,7 +238,7 @@ v3 operator / (v3 v, f32 f) {
     return v;
 }
 
-v3& operator /= (v3& a, f32 b) {
+vec3& operator /= (vec3& a, f32 b) {
     f32 c = (1.0f / b);
     a.x *= c;
     a.y *= c;
@@ -274,24 +246,24 @@ v3& operator /= (v3& a, f32 b) {
     return a;
 }
 
-v3 operator + (v3 l, v3 r) {
-    v3 v;
+vec3 operator + (vec3 l, vec3 r) {
+    vec3 v;
     v.x = l.x + r.x;
     v.y = l.y + r.y;
     v.z = l.z + r.z;
     return v;
 }
 
-v3 operator - (v3 l, v3 r) {
-    v3 v;
+vec3 operator - (vec3 l, vec3 r) {
+    vec3 v;
     v.x = l.x - r.x;
     v.y = l.y - r.y;
     v.z = l.z - r.z;
     return v;
 }
 
-v3&
-operator += (v3& a, v3 b) 
+vec3&
+operator += (vec3& a, vec3 b) 
 {
     a.x += b.x;
     a.y += b.y;
@@ -300,8 +272,8 @@ operator += (v3& a, v3 b)
     return a;
 }
 
-v3&
-operator -= (v3& a, v3 b) 
+vec3&
+operator -= (vec3& a, vec3 b) 
 {
     a.x -= b.x;
     a.y -= b.y;
@@ -310,8 +282,8 @@ operator -= (v3& a, v3 b)
     return a;
 }
 
-v3&
-operator *= (v3& a, f32 b) 
+vec3&
+operator *= (vec3& a, f32 b) 
 {
     a.x *= b;
     a.y *= b;
@@ -319,12 +291,12 @@ operator *= (v3& a, f32 b)
     return a;
 }
 
-f32 dot(v2 l, v2 r) {
+f32 dot(vec2 l, vec2 r) {
     f32 f = l.x*r.x + l.y*r.y;
     return f;
 }
 
-f32 dot(v3 l, v3 r) {
+f32 dot(vec3 l, vec3 r) {
     f32 f = l.x*r.x + l.y*r.y + l.z*r.z;
     return f;
 }
@@ -342,7 +314,7 @@ f32 dot(__m128 a, __m128 b) {
 }
 #endif
 
-f32 dot(v4 a, v4 b) {
+f32 dot(vec4 a, vec4 b) {
 #if SSE_ENABLED
     return dot(a.sse, b.sse);
 #else
@@ -351,21 +323,21 @@ f32 dot(v4 a, v4 b) {
 #endif
 }
 
-v3 cross(v3 a, v3 b) {
-    v3 v;
+vec3 cross(vec3 a, vec3 b) {
+    vec3 v;
     v.x = (a.y*b.z) - (b.y*a.z);
     v.y = (a.z*b.x) - (b.z*a.x);
     v.z = (a.x*b.y) - (b.x*a.y);
     return v;
 }
 
-v3 hadamard(v3 a, v3 b) {
-    v3 v = { a.x*b.x, a.y*b.y, a.z*b.z };
+vec3 hadamard(vec3 a, vec3 b) {
+    vec3 v = { a.x*b.x, a.y*b.y, a.z*b.z };
     return v;
 }
 
-v4 hadamard(v4 a, v4 b) {
-    v4 v;
+vec4 hadamard(vec4 a, vec4 b) {
+    vec4 v;
 #if SSE_ENABLED
     __m128 w = _mm_mul_ps(a.sse, b.sse);
     v.sse = w;
@@ -375,21 +347,21 @@ v4 hadamard(v4 a, v4 b) {
     return v;
 }
 
-f32 length(v3 v) 
+f32 length(vec3 v) 
 {
     f32 len = m_sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     return len;
 }
 
-b32 is_zero(v3 v) {
+b32 is_zero(vec3 v) {
     return v.x==0.f && v.y==0.f && v.z==0.f;
 }
 
-b32 is_inf(v3 v) {
+b32 is_inf(vec3 v) {
     return isinf(v.x) || isinf(v.y) || isinf(v.z);
 }
 
-v3 normalize(v3 v) {
+vec3 normalize(vec3 v) {
     f32 d = m_rsqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x *= d;
     v.y *= d;
@@ -397,22 +369,22 @@ v3 normalize(v3 v) {
     return v;
 }
 
-v3 lerp(v3 a, f32 t, v3 b) {
-    v3 v;
+vec3 lerp(vec3 a, f32 t, vec3 b) {
+    vec3 v;
     v.x = lerp(a.x, t, b.x);
     v.y = lerp(a.y, t, b.y);
     v.z = lerp(a.z, t, b.z);
     return v;
 }
 
-f32 distance(v3 a, v3 b) {
+f32 distance(vec3 a, vec3 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
     f32 dz = a.z - b.z;
     return m_sqrt(dx*dx + dy*dy + dz*dz);
 }
 
-f32 distance(v2 a, v2 b) {
+f32 distance(vec2 a, vec2 b) {
     f32 dx = a.x - b.x;
     f32 dy = a.y - b.y;
     return m_sqrt(dx*dx + dy*dy);
@@ -420,26 +392,10 @@ f32 distance(v2 a, v2 b) {
 
 // Vector4 
 //
-v4::v4(f32 f1, f32 f2, f32 f3, f32 f4)
-{
-    sse = _mm_setr_ps(f1, f2, f3, f4);
-}
-
-v4::v4(f32 f)
-{
-    sse = _mm_set1_ps(f);
-}
-
-v4
-V4(f32 x) 
-{
-    return v4{x,x,x,x};
-}
-
-v4
+vec4
 V4(f32 r, f32 g, f32 b, f32 a) 
 {
-    v4 v = {};
+    vec4 v = {};
     v.r = r;
     v.g = g;
     v.b = b;
@@ -447,10 +403,10 @@ V4(f32 r, f32 g, f32 b, f32 a)
     return v;
 }
 
-v4
-V4(v2 rg, f32 b, f32 a)
+vec4
+V4(vec2 rg, f32 b, f32 a)
 {
-    v4 v = {};
+    vec4 v = {};
     v.r = rg.x;
     v.g = rg.y;
     v.b = b;
@@ -458,41 +414,41 @@ V4(v2 rg, f32 b, f32 a)
     return v;
 }
 
-v4
-V4(v3 rgb, f32 a) 
+vec4
+V4(vec3 rgb, f32 a) 
 {
-    v4 v = {};
+    vec4 v = {};
     v.rgb = rgb;
     v.a = a;
     return v;
 }
 
-v4 operator + (v4 a, v4 b) 
+vec4 operator + (vec4 a, vec4 b) 
 {
-    v4 v;
+    vec4 v;
     v.sse = _mm_add_ps(a.sse, b.sse);
     return v;
 }
 
-v4 operator * (v4 v, f32 f) 
+vec4 operator * (vec4 v, f32 f) 
 {
     __m128 fv = _mm_set1_ps(f);
     v.sse = _mm_mul_ps(fv, v.sse);
     return v;
 }
 
-v4 operator * (f32 f, v4 v) 
+vec4 operator * (f32 f, vec4 v) 
 {
     return v * f;
 }
 
-v4 lerp(v4 a, f32 t, v4 b) 
+vec4 lerp(vec4 a, f32 t, vec4 b) 
 {
     __m128 ax4 = a.sse;
     __m128 bx4 = b.sse;
     __m128 tx4 = _mm_set1_ps(t);
     __m128 dx4 = _mm_sub_ps(bx4, ax4);
-    v4 v;
+    vec4 v;
     v.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
     return v;
 }
@@ -665,8 +621,8 @@ m4x4 operator * (f32 f, m4x4 m) {
     return m * f;
 }
 
-v4 operator * (m4x4 m, v4 p) {
-    v4 res = v4{};
+vec4 operator * (m4x4 m, vec4 p) {
+    vec4 res = vec4{};
     for (int i = 0 ; i < 4; ++i) {
         for (int j = 0 ; j < 4; ++j) { 
             res.e[i] += (m.e[i][j] * p.e[j]);
@@ -792,7 +748,7 @@ m4x4 inverse(m4x4 m) {
     return result;
 }
 
-m4x4 rows(v3 x, v3 y, v3 z) {
+m4x4 rows(vec3 x, vec3 y, vec3 z) {
     m4x4 r = {
         x.x, x.y, x.z, 0,
         y.x, y.y, y.z, 0,
@@ -802,7 +758,7 @@ m4x4 rows(v3 x, v3 y, v3 z) {
     return r;
 }
 
-m4x4 columns(v3 x, v3 y, v3 z) {
+m4x4 columns(vec3 x, vec3 y, vec3 z) {
     m4x4 r = {
         x.x, y.x, z.x, 0,
         x.y, y.y, z.y, 0,
@@ -821,7 +777,7 @@ m4x4 m4x4_translate(f32 x, f32 y, f32 z) {
     return m;
 }
 
-m4x4 m4x4_translate(v3 t) {
+m4x4 m4x4_translate(vec3 t) {
     m4x4 m;
     m.rows[0].sse = _mm_setr_ps(1.f, 0.f, 0.f, t.x);
     m.rows[1].sse = _mm_setr_ps(0.f, 1.f, 0.f, t.y);
@@ -830,7 +786,7 @@ m4x4 m4x4_translate(v3 t) {
     return m;
 }
 
-m4x4 m4x4_translate(m4x4 m, v3 t) {
+m4x4 m4x4_translate(m4x4 m, vec3 t) {
     m._14 = t.x;
     m._24 = t.y;
     m._34 = t.z;
@@ -878,7 +834,7 @@ Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
 }
 
 m4x4
-scale(m4x4 transform, v3 factor) 
+scale(m4x4 transform, vec3 factor) 
 {
     m4x4 result = transform;
     for (int i = 0; i < 3; ++i) {
@@ -920,7 +876,7 @@ m4x4 m4x4_scale(f32 x, f32 y, f32 z) {
 // Rect
 //
 Rect2
-rect2_min_max(v2 min, v2 max)
+rect2_min_max(vec2 min, vec2 max)
 {
     Rect2 result = {};
     result.min = min;
@@ -929,7 +885,7 @@ rect2_min_max(v2 min, v2 max)
 }
 
 Rect2
-rect2_cen_half_dim(v2 cen, v2 h_dim)
+rect2_cen_half_dim(vec2 cen, vec2 h_dim)
 {
     Rect2 result = {};
     result.min = cen - h_dim;
@@ -938,7 +894,7 @@ rect2_cen_half_dim(v2 cen, v2 h_dim)
 }
 
 Rect2
-rect2_min_dim(v2 min, v2 dim)
+rect2_min_dim(vec2 min, vec2 dim)
 {
     Rect2 result = {};
     result.min = min;
@@ -958,7 +914,7 @@ rect2_inv_inf()
 }
 
 Rect2
-offset(Rect2 rect, v2 offset)
+offset(Rect2 rect, vec2 offset)
 {
     Rect2 result = {};
     result.min = rect.min + offset;
@@ -967,7 +923,7 @@ offset(Rect2 rect, v2 offset)
 }
 
 Rect2
-add_radius_to(Rect2 rect, v2 radius)
+add_radius_to(Rect2 rect, vec2 radius)
 {
     Rect2 result = rect;
     result.min -= radius;
@@ -979,9 +935,9 @@ m4x4 to_m4x4(Xform xform)
 {
     m4x4 m;
 
-    v3 t = xform.translation;
+    vec3 t = xform.translation;
     Quaternion r = xform.rotation;
-    v3 s = xform.scale;
+    vec3 s = xform.scale;
 
     m._11 = 1.0f - 2.0f * (r.y * r.y + r.z * r.z);
     m._12 = 2.0f * (r.x * r.y - r.z * r.w);
@@ -1007,7 +963,7 @@ m4x4 to_m4x4(Xform xform)
     return m;
 }
 
-m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale) 
+m4x4 to_m4x4(vec3 translation, Quaternion rotation, vec3 scale) 
 {
     Xform xform;
     xform.translation = translation;
@@ -1018,37 +974,30 @@ m4x4 to_m4x4(v3 translation, Quaternion rotation, v3 scale)
 }
 
 Quaternion
-build_quaternion(v3 axis, f32 radian)
+build_quaternion(vec3 axis, f32 radian)
 {
     f32 c = m_cos(radian*0.5f);
     f32 s = m_sin(radian*0.5f);
-    v3 n = s * normalize(axis);
+    vec3 n = s * normalize(axis);
     Quaternion result = Quaternion{c, n.x, n.y, n.z};
     return result;
 }
 
 Quaternion 
-rotate(Quaternion q0, v3 axis, f32 radian)
+rotate(Quaternion q0, vec3 axis, f32 radian)
 {
     Quaternion result = build_quaternion(axis, radian) * q0;
     return result;
 }
 
-v3
-project(v3 p, m4x4 view_proj)
+vec3
+project(vec3 p, m4x4 view_proj)
 {
-    v4 res = view_proj * v4{p.x, p.y, p.z, 1};
+    vec4 res = view_proj * vec4{p.x, p.y, p.z, 1};
     res.x /= res.w;
     res.y /= res.w;
     res.z /= res.w;
     return res.xyz;
-}
-
-v2
-V2(v2u v) 
-{
-    v2 result = v2{(f32)v.x, (f32)v.y};
-    return result;
 }
 
 // @Todo: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
@@ -1079,7 +1028,7 @@ radian_from_degree(f32 d)
 }
 
 f32
-normalize01(v2 range, f32 val)
+normalize01(vec2 range, f32 val)
 {
     f32 result = 0.0f;
     f32 denom = (range.y - range.x);
@@ -1090,7 +1039,7 @@ normalize01(v2 range, f32 val)
 }
 
 b32
-intersects(AABB2 box, v2 point)
+intersects(AABB2 box, vec2 point)
 {
     b32 result = false;
     // TODO: Define boundary.
@@ -1104,8 +1053,8 @@ b32
 intersects(AABB2 a, AABB2 b)
 {
     b32 result = false;
-    v2 half_dim = (a.max - a.min) * 0.5f;
-    v2 point = (a.min + a.max) * 0.5f;
+    vec2 half_dim = (a.max - a.min) * 0.5f;
+    vec2 point = (a.min + a.max) * 0.5f;
     b.min -= half_dim;
     b.max += half_dim;
     result = intersects(b, point);
@@ -1130,28 +1079,28 @@ AABB2
 aabb2_infinite(void)
 {
     AABB2 result = {};
-    result.min = v2{-F32_MAX, -F32_MAX};
-    result.max = v2{ F32_MAX,  F32_MAX};
+    result.min = vec2{-F32_MAX, -F32_MAX};
+    result.max = vec2{ F32_MAX,  F32_MAX};
     return result;
 }
 
 
 
-v2 to_ndc(v2 p, f32 w, f32 h) {
+vec2 to_ndc(vec2 p, f32 w, f32 h) {
     f32 x = 2.f*( p.x / w) - 1.f;
     f32 y = 2.f*(-p.y / h) + 1.f;
-    v2 result = v2{x,y};
+    vec2 result = vec2{x,y};
     return result;
 }
 
-v3 unproject(v3 position, m4x4 viewproj) {
+vec3 unproject(vec3 position, m4x4 viewproj) {
     m4x4 inv_viewproj = inverse(viewproj);
-    v4 h = inv_viewproj*V4(position, 1.f);
-    v3 result = h.xyz / h.w;
+    vec4 h = inv_viewproj*V4(position, 1.f);
+    vec3 result = h.xyz / h.w;
     return result;
 }
 
-Ray3 ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, m4x4 viewproj)
+Ray3 ray_from_screen_position(vec2 position, f32 screen_width, f32 screen_height, m4x4 viewproj)
 {
     Ray3 result = {};
 
@@ -1161,11 +1110,11 @@ Ray3 ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, 
     m4x4 inv_viewproj = inverse(viewproj);
 
     // @Temporary
-    v4 near_clip = v4{x, y, _NEAR_Z, 1.f};
-    v4 far_clip  = v4{x, y,  _FAR_Z, 1.f};
+    vec4 near_clip = vec4{x, y, _NEAR_Z, 1.f};
+    vec4 far_clip  = vec4{x, y,  _FAR_Z, 1.f};
 
-    v4 near_p = inv_viewproj*near_clip;
-    v4 far_p  = inv_viewproj*far_clip;
+    vec4 near_p = inv_viewproj*near_clip;
+    vec4 far_p  = inv_viewproj*far_clip;
 
     near_p.xyz = near_p.xyz / near_p.w;
     far_p.xyz  = far_p.xyz  / far_p.w;
@@ -1176,12 +1125,12 @@ Ray3 ray_from_screen_position(v2 position, f32 screen_width, f32 screen_height, 
     return result;
 }
 
-bool ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out) {
-    v3  n = plane_normal;
+bool ray_plane_intersect(Ray3 ray, vec3 plane_normal, f32 plane_height, vec3* out) {
+    vec3  n = plane_normal;
     f32 d = plane_height;
 
-    v3 o = ray.origin;
-    v3 v = ray.direction;
+    vec3 o = ray.origin;
+    vec3 v = ray.direction;
 
     f32 t = 0.f;
     f32 denom = dot(v, n);
@@ -1198,19 +1147,19 @@ bool ray_plane_intersect(Ray3 ray, v3 plane_normal, f32 plane_height, v3* out) {
 
 Xform::Xform()
 {
-    translation = v3(0.f, 0.f, 0.f);
+    translation = vec3(0.f, 0.f, 0.f);
     rotation    = Quaternion(1.f, 0.f, 0.f, 0.f);
-    scale       = v3(1.f, 1.f, 1.f);
+    scale       = vec3(1.f, 1.f, 1.f);
 }
 
 Xform to_xform(m4x4 m)
 {
     Xform xform;
 
-    v3 translation = v3(m._14, m._24, m._34);
-    v3 scale       = v3(length(v3(m._11, m._21, m._31)),
-                        length(v3(m._12, m._22, m._32)),
-                        length(v3(m._13, m._23, m._33)));
+    vec3 translation = vec3(m._14, m._24, m._34);
+    vec3 scale       = vec3(length(vec3(m._11, m._21, m._31)),
+                        length(vec3(m._12, m._22, m._32)),
+                        length(vec3(m._13, m._23, m._33)));
 
     m4x4 r = m;
     r._11 /= scale.x;
@@ -1273,17 +1222,17 @@ Xform to_xform(m4x4 m)
 
 // Graphics
 //
-m4x4 look_to_lh(v3 from, v3 to, v3 up) {
+m4x4 look_to_lh(vec3 from, vec3 to, vec3 up) {
     Assert(!is_zero(to));
     Assert(!is_inf(to));
     Assert(!is_zero(up));
     Assert(!is_inf(up));
 
-    v3 Z = normalize(to);
-    v3 X = normalize(cross(up, Z));
-    v3 Y = normalize(cross(Z, X));
+    vec3 Z = normalize(to);
+    vec3 X = normalize(cross(up, Z));
+    vec3 Y = normalize(cross(Z, X));
 
-    v3 T = from;
+    vec3 T = from;
 
     m4x4 M;
 
@@ -1310,18 +1259,18 @@ m4x4 look_to_lh(v3 from, v3 to, v3 up) {
     return M;
 }
 
-m4x4 look_to_rh(v3 from, v3 to, v3 up) {
+m4x4 look_to_rh(vec3 from, vec3 to, vec3 up) {
     return look_to_lh(from, -to, up);
 }
 
-m4x4 look_at_lh(v3 from, v3 at, v3 up) {
-    v3 to = at - from;
+m4x4 look_at_lh(vec3 from, vec3 at, vec3 up) {
+    vec3 to = at - from;
     m4x4 M = look_to_lh(from, to, up);
     return M;
 }
 
-m4x4 look_at_rh(v3 from, v3 at, v3 up) {
-    v3 neg_to = from - at;
+m4x4 look_at_rh(vec3 from, vec3 at, vec3 up) {
+    vec3 neg_to = from - at;
     m4x4 M = look_to_lh(from, neg_to, up);
     return M;
 }
@@ -1384,7 +1333,7 @@ m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
     return M;
 }
 
-u32 pack_rgba(v4 rgba) {
+u32 pack_rgba(vec4 rgba) {
     u32 r = u32(rgba.x * 255.0f + 0.5f);
     u32 g = u32(rgba.y * 255.0f + 0.5f);
     u32 b = u32(rgba.z * 255.0f + 0.5f);
@@ -1393,8 +1342,8 @@ u32 pack_rgba(v4 rgba) {
     return (r << 0) | (g << 8) | (b << 16) | (a << 24);
 }
 
-v4 unpack_rgba(u32 rgba) {
-    return v4{
+vec4 unpack_rgba(u32 rgba) {
+    return vec4{
         f32((rgba >>  0) & 0xff),
         f32((rgba >>  8) & 0xff),
         f32((rgba >> 16) & 0xff),

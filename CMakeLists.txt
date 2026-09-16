@@ -24,11 +24,16 @@ set(CMAKE_C_FLAGS_RELEASE          "/O2")
 set(CMAKE_CXX_FLAGS_RELEASE        "/O2")
 set(CMAKE_EXE_LINKER_FLAGS_DEBUG   "/DEBUG /INCREMENTAL:NO /OPT:REF")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/DEBUG /INCREMENTAL:NO /OPT:REF")
+if (RTS_PROFILE)
+    set(CMAKE_C_FLAGS_RELEASE          "/Od")
+    set(CMAKE_CXX_FLAGS_RELEASE        "/Od")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/DEBUG /INCREMENTAL:NO /OPT:NOREF,NOICF")
+endif()
 string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT rts_ipo_supported LANGUAGES C CXX)
-if (rts_ipo_supported)
+if (rts_ipo_supported AND NOT RTS_PROFILE)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
@@ -107,10 +112,11 @@ add_library(rts_engine STATIC
 
     src/shader_compiler/dxc/dxc.cpp
 
-    src/audio.cpp
+    src/asset/asset.cpp
+
+    src/audio/audio.cpp
+
     src/game.cpp
-    src/input.cpp
-    src/serializer.cpp
 
     src/shared.cpp
 )

@@ -36,7 +36,7 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
 
     f32 fov = pi32 * 0.5f;
     f32 aspect_ratio = (f32)gfx->info.width / (f32)gfx->info.height;
-    v3 dir = (y_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
+    vec3 dir = (y_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
 
     result.position  = V4(camera->position, 1.f);
     result.view      = look_to_rh(camera->position, dir, WORLD_UP);
@@ -64,7 +64,7 @@ static void r_pass_scene(Game_State *g)
     {
         {
             entity_dfs(g, g->root, [](Game_State *g, Entity *E, u64 i) {
-                Material *material = r_material_from_guid(E->material);
+                Material *material = r_material_from_guid(E->asset_ids[ASSET_MATERIAL]);
                 gfx_set_pipeline(material->pipeline);
 
                 // Upload arguments
@@ -73,14 +73,14 @@ static void r_pass_scene(Game_State *g)
                 memcpy(&args->transform, &m, sizeof(args->transform));
 
                 // Upload material
-                Material *mat   = r_material_from_guid(E->material);
+                Material *mat   = r_material_from_guid(E->asset_ids[ASSET_MATERIAL]);
                 GPU_Material sm   = to_gpu_material(mat);
                 GPU_Material *dst = (GPU_Material *)material_ptr + i;
                 memcpy(dst, &sm, sizeof(sm));
                 args->material_id = i;
 
                 // Upload constants
-                GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
+                GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->asset_ids[ASSET_MESH]);
 
                 if (mesh) {
                     Constants c = {};
@@ -240,6 +240,8 @@ void r_init(void *native_window_handle)
             }
         }
     }
+
+    atomic_store(&r->initted, true);
 }
 
 void r_shutdown()
