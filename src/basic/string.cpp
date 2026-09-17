@@ -410,14 +410,14 @@ utf8_match(String a, String b, Str_Match_Flags flags)
         result = 1;
         for(s64 i = 0; i < a.len; i += 1)
         {
-            b32 match = (a.str[i] == b.str[i]);
+            b32 match = (a[i] == b[i]);
             if (flags & STR_MATCH_CASE_INSENSITIVE)
             {
-                match |= (to_lower(a.str[i]) == to_lower(b.str[i]));
+                match |= (to_lower(a[i]) == to_lower(b[i]));
             }
             if (flags & STR_MATCH_SLASH_INSENTISIVE)
             {
-                match |= (to_forward_slash(a.str[i]) == to_forward_slash(b.str[i]));
+                match |= (to_forward_slash(a[i]) == to_forward_slash(b[i]));
             }
             if (match == 0)
             {
@@ -489,24 +489,24 @@ utf8_path_chop_last_slash(String string)
 b32 equal_nocase(String a, String b) {
     if ( a.len != b.len ) return false;
     for ( s64 i = 0; i < a.len; ++i ) {
-        if ( to_lower(a.str[i]) != to_lower(b.str[i]) )  return false;
+        if ( to_lower(a[i]) != to_lower(b[i]) )  return false;
     }
     return true;
 }
 
-String eat_spaces_from_left( String _s ) {
+String eat_spaces( String _s ) {
     String s = _s;
     while ( s.len > 0 && *s.str ) {
-        if ( (s.str[0] != ' ') && (s.str[0] != 9) ) break;
+        if ( (s[0] != ' ') && (s[0] != 9) ) break;
         advance(&s, 1);
     }
 
     return s;
 }
 
-String eat_spaces_from_right( String _s ) {
+String eat_trailing_spaces( String _s ) {
     String s = _s;
-    while (s.len > 0 && ((s.str[s.len - 1] == ' ') || (s.str[s.len - 1] == 9))) {
+    while (s.len > 0 && ((s[s.len - 1] == ' ') || (s[s.len - 1] == 9))) {
         s.len -= 1;
     }
 
@@ -516,8 +516,8 @@ String eat_spaces_from_right( String _s ) {
 String eat_until_space( String _s ) {
     String s = _s;
     while ( s.len > 0 && *s.str ) {
-        if (s.str[0] == ' ') break;
-        if (s.str[0] == 9  ) break;
+        if (s[0] == ' ') break;
+        if (s[0] == 9  ) break;
         advance(&s, 1);
     }
     return s;
@@ -557,7 +557,7 @@ String slice(String s, s64 index, s64 count) {
 
 static bool is_any(u8 c, String chars) {
     for (s64 i = 0; i < chars.len; ++i) {
-        if (c == chars.str[i])  return true;
+        if (c == chars[i])  return true;
     }
     return false;
 }
@@ -566,7 +566,7 @@ s64 find_index_from_left(String s, u8 byte, s64 start_index) { // @Speed: SIMD
     s64 cursor = start_index;
     
     while ( cursor < s.len ) {
-        if ( s.str[cursor] == byte ) return cursor;
+        if ( s[cursor] == byte ) return cursor;
         cursor += 1;
     }
 
@@ -576,7 +576,7 @@ s64 find_index_from_left(String s, u8 byte, s64 start_index) { // @Speed: SIMD
 s64 find_index_from_right(String s, u8 byte) {
     s64 cursor = s.len - 1;
     while ( cursor >= 0 ) {
-        if ( s.str[cursor] == byte ) return cursor;
+        if ( s[cursor] == byte ) return cursor;
         cursor -= 1;
     }
 
@@ -586,7 +586,7 @@ s64 find_index_from_right(String s, u8 byte) {
 s64 find_index_of_any_from_left(String s, String bytes, s64 start_index) {
     s64 cursor = start_index;
     while ( cursor < s.len ) {
-        if ( is_any(s.str[cursor], bytes) ) return cursor;
+        if ( is_any(s[cursor], bytes) ) return cursor;
         cursor += 1;
     }
 
@@ -596,39 +596,52 @@ s64 find_index_of_any_from_left(String s, String bytes, s64 start_index) {
 s64 find_index_of_any_from_right(String s, String bytes) {
     s64 cursor = s.len - 1;
     while ( cursor >= 0 ) {
-        if ( is_any(s.str[cursor], bytes) )  return cursor;
+        if ( is_any(s[cursor], bytes) )  return cursor;
         cursor -= 1;
     }
 
     return -1;
 }
 
-b32 split_from_left(String s, u8 byte, String *out_left, String *out_right) {
+Triplet<b32, String, String> split_from_left(String s, u8 byte) {
     s64 index = find_index_from_left(s, byte);
-    if ( index == -1 ) return false;
+    if ( index == -1 ) return { false, {}, {} };
 
-    *out_left  = slice(s, 0, index);
-    *out_right = slice(s, index + 1, s.len - index - 1);
-    return true;
+    String left  = slice(s, 0, index);
+    String right = slice(s, index + 1, s.len - index - 1);
+    return { true, left, right };
 }
 
-b32 split_from_right(String s, u8 byte, String *out_left, String *out_right) {
+Triplet<b32, String, String> split_from_right(String s, u8 byte) {
     s64 index = find_index_from_right(s, byte);
-    if ( index == -1 ) return false;
+    if ( index == -1 ) return { false, {}, {} };
 
-    *out_left  = slice(s, 0, index);
-    *out_right = slice(s, index + 1, s.len - index - 1);
-    return true;
+    String left  = slice(s, 0, index);
+    String right = slice(s, index + 1, s.len - index - 1);
+    return { true, left, right };
 }
 
 Triplet<s64, b32, String> int_from_string(String t, s64 base) 
 {
     Assert( base == 16 || base <= 10 );
 
-    String s = eat_spaces_from_left(t);
+    String s = eat_spaces(t);
     // if ( !*s.str ) return { 0, false, {} };
 
     s64 sign = 1;
+
+    // Parse sign
+    if ( s[0] == '-' )
+    {
+        sign = -1;
+        advance(&s, 1);
+        s = eat_spaces(s);
+    }
+    else if ( s[0] == '+' )
+    {
+        advance(&s, 1);
+        s = eat_spaces(s);
+    }
 
     s64 sum    = 0;
     s64 cursor = 0;
@@ -637,7 +650,7 @@ Triplet<s64, b32, String> int_from_string(String t, s64 base)
     {
         while ( cursor < s.len ) 
         {
-            u8 c = s.str[cursor];
+            u8 c = s[cursor];
 
             u8 value;
             if ( is_digit(c) )               value = c - '0';
@@ -655,7 +668,7 @@ Triplet<s64, b32, String> int_from_string(String t, s64 base)
     {
         while ( cursor < s.len )
         {
-            u8 c = s.str[cursor];
+            u8 c = s[cursor];
             if ( !is_digit(c) ) break;
 
             u8 digit = c - '0';
@@ -682,10 +695,10 @@ Pair<String, b32> path_extension(String path) {
 
     if ( index < 0 ) return { {}, false };
 
-    if ( path.str[index] != '.' ) return { {}, false };
+    if ( path[index] != '.' ) return { {}, false };
 
     // Dot right after slash
-    u8 previous = path.str[index - 1];
+    u8 previous = path[index - 1];
     if ( index == 0 ) return { {}, false }; // Path can't start with '.' I guess... but let me just be pedantic about it.
     if ( previous == '\\' || previous == '/' ) {
         return { {}, false };
@@ -694,7 +707,7 @@ Pair<String, b32> path_extension(String path) {
     // Two dots after slash
     if ( previous == '.' ) {
         if ( index == 1 ) return { {}, false };
-        u8 two_previous = path.str[index - 2];
+        u8 two_previous = path[index - 2];
         if ( two_previous == '\\' || two_previous == '/' ) {
             return { {}, false };
         }
@@ -742,14 +755,14 @@ String tprint(char *fmt, ...) {
     return result;
 }
 
-static String tprintv(String fmt, va_list args) {
-    u8 *cfmt = alloc(fmt.len + 1, tctx.temp);
-    memcpy(cfmt, fmt.str, fmt.len);
-    cfmt[fmt.len] = 0;
-    return tprint((char*)cfmt, args);
-}
-
 String tprint(String fmt, ...) {
+    auto tprintv = [](String fmt, va_list args) {
+        u8 *cfmt = alloc(fmt.len + 1, tctx.temp);
+        memcpy(cfmt, fmt.str, fmt.len);
+        cfmt[fmt.len] = 0;
+        return tprint((char*)cfmt, args);
+    };
+
     va_list args;
     va_start(args, fmt);
     String result = tprintv(fmt, args);

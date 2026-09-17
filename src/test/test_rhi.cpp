@@ -240,6 +240,60 @@ void r_pipeline_destroy(Guid id)
     gfx_pipeline_destroy(id);
 }
 
+void foo()
+{
+    Text_File_Handler handler = {};
+    String s = read_entire_file(tprint(S("%Sdoggo.material"), shared->data_path), tctx.temp);
+    handler.start(s);
+
+    while (1) 
+    {
+        if ( auto [line, found] = handler.consume_next_line();
+             found )
+        {
+            auto [field, rhs] = break_by_spaces(line);
+            auto [colon, val] = break_by_spaces(rhs);
+
+            if ( field == S("albedo_texture") ||
+                 field == S("orm_texture") )
+            {
+                if (colon != S(":")) {
+                    log_error(S("Expected ':' at line: %d, but encountered '%S'"), handler.line_number, colon);
+                    return;
+                }
+
+                if (val.len <= 2) { 
+                    log_error(S("Expected string at line: %d"), handler.line_number);
+                    return;
+                }
+
+                if ( !begins_with(val, S("\"")) ) {
+                    log_error(S("Expected '\"' at the beginning of the string, at line: %d, but encountered '%S'"), handler.line_number, val[0]);
+                    return;
+                }
+
+                if ( !ends_with(val, S("\"")) ) {
+                    log_error(S("Expected '\"' at the end of the string, at line: %d, but encountered '%S'"), handler.line_number, val[val.len - 1]);
+                    return;
+                }
+
+                // Trim "
+                String s = val;
+                s.len -= 2;
+                s.str += 1;
+            }
+            else
+            {
+                log_error(S("Unexpected field name '%S', at line: %d"), field, handler.line_number);
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
 int main_entry(int argc, char **argv)
 {
     // @Temporary
@@ -284,14 +338,6 @@ int main_entry(int argc, char **argv)
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
 
 
-    {
-        Text_File_Handler handler = {};
-        String s = read_entire_file(tprint(S("%Sdoggo.material"), shared->data_path), tctx.temp);
-        handler.start(s);
-
-        log_print(S("%d"), handler.version);
-    }
-    
 
     {
         gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
@@ -416,6 +462,7 @@ int main_entry(int argc, char **argv)
         }
     }
 
+    foo();
     
     /* Main Loop */
     while (!should_close) {

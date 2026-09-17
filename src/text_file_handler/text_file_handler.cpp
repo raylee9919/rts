@@ -4,12 +4,13 @@
 #include "./text_file_handler.h"
 #include "basic/log.h"
 
-void Text_File_Handler::start(String in_file_data) {
+void Text_File_Handler::start(String in_file_data) 
+{
     file_data = in_file_data;
 
-    if ( do_version_number ) 
+    if ( parse_version_number ) 
     {
-        auto [line, found] = consume_next_line(&file_data);
+        auto [line, found] = ::consume_next_line(&file_data);
         line_number += 1;
 
         if ( !found ) 
@@ -43,42 +44,76 @@ void Text_File_Handler::start(String in_file_data) {
     }
 }
 
-Pair<String, b32> consume_next_line(String *sp) {
-    // To find the end of the line, we look for a linefeed character. 
-    // We will trim a carriage return off the end if there is one there also. 
-    // Thus this works on both 'DOS' and 'Unix'-style files.
+Pair<String, b32> Text_File_Handler::consume_next_line()
+{
+    while (true)
+    {
+        auto [line, found] = ::consume_next_line(&file_data);
+        if (!found) return { {}, false };
 
-    String s = *sp;
-    String line, remainder;
-    b32 found = split_from_left(s, 10, &line, &remainder); // LF
+        line_number += 1;
 
-    if ( !found ) {
-        // This is the last line; there may not have been a LF after that, 
-        // but we still want to handle that data, so we return true if there was 
-        // a non-zero amount of stuff there.
+        line = eat_spaces(line);
 
-        sp->str = 0;
+        if (!line)
+        {
+            if ( auto_skip_blank_lines ) continue;
+            return { {}, true };
+        }
 
-        return { s, s.len > 0};
+        if ( strip_comments_from_ends_of_lines )
+        {
+            auto [found, left, right] = split_from_left(line, comment_character);
+            if (found)
+            {
+                line = left;
+                if (line.len == 0) continue;
+            }
+        }
+        else
+        {
+            if ( line[0] == comment_character ) continue;
+        }
+
+        line = eat_trailing_spaces(line);
+        Assert( line.len > 0 );
+
+        return { line, found };
     }
-
-    // Chop the characters we are going to return from 'sp', 
-    // which holds the remaining file data.
-    advance(sp, line.len + 1);
-
-    if ( line.str[line.len] ) {
-        if ( line.str[line.len - 1] == 13 )  line.len -= 1; // If there's a CR at the end, remove it by decrementing the string's length.
-    }
-
-    return { line, true };
 }
 
-Pair<String, String> break_by_spaces(String line) {
+Pair<String, b32> consume_next_line(String *pstr) 
+{
+    String s = *pstr;
+    auto [found, left, right] = split_from_left(s, 10); // LF
+
+    if (!found) // You are on the last line
+    {
+        *pstr = S("");
+
+        return { s, s.len > 0 };
+    }
+
+    advance(pstr, left.len + 1);
+
+    if (left)
+    {
+        if ( left[left.len - 1] == 13 ) // If 'CR' is at the end, remove it by decrementing the string's length.
+        {
+            left.len -= 1;
+        }
+    }
+
+    return { left, true };
+}
+
+Pair<String, String> break_by_spaces(String line) 
+{
     String left = line;
     String right = eat_until_space(line);
     left.len -= right.len;
 
-    right = eat_spaces_from_left(right);
+    right = eat_spaces(right);
 
     return { left, right };
 }

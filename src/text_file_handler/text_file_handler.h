@@ -9,7 +9,9 @@
 struct Text_File_Handler {
     u8 comment_character = '#';
 
-    b32 do_version_number = true;
+    b32 parse_version_number              = true;
+    b32 auto_skip_blank_lines             = true;
+    b32 strip_comments_from_ends_of_lines = true;
 
     s64 version = -1;
 
@@ -19,6 +21,7 @@ struct Text_File_Handler {
 
 
     void start(String in_file_data);
+    Pair<String, b32> consume_next_line();
 };
 
 Pair<String, b32> consume_next_line(String *sp);

@@ -35,6 +35,14 @@ struct String {
         if (len != other.len)  return false;
         return memcmp(str, other.str, len) == 0;
     }
+
+    bool operator != (const String& other) {
+        if (len != other.len)  return true;
+        return memcmp(str, other.str, len) != 0;
+    }
+
+    u8 operator [] (s64 i) { Assert(i < len); return str[i]; }
+    explicit operator bool() const { return str && (*str) && len > 0; }
 };
 
 struct Utf16 {
@@ -123,8 +131,8 @@ String  advance(String  s, s64 amount = 1);
 
 b32     equal_nocase(String a, String b);
 
-String  eat_spaces_from_left( String s );
-String  eat_spaces_from_right( String s );
+String  eat_spaces( String s );
+String  eat_trailing_spaces( String s );
 String  eat_until_space( String s );
 
 b32     begins_with(String s, String prefix);
@@ -136,8 +144,8 @@ s64     find_index_from_right(String s, u8 byte);
 s64     find_index_of_any_from_left(String s, String bytes, s64 start_index = 0);
 s64     find_index_of_any_from_right(String s, String bytes);
 
-b32     split_from_left(String s, u8 byte, String *out_left, String *out_right);
-b32     split_from_right(String s, u8 byte, String *out_left, String *out_right);
+Triplet<b32, String, String>  split_from_left(String s, u8 byte);
+Triplet<b32, String, String>  split_from_right(String s, u8 byte);
 
 Triplet<s64, b32, String> int_from_string(String s, s64 base = 10);
 
