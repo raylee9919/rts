@@ -43,7 +43,7 @@ void game_init(f64 time_init) {
     Entity *root = entity_alloc(game_state);
     game_state->root = handle_from_entity(game_state, root);
 
-    log(LOG_INFO, S("Initialized game state."));
+    log_info(S("Initialized game state."));
 }
 
 void game_deinit() {
@@ -51,7 +51,7 @@ void game_deinit() {
 
     os_release(g->storage.base, g->storage.reserved);
 
-    log(LOG_INFO, S("Shutdown game states."));
+    log_info(S("Shutdown game states."));
 }
 
 void game_copy(Game_State *dst, Game_State *src) {

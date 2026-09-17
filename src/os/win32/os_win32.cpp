@@ -837,7 +837,7 @@ void os_window_dealloc(OS_Handle handle) {
     }
 }
 
-OS_Handle os_window_create(int w, int h, String name) {
+OS_Handle window_create(int w, int h, String name) {
     Temporary_Arena scratch = scratch_begin();
     defer(scratch_end(scratch));
 

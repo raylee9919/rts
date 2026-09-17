@@ -574,11 +574,17 @@ String tprint(char *fmt, ...) {
     return result;
 }
 
+static String tprintv(String fmt, va_list args) {
+    u8 *cfmt = alloc(fmt.len + 1, tctx.temp);
+    memcpy(cfmt, fmt.str, fmt.len);
+    cfmt[fmt.len] = 0;
+    return tprint((char*)cfmt, args);
+}
+
 String tprint(String fmt, ...) {
-    String result = {};
     va_list args;
     va_start(args, fmt);
-    result = tprint((char *)fmt.str, args);
+    String result = tprintv(fmt, args);
     va_end(args);
     return result;
 }

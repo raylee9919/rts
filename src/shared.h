@@ -4,6 +4,7 @@
 #define RTS_SHARED_H
 
 #include "basic/string.h"
+#include "os/os.h"
 
 struct Arena;
 struct Shader_Compiler;
@@ -11,6 +12,9 @@ struct Shader_Compiler;
 struct Shared {
     /* Bundle things that ought to share the lifetime throughout the application */
     Allocator arena;
+
+    /* Window */
+    OS_Handle window;
     
     /* Paths */
     String data_path;

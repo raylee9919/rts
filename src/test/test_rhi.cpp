@@ -28,7 +28,6 @@
 #define MAX_MATERIALS 1024
 
 //
-OS_Handle window = {};
 b32 should_close = false;
 
 //
@@ -262,13 +261,13 @@ int main_entry(int argc, char **argv)
     game_init(time_old);
 
     // Open window
-    window = os_window_create(1920, 1080, S("RHI"));
+    shared->window = window_create(1920, 1080, S("RHI"));
 
     // Init render ring
     render_ring_init();
 
     // Launch render thread
-    Thread render_thread = thread_launch(r_entry, get_native_window_handle(window));
+    Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
 
     // Launch audio thread
     Thread audio_thread = thread_launch(audio_entry, NULL);
@@ -414,7 +413,7 @@ int main_entry(int argc, char **argv)
 
         // Gaming experience in its finesse
         if (!gfx_wait_for_frame_waitable_object()) {
-            log(LOG_WARNING, S("Waiting on frame latency waitable object failed."));
+            log_warning(S("Waiting on frame latency waitable object failed."));
         }
 
 

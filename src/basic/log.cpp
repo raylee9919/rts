@@ -3,11 +3,10 @@
 #include "basic/log.h"
 #include "basic/string.h"
 
-#include <stdarg.h>
 #include <stdio.h>
 
 
-void _log_internal(Log_Level level, String fmt, String file, int line, ...)
+void _log_internal(Log_Level level, String msg, String file, int line)
 {
     {
         String str_level = {};
@@ -29,12 +28,7 @@ void _log_internal(Log_Level level, String fmt, String file, int line, ...)
     }
 
     {
-        va_list args;
-        va_start(args, line);
-        String str = tprint((char *)fmt.str, args);
-        va_end(args);
-
-        printf("%s", str.str);
+        printf("%.*s", (int)msg.len, msg.str);
     }
 
     printf("\n");
