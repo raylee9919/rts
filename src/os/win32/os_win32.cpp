@@ -361,13 +361,22 @@ void file_close(File *file) {
     }
 }
 
-bool file_move(String name_old, String name_new) {
+b32 file_move(String name_old, String name_new) {
     LPCWSTR c_name_old = (LPCWSTR)to_utf16(tctx.temp, name_old).str;
     LPCWSTR c_name_new = (LPCWSTR)to_utf16(tctx.temp, name_new).str;
     return MoveFileW(c_name_old, c_name_new);
 }
 
-bool file_delete(String name) {
+b32 file_copy(String src, String dst) {
+    LPCWSTR src16 = (LPCWSTR)to_utf16(tctx.temp, src).str;
+    LPCWSTR dst16 = (LPCWSTR)to_utf16(tctx.temp, dst).str;
+
+    BOOL success = CopyFileW(src16, dst16, 0);
+    if ( success ) return false;
+    return true;
+}
+
+b32 file_delete(String name) {
     LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, name).str;
     return DeleteFileW(c_name) != 0; // @Todo(swL): Error-message
 }
@@ -515,13 +524,19 @@ b32 file_is_valid(File file) {
     return file.handle != NULL;
 }
 
-b32 directory_exists(String name) {
-    LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, name).str;
-    DWORD attrib = GetFileAttributesW(c_name);
-    bool result = (attrib != INVALID_FILE_ATTRIBUTES) && (attrib & FILE_ATTRIBUTE_DIRECTORY);
-    return result;
+b32 file_exists(String path) {
+    LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, path).str;
+    return GetFileAttributesW(c_name) != INVALID_FILE_ATTRIBUTES;
 }
 
+b32 is_directory(String path) {
+    LPCWSTR c_name = (LPCWSTR)to_utf16(tctx.temp, path).str;
+    DWORD attrib = GetFileAttributesW(c_name);
+    if (attrib == INVALID_FILE_ATTRIBUTES)  return false;
+
+    b32 is_dir = ( attrib & FILE_ATTRIBUTE_DIRECTORY );
+    return is_dir;
+}
 
 //
 // GFX

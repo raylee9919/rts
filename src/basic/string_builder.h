@@ -4,25 +4,38 @@
 #define RTS_STRING_BUILDER_H
 
 #include "basic/allocator.h"
+#include "basic/string.h"
 
-#define STRING_BUILDER_HEADER_SIZE  sizeof(String_Builder::Header)
-#define STRING_BUILDER_BUFFER_SIZE  4096 - STRING_BUILDER_HEADER_SIZE
+#define STRING_BUILDER_BUFFER_SIZE     4096
 
 struct String_Builder {
-    /* |----Header----|------------Buffer------------| */
-    struct Header {
+    struct Buffer {
         s64     count;
         s64     allocated;
-        Header *next;
+        Buffer *next;
     };
 
     Allocator allocator;
 
-    Header   *current_buffer;
-    u8        initial_bytes[STRING_BUILDER_BUFFER_SIZE];
+    s64       subsequent_buffer_size;
+
+    Buffer   *current_buffer;
+    u8        initial_bytes[sizeof(String_Builder::Buffer) + STRING_BUILDER_BUFFER_SIZE];
 };
 
-void init_string_builder(String_Builder *builder, Allocator allocator);
+void    init(String_Builder *builder, Allocator allocator, s64 buffer_size = -1);
+
+void    append(String_Builder *builder, u8 *str, s64 size);
+
+void    append(String_Builder *builder, String str);
+
+void    append(String_Builder *builder, u8 byte);
+
+s64     string_length(String_Builder *builder);
+
+void    reset(String_Builder *builder);
+
+String  flush(String_Builder *builder, bool do_reset = true);
 
 
 #endif // RTS_STRING_BUILDER_H

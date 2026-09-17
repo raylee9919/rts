@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#ifndef RTS_OS_H
-#define RTS_OS_H
+#ifndef OPERATING_SYSTEM_H
+#define OPERATING_SYSTEM_H
 
 #include "basic/core.h"
 #include "basic/arena.h"
@@ -508,9 +508,11 @@ File file_open(String name, bool for_writing = false, bool keep_existing_content
 
 void file_close(File *file);
 
-bool file_move(String name_old, String name_new);
+b32  file_move(String name_old, String name_new);
 
-bool file_delete(String name);
+b32  file_copy(String src, String dst);
+
+b32  file_delete(String name);
 
 // Returns true on success.
 b32 file_read(File file, void *vdata, s64 bytes_to_read);
@@ -534,7 +536,10 @@ b32 file_is_valid(File file);
 
 b32 delete_directory(String dirname);
 
-b32 directory_exists(String path);
+b32 file_exists(String path);
+
+b32 is_directory(String path);
+
 
 
 // GFX
@@ -627,4 +632,4 @@ void parallel_for(Thread_Group *group, s64 count, F&& func) {
 }
 
 
-#endif // RTS_OS_H
+#endif // OPERATING_SYSTEM_H
