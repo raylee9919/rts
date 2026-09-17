@@ -81,53 +81,49 @@ String str_copy(String utf, Allocator allocator) {
 //
 // Helper Functions.
 //
-bool is_alpha(int c) {
+u8 to_upper(u8 c) {
+    return (c >= 'a' && c <= 'z') ? (c + 'A' - 'a') : c;
+}
+
+u8 to_lower(u8 c) {
+    return (c >= 'A' && c <= 'Z') ? (c + 'a' - 'A') : c;
+}
+
+b32 is_alpha(u8 c) {
     c &= 0xdf;
     bool result = ((c >= 'A') && (c <= 'Z'));
     return result;
 }
 
-bool is_digit(int c) {
-    bool result = (c >= 48 && c <= 57);
-    return result;
+b32 is_digit(u8 c) {
+    return c >= '0' && c <= '9';
 }
 
-bool is_hexdigit(int c) {
-    return (((c >= '0') && (c <= '9')) || (((c & 0xdf) >= 'A') && ((c & 0xdf) <= 'F')));
-}
-
-bool is_alnum(int c) {
+b32 is_alnum(u8 c) {
     if (is_alpha(c)) return true;
     if (is_digit(c)) return true;
     return false;
 }
 
-bool is_whitespace(int c) {
-    return ( (c == ' ')  || (c == '\t') || (c == '\v') ||
-             (c == '\n') || (c == '\f') || (c == '\r') );
+b32 is_space(u8 c) {
+    return (c == ' ')  || (c == '\n') || (c == '\r') || (c == '\t');
 }
 
-int atoi(int c) {
-    return c - '0';
+void advance(String *s, s64 amount) {
+    Assert(amount >= 0);
+    Assert(s->len >= amount);
+    s->len -= amount;
+    s->str += amount;
 }
 
-int atoh(int c) {
-    if (is_digit(c)) 
-        return atoi(c);
-    else 
-        return 10 + ((c & 0xdf) - 'A');
-}
+String advance(String s, s64 amount) {
+    Assert(amount > 0);
+    Assert(s.len >= amount);
 
-u8 to_uppercase(u8 c) {
-    return (c >= 'a' && c <= 'z') ? ('A' + (c - 'a')) : c;
-}
-
-u8 to_lowercase(u8 c) {
-    return (c >= 'A' && c <= 'Z') ? ('a' + (c - 'A')) : c;
-}
-
-u8 to_forward_slash(u8 c) {
-    return (c == '\\' ? '/' : c);
+    String t;
+    t.len = s.len - amount;
+    t.str = s.str + amount;
+    return t;
 }
 
 
@@ -403,6 +399,11 @@ Utf16 to_utf16(Allocator allocator, String in) {
 b32
 utf8_match(String a, String b, Str_Match_Flags flags)
 {
+    auto to_forward_slash = [](u8 c) -> u8 {
+        if (c == '\\')  return '/';
+        else return c;
+    };
+
     b32 result = 0;
     if (a.len == b.len || flags & STR_MATCH_RIGHT_SIDE_SLOPPY)
     {
@@ -412,7 +413,7 @@ utf8_match(String a, String b, Str_Match_Flags flags)
             b32 match = (a.str[i] == b.str[i]);
             if (flags & STR_MATCH_CASE_INSENSITIVE)
             {
-                match |= (to_lowercase(a.str[i]) == to_lowercase(b.str[i]));
+                match |= (to_lower(a.str[i]) == to_lower(b.str[i]));
             }
             if (flags & STR_MATCH_SLASH_INSENTISIVE)
             {
@@ -485,13 +486,40 @@ utf8_path_chop_last_slash(String string)
 }
 
 
+b32 equal_nocase(String a, String b) {
+    if ( a.len != b.len ) return false;
+    for ( s64 i = 0; i < a.len; ++i ) {
+        if ( to_lower(a.str[i]) != to_lower(b.str[i]) )  return false;
+    }
+    return true;
+}
 
-String eat_trailing_spaces(String _s) {
+String eat_spaces_from_left( String _s ) {
+    String s = _s;
+    while ( s.len > 0 && *s.str ) {
+        if ( (s.str[0] != ' ') && (s.str[0] != 9) ) break;
+        advance(&s, 1);
+    }
+
+    return s;
+}
+
+String eat_spaces_from_right( String _s ) {
     String s = _s;
     while (s.len > 0 && ((s.str[s.len - 1] == ' ') || (s.str[s.len - 1] == 9))) {
         s.len -= 1;
     }
 
+    return s;
+}
+
+String eat_until_space( String _s ) {
+    String s = _s;
+    while ( s.len > 0 && *s.str ) {
+        if (s.str[0] == ' ') break;
+        if (s.str[0] == 9  ) break;
+        advance(&s, 1);
+    }
     return s;
 }
 
@@ -534,23 +562,163 @@ static bool is_any(u8 c, String chars) {
     return false;
 }
 
-s64 find_index_of_any_from_right(String s, String bytes) {
+s64 find_index_from_left(String s, u8 byte, s64 start_index) { // @Speed: SIMD
+    s64 cursor = start_index;
+    
+    while ( cursor < s.len ) {
+        if ( s.str[cursor] == byte ) return cursor;
+        cursor += 1;
+    }
+
+    return -1;
+}
+
+s64 find_index_from_right(String s, u8 byte) {
     s64 cursor = s.len - 1;
-    while (cursor >= 0) {
-        if (is_any(s.str[cursor], bytes))  return cursor;
+    while ( cursor >= 0 ) {
+        if ( s.str[cursor] == byte ) return cursor;
         cursor -= 1;
     }
 
     return -1;
 }
 
+s64 find_index_of_any_from_left(String s, String bytes, s64 start_index) {
+    s64 cursor = start_index;
+    while ( cursor < s.len ) {
+        if ( is_any(s.str[cursor], bytes) ) return cursor;
+        cursor += 1;
+    }
+
+    return -1;
+}
+
+s64 find_index_of_any_from_right(String s, String bytes) {
+    s64 cursor = s.len - 1;
+    while ( cursor >= 0 ) {
+        if ( is_any(s.str[cursor], bytes) )  return cursor;
+        cursor -= 1;
+    }
+
+    return -1;
+}
+
+b32 split_from_left(String s, u8 byte, String *out_left, String *out_right) {
+    s64 index = find_index_from_left(s, byte);
+    if ( index == -1 ) return false;
+
+    *out_left  = slice(s, 0, index);
+    *out_right = slice(s, index + 1, s.len - index - 1);
+    return true;
+}
+
+b32 split_from_right(String s, u8 byte, String *out_left, String *out_right) {
+    s64 index = find_index_from_right(s, byte);
+    if ( index == -1 ) return false;
+
+    *out_left  = slice(s, 0, index);
+    *out_right = slice(s, index + 1, s.len - index - 1);
+    return true;
+}
+
+Triplet<s64, b32, String> int_from_string(String t, s64 base) 
+{
+    Assert( base == 16 || base <= 10 );
+
+    String s = eat_spaces_from_left(t);
+    // if ( !*s.str ) return { 0, false, {} };
+
+    s64 sign = 1;
+
+    s64 sum    = 0;
+    s64 cursor = 0;
+
+    if ( base == 16 )
+    {
+        while ( cursor < s.len ) 
+        {
+            u8 c = s.str[cursor];
+
+            u8 value;
+            if ( is_digit(c) )               value = c - '0';
+            else if ( c >= 'a' && c <= 'f' ) value = c - 'a' + 10;
+            else if ( c >= 'A' && c <= 'F' ) value = c - 'A' + 10;
+            else break;
+
+            sum *= (s64)base;
+            sum += sign * (s64)value;
+
+            cursor += 1;
+        }
+    }
+    else 
+    {
+        while ( cursor < s.len )
+        {
+            u8 c = s.str[cursor];
+            if ( !is_digit(c) ) break;
+
+            u8 digit = c - '0';
+            if ( digit >= base ) break;
+
+            sum *= (s64)base;
+            sum += sign * (s64)digit;
+
+            cursor += 1;
+        }
+    }
+
+    b32 success = ( cursor != 0 );
+    advance(&s, cursor);
+
+    return { sum, success, s };
+}
+
 //
 // Path
 //
+Pair<String, b32> path_extension(String path) {
+    s64 index = find_index_of_any_from_right(path, S(".\\/"));
+
+    if ( index < 0 ) return { {}, false };
+
+    if ( path.str[index] != '.' ) return { {}, false };
+
+    // Dot right after slash
+    u8 previous = path.str[index - 1];
+    if ( index == 0 ) return { {}, false }; // Path can't start with '.' I guess... but let me just be pedantic about it.
+    if ( previous == '\\' || previous == '/' ) {
+        return { {}, false };
+    }
+
+    // Two dots after slash
+    if ( previous == '.' ) {
+        if ( index == 1 ) return { {}, false };
+        u8 two_previous = path.str[index - 2];
+        if ( two_previous == '\\' || two_previous == '/' ) {
+            return { {}, false };
+        }
+    }
+
+    String ext = slice(path, index + 1, path.len - index - 1);
+
+    return { ext, true };
+}
+
 String path_strip_filename(String path) {
     s64 index = find_index_of_any_from_right(path, S("\\/"));
     if (index < 0)  return {};
     return slice(path, 0, index + 1);
+}
+
+String path_strip_extension(String path) {
+    auto [ext, found] = path_extension(path);
+
+    if ( !found ) return path;
+
+    String result = path;
+    result.len -= ext.len + 1;
+    return result;
 }
 
 String tprint(char *fmt, va_list args) {

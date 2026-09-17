@@ -8,6 +8,7 @@
 #include "basic/context.h"
 #include "math/math.h"
 #include "os/os.h"
+#include "text_file_handler/text_file_handler.h"
 #include "geometry/geogen.h"
 #include "asset/texture_v2.h"
 #include "rhi/rhi.h"
@@ -261,7 +262,7 @@ int main_entry(int argc, char **argv)
     game_init(time_old);
 
     // Open window
-    shared->window = window_create(1920, 1080, S("RHI"));
+    shared->window = window_create(1920, 1080, S("RTS"));
 
     // Init render ring
     render_ring_init();
@@ -281,6 +282,15 @@ int main_entry(int argc, char **argv)
     // Make a cube
     cube_mesh._64[0] = 7474; // @Temporary
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
+
+
+    {
+        Text_File_Handler handler = {};
+        String s = read_entire_file(tprint(S("%Sdoggo.material"), shared->data_path), tctx.temp);
+        handler.start(s);
+
+        log_print(S("%d"), handler.version);
+    }
     
 
     {
@@ -362,7 +372,7 @@ int main_entry(int argc, char **argv)
 
         // Load image
         doggo_guid = guid_generate();
-        String contents = read_entire_file(tprint(S("%S/../data/input/texture/doggo.png"), shared->data_path), tctx.temp);
+        String contents = read_entire_file(tprint(S("%S/../data/doggo.png"), shared->data_path), tctx.temp);
         Bitmap bitmap   = bitmap_import(contents.str, contents.len);
 
 

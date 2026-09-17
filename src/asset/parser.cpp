@@ -16,7 +16,7 @@ namespace Asset
     {
         while (p->cursor < p->end) {
             u8 c = *p->cursor;
-            if (!is_whitespace(c)) break;
+            if (!is_space(c)) break;
             p->cursor++;
         }
     }
@@ -44,7 +44,7 @@ namespace Asset
         while (p->cursor < p->end) {
             u8 c = peek(p);
             if (is_digit(c)) {
-                u32 num = atoi(c);
+                u32 num = c - '0';
                 result *= 10;
                 result += num;
                 p->cursor++;

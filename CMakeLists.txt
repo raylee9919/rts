@@ -115,6 +115,8 @@ add_library(rts_engine STATIC
 
     src/asset/asset.cpp
 
+    src/text_file_handler/text_file_handler.cpp
+
     src/audio/audio.cpp
 
     src/game.cpp

@@ -449,4 +449,19 @@ T* Construct(T* memory, Args&&... args) {
     return new (memory) T(static_cast<Args&&>(args)...);
 }
 
+// Pair
+template <typename T1, typename T2>
+struct Pair {
+    T1 x;
+    T2 y;
+};
+
+// Triple
+template <typename T1, typename T2, typename T3>
+struct Triplet {
+    T1 x;
+    T2 y;
+    T3 z;
+};
+
 #endif // RTS_BASIC_CORE_H

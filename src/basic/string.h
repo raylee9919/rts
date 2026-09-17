@@ -75,17 +75,6 @@ b32 string_equal(char *str1, u64 len1, char *str2);
 bool string_equal(const char *str1, char *str2, u64 len2);
 b32 string_equal(char *str1, char *str2);
 
-bool is_alpha(int c);
-bool is_digit(int c);
-bool is_hexdigit(int c);
-bool is_alnum(int c);
-bool is_whitespace(int c);
-int  atoi(int c);
-int  atoh(int c);
-u8   to_uppercase(u8 c);
-u8   to_lowercase(u8 c);
-u8   to_forward_slash(u8 c);
-
 //
 // Constructors
 //
@@ -123,11 +112,34 @@ String utf8_path_chop_last_slash(String string);
 
 
 /* Manipulation */
-String  eat_trailing_spaces(String s);
+u8      to_upper(u8 c);
+u8      to_lower(u8 c);
+b32     is_alpha(u8 c);
+b32     is_digit(u8 c);
+b32     is_alnum(u8 c);
+b32     is_space(u8 c);
+void    advance(String *s, s64 amount = 1);
+String  advance(String  s, s64 amount = 1);
+
+b32     equal_nocase(String a, String b);
+
+String  eat_spaces_from_left( String s );
+String  eat_spaces_from_right( String s );
+String  eat_until_space( String s );
+
 b32     begins_with(String s, String prefix);
 b32     ends_with(String s, String suffix);
 String  slice(String s, s64 index, s64 count);
+
+s64     find_index_from_left(String s, u8 byte, s64 start_index = 0);
+s64     find_index_from_right(String s, u8 byte);
+s64     find_index_of_any_from_left(String s, String bytes, s64 start_index = 0);
 s64     find_index_of_any_from_right(String s, String bytes);
+
+b32     split_from_left(String s, u8 byte, String *out_left, String *out_right);
+b32     split_from_right(String s, u8 byte, String *out_left, String *out_right);
+
+Triplet<s64, b32, String> int_from_string(String s, s64 base = 10);
 
 
 /* String Format */
@@ -136,8 +148,14 @@ String tprint(char *fmt, ...);
 String tprint(String fmt, ...);
 
 
-/* Path */
+/*    Path    */
+
+Pair<String, b32> path_extension(String path);
+
+// Returns a slice of the input string with file name removd, but including path separator.
 String path_strip_filename(String path);
+
+String path_strip_extension(String path);
 
 
 #endif // RTS_STRING_H
