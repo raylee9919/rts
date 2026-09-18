@@ -7,7 +7,7 @@
 #include "os/os.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
-#include "shaders/shared.h"
+#include "shared/shared.h"
 
 #define R_DEPTH_FORMAT  RHI_FORMAT_D32F
 #define R_COLOR_FORMAT  RHI_FORMAT_RGBA16F
@@ -112,5 +112,12 @@ GPU_Material  to_gpu_material(Material *material);
 
 
 
+void R_pipeline_create(Guid id,
+                       String shader_filepath, 
+                       R_Shading_Model shading_model);
+void R_pipeline_destroy(Guid id);
+
+void R_ring_init();
+void R_ring_deinit();
 
 #endif

@@ -2,47 +2,193 @@
 
 #include "asset/asset.h"
 #include "basic/context.h"
+#include "basic/log.h"
+#include "shared.h"
 
 Asset_System *asset_system;
 
-void asset_system_init() {
+static b32 asset_load( Guid id );
+
+void asset_system_init() 
+{
     Allocator heap = { crt_proc, nullptr };
     asset_system = (Asset_System *)alloc(sizeof(Asset_System), heap);
     Construct(asset_system);
     asset_system->heap = heap;
 
-    asset_system->asset_table.allocator = heap;
+    asset_system->asset_table.allocator        = heap;
+    asset_system->guid_to_short_name.allocator = heap;
+    asset_system->type_infos.allocator         = heap;
 }
 
-void asset_system_shutdown() {
+Array<String> asset_file_list(String path, 
+                              Allocator allocator, 
+                              b32 follow_directory_symlinks)
+{
+    Array<String> files = {};
+    files.allocator = allocator;
+
+    auto visitor = [](File_Visit_Info *info, void *user_data) {
+        auto *arr = (Array<String>*)user_data;
+        array_add(arr, copy_string(info->short_name, arr->allocator));
+    };
+
+    visit_files(path, true, &files, visitor, follow_directory_symlinks);
+
+    return files;
+}
+
+void asset_system_init_catalog()
+{
+    // Catalog
+    // Strings are allocated in the heap at the moment. 
+    // So when you free the entry from the table, you must 
+    // free the according string memory as well.
+    // @Robustness
+    Array<String> fl = asset_file_list(shared->data_path, asset_system->heap, true);
+    for (int i = 0; i < fl.count; ++i) 
+    {
+        String short_name = fl.data[i];
+        String path = tprint(S("%S/%S"), shared->data_path, short_name);
+        auto [ext, ext_success] = path_extension(path);
+        if ( ext_success ) 
+        {
+            // If from short name, not absoule path!
+            Guid id = guid_from_string(short_name);
+
+            // If the extension matches one of the registered asset type, 
+            // mapping to the filepath from Guid is added.
+            for ( Asset_Type_Info& info : asset_system->type_infos )
+            {
+                if ( info.path_extension && (info.path_extension == ext) )
+                {
+                    table_add(&asset_system->guid_to_short_name, id, short_name);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void asset_system_shutdown() 
+{
     release(asset_system->heap);
     memset(asset_system, 0, sizeof(Asset_System));
 }
 
-#if 0
-static void add_ref(Guid guid) {
-    Asset_Entry *asset = table_find_pointer(&asset_system->asset_table, guid);
-    if (!asset) {
-        asset = table_add(&asset_system->asset_table, guid, {});
+void asset_type_register( Asset_Type_Info info )
+{
+    if ( info.path_extension )
+    {
+        array_add_unique(&asset_system->type_infos, info);
+        log_info(S("Registerd asset type with path extension: '%S'"), info.path_extension);
     }
-
-    asset->ref_count += 1;
-
-    if (asset->ref_count == 1) {
-        // @Todo(swL): load asset
+    else
+    {
+        log_error(S("asset type to be registered must have path extension."));
     }
 }
 
-Asset_ID::~Asset_ID() {
-    Asset_Entry *asset = table_find_pointer(&asset_system->asset_table, guid);
-    Assert(asset && asset->ref_count != 0);
-
-    asset->ref_count -= 1;
-
-    if (asset->ref_count == 0) {
-        // @Todo(swL): unload asset
+void asset_request( Guid id ) 
+{
+    auto *entry = table_find_pointer(&asset_system->asset_table, id);
+    if ( !entry )
+    {
+        Asset_Entry e = {};
+        entry = table_add(&asset_system->asset_table, id, e);
     }
 
-    printf("sub ref\n");
+    Assert( entry );
+    if ( entry->ref_count == 0 )
+    {
+        asset_load(id); 
+    }
+    entry->ref_count += 1;
 }
-#endif
+
+void asset_drop( Guid id ) 
+{
+    auto *entry = table_find_pointer(&asset_system->asset_table, id);
+    Assert( entry );
+
+    entry->ref_count -= 1;
+
+    if ( entry->ref_count == 0 )
+    {
+        // @Todo: unlaod asset
+        table_remove(&asset_system->asset_table, id);
+    }
+}
+
+bool assest_type_info_cmp(Asset_Type_Info a, Asset_Type_Info b)
+{
+    if (a.path_extension == b.path_extension) return true;
+    return false;
+}
+
+String asset_shortname( String path )
+{
+    String short_name = path;
+
+    if ( begins_with(path, shared->data_path) )
+    {
+        advance(&short_name, shared->data_path.len);
+
+        if ( short_name.str[0] == '/' || short_name.str[0] == '\\' ) {
+            advance(&short_name, 1);
+        }
+    }
+
+    return short_name;
+}
+
+Guid asset_id_from_path( String path )
+{
+    String s = asset_shortname(path);
+    return guid_from_string(s);
+}
+
+static b32 asset_load( Guid id )
+{
+    // Entry must have been added if not exist during request.
+    auto *entry = table_find_pointer(&asset_system->asset_table, id);
+    Assert( entry );
+
+    // Find path from the catalog.
+    String *short_name = table_find_pointer(&asset_system->guid_to_short_name, id);
+    if ( !short_name )
+    {
+        log_error(S("Asset with GUID: '%llu-%llu' couldn't be found."), id._64[1], id._64[0]);
+        return false;
+    }
+
+    // Check extension and dispatch according routine.
+    // This might turn into callback function later on. idk.
+    // @Todo
+    String path = tprint(S("%S/%S"), shared->data_path, short_name);
+    auto [ext, ext_ok] = path_extension(path);
+    if ( !ext_ok ) {
+        log_error(S("Failed to acquire file extension from: '%S'"), path);
+        return false;
+    }
+
+    bool ext_match = false;
+    for ( Asset_Type_Info& info : asset_system->type_infos )
+    {
+        if ( info.path_extension && (info.path_extension == ext) )
+        {
+            Assert(info.load_proc);
+            info.load_proc(path, *short_name, nullptr);
+            ext_match = true;
+            break;
+        }
+    }
+
+    if ( !ext_match )
+    {
+        log_error(S("Unregistered file extension '%S', path: '%S'."), ext, path);
+        return false;
+    }
+
+    return true;
+}

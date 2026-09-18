@@ -44,7 +44,7 @@ void shared_init() {
     /* Shader Compiler */
     shared->shader_compiler = (Shader_Compiler*)alloc(sizeof(Shader_Compiler), shared->arena);
     Assert(shader_compiler_init(shared->shader_compiler));
-    shared->shader_compiler->include_path = S("C:/dev/rts/src/shaders/"); // @Temporary
+    shared->shader_compiler->include_path = S("C:/dev/rts/data/shaders/"); // @Temporary
 }
 
 void shared_shutdown() {

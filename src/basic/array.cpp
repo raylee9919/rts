@@ -1,6 +1,8 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "basic/array.h"
+#include "basic/allocator.h"
+#include "basic/context.h"
 
 template<typename T>
 T& Array <T>::operator [] (u64 idx) {
@@ -23,11 +25,29 @@ void array_add(Array<T>* arr, T item) {
 }
 
 template <typename T>
+void array_add_unique(Array<T> *arr, T item, bool (*cmp)(T a, T b)) {
+    if (cmp)
+    {
+        for (u64 i = 0; i < arr->count; ++i) {
+            if (cmp(arr->data[i], item)) return;
+        }
+    }
+    else
+    {
+        for (u64 i = 0; i < arr->count; ++i) {
+            if (arr->data[i] == item) return;
+        }
+    }
+
+    array_add(arr, item);
+}
+
+template <typename T>
 void array_reserve(Array<T>* arr, u64 desired_count) {
     if (desired_count <= arr->allocated) return;
 
     if (!arr->allocator.proc) {
-        arr->allocator = tctx.allocator;
+        Assert(0);
     }
 
     arr->data = (T *)realloc(arr->data, desired_count * sizeof(T), arr->allocated * sizeof(T), arr->allocator);

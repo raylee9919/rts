@@ -1,7 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "os/os.h"
-#include "os/win32/os_win32.h"
 #include "basic/arena.h"
 #include "basic/string.h"
 #include "basic/context.h"
@@ -26,8 +25,7 @@ static bool shift_state = false;
 static bool ctrl_state  = false;
 static bool alt_state   = false;
 
-
-struct VK_To_Key_Code {
+static struct VK_To_Key_Code {
     u32 vk;
     Key_Code key_code;
 } vk_to_key_code_array[] = {
@@ -536,6 +534,79 @@ b32 is_directory(String path) {
 
     b32 is_dir = ( attrib & FILE_ATTRIBUTE_DIRECTORY );
     return is_dir;
+}
+
+b32 visit_files(String _dir_name,
+                b32 recursive,
+                void *user_data,
+                void (*proc)(File_Visit_Info *, void *),
+                b32 follow_directory_symlinks,
+                b32 visit_files,
+                b32 visit_directories,
+                b32 visit_symlinks)
+{
+    if ( !proc ) return true;
+
+    Array<String> directories;
+    directories.allocator = tctx.temp;
+
+    array_add(&directories, _dir_name);
+
+    File_Visit_Info info = {};
+
+    s64 cursor = 0;
+    while ( (u64)cursor < directories.count ) {
+        String dir_name = directories[cursor];
+        cursor += 1;
+
+        u16 *wildcard_name = to_utf16(tctx.temp, tprint(S("%S/*"), dir_name)).str;
+
+        WIN32_FIND_DATAW find_data;
+        HANDLE handle = FindFirstFileExW((LPWSTR)wildcard_name, FindExInfoBasic, &find_data, FindExSearchNameMatch, NULL, FIND_FIRST_EX_LARGE_FETCH);
+
+        if ( handle == INVALID_HANDLE_VALUE ) {
+            if ( cursor != 1 ) continue;
+            log_error(S("Unable to open directory: '%S'"), dir_name);
+            return false;
+        }
+
+        while(1) {
+            String name      = wide_to_utf8((u16*)find_data.cFileName, -1, tctx.temp);
+            String full_name = tprint(S("%S/%S"), dir_name, name);
+
+            info.short_name             = name;
+            info.full_name              = full_name;
+            info.descend_into_directory = false;
+            info.size                   = ( (s64)find_data.nFileSizeHigh ) << 32 | find_data.nFileSizeLow;
+
+            info.is_symlink             = (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) && (find_data.dwReserved0 == IO_REPARSE_TAG_SYMLINK);
+            info.is_directory           = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+            if ( info.is_directory ) {
+                if ( name != S(".") && name != S("..") ) {
+                    info.descend_into_directory = recursive && (follow_directory_symlinks || !info.is_symlink);
+                    if ( visit_directories && (visit_symlinks || !info.is_symlink) ) {
+                        // info.modification_time = ;
+                        proc(&info, user_data);
+                    }
+
+                    if ( info.descend_into_directory )  array_add(&directories, full_name);
+                }
+            } else {
+                if ( visit_files && (visit_symlinks || !info.is_symlink) ) {
+                    // info.modification_time = ;
+                    proc(&info, user_data);
+                }
+            }
+
+            BOOL success = FindNextFileW(handle, &find_data);
+            if ( !success ) break;
+        }
+
+        FindClose(handle);
+    }
+
+    return true;
 }
 
 //

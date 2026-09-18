@@ -11,7 +11,7 @@
 #include "math/math.h"
 
 #if OS_WINDOWS
-#  include "os/win32/os_win32.h"
+#  include "os/win32/win32.h"
 #else
 #  error Undefined OS
 #endif
@@ -504,6 +504,20 @@ struct File {
     HANDLE handle;
 };
 
+struct File_Visit_Info {
+    String short_name;
+    String full_name;
+
+    // @Todo: Time
+    s64    size;
+
+    b32    had_error;
+    b32    is_symlink;
+    b32    is_directory;
+
+    b32    descend_into_directory;
+};
+
 File file_open(String name, bool for_writing = false, bool keep_existing_content = false);
 
 void file_close(File *file);
@@ -539,6 +553,20 @@ b32 delete_directory(String dirname);
 b32 file_exists(String path);
 
 b32 is_directory(String path);
+
+b32 visit_files(String dir_name, 
+                b32 recursive, 
+                void *user_data, 
+                void (*proc)(File_Visit_Info *, void *), 
+                b32 follow_directory_symlinks = true,
+                b32 visit_files = true,
+                b32 visit_directories = false,
+                b32 visit_symlinks = true);
+
+Array<String> file_list(String path, 
+                        Allocator allocator, 
+                        b32 recursive = false, 
+                        b32 follow_directory_symlinks = true);
 
 
 

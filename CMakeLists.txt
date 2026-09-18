@@ -42,6 +42,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
 add_library(rts_options INTERFACE)
 target_include_directories(rts_options INTERFACE "${CMAKE_SOURCE_DIR}/src")
+target_include_directories(rts_options INTERFACE "${CMAKE_SOURCE_DIR}/data/shaders")
 target_compile_definitions(rts_options INTERFACE
     NOMINMAX
     UNICODE
@@ -90,7 +91,7 @@ add_library(rts_engine STATIC
     src/math/math.cpp
 
     src/os/os.cpp
-    src/os/win32/os_win32.cpp
+    src/os/win32/win32.cpp
 
     src/random/random.cpp
 
@@ -102,7 +103,6 @@ add_library(rts_engine STATIC
     src/asset/parser.cpp
     src/asset/system.cpp
     src/asset/texture.cpp
-    src/asset/texture_v2.cpp
 
     src/rhi/rhi.cpp
     src/rhi/d3d12/rhi_d3d12.cpp
@@ -120,8 +120,8 @@ add_library(rts_engine STATIC
     src/audio/audio.cpp
 
     src/game.cpp
-
     src/shared.cpp
+    src/material.cpp
 )
 target_link_libraries(rts_engine
     PUBLIC  rts_options rts_third_party
@@ -143,7 +143,7 @@ function(rts_add_executable name)
     )
 endfunction()
 
-rts_add_executable(test_rhi    src/test/test_rhi.cpp)
+rts_add_executable(rts    src/main.cpp)
 
 
 add_custom_target(compile_commands ALL

@@ -7,9 +7,10 @@
 #include "math/math.h"
 #include "os/os.h"
 #include "profiler/profiler.h"
-#include "shaders/shared.h"
 #include "third_party/xxhash3/xxhash.h"
 #include "game.h"
+#include "shared.h"
+#include "shader_compiler/shader.h"
 
 Render_SPSC_Queue render_queue;
 
@@ -64,7 +65,7 @@ static void r_pass_scene(Game_State *g)
     {
         {
             entity_dfs(g, g->root, [](Game_State *g, Entity *E, u64 i) {
-                Material *material = r_material_from_guid(E->asset_ids[ASSET_MATERIAL]);
+                Material *material = r_material_from_guid(E->material);
                 gfx_set_pipeline(material->pipeline);
 
                 // Upload arguments
@@ -73,14 +74,14 @@ static void r_pass_scene(Game_State *g)
                 memcpy(&args->transform, &m, sizeof(args->transform));
 
                 // Upload material
-                Material *mat   = r_material_from_guid(E->asset_ids[ASSET_MATERIAL]);
+                Material *mat   = r_material_from_guid(E->material);
                 GPU_Material sm   = to_gpu_material(mat);
                 GPU_Material *dst = (GPU_Material *)material_ptr + i;
                 memcpy(dst, &sm, sizeof(sm));
                 args->material_id = i;
 
                 // Upload constants
-                GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->asset_ids[ASSET_MESH]);
+                GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
 
                 if (mesh) {
                     Constants c = {};
@@ -364,4 +365,102 @@ GPU_Material to_gpu_material(Material *material)  {
     result.orm_id    = gfx_srv_bindless_from_texture(material->orm_texture);
 
     return result;
+}
+
+void R_pipeline_create(Guid id,
+                       String shader_filepath, 
+                       R_Shading_Model shading_model)
+{
+    // Read shader source code
+    String shader_source = read_entire_file(shader_filepath, tctx.temp);
+
+    // Compile vertex and pixel shader into IL bytes.
+    Shader_Compile_Result vs = {};
+    Shader_Compile_Result ps = {};
+    {
+        Shader_Compile_Options vs_opts = {};
+        {
+            vs_opts.stage  = SHADER_STAGE_VS;
+            vs_opts.entry  = S("main_vs");
+            vs_opts.source = shader_source;
+        }
+        Assert(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
+
+        Shader_Compile_Options ps_opts = {};
+        {
+            ps_opts.stage  = SHADER_STAGE_PS;
+            ps_opts.entry  = S("main_ps");
+            ps_opts.source = shader_source;
+        }
+        Assert(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
+    }
+
+    { // Create pipeline state object(PSO)
+        bool enable_depth = r_should_enable_depth(shading_model);
+        bool enable_blend = r_should_enable_blend(shading_model);
+
+        RHI_Pipeline_Desc desc = {};
+        desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
+
+        desc.depth_enabled               = enable_depth;
+        desc.depth_compare_op            = RHI_COMPARE_LESS_EQUAL;
+        desc.depth_format                = RHI_FORMAT_D32F;
+
+        desc.num_color_attachments       = 1;
+        {
+            desc.color_attachment_formats[0] = RHI_FORMAT_RGBA16F;
+
+            desc.blend_enabled[0]            = enable_blend;
+
+            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
+            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
+
+            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
+            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
+        }
+
+        desc.fill_mode = RHI_FILL_SOLID;
+        desc.cull_mode = RHI_CULL_CW;
+
+        desc.topology = RHI_TOPOLOGY_TRIANGLES;
+
+        desc.vs_data = vs.data;
+        desc.vs_size = vs.size;
+
+        desc.ps_data = ps.data;
+        desc.ps_size = ps.size;
+
+        gfx_pipeline_create(id, desc);
+    }
+}
+
+void R_pipeline_destroy(Guid id)
+{
+    gfx_pipeline_destroy(id);
+}
+
+void R_ring_init()
+{
+    Construct(&render_queue);
+
+    mutex_create(&render_queue.mutex); 
+    condvar_create(&render_queue.condvar); 
+
+    for (int i = 0; i < array_count(render_queue.entries); ++i) {
+        game_state_init(&render_queue.entries[i].game_state);
+        mutex_create(&render_queue.entries[i].mutex);
+    }
+}
+
+void R_ring_deinit()
+{
+    mutex_destroy(&render_queue.mutex);
+    condvar_destroy(&render_queue.condvar);
+
+    for (int i = 0; i < array_count(render_queue.entries); ++i) {
+        game_state_deinit(render_queue.entries[i].game_state);
+        mutex_destroy(&render_queue.entries[i].mutex);
+    }
 }

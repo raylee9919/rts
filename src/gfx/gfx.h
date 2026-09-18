@@ -11,7 +11,7 @@
 #include "math/math.h"
 #include "os/os.h"
 #include "rhi/rhi.h"
-#include "shaders/shared.h"
+#include "shared/shared.h"
 
 
 #define GFX_INVALID                 UINT64_MAX

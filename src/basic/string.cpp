@@ -494,6 +494,18 @@ b32 equal_nocase(String a, String b) {
     return true;
 }
 
+String copy_string(String s, Allocator allocator) {
+    if ( !s.len ) return S("");
+
+    Assert( s.len >= 0 );
+
+    String t;
+    t.str = alloc(s.len, allocator);
+    t.len = s.len;
+    memcpy(t.str, s.str, s.len);
+    return t;
+}
+
 String eat_spaces( String _s ) {
     String s = _s;
     while ( s.len > 0 && *s.str ) {

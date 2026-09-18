@@ -5,7 +5,26 @@
 #include "third_party/xxhash3/xxhash.h"
 
 
+Array<String> file_list(String path, 
+                        Allocator allocator, 
+                        b32 recursive, 
+                        b32 follow_directory_symlinks)
+{
+    Array<String> files = {};
+    files.allocator = allocator;
+
+    auto visitor = [](File_Visit_Info *info, void *user_data) {
+        auto *arr = (Array<String>*)user_data;
+        array_add(arr, copy_string(info->full_name, arr->allocator));
+    };
+
+    visit_files(path, recursive, &files, visitor, follow_directory_symlinks);
+
+    return files;
+}
+
 void input_per_frame_event_and_flag_update() {
+
     array_reset_keeping_memory(&os->events);
 
     u32 mask     = ~KEY_STATE_START;

@@ -63,6 +63,16 @@ void array_add(Array<T>* arr, T item) {
 }
 
 template <typename T>
+void array_add_unique(Array<T> *arr, T item) {
+    for (u64 i = 0; i < arr->count; ++i) {
+        if (arr->data[i] == item) return;
+    }
+
+    array_add(arr, item);
+}
+
+
+template <typename T>
 void array_reserve(Array<T>* arr, u64 desired_count) {
     if (desired_count <= arr->allocated) return;
 

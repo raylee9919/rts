@@ -5,7 +5,6 @@
 
 #include <windows.h>
 
-#include "basic/core.h"
 #include "basic/arena.h"
 #include "basic/string.h"
 

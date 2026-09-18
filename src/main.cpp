@@ -8,19 +8,16 @@
 #include "basic/context.h"
 #include "math/math.h"
 #include "os/os.h"
-#include "text_file_handler/text_file_handler.h"
 #include "geometry/geogen.h"
-#include "asset/texture_v2.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
 #include "renderer/renderer.h"
-#include "shader_compiler/shader.h"
-#include "shaders/shared.h"
 #include "profiler/profiler.h"
 #include "game.h"
 #include "asset/asset.h"
 #include "audio/audio.h"
 #include "shared.h"
+#include "material.h"
 #include "third_party/xxhash3/xxhash.h"
 
 
@@ -41,39 +38,12 @@ struct Vertex {
 Vertex  vertices[24];
 u32     indices[36];
 
+
 u32 num_vertices = array_count(vertices);
 u32 num_indices  = array_count(indices);
 
-//
-Guid doggo_guid;
-
-struct Development {
-    Allocator heap;
-};
 
 
-
-void render_ring_init() {
-    Construct(&render_queue);
-
-    mutex_create(&render_queue.mutex); 
-    condvar_create(&render_queue.condvar); 
-
-    for (int i = 0; i < array_count(render_queue.entries); ++i) {
-        game_state_init(&render_queue.entries[i].game_state);
-        mutex_create(&render_queue.entries[i].mutex);
-    }
-}
-
-void render_ring_deinit() {
-    mutex_destroy(&render_queue.mutex);
-    condvar_destroy(&render_queue.condvar);
-
-    for (int i = 0; i < array_count(render_queue.entries); ++i) {
-        game_state_deinit(render_queue.entries[i].game_state);
-        mutex_destroy(&render_queue.entries[i].mutex);
-    }
-}
 
 void game_tick(Game_State *g, f64 dt) 
 {
@@ -166,134 +136,6 @@ void game_tick(Game_State *g, f64 dt)
     });
 }
 
-void r_pipeline_create(Guid id,
-                       String shader_filepath, 
-                       R_Shading_Model shading_model)
-{
-    // Read shader source code
-    String shader_source = read_entire_file(shader_filepath, tctx.temp);
-
-    // Compile vertex and pixel shader into IL bytes.
-    Shader_Compile_Result vs = {};
-    Shader_Compile_Result ps = {};
-    {
-        Shader_Compile_Options vs_opts = {};
-        {
-            vs_opts.stage  = SHADER_STAGE_VS;
-            vs_opts.entry  = S("main_vs");
-            vs_opts.source = shader_source;
-        }
-        Assert(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
-
-        Shader_Compile_Options ps_opts = {};
-        {
-            ps_opts.stage  = SHADER_STAGE_PS;
-            ps_opts.entry  = S("main_ps");
-            ps_opts.source = shader_source;
-        }
-        Assert(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
-    }
-
-    { // Create pipeline state object(PSO)
-        bool enable_depth = r_should_enable_depth(shading_model);
-        bool enable_blend = r_should_enable_blend(shading_model);
-
-        RHI_Pipeline_Desc desc = {};
-        desc.type = RHI_PIPELINE_TYPE_GRAPHICS;
-
-        desc.depth_enabled               = enable_depth;
-        desc.depth_compare_op            = RHI_COMPARE_LESS_EQUAL;
-        desc.depth_format                = RHI_FORMAT_D32F;
-
-        desc.num_color_attachments       = 1;
-        {
-            desc.color_attachment_formats[0] = RHI_FORMAT_RGBA16F;
-
-            desc.blend_enabled[0]            = enable_blend;
-
-            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
-            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
-
-            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
-            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
-        }
-
-        desc.fill_mode = RHI_FILL_SOLID;
-        desc.cull_mode = RHI_CULL_CW;
-
-        desc.topology = RHI_TOPOLOGY_TRIANGLES;
-
-        desc.vs_data = vs.data;
-        desc.vs_size = vs.size;
-
-        desc.ps_data = ps.data;
-        desc.ps_size = ps.size;
-
-        gfx_pipeline_create(id, desc);
-    }
-}
-
-void r_pipeline_destroy(Guid id)
-{
-    gfx_pipeline_destroy(id);
-}
-
-void foo()
-{
-    Text_File_Handler handler = {};
-    String s = read_entire_file(tprint(S("%Sdoggo.material"), shared->data_path), tctx.temp);
-    handler.start(s);
-
-    while (1) 
-    {
-        if ( auto [line, found] = handler.consume_next_line();
-             found )
-        {
-            auto [field, rhs] = break_by_spaces(line);
-            auto [colon, val] = break_by_spaces(rhs);
-
-            if ( field == S("albedo_texture") ||
-                 field == S("orm_texture") )
-            {
-                if (colon != S(":")) {
-                    log_error(S("Expected ':' at line: %d, but encountered '%S'"), handler.line_number, colon);
-                    return;
-                }
-
-                if (val.len <= 2) { 
-                    log_error(S("Expected string at line: %d"), handler.line_number);
-                    return;
-                }
-
-                if ( !begins_with(val, S("\"")) ) {
-                    log_error(S("Expected '\"' at the beginning of the string, at line: %d, but encountered '%S'"), handler.line_number, val[0]);
-                    return;
-                }
-
-                if ( !ends_with(val, S("\"")) ) {
-                    log_error(S("Expected '\"' at the end of the string, at line: %d, but encountered '%S'"), handler.line_number, val[val.len - 1]);
-                    return;
-                }
-
-                // Trim "
-                String s = val;
-                s.len -= 2;
-                s.str += 1;
-            }
-            else
-            {
-                log_error(S("Unexpected field name '%S', at line: %d"), field, handler.line_number);
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-}
-
 int main_entry(int argc, char **argv)
 {
     // @Temporary
@@ -311,15 +153,28 @@ int main_entry(int argc, char **argv)
 
     // Init asset system
     asset_system_init();
+    {
+        Asset_Type_Info info = {};
+        info.path_extension   = S("material");
+        info.load_proc        = material_load_proc;
+        asset_type_register(info);
+    }
+    {
+        Asset_Type_Info info = {};
+        info.path_extension   = S("png");
+        info.load_proc        = image_load_proc;
+        asset_type_register(info);
+    }
+    asset_system_init_catalog();
 
     // Init Game
     game_init(time_old);
 
     // Open window
-    shared->window = window_create(1920, 1080, S("RTS"));
+    shared->window = window_create(1600, 900, S("RTS"));
 
     // Init render ring
-    render_ring_init();
+    R_ring_init();
 
     // Launch render thread
     Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
@@ -414,58 +269,24 @@ int main_entry(int argc, char **argv)
 
             camera_ptr = rhi_buffer_map(&camera_buffer);
         }
-
-
-        // Load image
-        doggo_guid = guid_generate();
-        String contents = read_entire_file(tprint(S("%S/../data/doggo.png"), shared->data_path), tctx.temp);
-        Bitmap bitmap   = bitmap_import(contents.str, contents.len);
-
-
-        // Create and upload texture.
-        {
-            RHI_Texture_Desc desc = {};
-            {
-                desc.type           = RHI_TEXTURE_TYPE_2D;
-                desc.format         = RHI_FORMAT_RGBA8_UNORM;
-                desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
-                desc.width          = bitmap.width;
-                desc.height         = bitmap.height;
-                desc.mip_levels     = 1;
-                desc.depth          = 1;
-            }
-            doggo_guid = guid_generate();
-            gfx_texture_create(doggo_guid, desc);
-            gfx_texture_upload(doggo_guid, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
-        }
     }
-
-
-    String material_name = S("M_Doggo");
-    Guid base_material_id = guid_from_string(material_name);
-    r_pipeline_create(base_material_id, tprint(S("%S/shaders/shader.hlsl"), shared->source_path), SHADING_MODEL_OPAQUE);
 
 
     // @Temporary
-    for (int i = 0; i < 256; ++i) {
-        Guid derived_mtl_id = guid_generate();
-        Material *mtl = r_material_alloc(derived_mtl_id);
-        mtl->pipeline = base_material_id;
-        mtl->albedo   = vec3{(f32)i * 0.002f, 0.2f, 0.2f};
-
+    // Create and initalize entities. This is a placeholder.
+    // Entities are assets, thus will be loaded from the disk as well.
+    for (int i = 0; i < 256; ++i) 
+    {
         Entity *E = entity_alloc(game_state);
-        E->asset_ids[ASSET_MESH]     = cube_mesh;
-        E->asset_ids[ASSET_MATERIAL] = derived_mtl_id;
+        E->mesh     = cube_mesh;
+        E->material = guid_from_string(S("doggo.material")); // @Temporary
 
-        if (i == 0 || i == 255) {
-            entity_dealloc(game_state, E);
-        }
+        asset_request(E->material); // @Temporary
     }
-
-    foo();
     
-    /* Main Loop */
-    while (!should_close) {
+    // Game loop
+    while (!should_close) 
+    {
         ProfileFrameMark;
 
         // Gaming experience in its finesse
@@ -559,7 +380,7 @@ int main_entry(int argc, char **argv)
 
 
     /* Shutdown Systems */
-    render_ring_deinit();
+    R_ring_deinit();
     game_deinit();
     asset_system_shutdown();
 

@@ -2,8 +2,8 @@
 
 #define MAIN_CAMERA_INDEX 0
 
-#include "./basic.hlsl"
-#include "./shared.h"
+#include "basic.hlsl"
+#include "shared/shared.h"
 
 PUSH_CONSTANTS(Constants, push);
 

@@ -4,8 +4,8 @@
 #define RTS_GAME_H
 
 #include "basic/core.h"
+#include "os/os.h"
 #include "math/math.h"
-#include "asset/asset.h"
 
 #define MAX_ENTITIES        16384
 #define WORLD_UP            vec3{ 0.f,  1.f,  0.f}
@@ -41,7 +41,8 @@ struct Entity {
 
     vec3            position;
 
-    Guid            asset_ids[ASSET_KIND_COUNT];
+    Guid            mesh;
+    Guid            material;
 };
 
 struct Camera {

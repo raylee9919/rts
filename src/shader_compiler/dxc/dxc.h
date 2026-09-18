@@ -3,9 +3,7 @@
 #ifndef RTS_SHADER_DXC_H
 #define RTS_SHADER_DXC_H
 
-#include <windows.h>
 #include "third_party/DXC/Include/dxcapi.h"
-
 #include "basic/string.h"
 
 
@@ -16,6 +14,5 @@ struct Shader_Compiler {
 
     String              include_path;
 };
-
 
 #endif // RTS_SHADER_DXC_H
