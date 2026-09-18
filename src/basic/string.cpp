@@ -633,6 +633,28 @@ Triplet<b32, String, String> split_from_right(String s, u8 byte) {
     return { true, left, right };
 }
 
+String trim_left(String s, String bytes) {
+    s64 index = 0;
+
+    for (int i = 0; i < s.len; ++i) {
+        if (is_any(s[index], bytes)) index += 1;
+        else break;
+    }
+
+    return slice(s, index, s.len - index);
+}
+
+String trim_right(String s, String bytes) {
+    s64 len = s.len;
+
+    for (s64 i = s.len - 1; i >= 0; i--) {
+        if (is_any(s[i], bytes)) len -= 1;
+        else break;
+    }
+
+    return slice(s, 0, len);
+}
+
 Triplet<s64, b32, String> int_from_string(String t, s64 base) 
 {
     Assert( base == 16 || base <= 10 );

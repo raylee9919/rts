@@ -1,7 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "basic/arena.h"
-#include "os/os.h"
 #include "shared.h"
 #include "shader_compiler/shader.h"
 
@@ -40,6 +39,7 @@ void shared_init() {
     shared->data_path   = S("C:/dev/rts/data/");
     shared->source_path = S("C:/dev/rts/src/");
 #endif
+
 
     /* Shader Compiler */
     shared->shader_compiler = (Shader_Compiler*)alloc(sizeof(Shader_Compiler), shared->arena);

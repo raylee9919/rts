@@ -149,6 +149,9 @@ s64     find_index_of_any_from_right(String s, String bytes);
 Triplet<b32, String, String>  split_from_left(String s, u8 byte);
 Triplet<b32, String, String>  split_from_right(String s, u8 byte);
 
+String trim_left(String s, String bytes = S(" \t\n\r"));
+String trim_right(String s, String bytes = S(" \t\n\r"));
+
 Triplet<s64, b32, String> int_from_string(String s, s64 base = 10);
 
 

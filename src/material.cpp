@@ -96,7 +96,7 @@ void material_load_proc( String filepath, String short_name, void *user_data )
             material.pipeline = pipeline_id;
 
             String shader_path = tprint(S("%S/%S"), shared->data_path, s);
-            R_pipeline_create(pipeline_id, shader_path, SHADING_MODEL_OPAQUE);
+            r_pipeline_create(pipeline_id, shader_path, SHADING_MODEL_OPAQUE);
         }
         else {
             log_error(S("Unexpected field name '%S', at line: %d"), field, handler.line_number);

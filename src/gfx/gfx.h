@@ -141,8 +141,6 @@ struct GFX_State {
     Allocator                               arena;
     Allocator                               heap;
 
-    bool                                    should_shutdown = false;
-
     RHI_Device                              *device;
     GFX_Info                                info;
 

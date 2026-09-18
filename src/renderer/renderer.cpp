@@ -12,8 +12,6 @@
 #include "shared.h"
 #include "shader_compiler/shader.h"
 
-Render_SPSC_Queue render_queue;
-
 /* Call 'r_init' before use. */
 Renderer *renderer;
 
@@ -30,6 +28,7 @@ void                *camera_ptr;
 
 
 void game_tick(Game_State *g, f64 dt);
+
 
 GPU_Camera gpu_camera_from_game(Camera *camera)
 {
@@ -141,6 +140,35 @@ static void r_pass_composition(Game_State *g)
     gfx_pass_end();
 }
 
+static void r_ring_init()
+{
+    Renderer *r = renderer;
+    auto *ring = &r->ring;
+    Construct(ring);
+
+    mutex_create(&ring->mutex);
+    condvar_create(&ring->condvar);
+
+    for (int i = 0; i < array_count(ring->entries); ++i) {
+        game_state_init(&ring->entries[i].game_state);
+        mutex_create(&ring->entries[i].mutex);
+    }
+}
+
+static void r_ring_deint() 
+{
+    Renderer *r = renderer;
+    auto *ring = &r->ring;
+
+    mutex_destroy(&ring->mutex);
+    condvar_destroy(&ring->condvar);
+
+    for (int i = 0; i < array_count(ring->entries); ++i) {
+        game_state_deinit(ring->entries[i].game_state);
+        mutex_destroy(&ring->entries[i].mutex);
+    }
+}
+
 void r_init(void *native_window_handle) 
 {
     // @Temporary
@@ -175,6 +203,7 @@ void r_init(void *native_window_handle)
         renderer->arena = arena; 
         renderer->heap  = { crt_proc, nullptr };
     }
+
 
     Renderer *r = renderer;
 
@@ -242,11 +271,14 @@ void r_init(void *native_window_handle)
         }
     }
 
+    r_ring_init();
+
     atomic_store(&r->initted, true);
 }
 
 void r_shutdown()
 {
+    r_ring_deint();
     release(renderer->heap);
     arena_release(renderer->arena);
 }
@@ -304,27 +336,33 @@ void r_entry(void *param)
 
 
     /* Loop */
-    while (!gfx->should_shutdown) {
+    // @Todo: How to properly terminate? 
+    // Renderer maybe stuck in the ring buffer waiting for 
+    // game thread to pass the data, where as the game thread 
+    // already breaked its loop and waiting for the render thread 
+    // to terminate.
+    while ( !shared->should_close ) 
+    {
         ProfileScopeN("RenderThreadLoop");
 
-        mutex_lock(&render_queue.mutex);
+        auto *ring = &renderer->ring;
 
-        while (render_queue.is_empty()) {
+        mutex_lock(&ring->mutex);
+
+        while (ring->is_empty()) {
             ProfileScopeN("RenderThreadSleepUntilWorkArrives");
-            condvar_sleep(&render_queue.condvar, &render_queue.mutex, -1);
+            condvar_sleep(&ring->condvar, &ring->mutex, -1);
         }
 
-        Assert(!render_queue.is_empty());
+        Assert(!ring->is_empty());
 
-        Render_SPSC_Queue *rq = &render_queue;
-
-        Render_Entry *entry = &rq->entries[rq->read_idx];
-        rq->read_idx = (rq->read_idx + 1) % array_count(rq->entries);
+        Render_Entry *entry = &ring->entries[ring->read_idx];
+        ring->read_idx = (ring->read_idx + 1) % array_count(ring->entries);
 
         { mutex_lock(&entry->mutex);
 
-            condvar_wake_all(&rq->condvar);
-            mutex_unlock(&render_queue.mutex);
+            condvar_wake_all(&ring->condvar);
+            mutex_unlock(&ring->mutex);
 
 
             f64 refresh_dt = 1.0 / 120.0; // @Temporary
@@ -367,7 +405,7 @@ GPU_Material to_gpu_material(Material *material)  {
     return result;
 }
 
-void R_pipeline_create(Guid id,
+void r_pipeline_create(Guid id,
                        String shader_filepath, 
                        R_Shading_Model shading_model)
 {
@@ -436,31 +474,7 @@ void R_pipeline_create(Guid id,
     }
 }
 
-void R_pipeline_destroy(Guid id)
+void r_pipeline_destroy(Guid id)
 {
     gfx_pipeline_destroy(id);
-}
-
-void R_ring_init()
-{
-    Construct(&render_queue);
-
-    mutex_create(&render_queue.mutex); 
-    condvar_create(&render_queue.condvar); 
-
-    for (int i = 0; i < array_count(render_queue.entries); ++i) {
-        game_state_init(&render_queue.entries[i].game_state);
-        mutex_create(&render_queue.entries[i].mutex);
-    }
-}
-
-void R_ring_deinit()
-{
-    mutex_destroy(&render_queue.mutex);
-    condvar_destroy(&render_queue.condvar);
-
-    for (int i = 0; i < array_count(render_queue.entries); ++i) {
-        game_state_deinit(render_queue.entries[i].game_state);
-        mutex_destroy(&render_queue.entries[i].mutex);
-    }
 }

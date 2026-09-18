@@ -26,7 +26,6 @@
 #define MAX_MATERIALS 1024
 
 //
-b32 should_close = false;
 
 //
 struct Vertex {
@@ -138,12 +137,7 @@ void game_tick(Game_State *g, f64 dt)
 
 int main_entry(int argc, char **argv)
 {
-    // @Temporary
-    Allocator temp = {};
-    temp.data = nullptr;
-    temp.proc = crt_proc;
-
-    // Init shared state
+    // Init shared state. Threads share this state.
     shared_init();
 
     // Init timers
@@ -151,30 +145,15 @@ int main_entry(int argc, char **argv)
     f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
     f64 accumulator     = 0.f;
 
-    // Init asset system
+    // Init asset system.
+    // Register asset types and init catalog.
     asset_system_init();
-    {
-        Asset_Type_Info info = {};
-        info.path_extension   = S("material");
-        info.load_proc        = material_load_proc;
-        asset_type_register(info);
-    }
-    {
-        Asset_Type_Info info = {};
-        info.path_extension   = S("png");
-        info.load_proc        = image_load_proc;
-        asset_type_register(info);
-    }
-    asset_system_init_catalog();
 
     // Init Game
     game_init(time_old);
 
     // Open window
     shared->window = window_create(1600, 900, S("RTS"));
-
-    // Init render ring
-    R_ring_init();
 
     // Launch render thread
     Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
@@ -191,7 +170,6 @@ int main_entry(int argc, char **argv)
     // Make a cube
     cube_mesh._64[0] = 7474; // @Temporary
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
-
 
 
     {
@@ -279,13 +257,13 @@ int main_entry(int argc, char **argv)
     {
         Entity *E = entity_alloc(game_state);
         E->mesh     = cube_mesh;
-        E->material = guid_from_string(S("doggo.material")); // @Temporary
+        E->material = guid_from_string(S("materials/doggo.material")); // @Temporary
 
         asset_request(E->material); // @Temporary
     }
     
     // Game loop
-    while (!should_close) 
+    while ( !shared->should_close ) 
     {
         ProfileFrameMark;
 
@@ -297,16 +275,16 @@ int main_entry(int argc, char **argv)
 
         // For better latency, placing this block here
         { ProfileScopeN("WaitForRenderQueueSpace");
-            auto *rq = &render_queue;
+            auto *ring = &renderer->ring;
 
-            mutex_lock(&rq->mutex);
+            mutex_lock(&ring->mutex);
 
-            while (rq->is_full()) {
-                condvar_sleep(&rq->condvar, &rq->mutex, -1);
+            while (ring->is_full()) {
+                condvar_sleep(&ring->condvar, &ring->mutex, -1);
             }
 
-            condvar_wake_all(&rq->condvar);
-            mutex_unlock(&rq->mutex);
+            condvar_wake_all(&ring->condvar);
+            mutex_unlock(&ring->mutex);
         }
 
 
@@ -332,17 +310,18 @@ int main_entry(int argc, char **argv)
 
 
         { // Push state to render thread
-            auto *rq = &render_queue;
+            auto *ring = &renderer->ring;
 
-            Assert(!rq->is_full());
-            auto* entry = &rq->entries[rq->write_idx];
+            Assert(!ring->is_full());
+            auto* entry = &ring->entries[ring->write_idx];
 
-            { mutex_lock(&entry->mutex);
-                game_copy(entry->game_state, game_state);
-                rq->write_idx = (rq->write_idx + 1) % array_count(rq->entries);
-            } mutex_unlock(&entry->mutex);
+            mutex_lock(&entry->mutex);
+
+            game_copy(entry->game_state, game_state);
+            ring->write_idx = (ring->write_idx + 1) % array_count(ring->entries);
+
+            mutex_unlock(&entry->mutex);
         }
-
 
 #if 0
         list_for(os->first_event, event)  {
@@ -380,7 +359,6 @@ int main_entry(int argc, char **argv)
 
 
     /* Shutdown Systems */
-    R_ring_deinit();
     game_deinit();
     asset_system_shutdown();
 

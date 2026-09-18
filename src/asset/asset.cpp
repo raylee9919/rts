@@ -4,6 +4,7 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "shared.h"
+#include "material.h"
 
 Asset_System *asset_system;
 
@@ -19,6 +20,21 @@ void asset_system_init()
     asset_system->asset_table.allocator        = heap;
     asset_system->guid_to_short_name.allocator = heap;
     asset_system->type_infos.allocator         = heap;
+
+    {
+        Asset_Type_Info info = {};
+        info.path_extension   = S("material");
+        info.load_proc        = material_load_proc;
+        asset_type_register(info);
+    }
+    {
+        Asset_Type_Info info = {};
+        info.path_extension   = S("png");
+        info.load_proc        = image_load_proc;
+        asset_type_register(info);
+    }
+
+    asset_system_init_catalog();
 }
 
 Array<String> asset_file_list(String path, 
@@ -30,7 +46,7 @@ Array<String> asset_file_list(String path,
 
     auto visitor = [](File_Visit_Info *info, void *user_data) {
         auto *arr = (Array<String>*)user_data;
-        array_add(arr, copy_string(info->short_name, arr->allocator));
+        array_add(arr, copy_string(asset_shortname(info->full_name), arr->allocator));
     };
 
     visit_files(path, true, &files, visitor, follow_directory_symlinks);
@@ -113,8 +129,7 @@ void asset_drop( Guid id )
 
     entry->ref_count -= 1;
 
-    if ( entry->ref_count == 0 )
-    {
+    if ( entry->ref_count == 0 ) {
         // @Todo: unlaod asset
         table_remove(&asset_system->asset_table, id);
     }
@@ -130,14 +145,10 @@ String asset_shortname( String path )
 {
     String short_name = path;
 
-    if ( begins_with(path, shared->data_path) )
-    {
-        advance(&short_name, shared->data_path.len);
+    Assert(begins_with(path, shared->data_path));
 
-        if ( short_name.str[0] == '/' || short_name.str[0] == '\\' ) {
-            advance(&short_name, 1);
-        }
-    }
+    advance(&short_name, shared->data_path.len);
+    short_name = trim_left(short_name, S("./\\"));
 
     return short_name;
 }

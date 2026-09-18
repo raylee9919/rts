@@ -8,7 +8,6 @@
 #endif
 
 #define GFX_INVALID_BINDLESS            0
-
 #define GFX_CONSTANTS_INDEX_GLOBAL      0
 #define GFX_CONSTANTS_INDEX_USER        1
 
@@ -26,7 +25,7 @@
 // #endif
 
 struct GPU_Camera {
-    vec4   position;
+    vec4 position;
     m4x4 view;
     m4x4 proj;
     m4x4 view_proj;

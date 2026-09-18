@@ -640,7 +640,7 @@ static Win32_Window *win32_window_alloc() {
 }
 
 static bool set_key_down_state(WPARAM vkey, bool is_down) {
-    bool was_down = table_find_pointer(&key_down_table, vkey) != NULL;
+    bool was_down = (table_find_pointer(&key_down_table, vkey) != NULL);
     if (is_down && !was_down) {
         table_add(&key_down_table, vkey, true);
     } else if (was_down && !is_down) {
@@ -702,14 +702,14 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         }
 
         case WM_SYSKEYDOWN:
-        case WM_SYSKEYUP: {
+        case WM_KEYDOWN: {
 
             bool repeat = (((s32)lparam) & 0x40000000) != 0;
             maybe_send_vkey_event(wparam, true, repeat);
 
         } break;
 
-        case WM_KEYDOWN:
+        case WM_SYSKEYUP:
         case WM_KEYUP: {
 
             maybe_send_vkey_event(wparam, false);
@@ -931,7 +931,7 @@ OS_Handle window_create(int w, int h, String name) {
 // Thanks, Raymond Chen.
 // (https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353)
 //
-void os_window_toggle_fullscreen(OS_Handle window_handle) {
+void toggle_fullscreen(OS_Handle window_handle) {
     auto *window = win32_window_from_handle(window_handle);
     if (window) {
         HWND hwnd = window->handle;

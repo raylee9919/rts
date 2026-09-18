@@ -24,7 +24,6 @@ Array<String> file_list(String path,
 }
 
 void input_per_frame_event_and_flag_update() {
-
     array_reset_keeping_memory(&os->events);
 
     u32 mask     = ~KEY_STATE_START;

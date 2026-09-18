@@ -77,15 +77,22 @@ struct Renderer {
 
     volatile b32 initted;
 
+    /* Ring buffer shared with game thread. */
+    Render_SPSC_Queue ring;
+
+    /* Textures */
     Guid scene_depth[RHI_MAX_BUFFER_COUNT];
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
     Guid scene[RHI_MAX_BUFFER_COUNT];
+
+    /* Global shader */
+    Guid postprocess_pipeline;
+    Guid composition_pipeline;
 
     Table<Guid, Material, gfx_128_to_32> material_table;
 };
 
 extern Renderer *renderer;
-extern Render_SPSC_Queue render_queue;
 
 
 extern Guid                 cube_mesh;
@@ -112,12 +119,9 @@ GPU_Material  to_gpu_material(Material *material);
 
 
 
-void R_pipeline_create(Guid id,
+void r_pipeline_create(Guid id,
                        String shader_filepath, 
                        R_Shading_Model shading_model);
-void R_pipeline_destroy(Guid id);
-
-void R_ring_init();
-void R_ring_deinit();
+void r_pipeline_destroy(Guid id);
 
 #endif

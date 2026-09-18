@@ -13,6 +13,9 @@ struct Shared {
     /* Bundle things that ought to share the lifetime throughout the application */
     Allocator arena;
 
+    /* Should close application */
+    b32 should_close;
+
     /* Window */
     OS_Handle window;
     
