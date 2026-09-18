@@ -419,16 +419,16 @@ void r_pipeline_create(Guid id,
         Shader_Compile_Options vs_opts = {};
         {
             vs_opts.stage  = SHADER_STAGE_VS;
-            vs_opts.entry  = S("main_vs");
             vs_opts.source = shader_source;
+            vs_opts.path   = shader_filepath;
         }
         Assert(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
 
         Shader_Compile_Options ps_opts = {};
         {
             ps_opts.stage  = SHADER_STAGE_PS;
-            ps_opts.entry  = S("main_ps");
             ps_opts.source = shader_source;
+            ps_opts.path   = shader_filepath;
         }
         Assert(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
     }
