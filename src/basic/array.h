@@ -63,12 +63,13 @@ void array_add(Array<T>* arr, T item) {
 }
 
 template <typename T>
-void array_add_unique(Array<T> *arr, T item) {
+b32 array_add_unique(Array<T> *arr, T item) {
     for (u64 i = 0; i < arr->count; ++i) {
-        if (arr->data[i] == item) return;
+        if (arr->data[i] == item) return false;
     }
 
     array_add(arr, item);
+    return true;
 }
 
 

@@ -95,8 +95,12 @@ void material_load_proc( String filepath, String short_name, void *user_data )
             Guid pipeline_id = material_id;
             material.pipeline = pipeline_id;
 
-            String shader_path = tprint(S("%S/%S"), shared->data_path, s);
-            r_pipeline_create(pipeline_id, shader_path, SHADING_MODEL_OPAQUE);
+            // `shader` is the material implementation (IMaterial). It gets linked
+            // into the template shader, which owns the entry points.
+            // @Temporary: Single template for every material.
+            String template_path = tprint(S("%S/shaders/pass/surface.slang"), shared->data_path);
+            String material_path = tprint(S("%S/%S"), shared->data_path, s);
+            r_pipeline_create(pipeline_id, template_path, material_path, SHADING_MODEL_OPAQUE);
         }
         else {
             log_error(S("Unexpected field name '%S', at line: %d"), field, handler.line_number);

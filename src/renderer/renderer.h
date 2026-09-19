@@ -14,6 +14,48 @@
 
 struct Game_State;
 struct Camera;
+struct R_Pass;
+
+
+// ------------------------------------------------------------------------- //
+
+
+struct R_Pass_Execute_Info {
+    u32         width;
+    u32         height;
+    Game_State *game_state;
+};
+
+#define R_PASS_DECLARE_PROCS( Name ) \
+    R_PASS_INIT( RenderPassInit_##Name ); \
+    R_PASS_DEINIT( RenderPassDeinit_##Name ); \
+    R_PASS_EXECUTE( RenderPassExecute_##Name )
+
+#define R_PASS_INIT( Name ) R_Pass *Name( void )
+typedef R_PASS_INIT( R_Pass_Init_Proc );
+
+#define R_PASS_DEINIT( Name ) void Name( R_Pass *inPass )
+typedef R_PASS_DEINIT( R_Pass_Deinit_Proc );
+
+#define R_PASS_EXECUTE( Name ) void Name( R_Pass *inPass, R_Pass_Execute_Info inInfo )
+typedef R_PASS_EXECUTE( R_Pass_Execute_Proc );
+
+
+struct R_Pass 
+{
+    String name;
+
+    R_Pass_Init_Proc    *init;
+    R_Pass_Deinit_Proc  *deinit;
+    R_Pass_Execute_Proc *execute;
+};
+
+void r_pass_create(R_Pass_Init_Proc *init_proc);
+void r_pass_destroy();
+
+
+// ------------------------------------------------------------------------- //
+
 
 enum Render_Pass : u32 {
     R_PASS_GEOMETRY    = 0,
@@ -72,7 +114,6 @@ struct Material {
 };
 
 struct Renderer {
-    Arena *arena;
     Allocator heap;
 
     volatile b32 initted;
@@ -85,9 +126,17 @@ struct Renderer {
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
     Guid scene[RHI_MAX_BUFFER_COUNT];
 
+    /* Full-screen Triangle Mesh */
+    f32 fullscreen_triangle_vertices[3];
+    u32 fullscreen_triangle_indices[3];
+    Guid fullscreen_triangle_mesh;
+
     /* Global shader */
     Guid postprocess_pipeline;
     Guid composition_pipeline;
+
+    /* Registered Passes */
+    Array<R_Pass*> passes;
 
     Table<Guid, Material, gfx_128_to_32> material_table;
 };
@@ -95,16 +144,12 @@ struct Renderer {
 extern Renderer *renderer;
 
 
+// @Cleanup
 extern Guid                 cube_mesh;
-extern RHI_Buffer           arguments_buffer;
-extern RHI_Buffer_View      arguments_view;
-extern void                *arguments_ptr;
-extern RHI_Buffer           material_buffer;
-extern RHI_Buffer_View      material_view;
-extern void                *material_ptr;
 extern RHI_Buffer           camera_buffer;
 extern RHI_Buffer_View      camera_view;
 extern void                *camera_ptr;
+
 
 GPU_Camera gpu_camera_from_game(Camera *camera);
 
@@ -121,7 +166,9 @@ GPU_Material  to_gpu_material(Material *material);
 
 void r_pipeline_create(Guid id,
                        String shader_filepath, 
+                       String material_filepath,
                        R_Shading_Model shading_model);
 void r_pipeline_destroy(Guid id);
 
-#endif
+
+#endif // RTS_RENDERER_H

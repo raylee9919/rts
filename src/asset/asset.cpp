@@ -96,8 +96,11 @@ void asset_type_register( Asset_Type_Info info )
 {
     if ( info.path_extension )
     {
-        array_add_unique(&asset_system->type_infos, info);
-        log_info(S("Registerd asset type with path extension: '%S'"), info.path_extension);
+        if (!array_add_unique(&asset_system->type_infos, info)) {
+            log_warning(S("asset type with path extension: '%S' was already registered."), info.path_extension);
+        } else {
+            log_info(S("Registerd asset type with path extension: '%S'"), info.path_extension);
+        }
     }
     else
     {

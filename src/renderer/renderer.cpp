@@ -12,22 +12,24 @@
 #include "shared.h"
 #include "shader_compiler/shader.h"
 
+/* Render passes */
+#include "pass/geometry.h"
+#include "pass/postprocess.h"
+#include "pass/composition.h"
+
+
 /* Call 'r_init' before use. */
 Renderer *renderer;
 
 Guid                 cube_mesh;
-RHI_Buffer           arguments_buffer;
-RHI_Buffer_View      arguments_view;
-void                *arguments_ptr;
-RHI_Buffer           material_buffer;
-RHI_Buffer_View      material_view;
-void                *material_ptr;
 RHI_Buffer           camera_buffer;
 RHI_Buffer_View      camera_view;
 void                *camera_ptr;
 
 
 void game_tick(Game_State *g, f64 dt);
+static void r_ring_init();
+static void r_ring_deinit();
 
 
 GPU_Camera gpu_camera_from_game(Camera *camera)
@@ -44,129 +46,6 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
     result.view_proj = result.proj * result.view;
 
     return result;
-}
-
-static void r_pass_scene(Game_State *g)
-{
-    u32 w = gfx->info.width;
-    u32 h = gfx->info.height;
-
-    GFX_Pass pass  = {};
-    pass.name                 = S("GemoetryPass");
-    pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
-    pass.scissor              = {0, 0, w, h};
-    pass.color_attachments[0] = renderer->gbuffer_color[gfx_backbuffer_index()];
-    pass.depth_attachment     = renderer->scene_depth[gfx_backbuffer_index()];
-    pass.min_depth            = 0.f;
-    pass.max_depth            = 1.f;
-
-    gfx_pass_begin(R_PASS_GEOMETRY, &pass);
-    {
-        {
-            entity_dfs(g, g->root, [](Game_State *g, Entity *E, u64 i) {
-                Material *material = r_material_from_guid(E->material);
-                gfx_set_pipeline(material->pipeline);
-
-                // Upload arguments
-                Arguments *args = (Arguments *)arguments_ptr + i;
-                m4x4 m = m4x4_translate(E->position) * y_rotation(g->time);
-                memcpy(&args->transform, &m, sizeof(args->transform));
-
-                // Upload material
-                Material *mat   = r_material_from_guid(E->material);
-                GPU_Material sm   = to_gpu_material(mat);
-                GPU_Material *dst = (GPU_Material *)material_ptr + i;
-                memcpy(dst, &sm, sizeof(sm));
-                args->material_id = i;
-
-                // Upload constants
-                GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
-
-                if (mesh) {
-                    Constants c = {};
-                    c.vertex_buffer_id    = mesh->vertex_buffer_view.bindless;
-                    c.linear_sampler_id   = gfx->linear_sampler.bindless;
-                    c.camera_buffer_id    = camera_view.bindless;
-                    c.arguments_buffer_id = arguments_view.bindless;
-                    c.material_buffer_id  = material_view.bindless;
-                    c.arguments_index     = i;
-                    gfx_push_constants(&c, sizeof(c));
-
-                    // Draw
-                    gfx_draw(cube_mesh, 1);
-                }
-            });
-
-
-            // Upload camera
-            GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
-            memcpy(camera_ptr, &gpu_camera, sizeof(gpu_camera));
-        }
-    }
-    gfx_pass_end();
-}
-
-static void r_pass_postprocess(Game_State *g)
-{
-    u32 w = gfx->info.width;
-    u32 h = gfx->info.height;
-
-    GFX_Pass pass  = {};
-    pass.name                 = S("PostprocessPass");
-    pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
-    pass.scissor              = {0, 0, w, h};
-    pass.color_attachments[0] = renderer->scene[gfx_backbuffer_index()];
-
-    gfx_pass_begin(R_PASS_POSTPROCESS, &pass);
-    {
-    }
-    gfx_pass_end();
-}
-
-static void r_pass_composition(Game_State *g)
-{
-    u32 w = gfx->info.width;
-    u32 h = gfx->info.height;
-
-    GFX_Pass pass  = {};
-    pass.name                 = S("CompositionPass");
-    pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
-    pass.scissor              = {0, 0, w, h};
-    pass.color_attachments[0] = gfx_surface_texture();
-
-    gfx_pass_begin(R_PASS_COMPOSITION, &pass);
-    {
-    }
-    gfx_pass_end();
-}
-
-static void r_ring_init()
-{
-    Renderer *r = renderer;
-    auto *ring = &r->ring;
-    Construct(ring);
-
-    mutex_create(&ring->mutex);
-    condvar_create(&ring->condvar);
-
-    for (int i = 0; i < array_count(ring->entries); ++i) {
-        game_state_init(&ring->entries[i].game_state);
-        mutex_create(&ring->entries[i].mutex);
-    }
-}
-
-static void r_ring_deint() 
-{
-    Renderer *r = renderer;
-    auto *ring = &r->ring;
-
-    mutex_destroy(&ring->mutex);
-    condvar_destroy(&ring->condvar);
-
-    for (int i = 0; i < array_count(ring->entries); ++i) {
-        game_state_deinit(ring->entries[i].game_state);
-        mutex_destroy(&ring->entries[i].mutex);
-    }
 }
 
 void r_init(void *native_window_handle) 
@@ -195,25 +74,24 @@ void r_init(void *native_window_handle)
 
 
     { // Allocate and construct renderer
-        Arena *arena = arena_alloc();
-        renderer = push_struct(arena, Renderer);
-
+        Allocator heap = { crt_proc, nullptr };
+        renderer = (Renderer*)alloc(sizeof(Renderer), heap);
         Construct(renderer);
-
-        renderer->arena = arena; 
-        renderer->heap  = { crt_proc, nullptr };
+        renderer->heap = heap;
     }
 
 
     Renderer *r = renderer;
 
     { // Assign allocator
+        r->passes.allocator         = r->heap;
         r->material_table.allocator = r->heap;
     }
 
 
     { // Init renderer's resources
 
+        // Cleanup
         for (u32 i = 0; i < gfx_backbuffer_count(); ++i) 
         {
             { // SceneDepth
@@ -271,16 +149,33 @@ void r_init(void *native_window_handle)
         }
     }
 
+
+    { // Create full-screen triangle mesh
+        renderer->fullscreen_triangle_mesh  = guid_generate();
+        for (int i = 0; i < 3; ++i) renderer->fullscreen_triangle_indices[i] = i;
+        gfx_mesh_create(renderer->fullscreen_triangle_mesh, renderer->fullscreen_triangle_vertices, 3, sizeof(f32), renderer->fullscreen_triangle_indices, 3, sizeof(u32));
+    }
+
+
+    // Initialize render ring.
     r_ring_init();
 
+
+    // Register render passes
+    r_pass_create(RenderPassInit_Geometry);
+    r_pass_create(RenderPassInit_Postprocess);
+    r_pass_create(RenderPassInit_Composition);
+
+
+    // Tell others the renderer is ready to communicate.
     atomic_store(&r->initted, true);
 }
 
 void r_shutdown()
 {
-    r_ring_deint();
+    gfx_mesh_destroy(renderer->fullscreen_triangle_mesh);
+    r_ring_deinit();
     release(renderer->heap);
-    arena_release(renderer->arena);
 }
 
 void r_render(Game_State *g, f64 refresh_dt)
@@ -292,6 +187,8 @@ void r_render(Game_State *g, f64 refresh_dt)
     { // Build frame graph
         // @Todo: Backbuffer index is hassle. Renderer might want to make a 
         // frame resource once and be oblivious about it.
+        
+        // @Cleanup
         gfx_pass_connect(r->gbuffer_color[gfx_backbuffer_index()],
                          -1, R_PASS_GEOMETRY, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
@@ -317,11 +214,22 @@ void r_render(Game_State *g, f64 refresh_dt)
                          RHI_RESOURCE_STATE_RENDER_TARGET);
     }
 
-    // Passes are sorted and executed afterward in 'gfx_end'.
-    r_pass_scene(g);
-    r_pass_postprocess(g);
-    r_pass_composition(g);
 
+    // Execute render passes.
+    // Passes are sorted and "really" executed afterward.
+    for (int i = 0; i < r->passes.count; ++i) 
+    {
+        R_Pass_Execute_Info info = {};
+        info.width      = gfx->info.width;
+        info.height     = gfx->info.height;
+        info.game_state = g;
+
+        R_Pass *pass = r->passes[i];
+        pass->execute(pass, info);
+    }
+
+
+    // Sorting and submission are done here.
     gfx_end(g->time, gfx->info.vsync_off ? 0 : 1);
 }
 
@@ -405,12 +313,18 @@ GPU_Material to_gpu_material(Material *material)  {
     return result;
 }
 
+// @Cleanup: I don't like this a single bit.
 void r_pipeline_create(Guid id,
                        String shader_filepath, 
+                       String material_filepath,
                        R_Shading_Model shading_model)
 {
     // Read shader source code
-    String shader_source = read_entire_file(shader_filepath, tctx.temp);
+    String shader_source   = read_entire_file(shader_filepath, tctx.temp);
+    String material_source = {};
+    if (material_filepath.len) {
+        material_source = read_entire_file(material_filepath, tctx.temp);
+    }
 
     // Compile vertex and pixel shader into IL bytes.
     Shader_Compile_Result vs = {};
@@ -419,16 +333,22 @@ void r_pipeline_create(Guid id,
         Shader_Compile_Options vs_opts = {};
         {
             vs_opts.stage  = SHADER_STAGE_VS;
-            vs_opts.entry  = S("main_vs");
             vs_opts.source = shader_source;
+            vs_opts.path   = shader_filepath;
+
+            vs_opts.material_source = material_source;
+            vs_opts.material_path   = material_filepath;
         }
         Assert(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
 
         Shader_Compile_Options ps_opts = {};
         {
             ps_opts.stage  = SHADER_STAGE_PS;
-            ps_opts.entry  = S("main_ps");
             ps_opts.source = shader_source;
+            ps_opts.path   = shader_filepath;
+
+            ps_opts.material_source = material_source;
+            ps_opts.material_path   = material_filepath;
         }
         Assert(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
     }
@@ -478,3 +398,49 @@ void r_pipeline_destroy(Guid id)
 {
     gfx_pipeline_destroy(id);
 }
+
+void r_pass_create(R_Pass_Init_Proc *init_proc)
+{
+    R_Pass *pass = init_proc();
+    array_add(&renderer->passes, pass);
+}
+
+void r_pass_destroy()
+{
+    // @Todo
+    // Find pass with name and remove from the array.
+    // Then, call the deinit proc of the pass.
+}
+
+// ------------------------------------------------------------------------- //
+
+static void r_ring_init()
+{
+    Renderer *r = renderer;
+    auto *ring = &r->ring;
+    Construct(ring);
+
+    mutex_create(&ring->mutex);
+    condvar_create(&ring->condvar);
+
+    for (int i = 0; i < array_count(ring->entries); ++i) {
+        game_state_init(&ring->entries[i].game_state);
+        mutex_create(&ring->entries[i].mutex);
+    }
+}
+
+static void r_ring_deinit() 
+{
+    Renderer *r = renderer;
+    auto *ring = &r->ring;
+
+    mutex_destroy(&ring->mutex);
+    condvar_destroy(&ring->condvar);
+
+    for (int i = 0; i < array_count(ring->entries); ++i) {
+        game_state_deinit(ring->entries[i].game_state);
+        mutex_destroy(&ring->entries[i].mutex);
+    }
+}
+
+// ------------------------------------------------------------------------- //

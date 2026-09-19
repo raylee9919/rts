@@ -2,4 +2,4 @@
 
 albedo_texture : "textures/doggo.png"
 orm_texture    : "textures/doggo.png"
-shader         : "shaders/hello.hlsl"
+shader         : "shaders/material/doggo.slang"

@@ -100,7 +100,7 @@ Handle     handle_from_entity(Game_State *g, Entity *entity);
 void       entity_add_child(Game_State *g, Handle parent, Handle child);
 void       entity_remove_child(Game_State *g, Handle parent, Handle child);
 
-void       entity_dfs(Game_State *g, Handle root, void (*proc)(Game_State *g, Entity *entity, u64 index));
+void       entity_dfs(Game_State *g, Handle root, void *user_data, void (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data));
 
 
 #endif // RTS_GAME_H

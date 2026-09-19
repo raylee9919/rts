@@ -111,7 +111,7 @@ add_library(rts_engine STATIC
 
     src/renderer/renderer.cpp
 
-    src/shader_compiler/dxc/dxc.cpp
+    src/shader_compiler/slang/slang.cpp
 
     src/asset/asset.cpp
 
@@ -122,9 +122,13 @@ add_library(rts_engine STATIC
     src/game.cpp
     src/shared.cpp
     src/material.cpp
+
+    src/renderer/pass/geometry.cpp
+    src/renderer/pass/postprocess.cpp
+    src/renderer/pass/composition.cpp
 )
 target_link_libraries(rts_engine
-    PUBLIC  rts_options rts_third_party
+    PUBLIC  rts_options rts_third_party "${CMAKE_SOURCE_DIR}/src/third_party/slang/lib/slang.lib"
     PRIVATE rts_warnings
 )
 target_precompile_headers(rts_engine PRIVATE "${CMAKE_SOURCE_DIR}/src/pch.h")

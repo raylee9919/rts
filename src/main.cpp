@@ -21,12 +21,6 @@
 #include "third_party/xxhash3/xxhash.h"
 
 
-
-//
-#define MAX_MATERIALS 1024
-
-//
-
 //
 struct Vertex {
     vec3 position;
@@ -122,7 +116,7 @@ void game_tick(Game_State *g, f64 dt)
         }
 #endif
 
-    entity_dfs(g, g->root, [](Game_State *g, Entity *entity, u64 index) {
+    entity_dfs(g, g->root, nullptr, [](Game_State *g, Entity *entity, u64 index, void *user_data) {
         f32 spacing = 3.0f;
 
         u32 x = index % 10;
@@ -175,54 +169,6 @@ int main_entry(int argc, char **argv)
     {
         gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
 
-
-        { // Create material buffer and view.
-            u64 stride = sizeof(GPU_Material);
-            u64 sz     = stride * MAX_MATERIALS;
-
-            RHI_Buffer_Desc desc = {};
-            desc.memory_type = RHI_MEMORY_UPLOAD;
-            desc.size        = sz;
-
-            Assert(rhi_buffer_init(gfx->device, &material_buffer, &desc, NULL));
-
-            RHI_Buffer_View_Desc view_desc = {};
-            {
-                view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-                view_desc.writable = false;
-                view_desc.stride   = stride;
-                view_desc.offset   = 0;
-                view_desc.size     = sz;
-            }
-
-            rhi_buffer_view_init(gfx->device, &material_view, &material_buffer, &view_desc);
-
-            material_ptr = rhi_buffer_map(&material_buffer);
-        }
-
-        { // Create arguments buffer and view
-            u64 stride = sizeof(Arguments);
-            u64 sz     = stride * 16777216; // @Temporary
-
-            RHI_Buffer_Desc desc = {};
-            desc.memory_type = RHI_MEMORY_UPLOAD;
-            desc.size        = sz;
-
-            Assert(rhi_buffer_init(gfx->device, &arguments_buffer, &desc, NULL));
-
-            RHI_Buffer_View_Desc view_desc = {};
-            {
-                view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-                view_desc.writable = false;
-                view_desc.stride   = stride;
-                view_desc.offset   = 0;
-                view_desc.size     = sz;
-            }
-
-            rhi_buffer_view_init(gfx->device, &arguments_view, &arguments_buffer, &view_desc);
-
-            arguments_ptr = rhi_buffer_map(&arguments_buffer);
-        }
 
         { // Create camera buffer and view
             u64 stride = sizeof(GPU_Camera);

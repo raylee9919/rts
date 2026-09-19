@@ -172,14 +172,17 @@ void entity_remove_child(Game_State *g, Handle parent, Handle child) {
     // @Todo
 }
 
-static u64 _entity_dfs_internal(Game_State *g, Handle root, u64 index, 
-                                void (*proc)(Game_State *g, Entity *entity, u64 index))
+static u64 _entity_dfs_internal(Game_State *g, 
+                                Handle root, 
+                                u64 index, 
+                                void *user_data, 
+                                void (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data) )
 {
     Entity *entity = entity_from_handle(g, root);
     if (!entity)  return index;
 
     if (root != g->root) {
-        proc(g, entity, index);
+        proc(g, entity, index, user_data);
         index += 1;
     }
 
@@ -189,7 +192,7 @@ static u64 _entity_dfs_internal(Game_State *g, Handle root, u64 index,
     Handle child = first;
 
     for (;;) {
-        index = _entity_dfs_internal(g, child, index, proc);
+        index = _entity_dfs_internal(g, child, index, user_data, proc);
 
         Entity *child_entity = entity_from_handle(g, child);
 
@@ -202,8 +205,10 @@ static u64 _entity_dfs_internal(Game_State *g, Handle root, u64 index,
     return index;
 }
 
-void entity_dfs(Game_State *g, Handle root, 
-                void (*proc)(Game_State *g, Entity *entity, u64 index)) 
+void entity_dfs(Game_State *g, 
+                Handle root, 
+                void *user_data, 
+                void (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data)) 
 {
-    _entity_dfs_internal(g, root, 0, proc);
+    _entity_dfs_internal(g, root, 0, user_data, proc);
 }
