@@ -10,7 +10,7 @@
 #include <math.h>
 #include <string.h>
 
-// Windows / DXGI / D3D12
+// Windows / DXGI / D3D12 / DXC
 #include <windows.h>
 #include <windowsx.h>
 #include <shlobj.h>
@@ -23,6 +23,7 @@
 #include <third_party/DirectX/Include/d3d12.h>
 #include <third_party/DirectX/Include/d3d12shader.h>
 #include <third_party/DirectX/Include/d3dx12/d3dx12.h>
+#include <third_party/DXC/Include/dxcapi.h>
 #include <third_party/DirectX/Include/d3d12compiler.h>
 
 #endif // RTS_PCH_H

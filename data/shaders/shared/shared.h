@@ -3,7 +3,7 @@
 #ifndef RTS_SHADERS_SHARED_H
 #define RTS_SHADERS_SHARED_H
 
-#ifndef __SLANG__
+#if !SCOPE_SHADER
 #  include "math/math.h"
 #endif
 
@@ -11,7 +11,7 @@
 #define GFX_CONSTANTS_INDEX_GLOBAL      0
 #define GFX_CONSTANTS_INDEX_USER        1
 
-#ifdef __SLANG__
+#if SCOPE_SHADER
 #  define CONCAT_(A, B) A##B
 #  define CONCAT(A, B) CONCAT_(A, B)
 #  define PUSH_CONSTANTS(Struct, Name) ConstantBuffer<Struct> Name : register(CONCAT(b, GFX_CONSTANTS_INDEX_USER))
@@ -20,7 +20,7 @@
 // struct GPU_Global {
 //     float time;
 // };
-// #ifdef __SLANG__
+// #if SCOPE_SHADER
 //   ConstantBuffer<GPU_Global> global : register(b0);
 // #endif
 

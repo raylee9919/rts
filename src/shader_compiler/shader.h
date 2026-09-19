@@ -7,7 +7,7 @@
 #include "basic/allocator.h"
 #include "basic/string.h"
 
-#include "./slang/slang.h"
+#include "./dxc/dxc.h"
 
 struct Shader_Compiler;
 
@@ -22,8 +22,8 @@ enum Shader_Stage : u8 {
 
 struct Shader_Compile_Options {
     Shader_Stage stage;
+    String       entry;
     String       source;
-    String       path;      // Used for diagnostics. Optional.
 };
 
 struct Shader_Compile_Result {
@@ -33,6 +33,8 @@ struct Shader_Compile_Result {
     u64          size;
 
     u32          num_outputs;
+    u32          num_instructions;
+    u32          num_texture_loads; // Texture load instructions
 };
 
 bool shader_compiler_init(Shader_Compiler *compiler);

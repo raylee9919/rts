@@ -25,6 +25,9 @@
 // D3D12
 #pragma comment(lib, "d3d12")
 
+// DXC
+#pragma comment(lib, "dxcompiler")
+
 // PIX
 #if BUILD_PROFILE
 # define USE_PIX 1
