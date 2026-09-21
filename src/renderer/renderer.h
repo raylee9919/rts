@@ -124,7 +124,7 @@ struct Renderer {
     /* Textures */
     Guid scene_depth[RHI_MAX_BUFFER_COUNT];
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
-    Guid scene[RHI_MAX_BUFFER_COUNT];
+    Guid scene_texture[RHI_MAX_BUFFER_COUNT];
 
     /* Full-screen Triangle Mesh */
     f32 fullscreen_triangle_vertices[3];

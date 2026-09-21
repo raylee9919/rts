@@ -175,6 +175,7 @@ struct GFX_State {
     Guid                                    surface_guids[RHI_MAX_BUFFER_COUNT];
 
     RHI_Sampler                             linear_sampler;
+    RHI_Sampler                             dot_sampler;
 
     // @Temporary: Wait on the spot is the worst possible way.
     RHI_Buffer                              upload_buffer;

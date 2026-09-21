@@ -8,6 +8,8 @@
 
 struct R_Pass_Composition : R_Pass
 {
+    #include "pass/composition.h"
+
     Guid pipeline_id;
 };
 

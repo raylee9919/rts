@@ -119,7 +119,7 @@ void r_init(void *native_window_handle)
                 desc.name           = S("GBufferColor");
                 desc.type           = RHI_TEXTURE_TYPE_2D;
                 desc.format         = R_COLOR_FORMAT;
-                desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
+                desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
                 desc.width          = width;
                 desc.height         = height;
                 desc.mip_levels     = 1;
@@ -130,21 +130,21 @@ void r_init(void *native_window_handle)
             }
 
             { // Scene
-                r->scene[i] = guid_generate();
+                r->scene_texture[i] = guid_generate();
 
                 RHI_Texture_Desc desc = {};
                 {
                     desc.name           = S("Scene");
                     desc.type           = RHI_TEXTURE_TYPE_2D;
                     desc.format         = R_COLOR_FORMAT;
-                    desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE;
+                    desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
                     desc.width          = width;
                     desc.height         = height;
                     desc.mip_levels     = 1;
                     desc.depth          = 1;
                     desc.clear          = true;
                 }
-                gfx_texture_create(r->scene[i], desc);
+                gfx_texture_create(r->scene_texture[i], desc);
             }
         }
     }
@@ -201,11 +201,11 @@ void r_render(Game_State *g, f64 refresh_dt)
                          R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
                          RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-        gfx_pass_connect(r->scene[gfx_backbuffer_index()],
+        gfx_pass_connect(r->scene_texture[gfx_backbuffer_index()],
                          R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
 
-        gfx_pass_connect(r->scene[gfx_backbuffer_index()], 
+        gfx_pass_connect(r->scene_texture[gfx_backbuffer_index()], 
                          R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
                          RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 

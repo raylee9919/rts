@@ -19,20 +19,34 @@ static RHI_Texture *rhi_texture_from_guid(Guid guid) {
 }
 
 static void gfx_init_samplers() {
-    RHI_Sampler_Desc desc = {};
-    desc.filter             = RHI_FILTER_LINEAR;
-    desc.address_u          = RHI_ADDRESS_REPEAT;
-    desc.address_v          = RHI_ADDRESS_REPEAT;
-    desc.address_w          = RHI_ADDRESS_REPEAT;
-    desc.compare_op         = RHI_COMPARE_ALWAYS;
-    desc.mip_lod_bias       = 0.f;
-    desc.min_lod            = 0.f;
-    desc.max_lod            = 1e10f;
-
-    rhi_sampler_init(gfx->device, &gfx->linear_sampler, &desc);
+    {
+        RHI_Sampler_Desc desc = {};
+        desc.filter             = RHI_FILTER_LINEAR;
+        desc.address_u          = RHI_ADDRESS_REPEAT;
+        desc.address_v          = RHI_ADDRESS_REPEAT;
+        desc.address_w          = RHI_ADDRESS_REPEAT;
+        desc.compare_op         = RHI_COMPARE_ALWAYS;
+        desc.mip_lod_bias       = 0.f;
+        desc.min_lod            = 0.f;
+        desc.max_lod            = 1e10f;
+        rhi_sampler_init(gfx->device, &gfx->linear_sampler, &desc);
+    }
+    {
+        RHI_Sampler_Desc desc = {};
+        desc.filter             = RHI_FILTER_NEAREST;
+        desc.address_u          = RHI_ADDRESS_REPEAT;
+        desc.address_v          = RHI_ADDRESS_REPEAT;
+        desc.address_w          = RHI_ADDRESS_REPEAT;
+        desc.compare_op         = RHI_COMPARE_ALWAYS;
+        desc.mip_lod_bias       = 0.f;
+        desc.min_lod            = 0.f;
+        desc.max_lod            = 1e10f;
+        rhi_sampler_init(gfx->device, &gfx->dot_sampler, &desc);
+    }
 }
 
 static void gfx_deinit_samplers() {
+    rhi_sampler_deinit(&gfx->dot_sampler);
     rhi_sampler_deinit(&gfx->linear_sampler);
 }
 

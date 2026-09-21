@@ -8,6 +8,8 @@
 
 struct R_Pass_Postprocess : R_Pass
 {
+    #include "pass/postprocess.h"
+
     Guid pipeline_id;
 };
 
