@@ -76,8 +76,7 @@ enum
 };
 
 
-u64 string_length(const char *string);
-int cstrlen(const char *cstr);
+s64 cstrlen(const char *cstr);
 b32 string_equal(char *str1, u64 len1, char *str2, u64 len2);
 b32 string_equal(char *str1, u64 len1, char *str2);
 bool string_equal(const char *str1, char *str2, u64 len2);
@@ -89,7 +88,6 @@ b32 string_equal(char *str1, char *str2);
 #define S(str) String{(u8 *)str, sizeof(str) - 1}
 String utf8(u8 *str, u64 len);
 String utf8c(u8 *ptr);
-String str_copy(String str, Allocator allocator);
 Utf16 utf16(u16 *str, u64 len);
 Utf16 utf16c(u16 *ptr);
 Utf32 utf32(u32 *str, u64 len);

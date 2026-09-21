@@ -15,19 +15,8 @@
 //
 // c-string
 //
-u64
-string_length(const char *string)
-{
-    u32 len = 0;
-    while (*string++) {
-        len++;
-    }
-    return len;
-}
-
-int cstrlen(const char *cstr)
-{
-    int len = 0;
+s64 cstrlen(const char *cstr) {
+    s64 len = 0;
     while (*cstr++) ++len;
     return len;
 }
@@ -54,28 +43,19 @@ string_equal(char *str1, u64 len1, char *str2, u64 len2)
 b32
 string_equal(char *str1, u64 len1, char *str2) 
 {
-    return string_equal(str1, len1, str2, string_length(str2));
+    return string_equal(str1, len1, str2, cstrlen(str2));
 }
 
 bool
 string_equal(const char *str1, char *str2, u64 len2) 
 {
-    return string_equal((char *)str1, string_length((char *)str1), str2, len2);
+    return string_equal((char *)str1, cstrlen((char *)str1), str2, len2);
 }
 
 b32
 string_equal(char *str1, char *str2) 
 {
-    return string_equal(str1, string_length(str1), str2, string_length(str2));
-}
-
-String str_copy(String utf, Allocator allocator) {
-    String result;
-    result.len = utf.len;
-    result.str = alloc(sizeof(u8) * (utf.len + 1), allocator);
-    memcpy(result.str, utf.str, utf.len);
-    result.str[utf.len] = 0;
-    return result;
+    return string_equal(str1, cstrlen(str1), str2, cstrlen(str2));
 }
 
 //
@@ -500,8 +480,9 @@ String copy_string(String s, Allocator allocator) {
     Assert( s.len >= 0 );
 
     String t;
-    t.str = alloc(s.len, allocator);
+    t.str = alloc(s.len + 1, allocator);
     t.len = s.len;
+    t.str[t.len] = 0;
     memcpy(t.str, s.str, s.len);
     return t;
 }

@@ -35,9 +35,39 @@ struct Shader_Compile_Result {
 
     u8          *data;
     u64          size;
-
-    u32          num_outputs;
 };
+
+enum Shader_Field_Type : u32 {
+    SHADER_FIELD_INVALID = 0,
+
+    SHADER_FIELD_FLOAT,
+    SHADER_FIELD_FLOAT2,
+    SHADER_FIELD_FLOAT3,
+    SHADER_FIELD_FLOAT4,
+
+    SHADER_FIELD_INT8,
+    SHADER_FIELD_INT16,
+    SHADER_FIELD_INT32,
+    SHADER_FIELD_INT64,
+
+    SHADER_FIELD_UINT8,
+    SHADER_FIELD_UINT16,
+    SHADER_FIELD_UINT32,
+    SHADER_FIELD_UINT64,
+};
+
+struct Shader_Field {
+    String            attribute; // [texture]
+    Shader_Field_Type type;      // uint32_t
+    String            name;      // albedo_texture_id
+};
+
+struct Shader_Struct {
+    String            name;
+    Shader_Field      fields[256];
+    u32               num_fields;
+};
+
 
 bool shader_compiler_init(Shader_Compiler *compiler);
 void shader_compiler_shutdown(Shader_Compiler *compiler);
@@ -48,5 +78,11 @@ bool shader_compile(Shader_Compiler *compiler,
                     bool debug, 
                     Shader_Compile_Result *out_result, 
                     Allocator allocator);
+
+
+Pair<b32, Shader_Struct> shader_reflect_material(Shader_Compiler *compiler,
+                                                 String filepath);
+
+String string_from_shader_field_type(Shader_Field_Type type);
 
 #endif // RTS_SHADER_H

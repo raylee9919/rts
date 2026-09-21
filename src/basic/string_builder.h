@@ -31,6 +31,8 @@ void    append(String_Builder *builder, String str);
 
 void    append(String_Builder *builder, u8 byte);
 
+void    append(String_Builder *builder, const char *cstr);
+
 s64     string_length(String_Builder *builder);
 
 void    reset(String_Builder *builder);

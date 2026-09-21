@@ -3,11 +3,13 @@
 #include "./material.h"
 #include "os/os.h"
 #include "basic/context.h"
+#include "basic/string_builder.h"
 #include "basic/log.h"
 #include "text_file_handler/text_file_handler.h"
 #include "renderer/renderer.h"
 #include "asset/asset.h"
 #include "shared.h"
+#include "shader_compiler/shader.h"
 #include "third_party/stb/stb_image.h"
 
 
@@ -15,6 +17,67 @@ static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_
 static Bitmap bitmap_import(void *loaded_data, u64 size);
 static void bitmap_free(Bitmap *bitmap);
 
+static void material_codegen_header(Shader_Struct *mtl, String output_dir)
+{
+    String_Builder sb = {};
+    init(&sb, tctx.temp);
+
+    append(&sb, S("// Copyright Seong Woo Lee. All Rights Reserved.\n\n"));
+    append(&sb, tprint(S("struct %S {\n"), mtl->name));
+    for (u32 i = 0; i < mtl->num_fields; ++i) {
+        Shader_Field field = mtl->fields[i];
+        String type_s = string_from_shader_field_type(field.type);
+        append(&sb, tprint(S("    %S %S;\n"), type_s, field.name));
+    }
+    append(&sb, S("};"));
+
+    String s = flush(&sb);
+
+    // @Todo: Create directory if not exist
+
+    // Write to file
+    String filename = S("material.h");
+    String path = tprint(S("%S/%S"), output_dir, filename);
+    File file = file_open(path, true, false);
+    if ( !file_is_valid(file) ) {
+        return;
+    }
+
+    file_write(file, s.str, s.len);
+    file_close(&file);
+}
+
+void material_codegen( Shader_Compiler *shader_compiler,
+                       String material_shader_dir,
+                       String output_dir)
+{
+    Array<String> fl = file_list(material_shader_dir, tctx.temp, true);
+
+    for (int i = 0; i < fl.count; ++i)
+    {
+        String path = fl.data[i];
+        auto [ext, ext_success] = path_extension(path);
+        if ( ext_success ) 
+        {
+            if (ext == S("h") || ext == S("slang")) { // @Robustness
+                auto [success, mtl] = shader_reflect_material(shader_compiler, path);
+                if ( !success ) {
+                    log_error(S("Error while generating code for material system."));
+                    return;
+                }
+
+                material_codegen_header(&mtl, output_dir);
+
+            } else {
+                log_warning(S("Unrecognized extension '%S' from '%S' in material shader directory: %S"), ext, path, material_shader_dir);
+            }
+        }
+        else
+        {
+            log_error(S("Failed to get extension from '%S'"), path);
+        }
+    }
+}
 
 void material_load_proc( String filepath, String short_name, void *user_data )
 {

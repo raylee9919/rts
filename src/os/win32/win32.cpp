@@ -442,6 +442,7 @@ b32 file_set_position(File file, s64 pos) {
 }
 
 String read_entire_file(File file, Allocator allocator, bool zero_terminated) {
+    // @Todo: deallocation on fail?
     String s = {};
 
     LARGE_INTEGER size_struct = {};

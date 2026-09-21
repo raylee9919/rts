@@ -12,6 +12,13 @@ void shared_init() {
     shared = (Shared*)alloc(sizeof(Shared), arena);
     shared->arena = arena;
 
+    /* Debug */
+#if BUILD_DEBUG
+    shared->debug = true;
+#else
+    shared->debug = false;
+#endif
+
     /* Gather paths */
     // @Todo: This is wrong. I need Path struct and String_Builder
 #if 0

@@ -13,6 +13,9 @@ struct Shared {
     /* Bundle things that ought to share the lifetime throughout the application */
     Allocator arena;
 
+    /* 'true' if built in debug mode */
+    b32 debug;
+
     /* Should close application */
     b32 should_close;
 

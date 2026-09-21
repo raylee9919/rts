@@ -82,6 +82,10 @@ void append(String_Builder *builder, u8 byte) {
     append(builder, &byte, 1);
 }
 
+void append(String_Builder *builder, const char *cstr) {
+    append(builder, (u8*)cstr, cstrlen(cstr));
+}
+
 s64 string_length(String_Builder *builder) {
     auto *buffer = get_base_buffer(builder);
     s64 bytes = 0;

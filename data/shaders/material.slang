@@ -2,6 +2,9 @@
 
 module material;
 
+[__AttributeUsage(_AttributeTargets.Var)]
+public struct TextureAttribute {};
+
 public struct Material_Input {
     public float3   position;
     public float3   normal;
