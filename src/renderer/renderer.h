@@ -7,7 +7,7 @@
 #include "os/os.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
-#include "shared/shared.h"
+#include "shaders/shared/shared.h"
 
 #define R_DEPTH_FORMAT  RHI_FORMAT_D32F
 #define R_COLOR_FORMAT  RHI_FORMAT_RGBA16F

@@ -473,6 +473,7 @@ Pair<b32, Shader_Struct> shader_reflect_material(Shader_Compiler *compiler, Stri
             for (u32 a = 0; a < var->getUserAttributeCount(); ++a) {
                 UserAttribute *attr = var->getUserAttributeByIndex(a);
                 f->attribute = utf8c((u8*)attr->getName());
+                break;
             }
         }
 

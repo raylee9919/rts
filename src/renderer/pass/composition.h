@@ -8,7 +8,7 @@
 
 struct R_Pass_Composition : R_Pass
 {
-    #include "pass/composition.h"
+    #include "shaders/pass/composition.h"
 
     Guid pipeline_id;
 };

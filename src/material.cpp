@@ -12,28 +12,159 @@
 #include "shader_compiler/shader.h"
 #include "third_party/stb/stb_image.h"
 
+#define GENERATED_MATERIAL_IMPLEMENTATION
+#include "generated/material.h"
+
 
 static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit);
 static Bitmap bitmap_import(void *loaded_data, u64 size);
 static void bitmap_free(Bitmap *bitmap);
 
-static void material_codegen_header(Shader_Struct *mtl, String output_dir)
+void material_codegen(Shader_Compiler *shader_compiler,
+                      String material_shader_dir,
+                      String output_dir)
 {
     String_Builder sb = {};
     init(&sb, tctx.temp);
 
-    append(&sb, S("// Copyright Seong Woo Lee. All Rights Reserved.\n\n"));
-    append(&sb, tprint(S("struct %S {\n"), mtl->name));
-    for (u32 i = 0; i < mtl->num_fields; ++i) {
-        Shader_Field field = mtl->fields[i];
-        String type_s = string_from_shader_field_type(field.type);
-        append(&sb, tprint(S("    %S %S;\n"), type_s, field.name));
+    append(&sb, S("// Copyright Seong Woo Lee. All Rights Reserved."));
+
+    append(&sb, S(R"GEN(
+
+#ifndef RTS_GENERATED_MATERIAL_H
+#define RTS_GENERATED_MATERIAL_H
+
+#include "basic/core.h"
+#include "gfx/gfx.h"
+#include "shaders/shared/shared.h"
+
+struct Material_Field_Info {
+  String name;
+  u64    size;
+  u64    offset;
+};
+
+struct IMaterial {
+  virtual Pair<u32, Material_Field_Info*> get_field_infos() = 0;
+  virtual u64 get_gpu_material_size() = 0;
+  virtual void write_gpu_material(void *dst) = 0;
+};
+
+)GEN"));
+    
+
+    // Get file list
+    Array<String> fl = file_list(material_shader_dir, tctx.temp, true);
+
+    for (int file_idx = 0; file_idx < fl.count; ++file_idx)
+    {
+        String path = fl.data[file_idx];
+        auto [ext, ext_success] = path_extension(path);
+        if ( ext_success ) 
+        {
+            if (ext == S("h") || ext == S("slang")) { // @Robustness
+                auto [success, mtl] = shader_reflect_material(shader_compiler, path);
+                if ( !success ) {
+                    log_error(S("Error while generating code for material system."));
+                    return;
+                }
+
+                // @Todo: Create directory if not exist
+
+                s64 idx = find_index_of_any_from_right(path, S("\\/"));
+                String material_filename = slice(path, idx + 1, path.len - idx - 1);
+
+                append(&sb, S("// ------------------------------------------------------------------------- //\n\n"));
+
+                /* CPU-side struct */
+                append(&sb, tprint(S("struct %S : public IMaterial {\n"), mtl.name));
+
+                /* Fields */
+                for (u32 i = 0; i < mtl.num_fields; ++i) {
+                    Shader_Field field = mtl.fields[i];
+                    String type_s = string_from_shader_field_type(field.type);
+
+                    if (field.attribute == S("Texture")) {
+                        append(&sb, tprint(S("  Guid %S;\n"), field.name));
+                    } else {
+                        append(&sb, tprint(S("  %S %S;\n"), type_s, field.name));
+                    }
+                }
+
+                append(&sb, S("\n"));
+
+                /* Shader Source Declaration*/
+                append(&sb, tprint(S("  static String shader_source;\n")));
+
+                /* Field Info Declaration */
+                append(&sb, tprint(S("  static Material_Field_Info field_info[%d];\n\n"), mtl.num_fields));
+
+
+                /* GPU-side struct. This is inside CPU-side one. */
+                append(&sb, S("  struct GPU_Material {\n"));
+                for (u32 i = 0; i < mtl.num_fields; ++i) {
+                    Shader_Field field = mtl.fields[i];
+                    String type_s = string_from_shader_field_type(field.type);
+                    append(&sb, tprint(S("    %S %S;\n"), type_s, field.name));
+                }
+                append(&sb, S("  };\n"));
+
+                append(&sb, S("\n"));
+
+                /* Implementations */
+                append(&sb, S("  virtual Pair<u32, Material_Field_Info*> get_field_infos() override {\n"));
+                append(&sb, S("    return { array_count(field_info), field_info };\n"));
+                append(&sb, S("  }\n\n"));
+
+                append(&sb, S("  virtual u64 get_gpu_material_size() override {\n"));
+                append(&sb, S("    return sizeof(GPU_Material);\n"));
+                append(&sb, S("  }\n\n"));
+
+                append(&sb, S("  virtual void write_gpu_material(void *dst) override {\n"));
+                append(&sb, S("    GPU_Material *m = (GPU_Material *)dst;\n"));
+                for (u32 i = 0; i < mtl.num_fields; ++i) {
+                    Shader_Field field = mtl.fields[i];
+                    String name = field.name;
+                    if (field.attribute == S("Texture")) {
+                        append(&sb, tprint(S("    m->%S = gfx_srv_bindless_from_texture(%S);\n"), name, name));
+                    } else {
+                        append(&sb, tprint(S("    m->%S = %S;\n"), name, name));
+                    }
+                }
+                append(&sb, S("  }\n\n"));
+
+                append(&sb, S("};\n\n")); // End of struct
+
+
+                /* Field Info */
+                append(&sb, "#ifdef GENERATED_MATERIAL_IMPLEMENTATION\n");
+                append(&sb, tprint(S("String %S::shader_source = S(\"%S\");\n"), mtl.name, material_filename));
+                append(&sb, tprint(S("Material_Field_Info %S::field_info[%d] = {\n"), mtl.name, mtl.num_fields));
+                for (u32 i = 0; i < mtl.num_fields; ++i) {
+                    Shader_Field field = mtl.fields[i];
+                    append(&sb, tprint(S("    { S(\"%S\"), sizeof(%S), offset_of(%S, %S) },\n"), 
+                                       field.name, field.name, mtl.name, field.name));
+                }
+                append(&sb, S("};\n"));
+                append(&sb, "#endif\n\n");
+
+            } else {
+                log_warning(S("Unrecognized extension '%S' from '%S' in material shader directory: %S"), 
+                            ext, path, material_shader_dir);
+            }
+        } else {
+            log_error(S("Failed to get extension from '%S'"), path);
+        }
     }
-    append(&sb, S("};"));
 
+
+    /* Include Guard End */
+    append(&sb, S("#endif // RTS_GENERATED_MATERIAL_H"));
+
+
+    // Let's actually write.
+    // @Speed: Write straight to file from string builder.
     String s = flush(&sb);
-
-    // @Todo: Create directory if not exist
 
     // Write to file
     String filename = S("material.h");
@@ -45,38 +176,8 @@ static void material_codegen_header(Shader_Struct *mtl, String output_dir)
 
     file_write(file, s.str, s.len);
     file_close(&file);
-}
 
-void material_codegen( Shader_Compiler *shader_compiler,
-                       String material_shader_dir,
-                       String output_dir)
-{
-    Array<String> fl = file_list(material_shader_dir, tctx.temp, true);
-
-    for (int i = 0; i < fl.count; ++i)
-    {
-        String path = fl.data[i];
-        auto [ext, ext_success] = path_extension(path);
-        if ( ext_success ) 
-        {
-            if (ext == S("h") || ext == S("slang")) { // @Robustness
-                auto [success, mtl] = shader_reflect_material(shader_compiler, path);
-                if ( !success ) {
-                    log_error(S("Error while generating code for material system."));
-                    return;
-                }
-
-                material_codegen_header(&mtl, output_dir);
-
-            } else {
-                log_warning(S("Unrecognized extension '%S' from '%S' in material shader directory: %S"), ext, path, material_shader_dir);
-            }
-        }
-        else
-        {
-            log_error(S("Failed to get extension from '%S'"), path);
-        }
-    }
+    log_info(S("Generated code for %llu materials."), fl.count);
 }
 
 void material_load_proc( String filepath, String short_name, void *user_data )
@@ -111,6 +212,9 @@ void material_load_proc( String filepath, String short_name, void *user_data )
 
     Material material = {};
     Guid material_id = guid_from_string(short_name);
+
+    // @Todo: Find id from global table and get corresponding 
+    // material field info.
 
     while (1) 
     {
@@ -147,7 +251,7 @@ void material_load_proc( String filepath, String short_name, void *user_data )
             asset_request(guid_from_string(s));
             material.orm_texture = guid_from_string(s);
         }
-        else if (field == S("shader")) {
+        else if (field == S("shader")) { // @Fix: name collision with field name
             auto [success, s] = parse_string(&handler, val);
             if (!success) return;
 

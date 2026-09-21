@@ -11,7 +11,7 @@
 #include "math/math.h"
 #include "os/os.h"
 #include "rhi/rhi.h"
-#include "shared/shared.h"
+#include "shaders/shared/shared.h"
 
 
 #define GFX_INVALID                 UINT64_MAX
@@ -254,6 +254,7 @@ RHI_Texture_View *gfx_srv_from_texture(Guid guid);
 RHI_Texture_View *gfx_uav_from_texture(Guid guid);
 
 // Get bindless handle of SRV from texture GUID. returns GFX_INVALID_BINDLESS if it doesn't exist.
+// @Note: This function name is used by material system codegen.
 u32 gfx_srv_bindless_from_texture(Guid guid);
 
 // Get bindless handle of UAV from texture GUID. returns GFX_INVALID_BINDLESS if it doesn't exist.

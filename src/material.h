@@ -6,6 +6,8 @@
 #include "basic/string.h"
 #include "rhi/rhi.h"
 
+#include "generated/material.h"
+
 struct Shader_Compiler;
 
 struct Bitmap {
@@ -17,9 +19,9 @@ struct Bitmap {
 };
 
 // Generate codes for material system.
-void material_codegen( Shader_Compiler *shader_compiler,
-                       String material_shader_dir,
-                       String output_dir);
+void material_codegen(Shader_Compiler *shader_compiler,
+                      String material_shader_dir,
+                      String output_dir);
 
 void image_load_proc( String filepath, String short_name, void *user_data );
 

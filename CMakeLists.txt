@@ -42,7 +42,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
 add_library(rts_options INTERFACE)
 target_include_directories(rts_options INTERFACE "${CMAKE_SOURCE_DIR}/src")
-target_include_directories(rts_options INTERFACE "${CMAKE_SOURCE_DIR}/data/shaders")
+target_include_directories(rts_options INTERFACE "${CMAKE_SOURCE_DIR}/data")
 target_compile_definitions(rts_options INTERFACE
     NOMINMAX
     UNICODE

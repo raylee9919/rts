@@ -8,7 +8,7 @@
 
 struct R_Pass_Geometry : R_Pass
 {
-#include "pass/surface.h"
+    #include "shaders/pass/surface.h"
 
     RHI_Buffer           arguments_buffer;
     RHI_Buffer_View      arguments_view;
