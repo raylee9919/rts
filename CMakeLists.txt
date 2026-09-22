@@ -149,7 +149,6 @@ function(rts_add_executable name)
 endfunction()
 
 rts_add_executable(rts    src/main.cpp)
-rts_add_executable(build  src/build.cpp src/material/codegen.cpp)
 
 
 add_custom_target(compile_commands ALL

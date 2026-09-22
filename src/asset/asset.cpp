@@ -48,10 +48,6 @@ void asset_system_init()
     }
 
     asset_system_init_catalog();
-
-
-    /* Init material type system */
-    material_type_system_init( heap );
 }
 
 Array<String> asset_file_list(String path, 

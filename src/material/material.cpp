@@ -1,10 +1,8 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#define GENERATED_MATERIAL_IMPLEMENTATION
 #include "./material.h"
 #include "os/os.h"
 #include "basic/context.h"
-#include "basic/string_builder.h"
 #include "basic/log.h"
 #include "text_file_handler/text_file_handler.h"
 #include "renderer/renderer.h"
@@ -21,39 +19,228 @@ static Bitmap bitmap_import(void *loaded_data, u64 size);
 static void bitmap_free(Bitmap *bitmap);
 
 
-Table<Guid, Material_Type_Info, hash_guid> material_type_table;
-Table<Guid, Material_Entry, hash_guid> material_table;
+// ------------------------------------------------------------------------- //
 
+static Allocator material_system_allocator;
+static Pair<u64, u64> material_field_type_size_align[M_FIELD_TYPE_COUNT];
+static Table<Guid, M_TypeInfo, hash_guid> material_type_table;
+static Table<Guid, M_Entry, hash_guid> material_table;
 
-void material_type_system_init(Allocator allocator)
+static u64 get_size(M_FieldType type) {
+    return material_field_type_size_align[type].x;
+}
+
+static u64 get_align(M_FieldType type) {
+    return material_field_type_size_align[type].y;
+}
+
+void write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material) {
+    auto convert = [](u8 *src, M_FieldType cpu_type, M_FieldType gpu_type) -> u8* {
+        u8 *data = src;
+        if (cpu_type == gpu_type) return data;
+        if (cpu_type == M_FIELD_GUID) {
+            Assert(gpu_type == M_FIELD_TEXTURE);
+            data = alloc(4, tctx.temp);
+            Guid guid = *(Guid*)src;
+            u32 bindless = gfx_srv_bindless_from_texture(guid);
+            *(u32*)data = bindless;
+        }
+        return data;
+    };
+
+    for (u32 i = 0; i < info->num_fields; ++i) {
+        M_Field field = info->fields[i];
+        u8 *dst = (u8*)gpu_ptr  + field.gpu_offset;
+        u8 *src = convert((u8*)material + field.cpu_offset, field.cpu_type, field.gpu_type);
+        memcpy(dst, src, info->fields[i].gpu_size);
+    }
+}
+
+static String get_material_shortname(String path)
 {
-    material_type_table.allocator = allocator;
-    init_material_type_table();
+    // @Robustness
+    String short_name = path;
+    Assert(begins_with(path, shared->data_path));
+    advance(&short_name, shared->data_path.len);
+    short_name = trim_left(short_name, S("./\\"));
 
-    material_table.allocator = allocator;
+    // @Robustness: Path normalization
+    u8 *dst = alloc(short_name.len + 1, tctx.temp);
+    s64 len = 0;
+    for (s64 i = 0; i < short_name.len; ++i) {
+        u8 c = short_name.str[i];
+        if (c == '\\')  c = '/';
+        if (c == '/' && len > 0 && dst[len - 1] == '/')  continue;
+        dst[len++] = c;
+    }
+    dst[len] = 0;
+
+    return String{ dst, len };
+}
+
+static M_FieldType convert_type(Shader_Field_Type type, b32 is_gpu) {
+    switch (type) {
+        case SHADER_FIELD_INT8:    return M_FIELD_S8;
+        case SHADER_FIELD_INT16:   return M_FIELD_S16;
+        case SHADER_FIELD_INT32:   return M_FIELD_S32;
+        case SHADER_FIELD_INT64:   return M_FIELD_S64;
+
+        case SHADER_FIELD_UINT8:   return M_FIELD_U8;
+        case SHADER_FIELD_UINT16:  return M_FIELD_U16;
+        case SHADER_FIELD_UINT32:  return M_FIELD_U32;
+        case SHADER_FIELD_UINT64:  return M_FIELD_U64;
+
+        case SHADER_FIELD_FLOAT:   return M_FIELD_F32;
+        case SHADER_FIELD_FLOAT2:  return M_FIELD_VEC2;
+        case SHADER_FIELD_FLOAT3:  return M_FIELD_VEC3;
+        case SHADER_FIELD_FLOAT4:  return M_FIELD_VEC4;
+
+        default: Assert(0); return M_FIELD_S32;
+    }
+}
+
+Pair<b32, M_TypeInfo> get_material_type_info(Shader_Compiler *shader_compiler, String filepath)
+{
+    auto [reflect_ok, mtl] = shader_reflect_material(shader_compiler, filepath);
+    if ( !reflect_ok ) {
+        log_error(S("Error while reflecting '%S'"), filepath);
+        return {false, {}};
+    }
+
+    String shortname = get_material_shortname(filepath);
+
+    M_TypeInfo type_info = {};
+    type_info.id         = guid_from_string(shortname);
+    type_info.num_fields = mtl.num_fields;
+
+    u64 cpu_align = 1;
+    u64 gpu_align = 1;
+
+    for (u32 i = 0; i < mtl.num_fields; ++i) {
+        Shader_Field field = mtl.fields[i];
+
+        M_Field *f = &type_info.fields[i];
+        f->name = field.name; // @Todo: is it const char *
+
+        f->cpu_type   = field.attribute == S("Texture") ? M_FIELD_GUID : convert_type(field.type, false);
+        f->cpu_size   = get_size(f->cpu_type);
+        f->cpu_offset = (i > 0) ? align_up(type_info.fields[i-1].cpu_offset + type_info.fields[i-1].cpu_size, get_align(f->cpu_type)) : 0;
+
+        f->gpu_type   = field.attribute == S("Texture") ? M_FIELD_TEXTURE : convert_type(field.type, true);
+        f->gpu_size   = get_size(f->gpu_type);
+        f->gpu_offset = (i > 0) ? align_up(type_info.fields[i-1].gpu_offset + type_info.fields[i-1].gpu_size, get_align(f->gpu_type)) : 0;
+
+        cpu_align = max(cpu_align, get_align(f->cpu_type));
+        gpu_align = max(gpu_align, get_align(f->gpu_type));
+    }
+
+    if (mtl.num_fields > 0) {
+        M_Field *last = &type_info.fields[mtl.num_fields - 1];
+        type_info.cpu_size = align_up(last->cpu_offset + last->cpu_size, cpu_align);
+        type_info.gpu_size = align_up(last->gpu_offset + last->gpu_size, gpu_align);
+    }
+
+    return {true, type_info};
+}
+
+b32 material_system_init(String material_shader_dir, 
+                         Shader_Compiler *shader_compiler) 
+{
+    material_system_allocator = {crt_proc, nullptr};
+    material_type_table.allocator = material_system_allocator;
+    material_table.allocator      = material_system_allocator;
+
+
+    material_field_type_size_align[M_FIELD_S8]  = { sizeof(s8),  align_of(s8)  };
+    material_field_type_size_align[M_FIELD_S16] = { sizeof(s16), align_of(s16) };
+    material_field_type_size_align[M_FIELD_S32] = { sizeof(s32), align_of(s32) };
+    material_field_type_size_align[M_FIELD_S64] = { sizeof(s64), align_of(s64) };
+
+    material_field_type_size_align[M_FIELD_U8]  = { sizeof(u8),  align_of(u8)  };
+    material_field_type_size_align[M_FIELD_U16] = { sizeof(u16), align_of(u16) };
+    material_field_type_size_align[M_FIELD_U32] = { sizeof(u32), align_of(u32) };
+    material_field_type_size_align[M_FIELD_U64] = { sizeof(u64), align_of(u64) };
+
+    material_field_type_size_align[M_FIELD_F32]  = {           4, align_of(f32) };
+    material_field_type_size_align[M_FIELD_VEC2] = {           8, align_of(f32) };
+    material_field_type_size_align[M_FIELD_VEC3] = {          12, align_of(f32) };
+    material_field_type_size_align[M_FIELD_VEC4] = {          16, align_of(f32) };
+
+    material_field_type_size_align[M_FIELD_GUID] = { sizeof(Guid), align_of(Guid) };
+
+    material_field_type_size_align[M_FIELD_TEXTURE] = { sizeof(u32), align_of(u32) };
+
+
+    // Iterate over file list in the directory, reflect, 
+    // get type info and push it to the type table.
+    Array<String> list = file_list(material_shader_dir, tctx.temp, true);
+    for (int file_idx = 0; file_idx < list.count; ++file_idx)
+    {
+        String path = list.data[file_idx];
+        auto [ext, ext_success] = path_extension(path);
+        if ( !ext_success ) {
+            log_error(S("Failed to get extension from '%S'."), path);
+            return false;
+        }
+
+        if (ext != S("h") && ext != S("slang")) {
+            log_error(S("Unrecognized extension '%S' from '%S'."), ext, path);
+            return false;
+        }
+
+        auto [ok, type_info] = get_material_type_info(shader_compiler, path);
+        if (!ok) {
+            log_error(S("Failed to get material type info from '%S'"), path);
+            return false;
+        }
+
+        table_add(&material_type_table, type_info.id, type_info);
+    }
+
+    return true;
+}
+
+void material_system_shutdown()
+{
+    release(material_system_allocator);
 }
 
 // @Todo: Entities can share a material, thus we can't 
 // blindly alloc/dealloc material.
-void material_alloc(Guid guid, Material_Entry *in_entry) 
+M_Entry *alloc_material(Guid id) {
+    M_Entry *entry = table_add(&material_table, id, {});
+    return entry;
+}
+
+// @Todo: This too
+void free_material(Guid id) {
+    table_remove(&material_table, id);
+}
+
+M_Entry *get_material(Guid id) {
+    return table_find_pointer(&material_table, id);
+}
+
+void upload_material(Guid id) 
 {
-    Material_Entry *entry = table_add(&material_table, guid, *in_entry);
+    M_Entry *entry = table_find_pointer(&material_table, id);
+    Assert(entry);
+
+    M_TypeInfo *type_info = table_find_pointer(&material_type_table, entry->type_id);
+    u64 gpu_size = type_info->gpu_size;
 
     { // @Temporary
         u8 *ptr = (u8*)rhi_buffer_map(&gfx->upload_buffer);
 
-        Material_Base *base = (Material_Base*)in_entry->data;
-
-        u64 sz = base->get_gpu_material_size();
-        base->write_gpu_material(base, ptr);
+        write_gpu_material(type_info, ptr, entry->data);
 
         rhi_buffer_unmap(&gfx->upload_buffer);
 
         rhi_command_buffer_begin(&gfx->copy_buffer);
         {
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, 0, sz);
+            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, 0, gpu_size);
             entry->offset = renderer->material_buffer_used;
-            renderer->material_buffer_used += sz;
+            renderer->material_buffer_used += gpu_size;
         }
         rhi_command_buffer_end(&gfx->copy_buffer);
         RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
@@ -63,24 +250,6 @@ void material_alloc(Guid guid, Material_Entry *in_entry)
         rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value, -1);
         gfx->upload_semaphore_value += 1;
     }
-}
-
-b32 material_dealloc(Guid guid) 
-{
-    // @Todo
-    Material_Entry *entry = table_find_pointer(&material_table, guid);
-    if ( !entry ) {
-        log_error(S("Couldn't find material '%llu-%llu' in the table."), guid._64[1], guid._64[0]);
-        return false;
-    }
-    return true;
-}
-
-Material_Entry *material_from_guid(Guid guid) 
-{
-    Material_Entry *result = table_find_pointer(&material_table, guid);
-    Assert(result);
-    return result;
 }
 
 void material_load_proc( String filepath, String short_name, void *user_data )
@@ -111,8 +280,6 @@ void material_load_proc( String filepath, String short_name, void *user_data )
 
     Text_File_Handler handler = {};
     handler.start(read_entire_file(filepath, tctx.temp));
-
-    Guid material_id = guid_from_string(short_name);
 
     String shader = {};
     Guid type_id = NULL_GUID;
@@ -148,21 +315,20 @@ void material_load_proc( String filepath, String short_name, void *user_data )
         return;
     }
 
-    Material_Type_Info type_info = find_result.value;
+    M_TypeInfo type_info = find_result.value;
     u32 num_fields = type_info.num_fields;
-    Material_Field_Info *field_info = type_info.fields;
 
-    if ( type_info.cpu_size > MAX_CPU_MATERIAL_SIZE ) {
-        log_error(S("Material '%S' needs %llu bytes, but MAX_CPU_MATERIAL_SIZE is %d."),
-                  shader, type_info.cpu_size, MAX_CPU_MATERIAL_SIZE);
+    if (type_info.cpu_size > MAX_CPU_MATERIAL_SIZE) {
+        log_error(S("Material on CPU-side is bigger than max size: '%d'."), MAX_CPU_MATERIAL_SIZE);
         return;
     }
 
 
     /* Material entry to fill in */
-    Material_Entry material = {};
-    material.type_id = type_id;
-    memcpy(material.data, &type_info.base, sizeof(type_info.base)); // fill in base material
+    Guid material_asset_id = guid_from_string(short_name);
+    Guid alloc_id = material_asset_id;
+    M_Entry *material = alloc_material(alloc_id);
+    material->type_id = type_id;
 
 
     /* Parse */
@@ -179,35 +345,61 @@ void material_load_proc( String filepath, String short_name, void *user_data )
             return;
         }
 
+
+        // Iterate over field infos and match string
+        M_Field *field_info = nullptr;
+        for (u32 i = 0; i < num_fields; ++i) {
+            if (type_info.fields[i].name == field) {
+                field_info = type_info.fields + i;
+                break;
+            }
+        }
+
+        if (!field_info) {
+            log_error(S("Couldn't find field: '%S'."), field);
+            return;
+        }
+
         // @Cleanup: 
         // Should I do DAG thing or what.
         // Load assets this is depending on:
 
-        auto find_field = [](String name, Material_Field_Info *infos, u32 count) -> Material_Field_Info* {
-            for (u32 i = 0; i < count; ++i) {
-                if (infos[i].name == name) return infos + i;
-            }
-            return nullptr;
-        };
+        switch (field_info->cpu_type) {
+            case M_FIELD_GUID: {
+                auto [success, s] = parse_string(&handler, val);
+                if (!success) {
+                    log_error(S("Failed to parse field in '%S' at line '%d'."), filepath, handler.line_number);
+                    return;
+                }
 
-        Material_Field_Info *info = find_field(field, field_info, num_fields);
-        if ( !info ) {
-            log_error(S("Couldn't find field: '%S'"), field);
-            return;
-        }
+                Guid child_asset = guid_from_string(s);
+                asset_request(child_asset);
 
-        if ( info->type == MATERIAL_FIELD_SCALAR ) {
-            // @Todo: Parse scalar
-        } else if ( info->type == MATERIAL_FIELD_ASSET ) {
-            auto [success, s] = parse_string(&handler, val);
-            if (!success) return;
+                memcpy(material->data + field_info->cpu_offset, &child_asset, field_info->cpu_size);
+            } break;
 
-            Guid child_asset = guid_from_string(s);
-            asset_request(child_asset);
-            memcpy( material.data + info->offset, &child_asset, info->size );
-        } else {
-            log_error(S("Unrecognized field info type."));
-            return;
+            case M_FIELD_S8:
+            case M_FIELD_S16:
+            case M_FIELD_S32:
+            case M_FIELD_S64:
+            case M_FIELD_U8:
+            case M_FIELD_U16:
+            case M_FIELD_U32:
+            case M_FIELD_U64:
+            {
+                auto [int_val, ok, remainder] = int_from_string(val);
+                if (!ok) {
+                    log_error(S("Failed to convert int from string in '%S' at line '%d'. String was '%S'."), 
+                              filepath, handler.line_number, val);
+                    return;
+                }
+            } break;
+
+            // @Todo: float/vector
+
+            default: {
+                Assert(!"Invalid default value");
+            } break;
         }
     }
 
@@ -216,8 +408,9 @@ void material_load_proc( String filepath, String short_name, void *user_data )
     // If I ever decide to have a material instance, instances 
     // share a base material's pipeline, thus, pipeline id must be 
     // discriminated from material id.
-    Guid pipeline_id = material_id;
-    material.pipeline = pipeline_id;
+    Guid pipeline_id  = alloc_id;
+    material->pipeline = pipeline_id;
+
 
     // `shader` is the material implementation (IMaterial). It gets linked
     // into the template shader, which owns the entry points.
@@ -230,7 +423,7 @@ void material_load_proc( String filepath, String short_name, void *user_data )
     // @Fix: As I stated in the function definition, 
     // entites can share material. Blindly alloc/deallocing 
     // material is wrong.
-    material_alloc(material_id, &material);
+    upload_material(alloc_id);
 }
 
 void image_load_proc( String filepath, String short_name, void *user_data )

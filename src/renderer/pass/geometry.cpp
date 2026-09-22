@@ -70,7 +70,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     {
         entity_dfs(g, g->root, pass, [](Game_State *g, Entity *E, u64 i, void *data) {
             // Set pipeline
-            Material_Entry *material = material_from_guid(E->material);
+            M_Entry *material = get_material(E->material);
             gfx_set_pipeline(material->pipeline);
 
 

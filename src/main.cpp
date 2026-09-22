@@ -127,6 +127,11 @@ int main_entry(int argc, char **argv)
     // Register asset types and init catalog.
     asset_system_init();
 
+    // Init material system.
+    // Reflect and construct material type table.
+    material_system_init(tprint(S("%S/%S"), shared->data_path, S("shaders/material/")), 
+                         shared->shader_compiler);
+
     // Init Game
     game_init(time_old);
 
@@ -153,8 +158,6 @@ int main_entry(int argc, char **argv)
                   offset_of(Asset::Vertex, normal),
                   offset_of(Asset::Vertex, uv),
                   indices, sizeof(indices[0]));
-
-    // Material code generation lives in the build tool now: 'build.bat', then 'b.bat'.
 
     {
         gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
@@ -335,6 +338,7 @@ int main_entry(int argc, char **argv)
 
     /* Shutdown Systems */
     game_deinit();
+    material_system_shutdown();
     asset_system_shutdown();
 
     return 0;
