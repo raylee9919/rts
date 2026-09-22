@@ -10,7 +10,7 @@
 #include "basic/string_builder.h"
 #include "os/os.h"
 #include "shader_compiler/shader.h"
-#include "material_codegen.h"
+#include "material/codegen.h"
 #include "shared.h"
 
 // Must match what the generated header declares.

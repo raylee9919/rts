@@ -3,7 +3,7 @@
 #include "./geometry.h"
 #include "gfx/gfx.h"
 #include "game.h"
-#include "material.h"
+#include "material/material.h"
 
 R_PASS_INIT( RenderPassInit_Geometry )
 {

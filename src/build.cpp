@@ -3,7 +3,7 @@
 #include "basic/log.h"
 #include "shared.h"
 #include "os/os.h"
-#include "material_codegen.h"
+#include "material/codegen.h"
 
 int main_entry(int argc, char **argv)
 {

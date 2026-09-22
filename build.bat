@@ -17,7 +17,7 @@ pushd build
 
 set defines=/DNOMINMAX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS /DBUILD_DEBUG=1
 set includes=/I../src /I../data
-set sources=../src/build.cpp ../src/shared.cpp ../src/material_codegen.cpp ^
+set sources=../src/build.cpp ../src/shared.cpp ../src/material/codegen.cpp ^
             ../src/basic/allocator.cpp ../src/basic/arena.cpp ../src/basic/context.cpp ^
             ../src/basic/core.cpp ../src/basic/hash.cpp ../src/basic/log.cpp ^
             ../src/basic/string.cpp ../src/basic/string_builder.cpp ^

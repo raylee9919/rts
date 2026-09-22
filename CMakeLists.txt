@@ -121,7 +121,7 @@ add_library(rts_engine STATIC
 
     src/game.cpp
     src/shared.cpp
-    src/material.cpp
+    src/material/material.cpp
 
     src/renderer/pass/geometry.cpp
     src/renderer/pass/postprocess.cpp
@@ -148,7 +148,7 @@ function(rts_add_executable name)
 endfunction()
 
 rts_add_executable(rts    src/main.cpp)
-rts_add_executable(build  src/build.cpp src/material_codegen.cpp)
+rts_add_executable(build  src/build.cpp src/material/codegen.cpp)
 
 
 add_custom_target(compile_commands ALL

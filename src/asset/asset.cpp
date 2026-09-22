@@ -4,7 +4,7 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "shared.h"
-#include "material.h"
+#include "material/material.h"
 
 Asset_System *asset_system;
 

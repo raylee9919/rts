@@ -17,7 +17,7 @@
 #include "asset/asset.h"
 #include "audio/audio.h"
 #include "shared.h"
-#include "material.h"
+#include "material/material.h"
 #include "third_party/xxhash3/xxhash.h"
 
 
