@@ -100,6 +100,7 @@ add_library(rts_engine STATIC
 
     src/rect_pack/rect_pack.cpp
 
+    src/asset/mesh.cpp
     src/asset/parser.cpp
     src/asset/system.cpp
     src/asset/texture.cpp

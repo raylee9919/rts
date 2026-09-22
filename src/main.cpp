@@ -15,21 +15,16 @@
 #include "profiler/profiler.h"
 #include "game.h"
 #include "asset/asset.h"
+#include "asset/mesh.h"
 #include "audio/audio.h"
 #include "shared.h"
 #include "material/material.h"
 #include "third_party/xxhash3/xxhash.h"
 
 
-//
-struct Vertex {
-    vec3 position;
-    vec3 normal;
-    vec2 uv;
-};
-
-Vertex  vertices[24];
-u32     indices[36];
+// The cube shares the vertex format with loaded meshes, since they share the pipeline.
+Asset::Vertex vertices[24];
+u32           indices[36];
 
 
 u32 num_vertices = array_count(vertices);
@@ -116,17 +111,6 @@ void game_tick(Game_State *g, f64 dt)
         }
 #endif
 
-    entity_dfs(g, g->root, nullptr, [](Game_State *g, Entity *entity, u64 index, void *user_data) {
-        f32 spacing = 3.0f;
-
-        u32 x = index % 10;
-        u32 y = (index / 10) % 10;
-        u32 z = index / 100;
-
-        entity->position.x = ((f32)x - 4.5f) * spacing;
-        entity->position.y = ((f32)y - 4.5f) * spacing;
-        entity->position.z = ((f32)z - 4.5f) * spacing;
-    });
 }
 
 int main_entry(int argc, char **argv)
@@ -159,11 +143,16 @@ int main_entry(int argc, char **argv)
     while (!renderer || !renderer->initted) {}
 
     // Init camera
-    game_state->camera.position = vec3(0.f, 6.f, 15.f);
+    game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
 
     // Make a cube
     cube_mesh._64[0] = 7474; // @Temporary
-    geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
+    memset(vertices, 0, sizeof(vertices)); // geo_make_cube only touches position/normal/uv.
+    geo_make_cube(vertices, sizeof(Asset::Vertex),
+                  offset_of(Asset::Vertex, position),
+                  offset_of(Asset::Vertex, normal),
+                  offset_of(Asset::Vertex, uv),
+                  indices, sizeof(indices[0]));
 
     // Material code generation lives in the build tool now: 'build.bat', then 'b.bat'.
 
@@ -200,13 +189,52 @@ int main_entry(int argc, char **argv)
     // @Temporary
     // Create and initalize entities. This is a placeholder.
     // Entities are assets, thus will be loaded from the disk as well.
-    for (int i = 0; i < 256; ++i) 
     {
-        Entity *E = entity_alloc(game_state);
-        E->mesh     = cube_mesh;
-        E->material = guid_from_string(S("materials/doggo.material")); // @Temporary
+        // Submesh name -> material. The mesh carries no material reference itself,
+        // so the binding lives here until entities become assets of their own.
+        struct Knight_Material { String mesh; String material; };
+        Knight_Material knight_materials[] = {
+            { S("Helm2"),        S("materials/knight/helm.material")         },
+            { S("Arms"),         S("materials/knight/arms.material")         },
+            { S("Acessories"),   S("materials/knight/arms.material")         },
+            { S("Acessories2"),  S("materials/knight/arms.material")         },
+            { S("Breast_Armor"), S("materials/knight/breast_armor.material") },
+            { S("Leegs_Armor1"), S("materials/knight/breast_armor.material") },
+            { S("pants"),        S("materials/knight/breast_armor.material") },
+            { S("Weapon2"),      S("materials/knight/sword.material")        },
+            { S("Shield"),       S("materials/knight/shield.material")       },
+        };
 
-        asset_request(E->material); // @Temporary
+        Guid knight_id = guid_from_string(S("mesh/knight.triangle_mesh"));
+        asset_request(knight_id);
+
+        Asset::Model *knight = Asset::model_from_guid(knight_id);
+        Assert(knight);
+
+        for (u32 i = 0; i < knight->num_meshes; ++i) {
+            Asset::Mesh *mesh = &knight->meshes[i];
+
+            String material_name = {};
+            for (Knight_Material &km : knight_materials) {
+                if (km.mesh == mesh->name) { material_name = km.material; break; }
+            }
+
+            if ( !material_name.str ) {
+                log_warning(S("No material for knight submesh '%S', skipping."), mesh->name);
+                continue;
+            }
+
+            Guid material = guid_from_string(material_name);
+            asset_request(material);
+
+            Entity *E   = entity_alloc(game_state);
+            E->mesh     = mesh->gpu_id;
+            E->material = material;
+
+            // The knight was authored in centimetres. Without the skeleton's root
+            // transform (0.01 uniform) there's nothing else to bring him down to scale.
+            E->scale    = vec3(0.01f);
+        }
     }
     
     // Game loop

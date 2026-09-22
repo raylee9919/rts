@@ -79,7 +79,9 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
             auto *args = (R_Pass_Geometry::Arguments*)p->arguments_ptr + i;
 
-            m4x4 m = m4x4_translate(E->position) * y_rotation(g->time);
+            m4x4 m = m4x4_translate(E->position)
+                   * y_rotation((f32)g->time)
+                   * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
             memcpy(&args->transform, &m, sizeof(args->transform));
             args->material_index = material->offset;
 
@@ -97,7 +99,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                 gfx_push_constants(&c, sizeof(c));
 
                 // Draw
-                gfx_draw(cube_mesh, 1);
+                gfx_draw(E->mesh, 1);
             }
         });
 

@@ -1,5 +1,9 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+// This is build utility translation executable.
+// For now, this only has material code generation.
+//                                   -swL, 2026-09-22
+
 #include "basic/log.h"
 #include "shared.h"
 #include "os/os.h"

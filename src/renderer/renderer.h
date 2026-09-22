@@ -93,7 +93,7 @@ enum R_Shading_Model {
 };
 
 force_inline bool r_should_enable_depth(R_Shading_Model sm) {
-    return sm == SHADING_MODEL_TRANSLUCENT;
+    return sm != SHADING_MODEL_TRANSLUCENT;
 }
 
 force_inline bool r_should_enable_blend(R_Shading_Model sm) {

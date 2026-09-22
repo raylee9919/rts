@@ -10,10 +10,19 @@ struct Instance {
     uint32_t material_id;
 };
 
+// Mirrors Asset::Vertex in src/asset/mesh.h. Keep the two in sync.
+// Every 4-component vector is 16-byte aligned, so this lays out identically under
+// scalar and cbuffer-style packing. int4/float4 rather than arrays for the same reason.
 struct Vertex {
-    float3 position;
-    float3 normal;
-    float2 uv;
+    float4 tangent;      // 0
+    float3 position;     // 16
+    uint   color;        // 28
+    float3 normal;       // 32
+    float  _pad0;        // 44
+    float4 node_weights; // 48
+    int4   node_ids;     // 64
+    float2 uv;           // 80
+    float2 _pad1;        // 88
 };
 
 struct VS_Output {

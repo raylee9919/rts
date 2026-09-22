@@ -1,7 +1,4 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
-//
-// Code generation for the material system. Kept in its own translation unit so
-// the build tool can link it without dragging in the renderer or asset system.
 
 #include "basic/core.h"
 #include "basic/context.h"
@@ -13,10 +10,8 @@
 #include "material/codegen.h"
 #include "shared.h"
 
-// Must match what the generated header declares.
 #define MAX_MATERIAL_FIELDS 32
 
-// Same rule as asset_shortname(), without pulling in the asset system.
 static String codegen_shortname(String path)
 {
     String short_name = path;
@@ -24,8 +19,7 @@ static String codegen_shortname(String path)
     advance(&short_name, shared->data_path.len);
     short_name = trim_left(short_name, S("./\\"));
 
-    // file_list() can hand back doubled separators ("material//doggo.slang").
-    // The guid is hashed from this string, so it has to match what .material files spell.
+    // @Robustness: Path normalization
     u8 *dst = alloc(short_name.len + 1, tctx.temp);
     s64 len = 0;
     for (s64 i = 0; i < short_name.len; ++i) {
@@ -61,7 +55,11 @@ void material_codegen(Shader_Compiler *shader_compiler,
 #include "gfx/gfx.h"
 #include "shaders/shared/shared.h"
 
-#define MAX_MATERIAL_FIELDS 32
+)GEN"));
+
+    append(&sb, tprint(S("#define MAX_MATERIAL_FIELDS %d"), MAX_MATERIAL_FIELDS));
+
+    append(&sb, S(R"GEN(
 
 enum Material_Field_Info_Type {
   MATERIAL_FIELD_SCALAR,

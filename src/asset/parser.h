@@ -15,6 +15,13 @@ namespace Asset
         u8* end;
     };
 
+    struct Version
+    {
+        u8 major;
+        u8 minor;
+        u8 patch;
+    };
+
     void init(Parser* p, void *ptr, u64 size);
 
     void eat_whitespace(Parser *p);
@@ -24,6 +31,9 @@ namespace Asset
     u8 eat(Parser *p);
 
     u32 parse_u32(Parser *p);
+
+    // 'v' <major> '.' <minor> '.' <patch>. Returns a zeroed version if there is no 'v'.
+    Version parse_version(Parser *p);
 
     s32 parse_s32(Parser *p);
 

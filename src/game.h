@@ -40,6 +40,7 @@ struct Entity {
     Handle          prev;  // prev sibling
 
     vec3            position;
+    vec3            scale;
 
     Guid            mesh;
     Guid            material;

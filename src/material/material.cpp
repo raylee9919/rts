@@ -9,6 +9,7 @@
 #include "text_file_handler/text_file_handler.h"
 #include "renderer/renderer.h"
 #include "asset/asset.h"
+#include "asset/parser.h"
 #include "shared.h"
 #include "shader_compiler/shader.h"
 #include "third_party/stb/stb_image.h"
@@ -253,6 +254,88 @@ void image_load_proc( String filepath, String short_name, void *user_data )
     gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
 
     bitmap_free(&bitmap);
+}
+
+void texture_load_proc( String filepath, String short_name, void *user_data )
+{
+    // '.texture' is our own cooked format: four ASCII header lines - bytes per
+    // channel, channel count, width, height - then a raw uncompressed pixel blob.
+    Temporary_Arena scratch = scratch_begin();
+    defer( scratch_end(scratch) );
+
+    String contents = read_entire_file(filepath, tctx.temp);
+    if ( !contents.str ) {
+        log_error(S("Couldn't read texture '%S'."), filepath);
+        return;
+    }
+
+    Asset::Parser p = {};
+    Asset::init(&p, contents.str, contents.len);
+
+    u32 bytes_per_channel = Asset::parse_u32(&p);
+    u32 num_channels      = Asset::parse_u32(&p);
+    u32 width             = Asset::parse_u32(&p);
+    u32 height            = Asset::parse_u32(&p);
+
+    // Exactly one line ending, deliberately not eat_whitespace(): the first pixel
+    // byte is free to hold a value that happens to be ASCII whitespace.
+    if (p.cursor < p.end && *p.cursor == '\r')  p.cursor += 1;
+    if (p.cursor < p.end && *p.cursor == '\n')  p.cursor += 1;
+
+    if ( bytes_per_channel != 1 ) {
+        log_error(S("'%S': only 8-bit channels are supported, got %u bytes per channel."),
+                  short_name, bytes_per_channel);
+        return;
+    }
+
+    u64 num_texels    = (u64)width * (u64)height;
+    u64 expected_size = num_texels * num_channels;
+    if ( (u64)(p.end - p.cursor) < expected_size ) {
+        log_error(S("'%S': pixel data is truncated, expected %llu bytes."), short_name, expected_size);
+        return;
+    }
+
+    // There is no 24-bit format in D3D12, so widen RGB to RGBA - the same thing
+    // 'bitmap_import' does for 3-channel images coming through stb.
+    u32 dst_channels = (num_channels == 3) ? 4 : num_channels;
+
+    Bitmap bitmap = {};
+    bitmap.format = bitmap_compute_format(dst_channels, false, false);
+    bitmap.width  = width;
+    bitmap.height = height;
+    bitmap.size   = num_texels * dst_channels;
+
+    if ( num_channels == dst_channels ) {
+        bitmap.data = p.cursor;
+    } else {
+        u8 *src = p.cursor;
+        u8 *dst = push_array_noz(scratch.arena, u8, bitmap.size);
+        bitmap.data = dst;
+
+        for (u64 i = 0; i < num_texels; ++i) {
+            dst[0] = src[0];
+            dst[1] = src[1];
+            dst[2] = src[2];
+            dst[3] = 0xff;
+            dst += 4;
+            src += 3;
+        }
+    }
+
+    Guid id = guid_from_string(short_name);
+
+    RHI_Texture_Desc desc = {};
+    {
+        desc.type       = RHI_TEXTURE_TYPE_2D;
+        desc.format     = bitmap.format;
+        desc.usage      = RHI_TEXTURE_USAGE_SAMPLED;
+        desc.width      = bitmap.width;
+        desc.height     = bitmap.height;
+        desc.mip_levels = 1;
+        desc.depth      = 1;
+    }
+    gfx_texture_create(id, desc);
+    gfx_texture_upload(id, desc.format, bitmap.data, (u32)bitmap.size, bitmap.width, bitmap.height);
 }
 
 static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit) {

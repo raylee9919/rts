@@ -15,11 +15,6 @@ struct Asset_Entry {
     s64 ref_count;
 };
 
-struct Asset {
-    u64  type_hash;
-    Guid guid;
-};
-
 struct Asset_Type_Info {
     String  path_extension;
 

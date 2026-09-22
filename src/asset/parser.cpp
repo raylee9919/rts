@@ -56,6 +56,27 @@ namespace Asset
         return result;
     }
 
+    Version parse_version(Parser *p)
+    {
+        assert(p->cursor && p->cursor < p->end);
+        eat_whitespace(p);
+
+        Version ver = {};
+
+        if (peek(p) == 'v') {
+            eat(p);
+            ver.major = (u8)parse_u32(p);
+            assert(peek(p) == '.');
+            eat(p);
+            ver.minor = (u8)parse_u32(p);
+            assert(peek(p) == '.');
+            eat(p);
+            ver.patch = (u8)parse_u32(p);
+        }
+
+        return ver;
+    }
+
     s32 parse_s32(Parser *p) 
     {
         assert(p->cursor && p->cursor < p->end);

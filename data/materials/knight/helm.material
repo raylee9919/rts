@@ -1,0 +1,5 @@
+[1] # Version number
+
+C "shaders/material/knight.slang" 
+
+albedo_id : "textures/knight_helm_albedo.texture"

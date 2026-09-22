@@ -102,6 +102,8 @@ Entity *entity_alloc(Game_State *g) {
 
     memset(entity, 0, sizeof(Entity));
 
+    entity->scale = vec3(1.f);
+
     // Assign generational ID
     entity->generational_id = g->next_generational_id++;
 
