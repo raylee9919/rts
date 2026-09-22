@@ -37,8 +37,8 @@ VS_Output main(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID)
     StructuredBuffer<Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
     Vertex vert = vertex_buffer[vertex_id];
 
-    StructuredBuffer<Instance> arguments_buffer = ResourceDescriptorHeap[push.arguments_buffer_id];
-    Instance inst = arguments_buffer[push.arguments_index + instance_id];
+    StructuredBuffer<Instance> argument_buffer = ResourceDescriptorHeap[push.argument_buffer_id];
+    Instance inst = argument_buffer[push.argument_base_index + instance_id];
 
     StructuredBuffer<GPU_Camera> camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
     GPU_Camera camera = camera_buffer[0];
@@ -59,8 +59,8 @@ VS_Output main(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID)
 [shader("fragment")]
 float4 main(VS_Output input) : SV_TARGET 
 {
-    StructuredBuffer<Material> material_buffer = ResourceDescriptorHeap[push.material_buffer_id];
-    Material material = material_buffer[input.material_id];
+    ByteAddressBuffer material_buffer = ResourceDescriptorHeap[push.material_buffer_id];
+    Material material = material_buffer.Load<Material>(input.material_id);
 
     Material_Input mtl;
     mtl.position          = input.position;

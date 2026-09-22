@@ -11,10 +11,6 @@ import material;
 struct Mtl_Doggo : IMaterial 
 {
     /* Fields */
-    float3   albedo;
-    float    metallic;
-    float    roughness;
-
     [Texture] uint32_t albedo_id;
     [Texture] uint32_t orm_id;
 
@@ -24,14 +20,14 @@ struct Mtl_Doggo : IMaterial
     {
         SamplerState linear_sampler = SamplerDescriptorHeap[input.linear_sampler_id];
 
-        float3 albedo = this.albedo;
+        float3 albedo = 1.0;
         float  alpha  = 1.0;
 
         if ( albedo_id != GFX_INVALID_BINDLESS ) 
         {
             Texture2D<float4> albedo_texture = ResourceDescriptorHeap[NonUniformResourceIndex(albedo_id)];
             float4 texel = albedo_texture.Sample(linear_sampler, input.uv);
-            albedo = texel.rgb * albedo;
+            albedo = texel.rgb;
             alpha  = texel.a;
         }
 

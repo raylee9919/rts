@@ -1,5 +1,6 @@
 [1] # Version number
 
-albedo_texture : "textures/doggo.png"
-orm_texture    : "textures/doggo.png"
-shader         : "shaders/material/doggo.slang"
+C "shaders/material/doggo.slang" 
+
+albedo_id : "textures/doggo.png"
+orm_id    : "textures/doggo.png"

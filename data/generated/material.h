@@ -4,69 +4,89 @@
 #define RTS_GENERATED_MATERIAL_H
 
 #include "basic/core.h"
+#include "os/os.h"
 #include "gfx/gfx.h"
 #include "shaders/shared/shared.h"
 
-struct Material_Field_Info {
-  String name;
-  u64    size;
-  u64    offset;
+#define MAX_MATERIAL_FIELDS 32
+
+enum Material_Field_Info_Type {
+  MATERIAL_FIELD_SCALAR,
+  MATERIAL_FIELD_ASSET
 };
 
-struct IMaterial {
-  virtual Pair<u32, Material_Field_Info*> get_field_infos() = 0;
-  virtual u64 get_gpu_material_size() = 0;
-  virtual void write_gpu_material(void *dst) = 0;
+struct Material_Field_Info {
+  Material_Field_Info_Type type;
+  String                   name;
+  u64                      size;
+  u64                      offset;
 };
+
+// Per-type behaviour. Materials themselves are plain data.
+struct Material_Base {
+  u64  (*get_gpu_material_size)(void);
+  void (*write_gpu_material)(Material_Base *material, void *dst);
+};
+
+struct Material_Type_Info {
+  Material_Base       base;
+  u64                 cpu_size;
+  u32                 num_fields;
+  Material_Field_Info fields[MAX_MATERIAL_FIELDS];
+};
+
+extern Table<Guid, Material_Type_Info, hash_guid> material_type_table;
+
+void init_material_type_table();
 
 // ------------------------------------------------------------------------- //
 
-struct Mtl_Doggo : public IMaterial {
-  float3 albedo;
-  float metallic;
-  float roughness;
+struct Mtl_Doggo
+{
+  Material_Base base;
+
   Guid albedo_id;
   Guid orm_id;
 
-  static String shader_source;
-  static Material_Field_Info field_info[5];
-
   struct GPU_Material {
-    float3 albedo;
-    float metallic;
-    float roughness;
     uint32_t albedo_id;
     uint32_t orm_id;
   };
-
-  virtual Pair<u32, Material_Field_Info*> get_field_infos() override {
-    return { array_count(field_info), field_info };
-  }
-
-  virtual u64 get_gpu_material_size() override {
-    return sizeof(GPU_Material);
-  }
-
-  virtual void write_gpu_material(void *dst) override {
-    GPU_Material *m = (GPU_Material *)dst;
-    m->albedo = albedo;
-    m->metallic = metallic;
-    m->roughness = roughness;
-    m->albedo_id = gfx_srv_bindless_from_texture(albedo_id);
-    m->orm_id = gfx_srv_bindless_from_texture(orm_id);
-  }
-
 };
 
-#ifdef GENERATED_MATERIAL_IMPLEMENTATION
-String Mtl_Doggo::shader_source = S("doggo.slang");
-Material_Field_Info Mtl_Doggo::field_info[5] = {
-    { S("albedo"), sizeof(albedo), offset_of(Mtl_Doggo, albedo) },
-    { S("metallic"), sizeof(metallic), offset_of(Mtl_Doggo, metallic) },
-    { S("roughness"), sizeof(roughness), offset_of(Mtl_Doggo, roughness) },
-    { S("albedo_id"), sizeof(albedo_id), offset_of(Mtl_Doggo, albedo_id) },
-    { S("orm_id"), sizeof(orm_id), offset_of(Mtl_Doggo, orm_id) },
-};
-#endif
+u64  Mtl_Doggo__get_gpu_material_size(void);
+void Mtl_Doggo__write_gpu_material(Material_Base *material, void *dst);
+void Mtl_Doggo__init();
 
 #endif // RTS_GENERATED_MATERIAL_H
+
+#if defined(GENERATED_MATERIAL_IMPLEMENTATION) && !defined(RTS_GENERATED_MATERIAL_IMPL)
+#define RTS_GENERATED_MATERIAL_IMPL
+
+u64 Mtl_Doggo__get_gpu_material_size(void) {
+  return sizeof(Mtl_Doggo::GPU_Material);
+}
+
+void Mtl_Doggo__write_gpu_material(Material_Base *material, void *dst) {
+  Mtl_Doggo *m = (Mtl_Doggo *)material;
+  Mtl_Doggo::GPU_Material *gpu = (Mtl_Doggo::GPU_Material *)dst;
+  gpu->albedo_id = gfx_srv_bindless_from_texture(m->albedo_id);
+  gpu->orm_id = gfx_srv_bindless_from_texture(m->orm_id);
+}
+
+void Mtl_Doggo__init() {
+  Material_Type_Info info = {};
+  info.base.get_gpu_material_size = Mtl_Doggo__get_gpu_material_size;
+  info.base.write_gpu_material    = Mtl_Doggo__write_gpu_material;
+  info.cpu_size   = sizeof(Mtl_Doggo);
+  info.num_fields = 2;
+  info.fields[0] = { MATERIAL_FIELD_ASSET, S("albedo_id"), sizeof(Mtl_Doggo::albedo_id), offset_of(Mtl_Doggo, albedo_id) };
+  info.fields[1] = { MATERIAL_FIELD_ASSET, S("orm_id"), sizeof(Mtl_Doggo::orm_id), offset_of(Mtl_Doggo, orm_id) };
+  table_add(&material_type_table, guid_from_string(S("shaders/material/doggo.slang")), info);
+}
+
+void init_material_type_table() {
+  Mtl_Doggo__init();
+}
+
+#endif // GENERATED_MATERIAL_IMPLEMENTATION

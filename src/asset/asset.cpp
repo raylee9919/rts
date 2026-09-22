@@ -35,6 +35,10 @@ void asset_system_init()
     }
 
     asset_system_init_catalog();
+
+
+    /* Init material type system */
+    material_type_system_init( heap );
 }
 
 Array<String> asset_file_list(String path, 
@@ -172,14 +176,14 @@ static b32 asset_load( Guid id )
     String *short_name = table_find_pointer(&asset_system->guid_to_short_name, id);
     if ( !short_name )
     {
-        log_error(S("Asset with GUID: '%llu-%llu' couldn't be found."), id._64[1], id._64[0]);
+        log_error(S("Asset with short-name:'%S', GUID: '%llu-%llu' couldn't be found."), *short_name, id._64[1], id._64[0]);
         return false;
     }
 
     // Check extension and dispatch according routine.
     // This might turn into callback function later on. idk.
     // @Todo
-    String path = tprint(S("%S/%S"), shared->data_path, short_name);
+    String path = tprint(S("%S/%S"), shared->data_path, *short_name);
     auto [ext, ext_ok] = path_extension(path);
     if ( !ext_ok ) {
         log_error(S("Failed to acquire file extension from: '%S'"), path);

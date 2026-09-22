@@ -1,9 +1,10 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "basic/hash.h"
+#include "os/os.h"
 
 u64 knuth_hash(u64 x) {
-    u64 KNUTH_GOLDEN_RATIO_64 = 11400714819323198485;
+    u64 KNUTH_GOLDEN_RATIO_64 = 11400714819323198485llu;
     return KNUTH_GOLDEN_RATIO_64 * x;
 }
 

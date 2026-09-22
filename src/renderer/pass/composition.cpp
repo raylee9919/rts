@@ -83,12 +83,16 @@ R_PASS_EXECUTE( RenderPassExecute_Composition )
 
     gfx_pass_begin(R_PASS_COMPOSITION, &gfx_pass);
     {
+        // Set pipeline
         gfx_set_pipeline(pass->pipeline_id);
 
+        // Push constants
         R_Pass_Composition::Push_Constants c = {};
         c.dot_sampler_id   = gfx->dot_sampler.bindless;
         c.scene_texture_id = gfx_srv_bindless_from_texture( renderer->scene_texture[gfx_backbuffer_index()]) ;
+        gfx_push_constants(&c, sizeof(c));
 
+        // Draw
         gfx_draw(renderer->fullscreen_triangle_mesh, 1);
     }
     gfx_pass_end();

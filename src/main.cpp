@@ -165,10 +165,7 @@ int main_entry(int argc, char **argv)
     cube_mesh._64[0] = 7474; // @Temporary
     geo_make_cube(vertices, sizeof(Vertex), offset_of(Vertex, position), offset_of(Vertex, normal), offset_of(Vertex, uv), indices, sizeof(indices[0]));
 
-    // @Temporary
-    material_codegen(shared->shader_compiler, 
-                     tprint(S("%S/shaders/material/"), shared->data_path), 
-                     tprint(S("%S/generated/"), shared->data_path));
+    // Material code generation lives in the build tool now: 'build.bat', then 'b.bat'.
 
     {
         gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));

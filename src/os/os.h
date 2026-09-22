@@ -426,6 +426,10 @@ struct Guid {
 };
 global read_only const Guid NULL_GUID = {};
 
+force_inline u32 hash_guid(Guid guid) {
+    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
+}
+
 
 //
 // OS State

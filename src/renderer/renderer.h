@@ -100,17 +100,9 @@ force_inline bool r_should_enable_blend(R_Shading_Model sm) {
     return sm == SHADING_MODEL_TRANSLUCENT;
 }
 
-struct Material {
-    R_Shading_Model shading_model = {};
-
-    vec3    albedo         = vec3{1.f, 1.f, 1.f};
-    f32     metallic       = 0.f;
-    f32     roughness      = 1.f;
-
-    Guid    albedo_texture = NULL_GUID;
-    Guid    orm_texture    = NULL_GUID;
-
-    Guid    pipeline       = NULL_GUID;
+struct Material_Buffer {
+    RHI_Buffer      buffer;
+    RHI_Buffer_View view;
 };
 
 struct Renderer {
@@ -118,27 +110,29 @@ struct Renderer {
 
     volatile b32 initted;
 
-    /* Ring buffer shared with game thread. */
+    // Ring buffer shared with game thread.
     Render_SPSC_Queue ring;
 
-    /* Textures */
+    // Textures
     Guid scene_depth[RHI_MAX_BUFFER_COUNT];
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
     Guid scene_texture[RHI_MAX_BUFFER_COUNT];
 
-    /* Full-screen Triangle Mesh */
+    // Full-screen Triangle Mesh
     f32 fullscreen_triangle_vertices[3];
     u32 fullscreen_triangle_indices[3];
     Guid fullscreen_triangle_mesh;
 
-    /* Global shader */
+    // Global shader
     Guid postprocess_pipeline;
     Guid composition_pipeline;
 
-    /* Registered Passes */
+    // Registered Passes
     Array<R_Pass*> passes;
 
-    Table<Guid, Material, gfx_128_to_32> material_table;
+
+    Material_Buffer material_buffer;
+    u64 material_buffer_used = 0;
 };
 
 extern Renderer *renderer;
@@ -155,13 +149,6 @@ GPU_Camera gpu_camera_from_game(Camera *camera);
 
 void       r_render(Game_State *g, f64 refresh_dt);
 void       r_entry(void *param);
-
-
-Material     *r_material_alloc(Guid guid);
-void          r_material_dealloc(Guid guid);
-Material     *r_material_from_guid(Guid guid);
-GPU_Material  to_gpu_material(Material *material);
-
 
 
 void r_pipeline_create(Guid id,

@@ -50,13 +50,4 @@ struct GPU_Camera {
     m4x4            view_proj;
 };
 
-struct GPU_Material {
-    vec3            albedo;
-    float           metallic;
-    float           roughness;
-
-    uint32_t        albedo_id;
-    uint32_t        orm_id;
-};
-
 #endif // RTS_SHADERS_SHARED_H

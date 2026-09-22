@@ -1,5 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#define GENERATED_MATERIAL_IMPLEMENTATION
 #include "./material.h"
 #include "os/os.h"
 #include "basic/context.h"
@@ -12,172 +13,73 @@
 #include "shader_compiler/shader.h"
 #include "third_party/stb/stb_image.h"
 
-#define GENERATED_MATERIAL_IMPLEMENTATION
-#include "generated/material.h"
 
 
 static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit);
 static Bitmap bitmap_import(void *loaded_data, u64 size);
 static void bitmap_free(Bitmap *bitmap);
 
-void material_codegen(Shader_Compiler *shader_compiler,
-                      String material_shader_dir,
-                      String output_dir)
+
+Table<Guid, Material_Type_Info, hash_guid> material_type_table;
+Table<Guid, Material_Entry, hash_guid> material_table;
+
+
+void material_type_system_init(Allocator allocator)
 {
-    String_Builder sb = {};
-    init(&sb, tctx.temp);
+    material_type_table.allocator = allocator;
+    init_material_type_table();
 
-    append(&sb, S("// Copyright Seong Woo Lee. All Rights Reserved."));
+    material_table.allocator = allocator;
+}
 
-    append(&sb, S(R"GEN(
+// @Todo: Entities can share a material, thus we can't 
+// blindly alloc/dealloc material.
+void material_alloc(Guid guid, Material_Entry *in_entry) 
+{
+    Material_Entry *entry = table_add(&material_table, guid, *in_entry);
 
-#ifndef RTS_GENERATED_MATERIAL_H
-#define RTS_GENERATED_MATERIAL_H
+    { // @Temporary
+        u8 *ptr = (u8*)rhi_buffer_map(&gfx->upload_buffer);
 
-#include "basic/core.h"
-#include "gfx/gfx.h"
-#include "shaders/shared/shared.h"
+        Material_Base *base = (Material_Base*)in_entry->data;
 
-struct Material_Field_Info {
-  String name;
-  u64    size;
-  u64    offset;
-};
+        u64 sz = base->get_gpu_material_size();
+        base->write_gpu_material(base, ptr);
 
-struct IMaterial {
-  virtual Pair<u32, Material_Field_Info*> get_field_infos() = 0;
-  virtual u64 get_gpu_material_size() = 0;
-  virtual void write_gpu_material(void *dst) = 0;
-};
+        rhi_buffer_unmap(&gfx->upload_buffer);
 
-)GEN"));
-    
-
-    // Get file list
-    Array<String> fl = file_list(material_shader_dir, tctx.temp, true);
-
-    for (int file_idx = 0; file_idx < fl.count; ++file_idx)
-    {
-        String path = fl.data[file_idx];
-        auto [ext, ext_success] = path_extension(path);
-        if ( ext_success ) 
+        rhi_command_buffer_begin(&gfx->copy_buffer);
         {
-            if (ext == S("h") || ext == S("slang")) { // @Robustness
-                auto [success, mtl] = shader_reflect_material(shader_compiler, path);
-                if ( !success ) {
-                    log_error(S("Error while generating code for material system."));
-                    return;
-                }
-
-                // @Todo: Create directory if not exist
-
-                s64 idx = find_index_of_any_from_right(path, S("\\/"));
-                String material_filename = slice(path, idx + 1, path.len - idx - 1);
-
-                append(&sb, S("// ------------------------------------------------------------------------- //\n\n"));
-
-                /* CPU-side struct */
-                append(&sb, tprint(S("struct %S : public IMaterial {\n"), mtl.name));
-
-                /* Fields */
-                for (u32 i = 0; i < mtl.num_fields; ++i) {
-                    Shader_Field field = mtl.fields[i];
-                    String type_s = string_from_shader_field_type(field.type);
-
-                    if (field.attribute == S("Texture")) {
-                        append(&sb, tprint(S("  Guid %S;\n"), field.name));
-                    } else {
-                        append(&sb, tprint(S("  %S %S;\n"), type_s, field.name));
-                    }
-                }
-
-                append(&sb, S("\n"));
-
-                /* Shader Source Declaration*/
-                append(&sb, tprint(S("  static String shader_source;\n")));
-
-                /* Field Info Declaration */
-                append(&sb, tprint(S("  static Material_Field_Info field_info[%d];\n\n"), mtl.num_fields));
-
-
-                /* GPU-side struct. This is inside CPU-side one. */
-                append(&sb, S("  struct GPU_Material {\n"));
-                for (u32 i = 0; i < mtl.num_fields; ++i) {
-                    Shader_Field field = mtl.fields[i];
-                    String type_s = string_from_shader_field_type(field.type);
-                    append(&sb, tprint(S("    %S %S;\n"), type_s, field.name));
-                }
-                append(&sb, S("  };\n"));
-
-                append(&sb, S("\n"));
-
-                /* Implementations */
-                append(&sb, S("  virtual Pair<u32, Material_Field_Info*> get_field_infos() override {\n"));
-                append(&sb, S("    return { array_count(field_info), field_info };\n"));
-                append(&sb, S("  }\n\n"));
-
-                append(&sb, S("  virtual u64 get_gpu_material_size() override {\n"));
-                append(&sb, S("    return sizeof(GPU_Material);\n"));
-                append(&sb, S("  }\n\n"));
-
-                append(&sb, S("  virtual void write_gpu_material(void *dst) override {\n"));
-                append(&sb, S("    GPU_Material *m = (GPU_Material *)dst;\n"));
-                for (u32 i = 0; i < mtl.num_fields; ++i) {
-                    Shader_Field field = mtl.fields[i];
-                    String name = field.name;
-                    if (field.attribute == S("Texture")) {
-                        append(&sb, tprint(S("    m->%S = gfx_srv_bindless_from_texture(%S);\n"), name, name));
-                    } else {
-                        append(&sb, tprint(S("    m->%S = %S;\n"), name, name));
-                    }
-                }
-                append(&sb, S("  }\n\n"));
-
-                append(&sb, S("};\n\n")); // End of struct
-
-
-                /* Field Info */
-                append(&sb, "#ifdef GENERATED_MATERIAL_IMPLEMENTATION\n");
-                append(&sb, tprint(S("String %S::shader_source = S(\"%S\");\n"), mtl.name, material_filename));
-                append(&sb, tprint(S("Material_Field_Info %S::field_info[%d] = {\n"), mtl.name, mtl.num_fields));
-                for (u32 i = 0; i < mtl.num_fields; ++i) {
-                    Shader_Field field = mtl.fields[i];
-                    append(&sb, tprint(S("    { S(\"%S\"), sizeof(%S), offset_of(%S, %S) },\n"), 
-                                       field.name, field.name, mtl.name, field.name));
-                }
-                append(&sb, S("};\n"));
-                append(&sb, "#endif\n\n");
-
-            } else {
-                log_warning(S("Unrecognized extension '%S' from '%S' in material shader directory: %S"), 
-                            ext, path, material_shader_dir);
-            }
-        } else {
-            log_error(S("Failed to get extension from '%S'"), path);
+            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, 0, sz);
+            entry->offset = renderer->material_buffer_used;
+            renderer->material_buffer_used += sz;
         }
+        rhi_command_buffer_end(&gfx->copy_buffer);
+        RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
+        rhi_submit(gfx->device, 1, buffers);
+        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value);
+
+        rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value, -1);
+        gfx->upload_semaphore_value += 1;
     }
+}
 
-
-    /* Include Guard End */
-    append(&sb, S("#endif // RTS_GENERATED_MATERIAL_H"));
-
-
-    // Let's actually write.
-    // @Speed: Write straight to file from string builder.
-    String s = flush(&sb);
-
-    // Write to file
-    String filename = S("material.h");
-    String path = tprint(S("%S/%S"), output_dir, filename);
-    File file = file_open(path, true, false);
-    if ( !file_is_valid(file) ) {
-        return;
+b32 material_dealloc(Guid guid) 
+{
+    // @Todo
+    Material_Entry *entry = table_find_pointer(&material_table, guid);
+    if ( !entry ) {
+        log_error(S("Couldn't find material '%llu-%llu' in the table."), guid._64[1], guid._64[0]);
+        return false;
     }
+    return true;
+}
 
-    file_write(file, s.str, s.len);
-    file_close(&file);
-
-    log_info(S("Generated code for %llu materials."), fl.count);
+Material_Entry *material_from_guid(Guid guid) 
+{
+    Material_Entry *result = table_find_pointer(&material_table, guid);
+    Assert(result);
+    return result;
 }
 
 void material_load_proc( String filepath, String short_name, void *user_data )
@@ -207,15 +109,62 @@ void material_load_proc( String filepath, String short_name, void *user_data )
     };
 
     Text_File_Handler handler = {};
-    String s = read_entire_file(filepath, tctx.temp);
-    handler.start(s);
+    handler.start(read_entire_file(filepath, tctx.temp));
 
-    Material material = {};
     Guid material_id = guid_from_string(short_name);
 
-    // @Todo: Find id from global table and get corresponding 
-    // material field info.
+    String shader = {};
+    Guid type_id = NULL_GUID;
 
+    {
+        auto [line, found] = handler.consume_next_line();
+        if ( !found ) {
+            log_error(S("Nothing to parse in '%S'."), filepath);
+            return;
+        }
+
+        if (line[0] != 'C') {
+            log_error(S("Expected 'C', but encounterd %S."), break_by_spaces(line).x);
+            return;
+        }
+
+        line = advance(line, 1);
+        line = trim_left(line);
+
+        auto [success, _shader] = parse_string(&handler, line);
+        if ( !success ) return;
+
+        type_id = guid_from_string(_shader);
+
+        shader = _shader;
+    }
+
+
+    /* Find material's type info */
+    auto find_result = table_find(&material_type_table, type_id);
+    if ( !find_result.found ) {
+        log_error(S("Couldn't find material: '%S' info."), shader);
+        return;
+    }
+
+    Material_Type_Info type_info = find_result.value;
+    u32 num_fields = type_info.num_fields;
+    Material_Field_Info *field_info = type_info.fields;
+
+    if ( type_info.cpu_size > MAX_CPU_MATERIAL_SIZE ) {
+        log_error(S("Material '%S' needs %llu bytes, but MAX_CPU_MATERIAL_SIZE is %d."),
+                  shader, type_info.cpu_size, MAX_CPU_MATERIAL_SIZE);
+        return;
+    }
+
+
+    /* Material entry to fill in */
+    Material_Entry material = {};
+    material.type_id = type_id;
+    memcpy(material.data, &type_info.base, sizeof(type_info.base)); // fill in base material
+
+
+    /* Parse */
     while (1) 
     {
         auto [line, found] = handler.consume_next_line();
@@ -229,53 +178,58 @@ void material_load_proc( String filepath, String short_name, void *user_data )
             return;
         }
 
-        // @Cleanup
-        // Manually typing fields names is cubersome. 
-        // C/C++ sucks. It's either dirty macro or code gen. 
-
         // @Cleanup: 
         // Should I do DAG thing or what.
         // Load assets this is depending on:
 
-        if (field == S("albedo_texture")) {
+        auto find_field = [](String name, Material_Field_Info *infos, u32 count) -> Material_Field_Info* {
+            for (u32 i = 0; i < count; ++i) {
+                if (infos[i].name == name) return infos + i;
+            }
+            return nullptr;
+        };
+
+        Material_Field_Info *info = find_field(field, field_info, num_fields);
+        if ( !info ) {
+            log_error(S("Couldn't find field: '%S'"), field);
+            return;
+        }
+
+        if ( info->type == MATERIAL_FIELD_SCALAR ) {
+            // @Todo: Parse scalar
+        } else if ( info->type == MATERIAL_FIELD_ASSET ) {
             auto [success, s] = parse_string(&handler, val);
             if (!success) return;
 
-            asset_request(guid_from_string(s));
-            material.albedo_texture = guid_from_string(s);
-        }
-        else if (field == S("orm_texture")) {
-            auto [success, s] = parse_string(&handler, val);
-            if (!success) return;
-
-            asset_request(guid_from_string(s));
-            material.orm_texture = guid_from_string(s);
-        }
-        else if (field == S("shader")) { // @Fix: name collision with field name
-            auto [success, s] = parse_string(&handler, val);
-            if (!success) return;
-
-            // @Temporary
-            // If I ever decide to have a material instance, instances 
-            // share a base material's pipeline, thus, pipeline id must be 
-            // discriminated from material id.
-            Guid pipeline_id = material_id;
-            material.pipeline = pipeline_id;
-
-            // `shader` is the material implementation (IMaterial). It gets linked
-            // into the template shader, which owns the entry points.
-            // @Temporary: Single template for every material.
-            String template_path = tprint(S("%S/shaders/pass/surface.slang"), shared->data_path);
-            String material_path = tprint(S("%S/%S"), shared->data_path, s);
-            r_pipeline_create(pipeline_id, template_path, material_path, SHADING_MODEL_OPAQUE);
-        }
-        else {
-            log_error(S("Unexpected field name '%S', at line: %d"), field, handler.line_number);
+            Guid child_asset = guid_from_string(s);
+            asset_request(child_asset);
+            memcpy( material.data + info->offset, &child_asset, info->size );
+        } else {
+            log_error(S("Unrecognized field info type."));
+            return;
         }
     }
 
-    Material *m = r_material_alloc(material_id);
-    *m = material;
+
+    // @Temporary
+    // If I ever decide to have a material instance, instances 
+    // share a base material's pipeline, thus, pipeline id must be 
+    // discriminated from material id.
+    Guid pipeline_id = material_id;
+    material.pipeline = pipeline_id;
+
+    // `shader` is the material implementation (IMaterial). It gets linked
+    // into the template shader, which owns the entry points.
+    // @Temporary: Single template for every material.
+    String surface_shader_path  = tprint(S("%S/shaders/pass/surface.slang"), shared->data_path);
+    String material_shader_path = tprint(S("%S/%S"), shared->data_path, shader);
+    r_pipeline_create(pipeline_id, surface_shader_path, material_shader_path, SHADING_MODEL_OPAQUE);
+
+
+    // @Fix: As I stated in the function definition, 
+    // entites can share material. Blindly alloc/deallocing 
+    // material is wrong.
+    material_alloc(material_id, &material);
 }
 
 void image_load_proc( String filepath, String short_name, void *user_data )

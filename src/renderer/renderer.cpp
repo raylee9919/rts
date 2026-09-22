@@ -85,7 +85,6 @@ void r_init(void *native_window_handle)
 
     { // Assign allocator
         r->passes.allocator         = r->heap;
-        r->material_table.allocator = r->heap;
     }
 
 
@@ -165,6 +164,23 @@ void r_init(void *native_window_handle)
     r_pass_create(RenderPassInit_Geometry);
     r_pass_create(RenderPassInit_Postprocess);
     r_pass_create(RenderPassInit_Composition);
+
+
+    // Create material buffer
+    // @Todo: Cleanup
+    {
+        u64 sz = Megabytes(4); // @Temporary
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_GPU_ONLY;
+        desc.size        = sz;
+        rhi_buffer_init(gfx->device, &r->material_buffer.buffer, &desc, NULL);
+
+        RHI_Buffer_View_Desc view_desc = {};
+        view_desc.type = RHI_BUFFER_VIEW_TYPE_RAW;
+        view_desc.size = sz;
+        rhi_buffer_view_init(gfx->device, &r->material_buffer.view, &r->material_buffer.buffer, &view_desc);
+    }
+
 
 
     // Tell others the renderer is ready to communicate.
@@ -285,32 +301,6 @@ void r_entry(void *param)
     /* Cleanup */
     gfx_shutdown();
     r_shutdown();
-}
-
-Material *r_material_alloc(Guid guid) {
-    return table_add(&renderer->material_table, guid, Material{});
-}
-
-void r_material_dealloc(Guid guid) {
-    table_remove(&renderer->material_table, guid);
-}
-
-Material *r_material_from_guid(Guid guid) {
-    Material *result = table_find_pointer(&renderer->material_table, guid);
-    return result;
-}
-
-GPU_Material to_gpu_material(Material *material)  {
-    GPU_Material result = {};
-
-    result.albedo    = material->albedo;
-    result.metallic  = material->metallic;
-    result.roughness = material->roughness;
-
-    result.albedo_id = gfx_srv_bindless_from_texture(material->albedo_texture);
-    result.orm_id    = gfx_srv_bindless_from_texture(material->orm_texture);
-
-    return result;
 }
 
 // @Cleanup: I don't like this a single bit.
