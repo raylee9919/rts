@@ -133,16 +133,15 @@ struct Renderer {
 
     Material_Buffer material_buffer;
     u64 material_buffer_used = 0;
+
+
+    // @Temporary
+    RHI_Buffer           camera_buffer;
+    RHI_Buffer_View      camera_view;
+    void                *camera_ptr;
 };
 
 extern Renderer *renderer;
-
-
-// @Cleanup
-extern Guid                 cube_mesh;
-extern RHI_Buffer           camera_buffer;
-extern RHI_Buffer_View      camera_view;
-extern void                *camera_ptr;
 
 
 GPU_Camera gpu_camera_from_game(Camera *camera);

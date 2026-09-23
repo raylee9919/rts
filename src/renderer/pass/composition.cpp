@@ -26,10 +26,10 @@ R_PASS_INIT( RenderPassInit_Composition )
         opts.path   = path;
 
         opts.stage = SHADER_STAGE_VS;
-        Assert(shader_compile(shared->shader_compiler, opts, true, &vs, tctx.temp));
+        R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &vs, tctx.temp));
 
         opts.stage = SHADER_STAGE_PS;
-        Assert(shader_compile(shared->shader_compiler, opts, true, &ps, tctx.temp));
+        R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &ps, tctx.temp));
     }
 
     result->pipeline_id = guid_generate();

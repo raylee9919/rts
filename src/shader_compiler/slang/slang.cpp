@@ -17,7 +17,7 @@ static SlangStage slang_stage_from_shader_stage(Shader_Stage stage) {
         case SHADER_STAGE_MS: return SLANG_STAGE_MESH;
         case SHADER_STAGE_TS: return SLANG_STAGE_AMPLIFICATION;
         default:
-            Assert(!"Undefined shader stage.");
+            R_ASSERT(!"Undefined shader stage.");
             return SLANG_STAGE_NONE;
     }
 }
@@ -103,7 +103,7 @@ String string_from_shader_field_type(Shader_Field_Type type)
         case SHADER_FIELD_INT64 : return String(S("int64_t"));
 
         default: {
-            Assert(!"Unhandled shader field type.");
+            R_ASSERT(!"Unhandled shader field type.");
             return {};
         } break;
     }
@@ -168,7 +168,7 @@ static bool shader_session_create(Shader_Compiler *compiler, bool debug, slang::
             e->value.intValue0 = SLANG_OPTIMIZATION_LEVEL_HIGH;
         }
     }
-    Assert(num_option_entries <= array_count(option_entries));
+    R_ASSERT(num_option_entries <= array_count(option_entries));
 
 
     // Session

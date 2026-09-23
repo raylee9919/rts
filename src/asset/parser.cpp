@@ -23,20 +23,20 @@ namespace Asset
 
     u8 peek(Parser* p) 
     {
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         return *p->cursor;
     }
 
     u8 eat(Parser* p) 
     {
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         u8 c = *p->cursor++;
         return c;
     }
 
     u32 parse_u32(Parser *p)
     {
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         eat_whitespace(p);
 
         u32 result = 0;
@@ -58,7 +58,7 @@ namespace Asset
 
     Version parse_version(Parser *p)
     {
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         eat_whitespace(p);
 
         Version ver = {};
@@ -66,10 +66,10 @@ namespace Asset
         if (peek(p) == 'v') {
             eat(p);
             ver.major = (u8)parse_u32(p);
-            assert(peek(p) == '.');
+            R_ASSERT(peek(p) == '.');
             eat(p);
             ver.minor = (u8)parse_u32(p);
-            assert(peek(p) == '.');
+            R_ASSERT(peek(p) == '.');
             eat(p);
             ver.patch = (u8)parse_u32(p);
         }
@@ -79,7 +79,7 @@ namespace Asset
 
     s32 parse_s32(Parser *p) 
     {
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         eat_whitespace(p);
 
         bool sign = false;
@@ -92,7 +92,7 @@ namespace Asset
         }
 
         u32 integer = parse_u32(p);
-        assert(integer <= 0x0fffffff);
+        R_ASSERT(integer <= 0x0fffffff);
         s32 result = (u32)integer;
 
         if (sign) {
@@ -104,7 +104,7 @@ namespace Asset
 
     f32 parse_f32(Parser *p) 
     {
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         eat_whitespace(p);
 
         bool sign = false;
@@ -227,7 +227,7 @@ namespace Asset
     {
         String result = {};
 
-        assert(p->cursor && p->cursor < p->end);
+        R_ASSERT(p->cursor && p->cursor < p->end);
         eat_whitespace(p);
 
         result.len = length;

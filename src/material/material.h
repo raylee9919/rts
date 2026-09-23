@@ -70,7 +70,7 @@ void material_system_shutdown();
 Pair<b32, M_TypeInfo> get_material_type_info(Shader_Compiler *shader_compiler, String filepath);
 void write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material);
 M_Entry *alloc_material(Guid id);
-M_Entry *get_material(Guid id);
+M_Entry *material_from_guid(Guid id);
 
 // ------------------------------------------------------------------------- //
 

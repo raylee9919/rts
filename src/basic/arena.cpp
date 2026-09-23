@@ -10,7 +10,7 @@ Arena* arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)
     u64 cmt_size  = align_up(cmt_size_in, page_size);
 
     void *base = os_reserve(rsv_size);
-    assert(base != 0);
+    R_ASSERT(base != 0);
     os_commit(base, cmt_size);
 
     Arena *arena = (Arena *)base;
@@ -107,7 +107,7 @@ void arena_pop_to(Arena *arena, u64 pos)
 
     arena->current = current;
     u64 new_pos = big_pos - current->base_pos;
-    assert(new_pos <= current->pos);
+    R_ASSERT(new_pos <= current->pos);
     asan_poison((u8 *)current + new_pos, (current->pos - new_pos));
     current->pos = new_pos;
 }
@@ -157,7 +157,7 @@ void *arena_allocator_proc(Allocator_Mode mode, u64 size, u64 old_size, void *ol
         arena_release(arena);
         return NULL;
     } else {
-        Assert(!"X");
+        R_ASSERT(!"X");
         return NULL;
     }
 }

@@ -31,7 +31,7 @@ entity_attach(Entity* child, Entity* parent, s32 joint_id = -1)
 
 internal m3x4* get_skinning_matrices(Entity* e)
 {
-    assert(e);
+    R_ASSERT(e);
     return game_state->skinning_matrices + e->index_to_my_skinning_matrices;
 }
 
@@ -334,7 +334,7 @@ entity_find_path(Entity* entity, v3 destination)
                     adj_idx = j;
                 }
             }
-            assert(adj_idx != -1);
+            R_ASSERT(adj_idx != -1);
 
             v2 adj_center = v2((adj_tri.x[0] + adj_tri.x[1] + adj_tri.x[2]) * 0.333333f,
                                (adj_tri.y[0] + adj_tri.y[1] + adj_tri.y[2]) * 0.333333f);
@@ -609,7 +609,7 @@ entity_update(Entity* entity, f32 dt)
 
     switch (entity->type) {
         default: {
-            assert(!"INVALID DEFUALT CASE");
+            R_ASSERT(!"INVALID DEFUALT CASE");
         } break;
 
         case ENTITY_TYPE_ROOT: {
@@ -683,7 +683,7 @@ entity_update(Entity* entity, f32 dt)
                         }
                     }
                 } else {
-                    assert(!"Invalid camera flag");
+                    R_ASSERT(!"Invalid camera flag");
                 }
 
                 if (sqlen(dir) > 0.0f) {
@@ -813,7 +813,7 @@ entity_update(Entity* entity, f32 dt)
                             f32 prev_t = entity->prev_attack_t;
                             f32 curr_t = prev_t + dt;
 
-                            assert(damage_t < period);
+                            R_ASSERT(damage_t < period);
 
                             // Count crossings
                             u32 hits =
@@ -1094,7 +1094,7 @@ entity_draw(Entity* entity, f32 dt, Render_Group* render_group, Render_Commands*
     switch (entity->type) 
     {
         default: {
-            assert(!"Invalid defualt case");
+            R_ASSERT(!"Invalid defualt case");
         } break;
 
         case ENTITY_TYPE_ROOT: {

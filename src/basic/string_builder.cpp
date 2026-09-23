@@ -11,7 +11,7 @@ static u8 *get_buffer_data(String_Builder::Buffer *buffer) {
 }
 
 static bool expand(String_Builder *builder) {
-    Assert(builder->allocator.proc != nullptr);
+    R_ASSERT(builder->allocator.proc != nullptr);
     
     s64 subsequent = (builder->subsequent_buffer_size > 0) ? builder->subsequent_buffer_size : STRING_BUILDER_BUFFER_SIZE;
 
@@ -56,14 +56,14 @@ void append(String_Builder *builder, u8 *str, s64 size) {
 
             // Grab new one:
             buffer = builder->current_buffer;
-            Assert(buffer != nullptr);
+            R_ASSERT(buffer != nullptr);
 
             space = buffer->allocated - buffer->count;
-            Assert(space > 0);
+            R_ASSERT(space > 0);
         }
 
         s64 to_copy = min(size, space);
-        if (size > 0)  Assert(to_copy >= 0);
+        if (size > 0)  R_ASSERT(to_copy >= 0);
 
         memcpy(get_buffer_data(buffer) + buffer->count, str, to_copy);
 

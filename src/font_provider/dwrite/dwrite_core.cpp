@@ -28,47 +28,47 @@ fp_init(void)
 
     if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(fp_state->factory), (IUnknown **)&fp_state->factory)))
     {
-        assert(! "DWriteCreateFactory() Failed."); 
+        R_ASSERT(! "DWriteCreateFactory() Failed."); 
     }
 
     if (FAILED(fp_state->factory->CreateInMemoryFontFileLoader(&fp_state->in_memory_font_file_loader)))
     {
-        assert(! "IDWriteFactory5::CreateInMemoryFontFileLoader() Failed."); 
+        R_ASSERT(! "IDWriteFactory5::CreateInMemoryFontFileLoader() Failed."); 
     }
 
     if (FAILED(fp_state->factory->RegisterFontFileLoader(fp_state->in_memory_font_file_loader)))
     {
-        assert(! "IDWriteFactory::RegisterFontFileLoader() Failed."); 
+        R_ASSERT(! "IDWriteFactory::RegisterFontFileLoader() Failed."); 
     }
 
     if (FAILED(fp_state->factory->GetSystemFontCollection(&fp_state->system_font_collection)))
     {
-        assert(! "GetSystemFontCollection() Failed."); 
+        R_ASSERT(! "GetSystemFontCollection() Failed."); 
     }
 
     if (FAILED(fp_state->factory->GetSystemFontFallback(&fp_state->system_font_fallback)))
     {
-        assert(! "GetSystemFontFallback() Failed."); 
+        R_ASSERT(! "GetSystemFontFallback() Failed."); 
     }
 
     if (FAILED(fp_state->system_font_fallback->QueryInterface(__uuidof(fp_state->system_font_fallback1), (void **)&fp_state->system_font_fallback1)))
     {
-        assert(! "Error while querying IDWriteFontFallback1 interface."); 
+        R_ASSERT(! "Error while querying IDWriteFontFallback1 interface."); 
     }
 
     if (FAILED(fp_state->factory->CreateTextAnalyzer(&fp_state->text_analyzer)))
     {
-        assert(! "CreateTextAnalyzer() Failed."); 
+        R_ASSERT(! "CreateTextAnalyzer() Failed."); 
     }
 
     if (FAILED(fp_state->text_analyzer->QueryInterface(__uuidof(fp_state->text_analyzer1), (void **)&fp_state->text_analyzer1)))
     {
-        assert(! "Error while querying IDWriteTextAnalyzer1 interface."); 
+        R_ASSERT(! "Error while querying IDWriteTextAnalyzer1 interface."); 
     }
 
     if (FAILED(fp_state->factory->CreateRenderingParams(&fp_state->rendering_params)))
     {
-        assert(! "IDWriteFactroy::CreateRenderingParams() Failed."); 
+        R_ASSERT(! "IDWriteFactroy::CreateRenderingParams() Failed."); 
     }
 
 
@@ -84,7 +84,7 @@ fp_add_font_from_memory(void *data, u64 size)
     IDWriteFontFile *font_file;
     if (FAILED(fp_state->in_memory_font_file_loader->CreateInMemoryFontFileReference(fp_state->factory, data, (UINT32)size, NULL, &font_file)))
     {
-        assert(! "IDWriteInMemoryFontFileLoader::CreateInMemoryFontFileReference() Failed."); 
+        R_ASSERT(! "IDWriteInMemoryFontFileLoader::CreateInMemoryFontFileReference() Failed."); 
     }
 }
 
@@ -104,7 +104,7 @@ dwrite_font_fallback(IDWriteFontFallback1 *font_fallback, IDWriteFontCollection 
 
     // @Todo: If no font contains the given codepoints MapCharacters() will return a NULL font_face.
     //        We need to replace them with ? glyphs, which this code doesn't do yet (by convention that's glyph index 0 in any font).
-    assert(result.face);
+    R_ASSERT(result.face);
 
     src.Release();
     return result;
@@ -175,7 +175,7 @@ dwrite_map_complexity(Arena *arena, IDWriteFontFace *face,
     HRESULT hr = fp_state->text_analyzer1->GetTextComplexity(text, text_length, face,
                                                              /* out */
                                                              &is_simple, &mapped_length, _indices);
-    assert(SUCCEEDED(hr));
+    R_ASSERT(SUCCEEDED(hr));
 
     result.glyph_indices = _indices;
     result.is_simple     = is_simple;
@@ -207,7 +207,7 @@ dwrite_runs_from_string(String string, String base_family8, f32 font_size)
                                                               (WCHAR *)string16.str + offset, (u32)(string16.len - offset));
         u32 run_length = ff.length;
         IDWriteFontFace5 *run_face = ff.face;
-        assert(run_face);
+        R_ASSERT(run_face);
 
         DWRITE_FONT_METRICS dfm = {};
         run_face->GetMetrics(&dfm);
@@ -297,7 +297,7 @@ dwrite_runs_from_string(String string, String base_family8, f32 font_size)
 
                 // Split the text into runs of the same script ("language"), bidi, etc.
                 hr = fp_state->text_analyzer1->AnalyzeScript(&analysis_source, 0/*textPosition*/, text_length, &analysis_sink);
-                assert(SUCCEEDED(hr));
+                R_ASSERT(SUCCEEDED(hr));
 
                 for (Dwrite_Text_Analysis_Sink_Result *analysis_sink_result = analysis_sink.result_first;
                      analysis_sink_result != 0;
@@ -357,7 +357,7 @@ dwrite_runs_from_string(String string, String base_family8, f32 font_size)
                         }
                         else if (FAILED(hr))
                         {
-                            assert(! "x");
+                            R_ASSERT(! "x");
                         }
                         else
                         {
@@ -394,7 +394,7 @@ dwrite_runs_from_string(String string, String base_family8, f32 font_size)
                                                                       advances + current_glyph_count, // @Todo: Unit consistency.
                                                                       offsets + current_glyph_count);
 
-                    assert(SUCCEEDED(hr));
+                    R_ASSERT(SUCCEEDED(hr));
 
                     current_glyph_count = actual_glyph_count_next;
                 }
@@ -459,7 +459,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
     DWRITE_MEASURING_MODE measuring_mode  = DWRITE_MEASURING_MODE_NATURAL;
     DWRITE_GRID_FIT_MODE grid_fit_mode    = DWRITE_GRID_FIT_MODE_DEFAULT;
 
-    assert(SUCCEEDED(face->GetRecommendedRenderingMode(px_per_em,
+    R_ASSERT(SUCCEEDED(face->GetRecommendedRenderingMode(px_per_em,
                                                        fp_state->dpi, fp_state->dpi,
                                                        NULL, // transform
                                                        is_sideways,
@@ -471,7 +471,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
 
 
     Fp_Font *font_entry = dwrite_get_font_entry(face);
-    assert(font_entry);
+    R_ASSERT(font_entry);
 
     // @Todo: Think about floating point mathematics.
     if (m_abs(font_entry->font_size - font_size) > 0.1f)
@@ -511,7 +511,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
         {
             // Get single glyph's metrics.
             DWRITE_GLYPH_METRICS metrics = {};
-            assert(SUCCEEDED(face->GetDesignGlyphMetrics(&glyph_index, 1, &metrics, is_sideways)));
+            R_ASSERT(SUCCEEDED(face->GetDesignGlyphMetrics(&glyph_index, 1, &metrics, is_sideways)));
 
             // CreateGlyphRunAnalysis() doesn't support DWRITE_RENDERING_MODE_OUTLINE.
             // We won't bother big glyphs. (many hundreds of pt)
@@ -533,7 +533,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
             }
 
             IDWriteGlyphRunAnalysis *analysis = NULL;
-            assert(SUCCEEDED(fp_state->factory->CreateGlyphRunAnalysis(&single_glyph_run,
+            R_ASSERT(SUCCEEDED(fp_state->factory->CreateGlyphRunAnalysis(&single_glyph_run,
                                                                            NULL, // transform
                                                                            rendering_mode,
                                                                            measuring_mode,
@@ -566,7 +566,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
             {
                 // @Todo: The font doesn't support DWRITE_TEXTURE_CLEARTYPE_3x1.
                 //         Retry with DWRITE_TEXTURE_ALIASED_1x1.
-                assert(! "x");
+                R_ASSERT(! "x");
             }
 
             Fp_Glyph *glyph = push_struct(font_entry->arena, Fp_Glyph);
@@ -586,7 +586,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
                 u8 *bitmap_data_rgb = (u8 *)push_size(scratch.arena, rgb_bitmap_size);
           
                 // @Note: Profiled. CreateAlphaTexture() takes about 7-cycles including assertion.
-                assert(SUCCEEDED(analysis->CreateAlphaTexture(texture_type, &bounds, bitmap_data_rgb, rgb_bitmap_size)));
+                R_ASSERT(SUCCEEDED(analysis->CreateAlphaTexture(texture_type, &bounds, bitmap_data_rgb, rgb_bitmap_size)));
 
                 u32 x1 = 0;
                 u32 y1 = 0;
@@ -625,7 +625,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
                 }
                 else
                 {
-                    assert(! "Couldn't fit in the atlas");
+                    R_ASSERT(! "Couldn't fit in the atlas");
                 }
 
                 glyph->index    = glyph_index;
@@ -690,7 +690,7 @@ fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Rend
         IDWriteFontFace5 *face = run->face;
 
         Fp_Font *font = dwrite_get_font_entry(face);
-        assert(font);
+        R_ASSERT(font);
         
         f32 ascent  = font->ascent;
         f32 descent = font->descent;
@@ -705,7 +705,7 @@ fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Rend
             u16 glyph_index = run->indices[i];
 
             Fp_Glyph *glyph = dwrite_get_glyph(font, glyph_index);
-            assert(glyph);
+            R_ASSERT(glyph);
 
             v2 min = pen + v2{glyph->lsb, glyph->tsb};
             v2 max = pen + v2{glyph->rsb, glyph->bsb};

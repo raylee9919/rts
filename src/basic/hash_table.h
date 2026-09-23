@@ -94,11 +94,11 @@ V *table_add(Table<K, V, H, L> *table, K key, V value) {
         new_allocated = max(new_allocated, (s64)TABLE_SIZE_MIN);
 
         // Must be a power of two.
-        Assert((new_allocated & (new_allocated - 1)) == 0);
+        R_ASSERT((new_allocated & (new_allocated - 1)) == 0);
 
         auto old_entries = table->entries;
 
-        Assert(table->allocator.proc);
+        R_ASSERT(table->allocator.proc);
 
         table->entries = Array<Table<K, V, H, L>::Entry>{};
         table->entries.allocator = table->allocator;
@@ -119,7 +119,7 @@ V *table_add(Table<K, V, H, L> *table, K key, V value) {
         dealloc(old_entries.data, table->allocator);
     }
 
-    Assert(table->slots_filled < table->allocated);
+    R_ASSERT(table->slots_filled < table->allocated);
 
     //
     // Walk through the table and add the key-value pair.

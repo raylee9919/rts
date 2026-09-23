@@ -108,7 +108,7 @@ ui_end(void)
 {
     ProfileScope;
 
-    assert(ui_state->current_parent == ui_state->root);
+    R_ASSERT(ui_state->current_parent == ui_state->root);
 
     for (Axis2 axis = AXIS2_X; axis < AXIS2_COUNT; ++axis)
     {
@@ -286,7 +286,7 @@ ui_solve_size_independent(Ui_Box *root, Axis2 axis)
                     root->computed_size[axis] = root->text->max_ascent + root->text->max_descent + 2.f*root->text->padding;
                 }break;
 
-                default: { assert(! "Invalid Axis."); }break;
+                default: { R_ASSERT(! "Invalid Axis."); }break;
             }
         }break;
 
@@ -481,7 +481,7 @@ ui_draw(Ui_Box *root, v2 root_position)
     // Draw text.
     if (root->flags & UI_BOX_FLAG_DRAW_TEXT)
     {
-        assert(root->text != NULL);
+        R_ASSERT(root->text != NULL);
 
         v2 pen = min + v2(root->text->padding) + v2{-root->text->aabb.min.x, root->text->max_ascent};
         AABB2 cull_aabb = {};

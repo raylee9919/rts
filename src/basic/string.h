@@ -41,7 +41,7 @@ struct String {
         return memcmp(str, other.str, len) != 0;
     }
 
-    u8 operator [] (s64 i) { Assert(i < len); return str[i]; }
+    u8 operator [] (s64 i) { R_ASSERT(i < len); return str[i]; }
     explicit operator bool() const { return str && (*str) && len > 0; }
 };
 

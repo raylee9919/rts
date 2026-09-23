@@ -1,14 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "basic/core.h"
-#include "basic/allocator.h"
 #include "basic/context.h"
 #include "basic/log.h"
 #include "basic/string.h"
 #include "basic/context.h"
 #include "math/math.h"
 #include "os/os.h"
-#include "geometry/geogen.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
 #include "renderer/renderer.h"
@@ -20,17 +18,6 @@
 #include "shared.h"
 #include "material/material.h"
 #include "third_party/xxhash3/xxhash.h"
-
-
-// The cube shares the vertex format with loaded meshes, since they share the pipeline.
-Asset::Vertex vertices[24];
-u32           indices[36];
-
-
-u32 num_vertices = array_count(vertices);
-u32 num_indices  = array_count(indices);
-
-
 
 
 void game_tick(Game_State *g, f64 dt) 
@@ -67,50 +54,64 @@ void game_tick(Game_State *g, f64 dt)
 
 
 #if 0
-        static v2 p0 = {};
-        if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT && event->window == window) {
-            os_remove_event(event);
-            p0 = event->position;
-        }
+    static v2 p0 = {};
+    if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT && event->window == window) {
+        os_remove_event(event);
+        p0 = event->position;
+    }
 
-        if (g->input_state.key_is_down[KEY_MOUSE_LEFT]) {
-            v2 p1 = os_get_mouse_position(window);
-            v2 dp = p1 - p0;
+    if (g->input_state.key_is_down[KEY_MOUSE_LEFT]) {
+        v2 p1 = os_get_mouse_position(window);
+        v2 dp = p1 - p0;
 
-            camera->yaw   -= dt * turn_speed * dp.x;
-            camera->pitch -= dt * turn_speed * dp.y;
-            camera->pitch = clamp(camera->pitch,  -pi32 * 0.25f, pi32 * 0.25f);
+        camera->yaw   -= dt * turn_speed * dp.x;
+        camera->pitch -= dt * turn_speed * dp.y;
+        camera->pitch = clamp(camera->pitch,  -pi32 * 0.25f, pi32 * 0.25f);
 
-            p0 = p1;
-        }
+        p0 = p1;
+    }
 #endif
 
 #if 0
-        if (g->input_state.key_is_down[KEY_W]) {
-            camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
-        }
+    if (g->input_state.key_is_down[KEY_W]) {
+        camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
+    }
 
-        if (g->input_state.key_is_down[KEY_S]) {
-            camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
-        }
+    if (g->input_state.key_is_down[KEY_S]) {
+        camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
+    }
 
-        if (g->input_state.key_is_down[KEY_A]) {
-            camera->position -= dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
-        }
+    if (g->input_state.key_is_down[KEY_A]) {
+        camera->position -= dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
+    }
 
-        if (g->input_state.key_is_down[KEY_D]) {
-            camera->position += dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
-        }
+    if (g->input_state.key_is_down[KEY_D]) {
+        camera->position += dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
+    }
 
-        if (g->input_state.key_is_down[KEY_E]) {
-            camera->position += dt * movement_speed * UP_VECTOR.xyz;
-        }
+    if (g->input_state.key_is_down[KEY_E]) {
+        camera->position += dt * movement_speed * UP_VECTOR.xyz;
+    }
 
-        if (g->input_state.key_is_down[KEY_Q]) {
-            camera->position -= dt * movement_speed * UP_VECTOR.xyz;
-        }
+    if (g->input_state.key_is_down[KEY_Q]) {
+        camera->position -= dt * movement_speed * UP_VECTOR.xyz;
+    }
 #endif
+}
 
+void input_process()
+{
+    ProfileScope;
+
+    update_window_events();
+
+    for (Event& event : os->events) {
+        if (event.key_code == KEY_ENTER && 
+            event.modifier_flags.alt_pressed && 
+            event.key_pressed) {
+            toggle_fullscreen(shared->window);
+        }
+    }
 }
 
 int main_entry(int argc, char **argv)
@@ -129,14 +130,14 @@ int main_entry(int argc, char **argv)
 
     // Init material system.
     // Reflect and construct material type table.
-    material_system_init(tprint(S("%S/%S"), shared->data_path, S("shaders/material/")), 
-                         shared->shader_compiler);
+    String material_shader_path = tprint(S("%S/%S"), shared->data_path, S("shaders/material/"));
+    material_system_init(material_shader_path, shared->shader_compiler);
 
     // Init Game
     game_init(time_old);
 
     // Open window
-    shared->window = window_create(1600, 900, S("RTS"));
+    shared->window = window_create(1920, 1080, S("RTS"));
 
     // Launch render thread
     Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
@@ -149,44 +150,6 @@ int main_entry(int argc, char **argv)
 
     // Init camera
     game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
-
-    // Make a cube
-    cube_mesh._64[0] = 7474; // @Temporary
-    memset(vertices, 0, sizeof(vertices)); // geo_make_cube only touches position/normal/uv.
-    geo_make_cube(vertices, sizeof(Asset::Vertex),
-                  offset_of(Asset::Vertex, position),
-                  offset_of(Asset::Vertex, normal),
-                  offset_of(Asset::Vertex, uv),
-                  indices, sizeof(indices[0]));
-
-    {
-        gfx_mesh_create(cube_mesh, vertices, num_vertices, sizeof(vertices[0]), indices, num_indices, sizeof(indices[0]));
-
-
-        { // Create camera buffer and view
-            u64 stride = sizeof(GPU_Camera);
-            u64 sz     = sizeof(GPU_Camera) * 1;
-
-            RHI_Buffer_Desc desc = {};
-            desc.memory_type = RHI_MEMORY_UPLOAD;
-            desc.size        = sz;
-
-            Assert(rhi_buffer_init(gfx->device, &camera_buffer, &desc, NULL));
-
-            RHI_Buffer_View_Desc view_desc = {};
-            {
-                view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-                view_desc.writable = false;
-                view_desc.stride   = stride;
-                view_desc.offset   = 0;
-                view_desc.size     = sz;
-            }
-
-            rhi_buffer_view_init(gfx->device, &camera_view, &camera_buffer, &view_desc);
-
-            camera_ptr = rhi_buffer_map(&camera_buffer);
-        }
-    }
 
 
     // @Temporary
@@ -212,7 +175,7 @@ int main_entry(int argc, char **argv)
         asset_request(knight_id);
 
         Asset::Model *knight = Asset::model_from_guid(knight_id);
-        Assert(knight);
+        R_ASSERT(knight);
 
         for (u32 i = 0; i < knight->num_meshes; ++i) {
             Asset::Mesh *mesh = &knight->meshes[i];
@@ -236,7 +199,7 @@ int main_entry(int argc, char **argv)
 
             // The knight was authored in centimetres. Without the skeleton's root
             // transform (0.01 uniform) there's nothing else to bring him down to scale.
-            E->scale    = vec3(0.01f);
+            E->scale = vec3(0.01f);
         }
     }
     
@@ -274,9 +237,7 @@ int main_entry(int argc, char **argv)
 
 
         // Input processing
-        { ProfileScopeN("InputProcessing");
-            update_window_events();
-        }
+        input_process();
 
 
         // Tick with fixed timestep
@@ -290,7 +251,7 @@ int main_entry(int argc, char **argv)
         { // Push state to render thread
             auto *ring = &renderer->ring;
 
-            Assert(!ring->is_full());
+            R_ASSERT(!ring->is_full());
             auto* entry = &ring->entries[ring->write_idx];
 
             mutex_lock(&entry->mutex);
@@ -300,32 +261,6 @@ int main_entry(int argc, char **argv)
 
             mutex_unlock(&entry->mutex);
         }
-
-#if 0
-        list_for(os->first_event, event)  {
-            b32 esc_pressed            = event->kind == OS_EVENT_PRESS && event->key == KEY_ESC;
-            b32 alt_f4_pressed         = event->kind == OS_EVENT_PRESS && event->key == KEY_F4 && (event->modifiers & OS_MODIFIER_ALT);
-            b32 window_close_triggered = event->kind == OS_EVENT_WINDOW_CLOSE && event->window == window;
-
-            if (esc_pressed || alt_f4_pressed | window_close_triggered) {
-                os_remove_event(event);
-
-                should_close = true;
-
-                // Shutdown render thread
-                mutex_lock(&render_queue.mutex);
-                gfx->should_shutdown = true;
-                condvar_wake_all(&render_queue.condvar);
-                mutex_unlock(&render_queue.mutex);
-            }
-
-            // Fullscreen
-            b32 alt_enter_pressed = event->kind == OS_EVENT_PRESS && event->key == KEY_RETURN && (event->modifiers & OS_MODIFIER_ALT);
-            if (alt_enter_pressed) {
-                os_window_toggle_fullscreen(window);
-            }
-        }
-#endif
 
         clear_thread_temporary_storage();
     }
@@ -337,7 +272,7 @@ int main_entry(int argc, char **argv)
 
 
     /* Shutdown Systems */
-    game_deinit();
+    game_shutdown();
     material_system_shutdown();
     asset_system_shutdown();
 

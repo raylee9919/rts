@@ -90,7 +90,7 @@ static String wide_to_utf8(u16 *data, s32 length, Allocator allocator) {
         return {};
     }
 
-    Assert(result <= query_result);
+    R_ASSERT(result <= query_result);
 
     name.str = name_bytes;
     if (length == -1) {
@@ -108,7 +108,7 @@ static String wide_to_utf8(u16 *data, s32 length, Allocator allocator) {
 //
 // System
 //
-String get_path_of_running_executable(Allocator allocator) {
+String get_executable_path(Allocator allocator) {
     u16 buf[MAX_PATH] = {};
 
     HMODULE my_handle = GetModuleHandleW(NULL);
@@ -511,7 +511,7 @@ bool file_write(File file, void *data, s64 size) {
     // @Todo(swL): Deal with inputs > 32 bits.
 
     u32 size32 = (u32)size;
-    Assert(size32 == size);
+    R_ASSERT(size32 == size);
 
     DWORD written = 0;
     BOOL status = WriteFile(file.handle, data, size32, &written, NULL);
@@ -932,16 +932,19 @@ OS_Handle window_create(int w, int h, String name) {
 // Thanks, Raymond Chen.
 // (https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353)
 //
-void toggle_fullscreen(OS_Handle window_handle) {
+void toggle_fullscreen(OS_Handle window_handle) 
+{
     auto *window = win32_window_from_handle(window_handle);
-    if (window) {
+    if (window) 
+    {
         HWND hwnd = window->handle;
         DWORD dwStyle = GetWindowLong(hwnd, GWL_STYLE);
-        if (dwStyle & WS_OVERLAPPEDWINDOW) {
+        if (dwStyle & WS_OVERLAPPEDWINDOW) 
+        {
             MONITORINFO mi = { sizeof(mi) };
             if (GetWindowPlacement(hwnd, &window->placement) &&
-                GetMonitorInfo(MonitorFromWindow(hwnd,
-                                                 MONITOR_DEFAULTTOPRIMARY), &mi)) {
+                GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi)) 
+            {
                 SetWindowLong(hwnd, GWL_STYLE,
                               dwStyle & ~WS_OVERLAPPEDWINDOW);
                 SetWindowPos(hwnd, HWND_TOP,
@@ -961,13 +964,13 @@ void toggle_fullscreen(OS_Handle window_handle) {
     }
 }
 
-vec2 os_window_size(OS_Handle window) {
+Pair<u32,u32> window_size(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
     RECT rect;
     GetClientRect(hwnd, &rect);
-    f32 x = rect.right - rect.left;
-    f32 y = rect.bottom - rect.top;
-    return vec2{x, y};
+    u32 x = rect.right - rect.left;
+    u32 y = rect.bottom - rect.top;
+    return {x,y};
 }
 
 vec2 os_get_mouse_position(OS_Handle window) {
@@ -1108,7 +1111,7 @@ Thread thread_launch(void (*proc)(void *), void *param) {
 }
 
 bool thread_join(Thread thread, s32 milliseconds) {
-    Assert(milliseconds == -1); // @Temporary
+    R_ASSERT(milliseconds == -1); // @Temporary
     DWORD timeout = INFINITE;
 
     OS_Thing *thing = NULL;
@@ -1267,7 +1270,7 @@ void thread_group_init(Thread_Group *group, s32 num_threads, Arena *arena, Strin
 
 void thread_group_shutdown(Thread_Group *group) {
     // Should exit "properly": never use 'ExitThread()' or 'TerminateThread()'.
-    Assert(group->initted);
+    R_ASSERT(group->initted);
 
     group->should_shutdown = true;
 

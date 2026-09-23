@@ -16,7 +16,7 @@ namespace Asset
 
     void load_model(Model *out, String file_path, String short_name, Allocator allocator)
     {
-        Assert(out);
+        R_ASSERT(out);
 
         // The file is text, and a character at a time is all this parser does. Everything
         // transient - the file itself, the vertex and index arrays - lives in scratch and
@@ -52,7 +52,7 @@ namespace Asset
 
             if (ver.major >= 0 && ver.minor >= 1) {
                 eat_whitespace(&p);
-                Assert( peek(&p) == ';' );
+                R_ASSERT( peek(&p) == ';' );
                 eat(&p);
                 mesh->name = copy_string(parse_string_by_line(&p, scratch.arena), allocator);
             } else {
@@ -111,7 +111,7 @@ namespace Asset
         log_info(S("  Total: %u vertices, %u indices, %u triangles."),
                  num_total_vertices, num_total_indices, num_total_indices / 3);
 
-        Assert( is_eof(&p) );
+        R_ASSERT( is_eof(&p) );
     }
 
     Mesh *mesh_from_name(Model *model, String name)

@@ -4,7 +4,7 @@
 
 static Rpk_Segment *rpk_alloc_segment(Rpk_Context *ctx)
 {
-    Assert(ctx->initted);
+    R_ASSERT(ctx->initted);
 
     Rpk_Segment *result = ctx->first_free_segment;
     if (! result)
@@ -21,14 +21,14 @@ static Rpk_Segment *rpk_alloc_segment(Rpk_Context *ctx)
 
 static void rpk_release_segment(Rpk_Context *ctx, Rpk_Segment *segment)
 {
-    Assert(ctx->initted);
+    R_ASSERT(ctx->initted);
 
     sll_push_back(ctx->first_free_segment, ctx->last_free_segment, segment);
 }
 
 static void rpk_init_segment(Rpk_Segment *segment, u32 x, u32 y, u32 w)
 {
-    Assert(segment);
+    R_ASSERT(segment);
 
     segment->x = x;
     segment->y = y;
@@ -63,7 +63,7 @@ static int rpk_seg_cmp(void *s1, void *s2)
 
 Rpk_Result rpk_do(Rpk_Context *ctx, u32 w, u32 h)
 {
-    Assert(ctx->initted);
+    R_ASSERT(ctx->initted);
     Rpk_Result result = {};
 
     dll_sort(ctx->segment_first, ctx->segment_last, Rpk_Segment, rpk_seg_cmp);

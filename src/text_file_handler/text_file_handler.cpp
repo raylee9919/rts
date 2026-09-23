@@ -19,7 +19,7 @@ void Text_File_Handler::start(String in_file_data)
             return;
         }
 
-        Assert( line.len > 0 );
+        R_ASSERT( line.len > 0 );
         if ( line.str[0] != '[' ) {
             log_error(S("Expected '[' at the top of file."));
             return;
@@ -76,7 +76,7 @@ Pair<String, b32> Text_File_Handler::consume_next_line()
         }
 
         line = eat_trailing_spaces(line);
-        Assert( line.len > 0 );
+        R_ASSERT( line.len > 0 );
 
         return { line, found };
     }

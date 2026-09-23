@@ -90,15 +90,15 @@ b32 is_space(u8 c) {
 }
 
 void advance(String *s, s64 amount) {
-    Assert(amount >= 0);
-    Assert(s->len >= amount);
+    R_ASSERT(amount >= 0);
+    R_ASSERT(s->len >= amount);
     s->len -= amount;
     s->str += amount;
 }
 
 String advance(String s, s64 amount) {
-    Assert(amount > 0);
-    Assert(s.len >= amount);
+    R_ASSERT(amount > 0);
+    R_ASSERT(s.len >= amount);
 
     String t;
     t.len = s.len - amount;
@@ -477,7 +477,7 @@ b32 equal_nocase(String a, String b) {
 String copy_string(String s, Allocator allocator) {
     if ( !s.len ) return S("");
 
-    Assert( s.len >= 0 );
+    R_ASSERT( s.len >= 0 );
 
     String t;
     t.str = alloc(s.len + 1, allocator);
@@ -533,8 +533,8 @@ b32 ends_with(String s, String suffix) {
 }
 
 String slice(String s, s64 index, s64 count) {
-    Assert(index >= 0);
-    Assert(count >= 0);
+    R_ASSERT(index >= 0);
+    R_ASSERT(count >= 0);
 
     if (index >= s.len)  return {};
 
@@ -638,7 +638,7 @@ String trim_right(String s, String bytes) {
 
 Triplet<s64, b32, String> int_from_string(String t, s64 base) 
 {
-    Assert( base == 16 || base <= 10 );
+    R_ASSERT( base == 16 || base <= 10 );
 
     String s = eat_spaces(t);
     // if ( !*s.str ) return { 0, false, {} };

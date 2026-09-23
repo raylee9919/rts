@@ -21,7 +21,7 @@ static D3D12_HEAP_TYPE d3d12_heap_type_from_rhi_memory_type(RHI_Memory_Type type
         case RHI_MEMORY_GPU_ONLY:                   return D3D12_HEAP_TYPE_DEFAULT;
         case RHI_MEMORY_UPLOAD:                     return D3D12_HEAP_TYPE_UPLOAD;
         case RHI_MEMORY_READBACK:                   return D3D12_HEAP_TYPE_READBACK;
-        default:                                    Assert(!"Undefined topology."); return {};
+        default:                                    R_ASSERT(!"Undefined topology."); return {};
     }
 }
 
@@ -35,7 +35,7 @@ static D3D12_COMPARISON_FUNC d3d12_comparison_func_from_rhi(RHI_Compare op) {
         case RHI_COMPARE_LESS_EQUAL:                return D3D12_COMPARISON_FUNC_LESS_EQUAL;
         case RHI_COMPARE_GREATER:                   return D3D12_COMPARISON_FUNC_GREATER;
         case RHI_COMPARE_GREATER_EQUAL:             return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
-        default:                                    Assert(!"Undefined compare op."); return {};
+        default:                                    R_ASSERT(!"Undefined compare op."); return {};
     }
 }
 
@@ -44,7 +44,7 @@ static D3D12_PRIMITIVE_TOPOLOGY_TYPE d3d12_primitive_topology_type_from_rhi(RHI_
         case RHI_TOPOLOGY_TRIANGLES:                return D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         case RHI_TOPOLOGY_LINES:                    return D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
         case RHI_TOPOLOGY_POINTS:                   return D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
-        default:                                    Assert(!"Undefined topology."); return {};
+        default:                                    R_ASSERT(!"Undefined topology."); return {};
     }
 }
 
@@ -53,7 +53,7 @@ static D3D12_PRIMITIVE_TOPOLOGY d3d12_primitive_topology_from_rhi(RHI_Topology t
         case RHI_TOPOLOGY_TRIANGLES:                return D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
         case RHI_TOPOLOGY_LINES:                    return D3D_PRIMITIVE_TOPOLOGY_LINELIST;
         case RHI_TOPOLOGY_POINTS:                   return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
-        default:                                    Assert(!"Undefined topology."); return {};
+        default:                                    R_ASSERT(!"Undefined topology."); return {};
     }
 }
 
@@ -72,7 +72,7 @@ static D3D12_BLEND d3d12_blend_factor_from_rhi(RHI_Blend_Factor blend_factor) {
         case RHI_BLEND_FACTOR_DST_ALPHA:            return D3D12_BLEND_DEST_ALPHA;
         case RHI_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:  return D3D12_BLEND_INV_DEST_ALPHA;
 
-        default:                                    Assert(!"Undefined blend factor."); return {};
+        default:                                    R_ASSERT(!"Undefined blend factor."); return {};
     }
 }
 
@@ -83,7 +83,7 @@ static D3D12_BLEND_OP d3d12_blend_op_from_rhi(RHI_Blend_Op blend_op) {
         case RHI_BLEND_OP_SUBTRACT_REVERSE:         return D3D12_BLEND_OP_REV_SUBTRACT;
         case RHI_BLEND_OP_MIN:                      return D3D12_BLEND_OP_MIN;
         case RHI_BLEND_OP_MAX:                      return D3D12_BLEND_OP_MAX;
-        default:                                    Assert(!"Undefined blend op."); return {};
+        default:                                    R_ASSERT(!"Undefined blend op."); return {};
     }
 }
 
@@ -91,7 +91,7 @@ static D3D12_FILL_MODE d3d12_fill_mode_from_rhi(RHI_Fill_Mode mode) {
     switch (mode) {
         case RHI_FILL_SOLID:                        return D3D12_FILL_MODE_SOLID;
         case RHI_FILL_WIREFRAME:                    return D3D12_FILL_MODE_WIREFRAME;
-        default:                                    Assert(!"Undefined fill mode."); return {};
+        default:                                    R_ASSERT(!"Undefined fill mode."); return {};
     }
 }
 
@@ -101,7 +101,7 @@ static D3D12_TEXTURE_ADDRESS_MODE d3d12_texture_address_mode_from_rhi(RHI_Addres
         case RHI_ADDRESS_REPEAT_MIRRORED:           return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
         case RHI_ADDRESS_CLAMP_TO_EDGE:             return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
         case RHI_ADDRESS_CLAMP_TO_BORDER:           return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        default:                                    Assert(!"Undefined address mode."); return {};
+        default:                                    R_ASSERT(!"Undefined address mode."); return {};
     }
 }
 
@@ -123,7 +123,7 @@ static D3D12_FILTER d3d12_filter_from_rhi(RHI_Filter filter, bool is_compare_op)
             result = D3D12_FILTER_MIN_MAG_MIP_POINT;
         } break;
 
-        default: Assert(!"Undefined filter mode.");
+        default: R_ASSERT(!"Undefined filter mode.");
     }
 
     return result;
@@ -357,7 +357,7 @@ static D3D12_Descriptor d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) {
     }
 
     // @Todo: grow?
-    Assert(index != 0xffffffff);
+    R_ASSERT(index != 0xffffffff);
 
     int offset = index * heap->descriptor_size;
 
@@ -382,7 +382,7 @@ static void d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) {
     
     auto *heap = descriptor->my_heap;
 
-    Assert((heap->free_list[a] & (1ull << b)) == 0);
+    R_ASSERT((heap->free_list[a] & (1ull << b)) == 0);
     heap->free_list[a] |= (1ull << b);
 
     heap->count -= 1;
@@ -637,7 +637,7 @@ lb_fail:
 }
 
 void d3d12_device_deinit(RHI_Device *device) {
-    Assert(device->kind == RHI_KIND_D3D12);
+    R_ASSERT(device->kind == RHI_KIND_D3D12);
 
     D3D12_Device *d = &device->d3d12;
 
@@ -783,7 +783,7 @@ void d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass) {
     D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = {};
     D3D12_CPU_DESCRIPTOR_HANDLE rtv_handles[RHI_MAX_COLOR_ATTACHMENTS] = {};
 
-    Assert(pass->num_color_attachments <= RHI_MAX_COLOR_ATTACHMENTS);
+    R_ASSERT(pass->num_color_attachments <= RHI_MAX_COLOR_ATTACHMENTS);
 
     for (u32 i = 0; i < pass->num_color_attachments; ++i) {
         auto attachment = pass->color_attachments[i]; 
@@ -893,7 +893,7 @@ static DXGI_FORMAT dxgi_format_from_rhi(RHI_Format format) {
             return DXGI_FORMAT_BC7_UNORM_SRGB;
 
         default:
-            Assert(!"Unknown texture format.");
+            R_ASSERT(!"Unknown texture format.");
             return DXGI_FORMAT_UNKNOWN;
     }
 }
@@ -979,7 +979,7 @@ static RHI_Format rhi_texture_format_from_d3d12(DXGI_FORMAT format) {
             return RHI_FORMAT_BC7_UNORM_SRGB;
 
         default:
-            Assert(!"Unknown D3D12 texture format.");
+            R_ASSERT(!"Unknown D3D12 texture format.");
             return RHI_FORMAT_UNKNOWN;
     }
 }
@@ -1002,7 +1002,7 @@ static D3D12_RESOURCE_DIMENSION d3d12_resource_dimension_from_rhi_texture_type(R
             return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
         default:
-            Assert(!"Unknown texture type.");
+            R_ASSERT(!"Unknown texture type.");
             return D3D12_RESOURCE_DIMENSION_UNKNOWN;
     }
 }
@@ -1035,7 +1035,7 @@ static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc_from_rhi_buffer_desc(RHI_B
         result.Buffer.StructureByteStride = desc->stride;
         result.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_NONE;
     } else {
-        Assert(!"Invalid buffer view type.");
+        R_ASSERT(!"Invalid buffer view type.");
     }
 
     return result;
@@ -1060,7 +1060,7 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc_from_rhi_buffer_desc(RHI_
         result.Buffer.CounterOffsetInBytes = 0;
         result.Buffer.Flags                = D3D12_BUFFER_UAV_FLAG_NONE;
     } else {
-        Assert(!"Invalid buffer view type.");
+        R_ASSERT(!"Invalid buffer view type.");
     }
 
     return result;
@@ -1116,7 +1116,7 @@ static D3D12_UNORDERED_ACCESS_VIEW_DESC d3d12_uav_desc(RHI_Texture_View_Desc *de
         } break;
 
         default: {
-            Assert(!"Unknown texture dimension.");
+            R_ASSERT(!"Unknown texture dimension.");
         } break;
     }
 
@@ -1166,7 +1166,7 @@ static D3D12_RENDER_TARGET_VIEW_DESC d3d12_rtv_desc(RHI_Texture_View_Desc *desc)
         } break;
 
         default: {
-            Assert(!"Unknown texture dimension.");
+            R_ASSERT(!"Unknown texture dimension.");
         } break;
     }
 
@@ -1199,7 +1199,7 @@ static D3D12_DEPTH_STENCIL_VIEW_DESC d3d12_dsv_desc(RHI_Texture_View_Desc *desc)
         } break;
 
         default: {
-            Assert(!"Invalid texture dimension.");
+            R_ASSERT(!"Invalid texture dimension.");
         } break;
     }
 
@@ -1209,7 +1209,7 @@ static D3D12_DEPTH_STENCIL_VIEW_DESC d3d12_dsv_desc(RHI_Texture_View_Desc *desc)
 
 bool d3d12_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap) {
     if (heap) {
-        Assert(!"Not implemented at the moment.");
+        R_ASSERT(!"Not implemented at the moment.");
     } else {
         D3D12_HEAP_PROPERTIES heap_prop = {};
         heap_prop.Type = d3d12_heap_type_from_rhi_memory_type(desc->memory_type);
@@ -1311,7 +1311,7 @@ bool d3d12_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_De
     }
 
     if (heap) {
-        Assert(!"User heap not supported at the moment.");
+        R_ASSERT(!"User heap not supported at the moment.");
     } else {
         D3D12_HEAP_PROPERTIES heap_prop = {};
         heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -1402,7 +1402,7 @@ static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *des
         } break;
 
         default: {
-            Assert(!"Unknown texture dimension.");
+            R_ASSERT(!"Unknown texture dimension.");
         } break;
     }
 
@@ -1419,7 +1419,7 @@ void d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Tex
                 auto srv_desc = d3d12_srv_desc(desc);
                 device->d3d12.device_10->CreateShaderResourceView(resource, &srv_desc, view->d3d12.cpu_handle);
             } else {
-                Assert(!"Texture doesn't have a sampled usage flag.");
+                R_ASSERT(!"Texture doesn't have a sampled usage flag.");
             }
         } break;
 
@@ -1429,7 +1429,7 @@ void d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Tex
                 auto uav_desc = d3d12_uav_desc(desc);
                 device->d3d12.device_10->CreateUnorderedAccessView(resource, NULL, &uav_desc, view->d3d12.cpu_handle);
             } else {
-                Assert(!"Texture doesn't have a storage usage flag.");
+                R_ASSERT(!"Texture doesn't have a storage usage flag.");
             }
         } break;
 
@@ -1439,7 +1439,7 @@ void d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Tex
                 auto rtv_desc = d3d12_rtv_desc(desc);
                 device->d3d12.device_10->CreateRenderTargetView(resource, &rtv_desc, view->d3d12.cpu_handle);
             } else {
-                Assert(!"Texture doesn't have a color attachment usage flag.");
+                R_ASSERT(!"Texture doesn't have a color attachment usage flag.");
             }
         } break;
 
@@ -1449,12 +1449,12 @@ void d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Tex
                 auto dsv_desc = d3d12_dsv_desc(desc);
                 device->d3d12.device_10->CreateDepthStencilView(resource, &dsv_desc, view->d3d12.cpu_handle);
             } else {
-                Assert(!"Texture doesn't have a depth stencil usage flag.");
+                R_ASSERT(!"Texture doesn't have a depth stencil usage flag.");
             }
         } break;
 
         default:
-            Assert(!"Unknown view type.");
+            R_ASSERT(!"Unknown view type.");
     }
 
     view->bindless = view->d3d12.index;
@@ -1510,6 +1510,15 @@ bool d3d12_surface_init(RHI_Device *device,
 
     DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM; // @Todo: HDR
 
+    // Check for tearing feature support
+    BOOL allow_tearing = FALSE;
+    if (FAILED(device->d3d12.dxgi_factory_6->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing)))) {
+        log_error(S("IDXGIFactory6::CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, .. ) failed."));
+        return false;
+    }
+
+
+    // Fill in swap chain descriptor
     DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {};
     {
         swap_chain_desc.Width  = desc->width;
@@ -1521,7 +1530,7 @@ bool d3d12_surface_init(RHI_Device *device,
 
         swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
         swap_chain_desc.BufferCount = desc->num_back_buffers,
-        swap_chain_desc.Scaling     = DXGI_SCALING_STRETCH;
+        swap_chain_desc.Scaling     = DXGI_SCALING_NONE;
 
         // FLIP_DISCARD discards "old flips" in the queue and presents only the "new" flip.
         swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; 
@@ -1534,7 +1543,7 @@ bool d3d12_surface_init(RHI_Device *device,
         swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
         // @Todo
-        swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+        swap_chain_desc.Flags = allow_tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
         if (desc->frame_latency_waitable)  swap_chain_desc.Flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
     }
@@ -1568,7 +1577,7 @@ bool d3d12_surface_init(RHI_Device *device,
     for (u32 i = 0; i < desc->num_back_buffers; ++i) {
         RHI_Texture *out_tex = out_textures[i];
 
-        Assert(out_tex != NULL);
+        R_ASSERT(out_tex != NULL);
 
         hr = surface->d3d12.swap_chain_4->GetBuffer(i, IID_PPV_ARGS(&out_tex->d3d12.resource));
         if (FAILED(hr)) {
@@ -1912,7 +1921,7 @@ void d3d12_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_in
 }
 
 void d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance) {
-    Assert(index_size == 2 || index_size == 4);
+    R_ASSERT(index_size == 2 || index_size == 4);
 
     D3D12_INDEX_BUFFER_VIEW ibv = {};
 	ibv.BufferLocation = index_buffer->d3d12.resource->GetGPUVirtualAddress();
@@ -1937,8 +1946,8 @@ void d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer,
                                       RHI_Buffer *src, u32 src_offset, u32 src_pitch,  
                                       RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) {
 
-    Assert(src_pitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
-    Assert(src_offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT == 0);
+    R_ASSERT(src_pitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
+    R_ASSERT(src_offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT == 0);
 
     u32 copy_width  = box->width;
     u32 copy_height = box->height;
@@ -2113,11 +2122,11 @@ bool d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipelin
         } break;
 
         case RHI_PIPELINE_TYPE_COMPUTE: {
-            Assert(!"Under construction.");
+            R_ASSERT(!"Under construction.");
         } break;
 
         default: {
-            Assert(!"Undefined pipeline type.");
+            R_ASSERT(!"Undefined pipeline type.");
         } break;
     }
 

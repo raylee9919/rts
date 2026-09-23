@@ -78,11 +78,11 @@ void array_reserve(Array<T>* arr, u64 desired_count) {
     if (desired_count <= arr->allocated) return;
 
     if (!arr->allocator.proc) {
-        Assert(0);
+        R_ASSERT(0);
     }
 
     arr->data = (T *)realloc(arr->data, desired_count * sizeof(T), arr->allocated * sizeof(T), arr->allocator);
-    Assert(arr->data != NULL);
+    R_ASSERT(arr->data != NULL);
 
     arr->allocated = desired_count;
 }

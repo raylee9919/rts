@@ -130,7 +130,7 @@ void asset_request( Guid id )
         entry = table_add(&asset_system->asset_table, id, e);
     }
 
-    Assert( entry );
+    R_ASSERT( entry );
     if ( entry->ref_count == 0 )
     {
         asset_load(id); 
@@ -141,7 +141,7 @@ void asset_request( Guid id )
 void asset_drop( Guid id ) 
 {
     auto *entry = table_find_pointer(&asset_system->asset_table, id);
-    Assert( entry );
+    R_ASSERT( entry );
 
     entry->ref_count -= 1;
 
@@ -161,7 +161,7 @@ String asset_shortname( String path )
 {
     String short_name = path;
 
-    Assert(begins_with(path, shared->data_path));
+    R_ASSERT(begins_with(path, shared->data_path));
 
     advance(&short_name, shared->data_path.len);
     short_name = trim_left(short_name, S("./\\"));
@@ -179,7 +179,7 @@ static b32 asset_load( Guid id )
 {
     // Entry must have been added if not exist during request.
     auto *entry = table_find_pointer(&asset_system->asset_table, id);
-    Assert( entry );
+    R_ASSERT( entry );
 
     // Find path from the catalog.
     String *short_name = table_find_pointer(&asset_system->guid_to_short_name, id);
@@ -204,7 +204,7 @@ static b32 asset_load( Guid id )
     {
         if ( info.path_extension && (info.path_extension == ext) )
         {
-            Assert(info.load_proc);
+            R_ASSERT(info.load_proc);
             info.load_proc(path, *short_name, nullptr);
             ext_match = true;
             break;

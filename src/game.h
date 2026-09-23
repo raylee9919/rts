@@ -81,13 +81,13 @@ struct Game_State {
 };
 
 
-extern Game_State   *game_state;
+extern Game_State *game_state;
 
 
 void       game_state_init(Game_State **game_state_pptr);
 void       game_state_deinit(Game_State *g);
 void       game_init(f64 time_init);
-void       game_deinit();
+void       game_shutdown();
 void       game_copy(Game_State *dst, Game_State *src);
 void      *game_alloc(Game_State *g, u64 size, u64 alignment);
 

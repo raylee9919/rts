@@ -29,7 +29,7 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     soldier->skeleton          = assets->skeleton_skeleton;
 
     u32 num_joints = soldier->skeleton->num_joints;
-    assert(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
+    R_ASSERT(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
     soldier->index_to_my_skinning_matrices = game_state->num_skinning_matrices;
     game_state->num_skinning_matrices += num_joints;
 
@@ -41,7 +41,7 @@ Entity* debug_spawn_soldier(f32 x, f32 z, Team team, Game_Assets* assets)
     // @Todo: sync with anim.
     soldier->attack_max_t      = assets->skeleton_attack->duration;
     soldier->damage_t          = 0.5f;
-    assert(soldier->damage_t < soldier->attack_max_t);
+    R_ASSERT(soldier->damage_t < soldier->attack_max_t);
 
     soldier->animation_player = alloc_animation_player();
     soldier->animation_player->init(soldier->skeleton, &game_state->skinning_matrices[soldier->index_to_my_skinning_matrices]);
@@ -80,7 +80,7 @@ Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets)
     e->skeleton = assets->knight_skeleton;
 
     u32 num_joints = e->skeleton->num_joints;
-    assert(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
+    R_ASSERT(game_state->num_skinning_matrices + num_joints <= game_state->max_skinning_matrices);
     e->index_to_my_skinning_matrices = game_state->num_skinning_matrices;
     game_state->num_skinning_matrices += num_joints;
 
@@ -92,7 +92,7 @@ Entity* debug_spawn_knight(f32 x, f32 z, Team team, Game_Assets* assets)
     // @Todo: sync with anim.
     e->attack_max_t      = e->attack_animation->duration;
     e->damage_t          = 0.5f;
-    assert(e->damage_t < e->attack_max_t);
+    R_ASSERT(e->damage_t < e->attack_max_t);
 
     e->animation_player = alloc_animation_player();
     e->animation_player->init(e->skeleton, &game_state->skinning_matrices[e->index_to_my_skinning_matrices]);
@@ -207,7 +207,7 @@ struct Material_Parser {
     Token parse_field_identifier() {
         if (cursor < size) {
             eat_whitespace();
-            assert(eat() == ';');
+            R_ASSERT(eat() == ';');
             Token identifier = parse_identifier();
             return identifier;
         } else {
@@ -266,7 +266,7 @@ Material load_material(Asset::System* asset_system, String asset_dir, String pat
                 valid = true;
                 slot = PBR_EMISSION;
             } else {
-                assert(!"Unknown field.");
+                R_ASSERT(!"Unknown field.");
             }
 
             if (valid) {

@@ -22,7 +22,7 @@ R_PASS_INIT( RenderPassInit_Geometry )
         desc.memory_type = RHI_MEMORY_UPLOAD;
         desc.size        = sz;
 
-        Assert(rhi_buffer_init(gfx->device, &result->arguments_buffer, &desc, NULL));
+        R_ASSERT(rhi_buffer_init(gfx->device, &result->arguments_buffer, &desc, NULL));
 
         RHI_Buffer_View_Desc view_desc = {};
         {
@@ -70,7 +70,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     {
         entity_dfs(g, g->root, pass, [](Game_State *g, Entity *E, u64 i, void *data) {
             // Set pipeline
-            M_Entry *material = get_material(E->material);
+            M_Entry *material = material_from_guid(E->material);
             gfx_set_pipeline(material->pipeline);
 
 
@@ -92,7 +92,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                 R_Pass_Geometry::Push_Constants c = {};
                 c.vertex_buffer_id    = mesh->vertex_buffer_view.bindless;
                 c.linear_sampler_id   = gfx->linear_sampler.bindless;
-                c.camera_buffer_id    = camera_view.bindless;
+                c.camera_buffer_id    = renderer->camera_view.bindless;
                 c.argument_buffer_id  = p->arguments_view.bindless;
                 c.argument_base_index = i;
                 c.material_buffer_id  = renderer->material_buffer.view.bindless;
@@ -106,7 +106,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
         // Upload camera
         GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
-        memcpy(camera_ptr, &gpu_camera, sizeof(gpu_camera));
+        memcpy(renderer->camera_ptr, &gpu_camera, sizeof(gpu_camera));
     }
     gfx_pass_end();
 }

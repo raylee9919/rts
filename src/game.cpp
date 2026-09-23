@@ -16,7 +16,7 @@ void game_state_init(Game_State **game_state_pptr) {
     // First commit
     u64 sz = sizeof(Game_State);
     u64 cmt = align_up(sz, page_size);
-    Assert( os_commit(ptr, cmt) );
+    R_ASSERT( os_commit(ptr, cmt) );
 
     Game_State *g = (Game_State *)ptr;
     Construct(g);
@@ -46,7 +46,7 @@ void game_init(f64 time_init) {
     log_info(S("Initialized game state."));
 }
 
-void game_deinit() {
+void game_shutdown() {
     Game_State *g = game_state;
 
     os_release(g->storage.base, g->storage.reserved);
@@ -77,7 +77,7 @@ void *game_alloc(Game_State *g, u64 size, u64 alignment) {
 
     if (s->used > s->committed) {
         u64 commit_size = align_up(s->used - s->committed, s->page_size);
-        Assert( os_commit(s->base + s->committed, commit_size) );
+        R_ASSERT( os_commit(s->base + s->committed, commit_size) );
         s->committed += commit_size;
     }
 
@@ -98,7 +98,7 @@ Entity *entity_alloc(Game_State *g) {
         entity = (Entity *)game_alloc(g, sizeof(Entity), align_of(Entity));
     }
 
-    Assert(entity);
+    R_ASSERT(entity);
 
     memset(entity, 0, sizeof(Entity));
 
@@ -160,7 +160,7 @@ void entity_add_child(Game_State *g, Handle parent, Handle child) {
         Entity *first = entity_from_handle(g, pa->first);
         Entity *last  = entity_from_handle(g, pa->last);
 
-        Assert(first && last); // Deallocated entity must have been removed
+        R_ASSERT(first && last); // Deallocated entity must have been removed
 
         first->prev = child;
         last->next  = child;
@@ -198,7 +198,7 @@ static u64 _entity_dfs_internal(Game_State *g,
 
         Entity *child_entity = entity_from_handle(g, child);
 
-        Assert(child_entity);  // Deallocated entity must have been removed
+        R_ASSERT(child_entity);  // Deallocated entity must have been removed
 
         child = child_entity->next;
         if (child == first)  break;

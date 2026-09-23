@@ -6,7 +6,7 @@
 template <typename T>
 internal T queue_front(Queue<T> *q)
 {
-    Assert(q->count > 0);
+    R_ASSERT(q->count > 0);
 
     return q->array.data[q->front_index];
 }
@@ -41,7 +41,7 @@ internal void queue_push(Queue<T> *q, T item)
 template <typename T>
 internal void queue_pop(Queue<T> *q)
 {
-    Assert(q->count > 0);
+    R_ASSERT(q->count > 0);
 
     q->front_index = (q->front_index + 1) % q->allocated;
     q->count -= 1;

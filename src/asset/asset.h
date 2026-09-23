@@ -7,10 +7,6 @@
 #include "basic/hash_table.h"
 #include "os/os.h"
 
-force_inline u32 asset_guid_to_u32(Guid guid) {
-    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
-}
-
 struct Asset_Entry {
     s64 ref_count;
 };
@@ -28,8 +24,8 @@ struct Asset_Type_Info {
 struct Asset_System {
     Allocator heap;
 
-    Table<Guid, Asset_Entry, asset_guid_to_u32> asset_table;
-    Table<Guid, String, asset_guid_to_u32> guid_to_short_name;
+    Table<Guid, Asset_Entry, hash_guid> asset_table;
+    Table<Guid, String, hash_guid> guid_to_short_name;
 
     Array<Asset_Type_Info> type_infos;
 };

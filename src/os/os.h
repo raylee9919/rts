@@ -578,7 +578,7 @@ Array<String> file_list(String path,
 void               os_gfx_init();
 OS_Handle          window_create(int w, int h, String name);
 void               toggle_fullscreen(OS_Handle window);
-vec2               os_window_size(OS_Handle window);
+Pair<u32,u32>      window_size(OS_Handle window);
 vec2               os_get_mouse_position(OS_Handle window);
 
 // Input

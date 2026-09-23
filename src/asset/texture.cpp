@@ -20,7 +20,7 @@ namespace Asset
 {
     void load_texture(System *sys, Texture *tex, void *memory, u64 size)
     {
-        assert(tex);
+        R_ASSERT(tex);
 
         Asset::Parser p = {};
         init(&p, memory, size);
@@ -41,12 +41,12 @@ namespace Asset
         memcpy(tex->data, p.cursor, tex->size);
         p.cursor += tex->size;
 
-        assert(is_eof(&p));
+        R_ASSERT(is_eof(&p));
     }
 
     void load_texture(System *sys, Texture *tex, String file_path)
     {
-        assert(tex);
+        R_ASSERT(tex);
 
         String contents = read_entire_file(file_path, tctx.temp);
 
@@ -55,7 +55,7 @@ namespace Asset
 
     void import_texture(System *sys, Texture *tex, String file_path, bool flip)
     {
-        assert(tex);
+        R_ASSERT(tex);
 
         String contents = read_entire_file(file_path, tctx.temp);
 
@@ -83,7 +83,7 @@ namespace Asset
     void export_texture(System *sys, Texture *tex, String file_path)
     {
         int ok = stbi_write_png((const char *)file_path.str, tex->width, tex->height, tex->num_channels, tex->data, tex->pitch);
-        assert(ok);
+        R_ASSERT(ok);
     }
 
     void store_texture(System *sys, Texture *tex, String file_path)
@@ -113,10 +113,10 @@ namespace Asset
             } else if (num_channels == 1) {
                 layout = TEXTURE_LAYOUT_R8;
             } else { 
-                assert(0);
+                R_ASSERT(0);
             }
         } else {
-            assert(0);
+            R_ASSERT(0);
         }
 
         return layout;

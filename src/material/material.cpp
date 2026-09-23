@@ -19,8 +19,9 @@ static Bitmap bitmap_import(void *loaded_data, u64 size);
 static void bitmap_free(Bitmap *bitmap);
 
 
-// ------------------------------------------------------------------------- //
-
+//
+// Material System
+//
 static Allocator material_system_allocator;
 static Pair<u64, u64> material_field_type_size_align[M_FIELD_TYPE_COUNT];
 static Table<Guid, M_TypeInfo, hash_guid> material_type_table;
@@ -34,12 +35,15 @@ static u64 get_align(M_FieldType type) {
     return material_field_type_size_align[type].y;
 }
 
-void write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material) {
+void write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material) 
+{
+    // With each field's type, offset and size, we 
+    // can convert and wrtie data to GPU-side buffer.
     auto convert = [](u8 *src, M_FieldType cpu_type, M_FieldType gpu_type) -> u8* {
         u8 *data = src;
         if (cpu_type == gpu_type) return data;
         if (cpu_type == M_FIELD_GUID) {
-            Assert(gpu_type == M_FIELD_TEXTURE);
+            R_ASSERT(gpu_type == M_FIELD_TEXTURE);
             data = alloc(4, tctx.temp);
             Guid guid = *(Guid*)src;
             u32 bindless = gfx_srv_bindless_from_texture(guid);
@@ -60,7 +64,7 @@ static String get_material_shortname(String path)
 {
     // @Robustness
     String short_name = path;
-    Assert(begins_with(path, shared->data_path));
+    R_ASSERT(begins_with(path, shared->data_path));
     advance(&short_name, shared->data_path.len);
     short_name = trim_left(short_name, S("./\\"));
 
@@ -95,7 +99,7 @@ static M_FieldType convert_type(Shader_Field_Type type, b32 is_gpu) {
         case SHADER_FIELD_FLOAT3:  return M_FIELD_VEC3;
         case SHADER_FIELD_FLOAT4:  return M_FIELD_VEC4;
 
-        default: Assert(0); return M_FIELD_S32;
+        default: R_ASSERT(0); return M_FIELD_S32;
     }
 }
 
@@ -120,7 +124,7 @@ Pair<b32, M_TypeInfo> get_material_type_info(Shader_Compiler *shader_compiler, S
         Shader_Field field = mtl.fields[i];
 
         M_Field *f = &type_info.fields[i];
-        f->name = field.name; // @Todo: is it const char *
+        f->name = field.name; // @Todo: is it `const char *` in read-only memory?
 
         f->cpu_type   = field.attribute == S("Texture") ? M_FIELD_GUID : convert_type(field.type, false);
         f->cpu_size   = get_size(f->cpu_type);
@@ -146,11 +150,13 @@ Pair<b32, M_TypeInfo> get_material_type_info(Shader_Compiler *shader_compiler, S
 b32 material_system_init(String material_shader_dir, 
                          Shader_Compiler *shader_compiler) 
 {
+    // Assign allocators
     material_system_allocator = {crt_proc, nullptr};
     material_type_table.allocator = material_system_allocator;
     material_table.allocator      = material_system_allocator;
 
 
+    // Fill in size/alignment table of field types.
     material_field_type_size_align[M_FIELD_S8]  = { sizeof(s8),  align_of(s8)  };
     material_field_type_size_align[M_FIELD_S16] = { sizeof(s16), align_of(s16) };
     material_field_type_size_align[M_FIELD_S32] = { sizeof(s32), align_of(s32) };
@@ -217,38 +223,34 @@ void free_material(Guid id) {
     table_remove(&material_table, id);
 }
 
-M_Entry *get_material(Guid id) {
+M_Entry *material_from_guid(Guid id) {
     return table_find_pointer(&material_table, id);
 }
 
 void upload_material(Guid id) 
 {
     M_Entry *entry = table_find_pointer(&material_table, id);
-    Assert(entry);
+    R_ASSERT(entry);
 
     M_TypeInfo *type_info = table_find_pointer(&material_type_table, entry->type_id);
     u64 gpu_size = type_info->gpu_size;
 
     { // @Temporary
-        u8 *ptr = (u8*)rhi_buffer_map(&gfx->upload_buffer);
-
+        u8 *ptr = gfx->upload_buffer_mapped + gfx->upload_buffer_used;
         write_gpu_material(type_info, ptr, entry->data);
-
-        rhi_buffer_unmap(&gfx->upload_buffer);
 
         rhi_command_buffer_begin(&gfx->copy_buffer);
         {
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, 0, gpu_size);
+            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, gfx->upload_buffer_used, gpu_size);
             entry->offset = renderer->material_buffer_used;
             renderer->material_buffer_used += gpu_size;
         }
         rhi_command_buffer_end(&gfx->copy_buffer);
         RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
         rhi_submit(gfx->device, 1, buffers);
-        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value);
+        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
 
-        rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value, -1);
-        gfx->upload_semaphore_value += 1;
+        gfx->upload_buffer_used += type_info->gpu_size;
     }
 }
 
@@ -398,7 +400,7 @@ void material_load_proc( String filepath, String short_name, void *user_data )
             // @Todo: float/vector
 
             default: {
-                Assert(!"Invalid default value");
+                R_ASSERT(!"Invalid default value");
             } break;
         }
     }
@@ -533,17 +535,17 @@ void texture_load_proc( String filepath, String short_name, void *user_data )
 
 static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit) {
     if (is_hdr) {
-        Assert(!"X"); // @Todo: HDR
+        R_ASSERT(!"X"); // @Todo: HDR
     } else if (is_16_bit) {
         if (num_channels == 1) return RHI_FORMAT_R16_UNORM;
         if (num_channels == 2) return RHI_FORMAT_RG16_UNORM;
         if (num_channels == 4) return RHI_FORMAT_RGBA16_UNORM;
-        else Assert(!"Unsupported 16-bit channel count");
+        else R_ASSERT(!"Unsupported 16-bit channel count");
     } else {
         if (num_channels == 1) return RHI_FORMAT_R8_UNORM;
         if (num_channels == 2) return RHI_FORMAT_RG8_UNORM;
         if (num_channels == 4) return RHI_FORMAT_RGBA8_UNORM;
-        else Assert(!"Unsupported channel count");
+        else R_ASSERT(!"Unsupported channel count");
     }
     return RHI_FORMAT_UNKNOWN;
 }
@@ -564,7 +566,7 @@ static Bitmap bitmap_import(void *loaded_data, u64 size) {
     b32 is_16_bit = stbi_is_16_bit_from_memory(data, sz);
 
     if (is_hdr) {
-        Assert(!"X"); // @Todo: HDR
+        R_ASSERT(!"X"); // @Todo: HDR
     }
 
     void *ptr = NULL;

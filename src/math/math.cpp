@@ -158,7 +158,7 @@ f32 triarea2(vec2 a, vec2 b, vec2 c) {
 
 f64 fmod_cycling(f64 x, f64 y) 
 {
-    assert( y != 0 );
+    R_ASSERT( y != 0 );
     f64 remainder = x - (floor(x/y) * y);
     return remainder;
 }
@@ -1223,10 +1223,10 @@ Xform to_xform(m4x4 m)
 // Graphics
 //
 m4x4 look_to_lh(vec3 from, vec3 to, vec3 up) {
-    Assert(!is_zero(to));
-    Assert(!is_inf(to));
-    Assert(!is_zero(up));
-    Assert(!is_inf(up));
+    R_ASSERT(!is_zero(to));
+    R_ASSERT(!is_inf(to));
+    R_ASSERT(!is_zero(up));
+    R_ASSERT(!is_inf(up));
 
     vec3 Z = normalize(to);
     vec3 X = normalize(cross(up, Z));

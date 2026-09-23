@@ -164,11 +164,8 @@ typedef double      f64;
 
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
-#undef assert
-#define ASSERT(exp)  if (!(exp)) do { debug_break(); } while(0)
-#define Assert(exp)  if (!(exp)) do { debug_break(); } while(0)
-#define assert(exp)  if (!(exp)) do { debug_break(); } while(0)
-#define INVALID_CODE_PATH Assert(! "Invalid Code Path")
+#define R_ASSERT(exp)  if (!(exp)) do { debug_break(); } while(0)
+#define INVALID_CODE_PATH R_ASSERT(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define defer_loop(start, end) for(int CONCAT2(_i_,__LINE__) = ((start), 0); CONCAT2(_i_,__LINE__) == 0; (CONCAT2(_i_,__LINE__) += 1, (end)))
 
@@ -402,36 +399,34 @@ enum Texture_Layout
 };
 
 force_inline u8 align_up(u8 x, u8 alignment) {
-    Assert((alignment & (alignment - 1)) == 0);
+    R_ASSERT((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
 force_inline u16 align_up(u16 x, u16 alignment) {
-    Assert((alignment & (alignment - 1)) == 0);
+    R_ASSERT((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
 force_inline u32 align_up(u32 x, u32 alignment) {
-    Assert((alignment & (alignment - 1)) == 0);
+    R_ASSERT((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
 force_inline u64 align_up(u64 x, u64 alignment) {
-    Assert((alignment & (alignment - 1)) == 0);
+    R_ASSERT((alignment & (alignment - 1)) == 0);
     return ((x + alignment - 1) & (~(alignment - 1)));
 }
 
 force_inline void *align_up(void *x, uintptr_t alignment) {
-    Assert(alignment != 0);
-    Assert((alignment & (alignment - 1)) == 0);
+    R_ASSERT(alignment != 0);
+    R_ASSERT((alignment & (alignment - 1)) == 0);
 
     uintptr_t p = (uintptr_t)x;
     p = (p + alignment - 1) & ~(alignment - 1);
 
     return (void *)p;
 }
-
-#include "basic/allocator.h"
 
 // Returns 64 if there's no set bit. That's why TZCNT is better than BSF.
 // @Todo: Some old chips might not support tzcnt

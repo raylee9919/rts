@@ -125,7 +125,7 @@ void Animation_Player::init(Skeleton *skel, m3x4 *out_skinning_matrices)
 {
     skeleton = skel;
 
-    assert(out_skinning_matrices);
+    R_ASSERT(out_skinning_matrices);
     skinning_matrices = out_skinning_matrices;
 
     array_reserve(&blended_local_transforms, skeleton->num_joints);

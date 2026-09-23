@@ -10,13 +10,13 @@ per_thread Thread_State thread_state;
 
 void context_push(Context context) {
     auto *ts = &thread_state;
-    Assert(ts->context_stack_pointer < (s64)array_count(ts->context_stack));
+    R_ASSERT(ts->context_stack_pointer < (s64)array_count(ts->context_stack));
     tctx = ts->context_stack[++ts->context_stack_pointer] = context;
 }
 
 void context_pop() {
     auto *ts = &thread_state;
-    Assert(ts->context_stack_pointer > 0);
+    R_ASSERT(ts->context_stack_pointer > 0);
     tctx = ts->context_stack[--ts->context_stack_pointer];
 }
 
@@ -35,7 +35,7 @@ void *crt_proc(Allocator_Mode mode, u64 size, u64 old_size, void *old_memory, vo
     } else if (mode == ALLOCATOR_MODE_FREE) {
         free(old_memory);
     } else {
-        Assert(!"X");
+        R_ASSERT(!"X");
     }
 
     return result;

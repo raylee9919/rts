@@ -52,14 +52,6 @@ struct GFX_Sort_Key {
 };
 
 
-// GUID to uint32
-//
-force_inline u32 gfx_128_to_32(Guid guid) {
-    // @Todo: Not critical as it's just used for hash table index, but is there a better way?
-    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
-}
-
-
 // Initialization info struct
 //
 struct GFX_Info {
@@ -137,6 +129,7 @@ struct GFX_Edge {
     RHI_Resource_State  dst_state;
 };
 
+
 struct GFX_State {
     Allocator                               arena;
     Allocator                               heap;
@@ -177,12 +170,19 @@ struct GFX_State {
     RHI_Sampler                             linear_sampler;
     RHI_Sampler                             dot_sampler;
 
-    // @Temporary: Wait on the spot is the worst possible way.
+    // @Fix
+    // At the moment, queues are waiting for the upload semaphore 
+    // only once at gfx_end. Proper API and alignment is required.
+    // Seems like command buffer pool is required? Also, this isn't 
+    // thread safe.
+    //         -swl 2026-09-23
     RHI_Buffer                              upload_buffer;
     RHI_Semaphore                           upload_semaphore;
     u64                                     upload_semaphore_value = 1;
-    RHI_Command_Buffer                      copy_buffer; // One copy buffer should be enough. Right?
+    u8                                     *upload_buffer_mapped;
+    u64                                     upload_buffer_used;
 
+    RHI_Command_Buffer                      copy_buffer; // One copy buffer should be enough. Right? Nope.
     RHI_Command_Buffer                      command_buffers[RHI_MAX_BUFFER_COUNT];
     RHI_Command_Buffer                      compute_buffers[RHI_MAX_BUFFER_COUNT];
 
@@ -192,10 +192,10 @@ struct GFX_State {
 
 
     // Transient pipeline frame data
-    u64                                     context_pipeline        = GFX_INVALID;  // Currently set transient pipeline index. Draw calls incorporates this.
-    u64                                     next_pipeline           = 0;            // Next transient pipeline index to acquire.
-    Array<Guid>                             pipelines;                              // pipelines[transient pipeline index] = guid.
-    Table <Guid, u64, gfx_128_to_32>        pipeline_to_index_this_frame;           // increments index if new pipeline was encountered this frame.
+    u64                                     context_pipeline = GFX_INVALID; // Currently set transient pipeline index. Draw calls incorporates this.
+    u64                                     next_pipeline    = 0;           // Next transient pipeline index to acquire.
+    Array<Guid>                             pipelines;                      // pipelines[transient pipeline index] = guid.
+    Table <Guid, u64, hash_guid>            pipeline_to_index_this_frame;   // increments index if new pipeline was encountered this frame.
 
 
     // Transient push constants data
@@ -213,9 +213,9 @@ struct GFX_State {
     GFX_Pass pass_states[GFX_MAX_PASS + 1];
 
     // Resource tables
-    Table <Guid,           GFX_Mesh, gfx_128_to_32>     mesh_table;
-    Table <Guid,  GFX_Texture_Entry, gfx_128_to_32>     texture_table;
-    Table <Guid, GFX_Pipeline_Entry, gfx_128_to_32>     pipeline_table;
+    Table <Guid,           GFX_Mesh, hash_guid>     mesh_table;
+    Table <Guid,  GFX_Texture_Entry, hash_guid>     texture_table;
+    Table <Guid, GFX_Pipeline_Entry, hash_guid>     pipeline_table;
 
     // Shader global data
     f32 time;
@@ -281,19 +281,21 @@ u32 gfx_backbuffer_count();
 RHI_Format gfx_surface_format();
 
 
-void                   gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc);
-void                   gfx_pipeline_destroy(Guid guid);
-void                   gfx_set_pipeline(Guid guid);
+void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc);
+void gfx_pipeline_destroy(Guid guid);
+void gfx_set_pipeline(Guid guid);
 
-void                   gfx_push_constants(void *data, u32 size);
+void gfx_push_constants(void *data, u32 size);
 
-void                   gfx_draw(Guid mesh_id, u32 num_instances);
+void gfx_draw(Guid mesh_id, u32 num_instances);
 
-void                   gfx_end(f64 dt, u32 sync_interval);
 
-bool                   gfx_wait_for_frame_waitable_object();
+void gfx_begin();
+void gfx_end(f64 dt, u32 sync_interval);
 
-void                   gfx_request_swapchain_resize(u32 width, u32 height);
+bool gfx_wait_for_frame_waitable_object();
+
+void gfx_request_swapchain_resize(u32 width, u32 height);
 
 
 #endif // RTS_GFX_H

@@ -2,7 +2,6 @@
 
 #include "renderer/renderer.h"
 #include "basic/context.h"
-#include "basic/hash_table.h"
 #include "gfx/gfx.h"
 #include "math/math.h"
 #include "os/os.h"
@@ -20,11 +19,6 @@
 
 /* Call 'r_init' before use. */
 Renderer *renderer;
-
-Guid                 cube_mesh;
-RHI_Buffer           camera_buffer;
-RHI_Buffer_View      camera_view;
-void                *camera_ptr;
 
 
 void game_tick(Game_State *g, f64 dt);
@@ -182,6 +176,29 @@ void r_init(void *native_window_handle)
     }
 
 
+    { // @Temporary: Create camera buffer and view
+        u64 stride = sizeof(GPU_Camera);
+        u64 sz     = sizeof(GPU_Camera) * 1;
+
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_UPLOAD;
+        desc.size        = sz;
+
+        R_ASSERT(rhi_buffer_init(gfx->device, &r->camera_buffer, &desc, NULL));
+
+        RHI_Buffer_View_Desc view_desc = {};
+        {
+            view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
+            view_desc.writable = false;
+            view_desc.stride   = stride;
+            view_desc.offset   = 0;
+            view_desc.size     = sz;
+        }
+
+        rhi_buffer_view_init(gfx->device, &r->camera_view, &r->camera_buffer, &view_desc);
+
+        r->camera_ptr = rhi_buffer_map(&r->camera_buffer);
+    }
 
     // Tell others the renderer is ready to communicate.
     atomic_store(&r->initted, true);
@@ -198,6 +215,8 @@ void r_render(Game_State *g, f64 refresh_dt)
 {
     ProfileScope;
 
+    gfx_begin();
+
     Renderer *r = renderer;
 
     { // Build frame graph
@@ -205,23 +224,25 @@ void r_render(Game_State *g, f64 refresh_dt)
         // frame resource once and be oblivious about it.
         
         // @Cleanup
-        gfx_pass_connect(r->gbuffer_color[gfx_backbuffer_index()],
+        u32 back = gfx_backbuffer_index();
+
+        gfx_pass_connect(r->gbuffer_color[back],
                          -1, R_PASS_GEOMETRY, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
 
-        gfx_pass_connect(r->scene_depth[gfx_backbuffer_index()], 
+        gfx_pass_connect(r->scene_depth[back], 
                          -1, R_PASS_GEOMETRY, 
                          RHI_RESOURCE_STATE_DEPTH_WRITE);
 
-        gfx_pass_connect(r->gbuffer_color[gfx_backbuffer_index()],
+        gfx_pass_connect(r->gbuffer_color[back],
                          R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
                          RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-        gfx_pass_connect(r->scene_texture[gfx_backbuffer_index()],
+        gfx_pass_connect(r->scene_texture[back],
                          R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
 
-        gfx_pass_connect(r->scene_texture[gfx_backbuffer_index()], 
+        gfx_pass_connect(r->scene_texture[back], 
                          R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
                          RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
@@ -229,6 +250,29 @@ void r_render(Game_State *g, f64 refresh_dt)
                          -1, R_PASS_COMPOSITION, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
     }
+
+
+#if 0
+    {
+        auto [ww, wh] = window_size(shared->window);
+        f32 window_w = (f32)ww;
+        f32 window_h = (f32)wh;
+
+        f32 aspect_ratio = 1920.f / 1080.f;
+        f32 w, h;
+
+        if (aspect_ratio > (window_w/window_h)) {
+            w = window_w;
+            h = window_w / aspect_ratio;
+        } else {
+            w = window_h * aspect_ratio;
+            h = window_h;
+        }
+
+        f32 x = (window_w - w) * 0.5f;
+        f32 y = (window_h - h) * 0.5f;
+    }
+#endif
 
 
     // Execute render passes.
@@ -269,8 +313,14 @@ void r_entry(void *param)
     {
         ProfileScopeN("RenderThreadLoop");
 
-        auto *ring = &renderer->ring;
 
+        auto [window_w, window_h] = window_size(shared->window);
+        if (window_w != gfx->info.width || window_h != gfx->info.height) {
+            gfx_request_swapchain_resize(window_w, window_h);
+        }
+
+
+        auto *ring = &renderer->ring;
         mutex_lock(&ring->mutex);
 
         while (ring->is_empty()) {
@@ -278,7 +328,7 @@ void r_entry(void *param)
             condvar_sleep(&ring->condvar, &ring->mutex, -1);
         }
 
-        Assert(!ring->is_empty());
+        R_ASSERT(!ring->is_empty());
 
         Render_Entry *entry = &ring->entries[ring->read_idx];
         ring->read_idx = (ring->read_idx + 1) % array_count(ring->entries);
@@ -293,6 +343,7 @@ void r_entry(void *param)
             r_render(entry->game_state, refresh_dt);
 
         } mutex_unlock(&entry->mutex);
+
 
         clear_thread_temporary_storage();
     }
@@ -329,7 +380,7 @@ void r_pipeline_create(Guid id,
             vs_opts.material_source = material_source;
             vs_opts.material_path   = material_filepath;
         }
-        Assert(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
+        R_ASSERT(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
 
         Shader_Compile_Options ps_opts = {};
         {
@@ -340,7 +391,7 @@ void r_pipeline_create(Guid id,
             ps_opts.material_source = material_source;
             ps_opts.material_path   = material_filepath;
         }
-        Assert(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
+        R_ASSERT(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
     }
 
     { // Create pipeline state object(PSO)
