@@ -13,6 +13,7 @@
 #include "game.h"
 #include "asset/asset.h"
 #include "asset/mesh.h"
+#include "animation/animation.h"
 #include "audio/audio.h"
 #include "shared.h"
 #include "material/material.h"
@@ -31,6 +32,14 @@ void game_tick(Game_State *g, f64 dt)
     ProfileScope;
 
     g->time += dt;
+
+    // Advance animations. Players shared between entities advance once.
+    entity_dfs(g, g->root, &dt, [](Game_State *g, Entity *E, u64 i, void *data) {
+        Animation_Player *player = animation_player_from_offset(g, E->animation_player);
+        if (player) {
+            animation_player_update(g, player, (f32)*(f64 *)data);
+        }
+    });
 
     {
 #if 0
@@ -186,6 +195,19 @@ int main_entry(int argc, char **argv)
         Asset::Model *knight = Asset::model_from_guid(knight_id);
         R_ASSERT(knight);
 
+        Guid skeleton_id = guid_from_string(S("skeleton/knight.skeleton"));
+        Guid idle_id     = guid_from_string(S("animation/knight_idle.keyframed_animation"));
+        asset_request(skeleton_id);
+        asset_request(idle_id);
+
+        Asset::Skeleton  *skeleton = Asset::skeleton_from_guid(skeleton_id);
+        Asset::Animation *idle     = Asset::animation_from_guid(idle_id);
+        R_ASSERT(skeleton && idle);
+
+        // Every submesh is skinned to the same skeleton, so they share one player.
+        u64 knight_player = animation_player_alloc(game_state, skeleton);
+        animation_player_set(animation_player_from_offset(game_state, knight_player), 0, idle, true, 1.f);
+
         for (u32 i = 0; i < knight->num_meshes; ++i) {
             Asset::Mesh *mesh = &knight->meshes[i];
 
@@ -202,13 +224,13 @@ int main_entry(int argc, char **argv)
             Guid material = guid_from_string(material_name);
             asset_request(material);
 
-            Entity *E   = entity_alloc(game_state);
-            E->mesh     = mesh->gpu_id;
-            E->material = material;
+            Entity *E           = entity_alloc(game_state);
+            E->mesh             = mesh->gpu_id;
+            E->material         = material;
 
-            // The knight was authored in centimetres. Without the skeleton's root
-            // transform (0.01 uniform) there's nothing else to bring him down to scale.
-            E->scale = vec3(0.01f);
+            // The knight was authored in centimetres. The skeleton's root transform
+            // (0.01 uniform) is baked into the skinning matrices and brings him to scale.
+            E->animation_player = knight_player;
         }
     }
     

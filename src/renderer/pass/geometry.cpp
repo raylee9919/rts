@@ -4,6 +4,9 @@
 #include "gfx/gfx.h"
 #include "game.h"
 #include "material/material.h"
+#include "animation/animation.h"
+
+#define R_MAX_SKINNING_MATRICES 65536 // @Temporary
 
 R_PASS_INIT( RenderPassInit_Geometry )
 {
@@ -38,6 +41,30 @@ R_PASS_INIT( RenderPassInit_Geometry )
         result->arguments_ptr = rhi_buffer_map(&result->arguments_buffer);
     }
 
+    { // Create skinning buffer and view
+        u64 stride = sizeof(m3x4);
+        u64 sz     = stride * R_MAX_SKINNING_MATRICES;
+
+        RHI_Buffer_Desc desc = {};
+        desc.memory_type = RHI_MEMORY_UPLOAD;
+        desc.size        = sz;
+
+        R_ASSERT(rhi_buffer_init(gfx->device, &result->skinning_buffer, &desc, NULL));
+
+        RHI_Buffer_View_Desc view_desc = {};
+        {
+            view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
+            view_desc.writable = false;
+            view_desc.stride   = stride;
+            view_desc.offset   = 0;
+            view_desc.size     = sz;
+        }
+
+        rhi_buffer_view_init(gfx->device, &result->skinning_view, &result->skinning_buffer, &view_desc);
+
+        result->skinning_ptr = rhi_buffer_map(&result->skinning_buffer);
+    }
+
     return result;
 }
 
@@ -66,6 +93,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
     // @Todo: Do something about this enum
     // @Cleanup: Proper buffers!
+    pass->skinning_used = 0;
+
     gfx_pass_begin(R_PASS_GEOMETRY, &gfx_pass);
     {
         entity_dfs(g, g->root, pass, [](Game_State *g, Entity *E, u64 i, void *data) {
@@ -85,6 +114,24 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
             memcpy(&args->transform, &m, sizeof(args->transform));
             args->material_index = material->offset;
 
+            // Copy the skinning matrices
+            args->skinning_base_index = 0;
+            args->num_joints          = 0;
+
+            Animation_Player *player = animation_player_from_offset(g, E->animation_player);
+            if (player) {
+                u32 num_joints = player->skeleton->num_joints;
+                R_ASSERT(p->skinning_used + num_joints <= R_MAX_SKINNING_MATRICES);
+
+                memcpy((m3x4 *)p->skinning_ptr + p->skinning_used,
+                       animation_player_skinning_matrices(g, player),
+                       sizeof(m3x4) * num_joints);
+
+                args->skinning_base_index = p->skinning_used;
+                args->num_joints          = num_joints;
+                p->skinning_used         += num_joints;
+            }
+
 
             GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, E->mesh);
             if (mesh) {
@@ -96,6 +143,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                 c.argument_buffer_id  = p->arguments_view.bindless;
                 c.argument_base_index = i;
                 c.material_buffer_id  = renderer->material_buffer.view.bindless;
+                c.skinning_buffer_id  = p->skinning_view.bindless;
                 gfx_push_constants(&c, sizeof(c));
 
                 // Draw

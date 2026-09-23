@@ -27,11 +27,13 @@ struct Mtl_Doggo : IMaterial
         {
             Texture2D<float4> albedo_texture = ResourceDescriptorHeap[NonUniformResourceIndex(albedo_id)];
             float4 texel = albedo_texture.Sample(linear_sampler, input.uv);
-            albedo = texel.rgb;
+            albedo = pow(texel.rgb, 2.2);
             alpha  = texel.a;
         }
 
-        float4 result = float4(albedo, alpha);
+        float3 color = brdf_cook_torrance(normalize(input.normal), wi, wo, albedo, 1.0, 0.0);
+
+        float4 result = float4(color, alpha);
         return result;
     }
 };

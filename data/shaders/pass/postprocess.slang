@@ -29,7 +29,11 @@ float4 main_fs(VS_Output input) : SV_TARGET
     SamplerState dot_sampler = SamplerDescriptorHeap[push.dot_sampler_id];
     Texture2D<float4> scene_texture = ResourceDescriptorHeap[push.scene_texture_id];
     float4 c = scene_texture.Sample(dot_sampler, input.screen_uv);
-    
-    float4 result = c;
+
+    // Tone-mapping and linear to sRGB conversion
+    float3 color = tone_mapping_aces(c.rgb);
+    color = sRGB_from_linear(color);
+
+    float4 result = float4(color, c.a);
     return result;
 }

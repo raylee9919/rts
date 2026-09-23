@@ -105,6 +105,8 @@ add_library(rts_engine STATIC
     src/asset/system.cpp
     src/asset/texture.cpp
 
+    src/animation/animation.cpp
+
     src/rhi/rhi.cpp
     src/rhi/d3d12/rhi_d3d12.cpp
 

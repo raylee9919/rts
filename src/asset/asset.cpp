@@ -6,6 +6,7 @@
 #include "shared.h"
 #include "material/material.h"
 #include "asset/mesh.h"
+#include "animation/animation.h"
 
 Asset_System *asset_system;
 
@@ -44,6 +45,18 @@ void asset_system_init()
         Asset_Type_Info info = {};
         info.path_extension   = S("triangle_mesh");
         info.load_proc        = Asset::mesh_load_proc;
+        asset_type_register(info);
+    }
+    {
+        Asset_Type_Info info = {};
+        info.path_extension   = S("skeleton");
+        info.load_proc        = Asset::skeleton_load_proc;
+        asset_type_register(info);
+    }
+    {
+        Asset_Type_Info info = {};
+        info.path_extension   = S("keyframed_animation");
+        info.load_proc        = Asset::animation_load_proc;
         asset_type_register(info);
     }
 

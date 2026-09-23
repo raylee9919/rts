@@ -94,6 +94,22 @@ static void gfx_init_uploader(u64 buffer_size) {
     gfx->upload_buffer_used   = 0;
 }
 
+u64 gfx_upload_reserve(u64 size, u64 alignment) {
+    u64 capacity = gfx->upload_buffer.desc.size;
+    R_ASSERT(size <= capacity);
+
+    u64 offset = align_up(gfx->upload_buffer_used, alignment);
+
+    // Out of room. Wait until every copy issued so far is done, then start over.
+    if (offset + size > capacity) {
+        rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value - 1, -1);
+        offset = 0;
+    }
+
+    gfx->upload_buffer_used = offset + size;
+    return offset;
+}
+
 static void gfx_reset_per_frame_data() {
     // Reset per-frame data.
     gfx->context_pass = GFX_INVALID;
@@ -326,22 +342,21 @@ void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_siz
         u64 ib_sz = num_indices * index_size;
         u64 total = vb_sz + ib_sz;
 
-        u8 *dst = gfx->upload_buffer_mapped + gfx->upload_buffer_used;
+        u64 offset = gfx_upload_reserve(total, 16);
+        u8 *dst = gfx->upload_buffer_mapped + offset;
 
         memcpy(dst,         vertices, vb_sz);
         memcpy(dst + vb_sz, indices,  ib_sz);
 
         rhi_command_buffer_begin(&gfx->copy_buffer);
         {
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &vb, &gfx->upload_buffer, 0, gfx->upload_buffer_used,         vb_sz);
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &ib, &gfx->upload_buffer, 0, gfx->upload_buffer_used + vb_sz, ib_sz);
+            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &vb, &gfx->upload_buffer, 0, offset,         vb_sz);
+            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &ib, &gfx->upload_buffer, 0, offset + vb_sz, ib_sz);
         }
         rhi_command_buffer_end(&gfx->copy_buffer);
         RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
         rhi_submit(gfx->device, 1, buffers);
         rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
-
-        gfx->upload_buffer_used += total;
     }
 }
 
@@ -421,13 +436,13 @@ void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 
     if (tex) {
         // @Todo: I know, I know. Correct alignment for BC and other formats and
         // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
-        gfx->upload_buffer_used = align_up(gfx->upload_buffer_used, 512); // @Temporary: FUCKING HATE ALIGNMENT
-        u8 *dst = gfx->upload_buffer_mapped + gfx->upload_buffer_used;
-        u8 *src = (u8 *)data;
-
         u32 pitch = size / height;
         u32 aligned_pitch = align_up(pitch, 256);
         u64 total = height * aligned_pitch;
+
+        u64 offset = gfx_upload_reserve(total, 512); // @Temporary: FUCKING HATE ALIGNMENT
+        u8 *dst = gfx->upload_buffer_mapped + offset;
+        u8 *src = (u8 *)data;
 
         for (u32 r = 0; r < height; ++r) {
             memcpy(dst, src, pitch);
@@ -442,14 +457,12 @@ void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 
 
         rhi_command_buffer_begin(&gfx->copy_buffer);
         {
-            rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, gfx->upload_buffer_used, aligned_pitch, &tex->texture, &box, 0, 0);
+            rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, offset, aligned_pitch, &tex->texture, &box, 0, 0);
         }
         rhi_command_buffer_end(&gfx->copy_buffer);
         RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
         rhi_submit(gfx->device, 1, buffers);
         rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
-
-        gfx->upload_buffer_used += total;
     }
 }
 

@@ -2,4 +2,7 @@
 
 C "shaders/material/knight.slang" 
 
-albedo_id : "textures/knight_breast_armor_albedo.texture"
+albedo_id    : "textures/knight_breast_armor_albedo.texture"
+normal_id    : "textures/knight_breast_armor_normal.texture"
+roughness_id : "textures/knight_breast_armor_roughness.texture"
+metallic_id  : "textures/knight_breast_armor_metallic.texture"

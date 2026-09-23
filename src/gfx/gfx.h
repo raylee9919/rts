@@ -236,6 +236,10 @@ extern GFX_State *gfx;
 void gfx_init(GFX_Info info, u32 num_backbuffers);
 void gfx_shutdown();
 
+// Reserves 'size' bytes of the upload buffer and returns the offset. If it doesn't
+// fit, blocks until previous uploads are complete and wraps around to the start.
+u64  gfx_upload_reserve(u64 size, u64 alignment);
+
 void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
 void gfx_mesh_destroy(Guid guid);
 

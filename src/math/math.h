@@ -91,7 +91,6 @@ union m3x4 {
         f32 _21, _22, _23, _24; 
         f32 _31, _32, _33, _34; 
     };
-    vec4 rows[3];
 };
 
 union Quaternion {

@@ -44,6 +44,8 @@ struct Entity {
 
     Guid            mesh;
     Guid            material;
+
+    u64             animation_player; // Storage offset, 0 if none. May be shared.
 };
 
 struct Camera {

@@ -236,12 +236,13 @@ void upload_material(Guid id)
     u64 gpu_size = type_info->gpu_size;
 
     { // @Temporary
-        u8 *ptr = gfx->upload_buffer_mapped + gfx->upload_buffer_used;
+        u64 upload_offset = gfx_upload_reserve(gpu_size, 16);
+        u8 *ptr = gfx->upload_buffer_mapped + upload_offset;
         write_gpu_material(type_info, ptr, entry->data);
 
         rhi_command_buffer_begin(&gfx->copy_buffer);
         {
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, gfx->upload_buffer_used, gpu_size);
+            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, upload_offset, gpu_size);
             entry->offset = renderer->material_buffer_used;
             renderer->material_buffer_used += gpu_size;
         }
@@ -249,8 +250,6 @@ void upload_material(Guid id)
         RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
         rhi_submit(gfx->device, 1, buffers);
         rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
-
-        gfx->upload_buffer_used += type_info->gpu_size;
     }
 }
 

@@ -4,7 +4,6 @@
 #define RTS_MATERIAL_H
 
 #include "basic/string.h"
-#include "basic/hash_table.h"
 #include "rhi/rhi.h"
 
 struct Shader_Compiler;

@@ -13,6 +13,11 @@ struct R_Pass_Geometry : R_Pass
     RHI_Buffer           arguments_buffer;
     RHI_Buffer_View      arguments_view;
     void                *arguments_ptr;
+
+    RHI_Buffer           skinning_buffer;
+    RHI_Buffer_View      skinning_view;
+    void                *skinning_ptr;
+    u32                  skinning_used;
 };
 
 R_PASS_DECLARE_PROCS( Geometry );

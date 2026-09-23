@@ -2,4 +2,7 @@
 
 C "shaders/material/knight.slang" 
 
-albedo_id : "textures/knight_helm_albedo.texture"
+albedo_id    : "textures/knight_helm_albedo.texture"
+normal_id    : "textures/knight_helm_normal.texture"
+roughness_id : "textures/knight_helm_roughness.texture"
+metallic_id  : "textures/knight_helm_metallic.texture"
