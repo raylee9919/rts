@@ -24,6 +24,7 @@ f32 mouse_delta_x;
 f32 mouse_delta_y;
 f32 mouse_delta_z;
 
+static b32 window_class_initted = false;
 static Table<WPARAM, Key_Code> vk_to_key_code;
 static Table<Key_Code, WPARAM> key_code_to_vk;
 static Table<WPARAM, bool>     key_down_table;
@@ -200,9 +201,11 @@ void os_init() {
     win32->window_arena = arena_alloc();
 
     // Events
+    os->event_arena = arena_allocator_alloc();
     os->events.allocator = os->arena;
 
     init_key_code_tables();
+
 
 
     // Regsiter raw input. Follows keyboard focus
@@ -873,9 +876,46 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             DefWindowProcW(hwnd, msg, wparam, lparam);
         } break;
 
+        case WM_DROPFILES:
+        {
+            HDROP drop = (HDROP)wparam;
+            UINT num_files = DragQueryFileW(drop, 0xFFFFFFFF, NULL, 0);
+            R_ASSERT(num_files > 0);
 
-        case WM_SIZE:
-        return 0;
+            Array<String> files;
+            files.allocator = os->event_arena;
+
+            for (UINT i = 0; i < num_files; ++i) {
+                UINT n = DragQueryFileW(drop, i, NULL, 0) + 2;
+
+                u16 *filename_wide = (u16*)alloc(n * sizeof(u16), os->event_arena);
+                UINT success = DragQueryFileW(drop, i, (LPWSTR)filename_wide, n);
+                R_ASSERT(success);
+
+                String filename = wide_to_utf8(filename_wide, n, os->event_arena);
+                array_add(&files, filename);
+            }
+
+            DragFinish(drop);
+
+            Event event;
+            event.type  = EVENT_DRAG_AND_DROP_FILES;
+            event.files = files;
+            array_add(&os->events, event);
+
+            return 0;
+        }
+
+        case WM_SIZE: {
+            if (wparam == SIZE_MAXIMIZED) {
+
+            } else if (wparam == SIZE_RESTORED)  {
+
+            } else if (wparam == SIZE_MINIMIZED) {
+
+            }
+            return 0;
+        }
 
         case WM_MOVE:
         return 0;
@@ -884,9 +924,6 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         return 0;
 
         case WM_DPICHANGED:
-        return 0;
-
-        case WM_DROPFILES:
         return 0;
 
         case WM_CAPTURECHANGED:
@@ -938,7 +975,16 @@ void update_window_events() {
     }
 }
 
-void os_gfx_init() {
+void os_window_dealloc(OS_Handle handle) {
+    Win32_State *state = (Win32_State *)os->native;
+    Win32_Window *window = win32_window_from_handle(handle);
+    if (window) {
+        dll_remove(state->window_first, state->window_last, window);
+        sll_push_back(state->window_free_first, state->window_free_last, window);
+    }
+}
+
+static void win32_init_window_class() {
     HINSTANCE hinst = GetModuleHandleW(0);
 
     WNDCLASSEXW wcex = {};
@@ -954,30 +1000,30 @@ void os_gfx_init() {
     }
     RegisterClassExW(&wcex);
 
-    ShowCursor(TRUE);
-
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 }
 
-void os_window_dealloc(OS_Handle handle) {
-    Win32_State *state = (Win32_State *)os->native;
-    Win32_Window *window = win32_window_from_handle(handle);
-    if (window) {
-        dll_remove(state->window_first, state->window_last, window);
-        sll_push_back(state->window_free_first, state->window_free_last, window);
+OS_Handle window_create(int w, int h, String name, b32 drag_accept_files) {
+    if (!window_class_initted) {
+        win32_init_window_class();
+        window_class_initted = true;
     }
-}
-
-OS_Handle window_create(int w, int h, String name) {
-    Temporary_Arena scratch = scratch_begin();
-    defer(scratch_end(scratch));
 
     HINSTANCE hinst = GetModuleHandleW(0);
 
-    HWND hwnd = CreateWindowExW(WS_EX_APPWINDOW, L"RtsWindowClass", (LPCWSTR)to_utf16(scratch.arena, name).str, 
-                                WS_OVERLAPPEDWINDOW | WS_SIZEBOX | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, w, h, 
-                                0, 0, hinst, 0);
-    DragAcceptFiles(hwnd, 1);
+    HWND hwnd = CreateWindowExW(NULL, 
+                                L"RtsWindowClass", 
+                                (LPCWSTR)to_utf16(tctx.temp, name).str, 
+                                WS_OVERLAPPEDWINDOW, 
+                                CW_USEDEFAULT, 
+                                CW_USEDEFAULT, 
+                                w, h, 
+                                0, NULL, hinst, NULL);
+
+    DragAcceptFiles(hwnd, drag_accept_files);
+
+    UpdateWindow(hwnd);
+    ShowWindow(hwnd, SW_SHOW);
 
     auto *window = win32_window_alloc();
     window->handle = hwnd;
@@ -1023,21 +1069,48 @@ void toggle_fullscreen(OS_Handle window_handle)
     }
 }
 
-Pair<u32,u32> window_size(OS_Handle window) {
+Triplet<u32,u32,b32> window_size(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
     RECT rect;
-    GetClientRect(hwnd, &rect);
-    u32 x = rect.right - rect.left;
+    BOOL success = GetClientRect(hwnd, &rect);
+    if (!success) {
+        return {0,0,false};
+    }
+    u32 x = rect.right  - rect.left;
     u32 y = rect.bottom - rect.top;
-    return {x,y};
+    return {x,y,true};
 }
 
-vec2 get_mouse_position(OS_Handle window) {
+static Triplet<s64,s64,b32> _get_mouse_pointer_position(HWND hwnd, bool right_handed) {
+    POINT p = {};
+    BOOL ok = GetCursorPos(&p);
+    if (!ok) {
+        return {0,0,false};
+    }
+
+    ok = ScreenToClient(hwnd, &p);
+    if (!ok) {
+        return {0,0,false};
+    }
+
+    if (right_handed) {
+        RECT rect = {};
+        GetClientRect(hwnd, &rect);
+        LONG h = rect.bottom - rect.top;
+        p.y = h - p.y;
+    }
+
+    return { p.x, p.y, true};
+}
+
+Triplet<s64,s64,b32> get_mouse_pointer_position(OS_Handle window, b32 right_handed) {
     HWND hwnd = hwnd_from_os_handle(window);
-    POINT p;
-    GetCursorPos(&p);
-    ScreenToClient(hwnd, &p);
-    return vec2{(f32)p.x, (f32)p.y};
+    return _get_mouse_pointer_position(hwnd, right_handed);
+}
+
+Triplet<s64,s64,b32> get_mouse_pointer_position(b32 right_handed) {
+    HWND hwnd = GetActiveWindow();
+    return _get_mouse_pointer_position(hwnd, right_handed);
 }
 
 void* get_native_window_handle(OS_Handle window) {
@@ -1410,6 +1483,16 @@ void atomic_store(volatile s64 *dst, s64 val) {
     InterlockedExchange64(dst, val);
 }
 
+//
+//
+b32 set_working_directory(String s) {
+    Utf16 wide = to_utf16(tctx.temp, s);
+    if (!wide.str) return false;
+
+    BOOL result = SetCurrentDirectoryW((LPWSTR)wide.str);
+    return result;
+}
+
 
 // Main Entry
 //
@@ -1417,7 +1500,6 @@ void atomic_store(volatile s64 *dst, s64 val) {
 int win32_main_entry() {
     os_init();
     thread_init();
-    os_gfx_init();
 
     return main_entry(0, NULL);
 }

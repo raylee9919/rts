@@ -377,6 +377,8 @@ struct Event {
 
     s32 typical_wheel_delta; // Used only for mouse events.
     s32 wheel_delta;         // Used only for mouse events.
+
+    Array<String> files;     // Used for drag and drop files.
 };
 
 
@@ -436,6 +438,7 @@ force_inline u32 hash_guid(Guid guid) {
 //
 struct OS_State {
     Allocator arena;
+    Allocator event_arena;
 
     // Platform-specific
     void *native;
@@ -573,11 +576,11 @@ Array<String> file_list(String path,
 
 
 // Window
-void               os_gfx_init();
-OS_Handle          window_create(int w, int h, String name);
-void               toggle_fullscreen(OS_Handle window);
-Pair<u32,u32>      window_size(OS_Handle window);
-vec2               get_mouse_position(OS_Handle window);
+OS_Handle               window_create(int w, int h, String name, b32 drag_accept_files);
+void                    toggle_fullscreen(OS_Handle window);
+Triplet<u32,u32,b32>    window_size(OS_Handle window);
+Triplet<s64,s64,b32>    get_mouse_pointer_position(OS_Handle window, b32 right_handed = false);
+Triplet<s64,s64,b32>    get_mouse_pointer_position(b32 right_handed = false);
 
 // Input
 void update_window_events();
@@ -623,6 +626,8 @@ Guid               guid_from_string(String str);
 void               atomic_increment(volatile s32 *x);
 void               atomic_store(volatile s32 *dst, s32 val);
 void               atomic_store(volatile s64 *dst, s64 val);
+
+b32                set_working_directory(String s);
 
 template<typename F> 
 void parallel_for(Thread_Group *group, s64 count, F&& func) {

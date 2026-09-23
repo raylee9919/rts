@@ -149,15 +149,15 @@ f32        smoothstep(f32 min, f32 max, f32 x);
 f32        hermite(f32 min, f32 max, f32 x);
 
 // Vector2
-vec2         operator  - (vec2& in);
-vec2         operator  * (f32 f,  vec2 v);
-vec2         operator  * (vec2  v, f32 f);
-vec2         operator  + (vec2  l,  vec2 r);
-vec2         operator  - (vec2  l,  vec2 r);
-vec2&        operator += (vec2& l,  vec2 r);
-vec2&        operator -= (vec2& l,  vec2 r);
-vec2&        operator *= (vec2& v, f32 f);
-vec2         operator  * (vec2  l,  vec2 r); // Hadamard product. I'm just following the shader convention.
+vec2       operator  - (vec2& in);
+vec2       operator  * (f32 f,  vec2 v);
+vec2       operator  * (vec2  v, f32 f);
+vec2       operator  + (vec2  l,  vec2 r);
+vec2       operator  - (vec2  l,  vec2 r);
+vec2&      operator += (vec2& l,  vec2 r);
+vec2&      operator -= (vec2& l,  vec2 r);
+vec2&      operator *= (vec2& v, f32 f);
+vec2       operator  * (vec2  l,  vec2 r); // Hadamard product. I'm just following the shader convention.
 
 
 //

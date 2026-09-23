@@ -1,5 +1,3 @@
-// Copyright Seong Woo Lee. All Rights Reserved.
-
 // C++
 //
 #include <string>
@@ -26,18 +24,21 @@
 //
 #include "Basic/include.cpp"
 #include "math/math.cpp"
+#include "os/os.cpp"
 
 #pragma warning(push)
 #pragma warning(disable : 4456)
 #include "third_party/mikktspace/mikktspace.c"
 #pragma warning(pop)
+
 #include "fbx_importer_util.cpp"
+
 static int a;
 static int b;
 
 
 // @Cleanup: pingponging buffer with meshoptimizer gives me headache which arena to use.
-//
+// 
 void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
 {
     Temporary_Arena scratch = scratch_begin();
@@ -48,8 +49,8 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
     ufbx_mesh *fbx_mesh = node->mesh;
 
     if (fbx_mesh &&
-        node->attrib_type == UFBX_ELEMENT_MESH &&
-        node->visible)
+        node->attrib_type == UFBX_ELEMENT_MESH && 
+        node->visible) 
     {
         bool has_uv      = fbx_mesh->vertex_uv.exists;
         bool has_color   = fbx_mesh->vertex_color.exists;
@@ -86,7 +87,7 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                         vert->pos     = to_v3(ufbx_get_vertex_vec3(&fbx_mesh->skinned_position, index));
                         vert->normal  = to_v3(ufbx_get_vertex_vec3(&fbx_mesh->skinned_normal, index));
                     } else {
-                        vert->pos     = to_v3(ufbx_transform_position(&node->geometry_to_world, ufbx_get_vertex_vec3(&fbx_me);
+                        vert->pos     = to_v3(ufbx_transform_position(&node->geometry_to_world, ufbx_get_vertex_vec3(&fbx_mesh->skinned_position, index)));
                         vert->normal  = to_v3(ufbx_transform_direction(&node->geometry_to_world, ufbx_get_vertex_vec3(&fbx_mesh->skinned_normal, index)));
                     }
 
@@ -101,7 +102,7 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                         vert->uv = {};
                     }
 
-                    // @Todo: Currently ignoring the color, because sometimes it gives a null color and we
+                    // @Todo: Currently ignoring the color, because sometimes it gives a null color and we 
                     // are interpreting vertex color as a tint in our shader.
                     vert->color = v4(1.f);
 
@@ -133,7 +134,11 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
                             ufbx_node *bone_node = cluster->bone_node;
                             ufbx_string bone_name = bone_node->name;
 
-                            vert->node_ids[i]     = state->bone_map[std::string(bone_name.data, bone_name.length)];
+                            // Bones must be filled before meshes.
+                            auto found = state->bone_map.find(std::string(bone_name.data, bone_name.length));
+                            R_ASSERT(found != state->bone_map.end());
+
+                            vert->node_ids[i]     = found->second;
                             vert->node_weights[i] = (f32)skin_weight.weight;
 
                             total_weight += vert->node_weights[i];
@@ -155,21 +160,28 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
 
         R_ASSERT(num_vert == num_tri * 3);
 
+        size_t num_indices = num_tri * 3;
+        u32 *indices = push_array(arena, u32, num_indices); // @Correctness
+        for (size_t i = 0; i < num_indices; ++i) indices[i] = (u32)i;
+
+        mesh.vertices     = vertices;
+        mesh.vertex_count = (u32)num_vert;
+        mesh.indices      = indices;
+        mesh.index_count  = (u32)num_indices;
+
+        // Generate mikkt space tangents on the unwelded triangles. Welding comes after,
+        // so vertices on either side of a tangent seam keep their own tangent.
+        state->mikkt_ctx.m_pUserData = &mesh;
+        genTangSpaceDefault(&state->mikkt_ctx);
+
         ufbx_vertex_stream streams[1] = {
             { vertices, num_vert, sizeof(vertices[0]) },
         };
-        size_t num_indices = num_tri * 3;
-        u32 *indices = push_array(arena, u32, num_indices); // @Correctness
 
         // This'll deduplicate vertices, modifying the arrays passed in 'streams[]',
         // indices are written in 'indices[]' and the number of unique vertices is returned.
         num_vert = ufbx_generate_indices(streams, 1, indices, num_indices, NULL, NULL);
-
-        mesh.vertices = vertices;
         mesh.vertex_count = (u32)num_vert;
-
-        mesh.indices = indices;
-        mesh.index_count = (u32)num_indices;
 
 
         u32* new_indices = push_array(arena, u32, num_indices);
@@ -190,13 +202,6 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
         mesh.vertex_count = new_num_vert;
         mesh.indices      = indices;
 
-        // Generate mikkt space tangents.
-        if (1)
-        {
-            state->mikkt_ctx.m_pUserData = &mesh;
-            genTangSpaceDefault(&state->mikkt_ctx);
-        }
-
         // Push the mesh.
         state->meshes[state->num_meshes++] = mesh;
     }
@@ -210,7 +215,8 @@ void fbx_fill_meshes_recursively(State *state, ufbx_node *node)
 
 void fbx_fill_meshes(State *state)
 {
-    u32 max_num_meshes = (u32)state->scene->meshes.count;
+    // One entry per mesh node, not per mesh: a mesh can be instanced by several nodes.
+    u32 max_num_meshes = (u32)state->scene->nodes.count;
     state->meshes = push_array(state->scene_arena, Asset_Mesh, max_num_meshes);
 
     fbx_fill_meshes_recursively(state, state->scene->root_node);
@@ -246,10 +252,12 @@ void fbx_fill_bones_recursively(State *state, ufbx_node *node)
     const s32 id = state->num_bones;
 
     Arena *arena = state->scene_arena;
-    auto *bone = &state->bones[id];
     ufbx_bone *fbx_bone = node->bone;
 
+    // Meshes, sockets and end nulls can hang off bones. They aren't part of the
+    // skeleton, and neither is anything under them.
     if (fbx_bone && node->attrib_type == UFBX_ELEMENT_BONE) {
+        auto *bone = &state->bones[id];
         ++state->num_bones;
 
         // Get name
@@ -283,8 +291,6 @@ void fbx_fill_bones_recursively(State *state, ufbx_node *node)
         for (int i = 0; i < (int)children.count; ++i) {
             fbx_fill_bones_recursively(state, children.data[i]);
         }
-    } else {
-        R_ASSERT(!"This node is supposed to be a bone!");
     }
 }
 
@@ -298,20 +304,16 @@ void fbx_fill_bones(State *state)
     R_ASSERT(root_bone_node);
 
 
-    //
+    // Chain of transforms above the root bone. The skeleton re-applies it as its
+    // root transform, so it's taken out of the vertices.
     {
         m4x4 chain = identity();
-        m4x4 undo  = identity();
-        for (ufbx_node *x = root_bone_node->parent;;x = x->parent) {
-            if (x) {
-                m4x4 m = to_m4x4(x->node_to_parent);
-                chain = m * chain;
-                undo = inverse(m) * undo;
-            }
+        for (ufbx_node *x = root_bone_node->parent; x; x = x->parent) {
+            chain = to_m4x4(x->node_to_parent) * chain;
             if (x->is_root) break;
         }
         state->root_transform = chain;
-        state->undo_pre_root_bone_transforms = undo;
+        state->undo_pre_root_bone_transforms = inverse(chain);
     }
 
     // We now have the actual bone count.
@@ -321,8 +323,9 @@ void fbx_fill_bones(State *state)
     // Recursively fill in the bones starting from the "actual" root bone node.
     fbx_fill_bones_recursively(state, root_bone_node);
 
-    // Does the value match the expected value?
-    R_ASSERT(state->num_bones == num_bones);
+    // Bones outside the root bone's hierarchy aren't included. If a mesh is skinned
+    // to one of them, filling the meshes asserts.
+    R_ASSERT(state->num_bones > 0 && state->num_bones <= num_bones);
 
 
     // Calc inverse bind poses.
@@ -363,9 +366,9 @@ void fbx_fill_animation(State *state, int index)
     f32 duration = (f32)(anim_stack->time_end - anim_stack->time_begin);
     out_anim->duration = duration;
 
-    u32 num_nodes = state->num_bones; // @Todo: This isn't right...technically...
-    out_anim->num_nodes = num_nodes;
-    out_anim->nodes = push_array(arena, Asset_Animation_Node, num_nodes);
+    // Only bones the animation transforms are baked. The rest stay in their bind pose.
+    u32 max_num_nodes = state->num_bones;
+    out_anim->nodes = push_array(arena, Asset_Animation_Node, max_num_nodes);
 
     u32 num_samples = 0;
     for (u32 i = 0; i < (u32)baked->nodes.count; ++i) {
@@ -379,16 +382,15 @@ void fbx_fill_animation(State *state, int index)
     R_ASSERT(num_samples >= 2);
     f32 dt = duration / (num_samples - 1);
 
-    u32 tmp = 0;
+    u32 fill_idx = 0;
 
-    for (int ni = 0, fill_idx = 0; ni < (int)baked->nodes.count; ++ni) {
+    for (int ni = 0; ni < (int)baked->nodes.count; ++ni) {
         ufbx_baked_node *baked_node = &baked->nodes[ni];
         ufbx_node *scene_node = scene->nodes[baked_node->typed_id];
 
-        std::string key = std::string(scene_node->name.data);
+        std::string key = std::string(scene_node->name.data, scene_node->name.length);
         if (state->bone_map.find(key) != state->bone_map.end()) { // key found
-            tmp++;
-
+            R_ASSERT(fill_idx < max_num_nodes);
             auto *out_node = &out_anim->nodes[fill_idx++];
             out_node->id = state->bone_map[key];
 
@@ -406,7 +408,7 @@ void fbx_fill_animation(State *state, int index)
         }
     }
 
-    R_ASSERT(tmp == num_nodes);
+    out_anim->num_nodes = fill_idx;
 
     ufbx_free_baked_anim(baked);
 }
@@ -444,6 +446,7 @@ void mikkt_get_position(const SMikkTSpaceContext *ctx, float out[], const int fa
     auto *mesh = (Asset_Mesh *)ctx->m_pUserData;
 
     u32 index = mesh->indices[face*3 + vert];
+    v3 p = mesh->vertices[index].pos;
 
     out[0] = p.x;
     out[1] = p.y;
@@ -468,6 +471,7 @@ void mikkt_get_uv(const SMikkTSpaceContext *ctx, float out[], const int face, co
 
     u32 index = mesh->indices[face*3 + vert];
     v2 uv = mesh->vertices[index].uv;
+
     out[0] = uv.x;
     out[1] = uv.y;
 }
@@ -516,12 +520,15 @@ int main_entry(int argc, char **argv)
         String name     = utf8lit("plane");
         String in_file  = tprint("C:/Users/swl/Desktop/rts_assets/%S.fbx", name);
 
+        String out_mesh = tprint("C:/dev/swl/rts/data/%S.triangle_mesh", name);
+        String out_skel = tprint("C:/dev/swl/rts/data/%S.skeleton", name);
+        String out_anim = tprint("C:/dev/swl/rts/data/%S.keyframed_animation", name);
 
         ufbx_load_opts opts = {};
         opts.target_axes                 = ufbx_axes_right_handed_y_up;
         opts.target_unit_meters          = 1.0f;
         opts.generate_missing_normals    = true;
-        opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY;
+        opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; 
         opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE; // This is what ufbx suggests. "...what many importers do and simplifies everything."
         opts.evaluate_skinning           = true;
         opts.clean_skin_weights          = true;
@@ -540,6 +547,9 @@ int main_entry(int argc, char **argv)
         //fbx_print_nodes(scene->root_node);
         //fbx_fill_bones(state);
         fbx_fill_meshes(state);
+        //fbx_fill_animations(state);
+
+
 
         // Write skeleton.
         //
@@ -589,6 +599,13 @@ int main_entry(int argc, char **argv)
         //
 #if 1
         if (state->num_meshes > 0) {
+            int ver_major = 0;
+            int ver_minor = 1;
+            int ver_patch = 0;
+
+            FILE *f = fopen((const char *)out_mesh.str, "wb");
+            if (!f) {
+                printf("ERROR: Failed to open file '%.*s'.\n", (int)out_mesh.len, (const char *)out_mesh.str);
                 return -1;
             }
 
@@ -612,6 +629,10 @@ int main_entry(int argc, char **argv)
                     for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
                         fprintf(f, "%d ", vert->node_ids[i]);
                     }
+                    fprintf(f, "\n");
+
+                    for (u32 i = 0; i < MAX_BONE_PER_VERTEX; ++i) {
+                        fprintf(f, "%.6f ", vert->node_weights[i]);
                     }
                     fprintf(f, "\n");
 
@@ -635,6 +656,10 @@ int main_entry(int argc, char **argv)
 #endif
 
         // Write animations.
+#if 0
+        R_ASSERT(state->num_anims == 1);
+        for (int i = 0; i < state->num_anims; ++i) {
+            auto *anim = &state->anims[i];
 
             FILE *f = fopen((char *)out_anim.str, "wb");
             R_ASSERT(f);
@@ -650,7 +675,7 @@ int main_entry(int argc, char **argv)
                     fprintf(f, "%d\n", node->id);
 
                     for (u32 i = 0; i < anim->num_samples; ++i) {
-                        fprintf(f, "%.6f %.6f %.6f\n", node->translations[i].x, node->translations[i].y, node->translations[
+                        fprintf(f, "%.6f %.6f %.6f\n", node->translations[i].x, node->translations[i].y, node->translations[i].z);
                         fprintf(f, "%.6f %.6f %.6f %.6f\n", node->rotations[i].w, node->rotations[i].x, node->rotations[i].y, node->rotations[i].z);
                         fprintf(f, "%.6f %.6f %.6f\n\n", node->scales[i].x, node->scales[i].y, node->scales[i].z);
                     }

@@ -14,6 +14,10 @@ void dealloc(void *memory, Allocator allocator) {
     allocator.proc(ALLOCATOR_MODE_FREE, 0, 0, memory, allocator.data);
 }
 
-void release(Allocator allocator) {
-    allocator.proc(ALLOCATOR_MODE_RELEASE, 0, 0, NULL, allocator.data);
+void destroy(Allocator allocator) {
+    allocator.proc(ALLOCATOR_MODE_DESTROY, 0, 0, NULL, allocator.data);
+}
+
+void clear(Allocator allocator) {
+    allocator.proc(ALLOCATOR_MODE_CLEAR, 0, 0, NULL, allocator.data);
 }

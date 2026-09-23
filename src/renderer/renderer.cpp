@@ -208,7 +208,7 @@ void r_shutdown()
 {
     gfx_mesh_destroy(renderer->fullscreen_triangle_mesh);
     r_ring_deinit();
-    release(renderer->heap);
+    destroy(renderer->heap);
 }
 
 void r_render(Game_State *g, f64 refresh_dt)
@@ -313,12 +313,12 @@ void r_entry(void *param)
     {
         ProfileScopeN("RenderThreadLoop");
 
-
-        auto [window_w, window_h] = window_size(shared->window);
-        if (window_w != gfx->info.width || window_h != gfx->info.height) {
-            gfx_request_swapchain_resize(window_w, window_h);
+        auto [window_w, window_h, ok] = window_size(shared->window);
+        if (ok) {
+            if (window_w != gfx->info.width || window_h != gfx->info.height) {
+                gfx_request_swapchain_resize(window_w, window_h);
+            }
         }
-
 
         auto *ring = &renderer->ring;
         mutex_lock(&ring->mutex);

@@ -268,8 +268,8 @@ void gfx_shutdown() {
     gfx_swapchain_deinit();
     rhi_device_deinit(gfx->device);
 
-    release(gfx->heap);
-    release(gfx->arena);
+    destroy(gfx->heap);
+    destroy(gfx->arena);
 }
 
 static void gfx_create_gpu_buffer(RHI_Buffer *buffer, u32 size)

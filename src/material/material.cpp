@@ -208,7 +208,7 @@ b32 material_system_init(String material_shader_dir,
 
 void material_system_shutdown()
 {
-    release(material_system_allocator);
+    destroy(material_system_allocator);
 }
 
 // @Todo: Entities can share a material, thus we can't 

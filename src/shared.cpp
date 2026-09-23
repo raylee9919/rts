@@ -48,7 +48,11 @@ void shared_init() {
 #endif
 
 
-    /* Shader Compiler */
+    // Set working directory
+    set_working_directory(shared->data_path);
+
+
+    // Shader Compiler
     shared->shader_compiler = (Shader_Compiler*)alloc(sizeof(Shader_Compiler), shared->arena);
     R_ASSERT(shader_compiler_init(shared->shader_compiler));
     shared->shader_compiler->include_path = S("C:/dev/rts/data/shaders/"); // @Temporary

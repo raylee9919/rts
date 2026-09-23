@@ -117,6 +117,7 @@ void input_process()
     update_window_events();
 
     for (Event& event : os->events) {
+
         if (event.type == EVENT_KEYBOARD) {
             if (event.key_code == KEY_ENTER && event.modifier_flags.alt_pressed && event.key_pressed) {
                 toggle_fullscreen(shared->window);
@@ -128,7 +129,11 @@ void input_process()
             if (event.key_code == 'D')  key_d = event.key_pressed;
             if (event.key_code == 'Q')  key_q = event.key_pressed;
             if (event.key_code == 'E')  key_e = event.key_pressed;
+
+        } else if (event.type == EVENT_DRAG_AND_DROP_FILES) {
+
         }
+
     }
 }
 
@@ -155,7 +160,7 @@ int main_entry(int argc, char **argv)
     game_init(time_old);
 
     // Open window
-    shared->window = window_create(1920, 1080, S("RTS"));
+    shared->window = window_create(1920, 1080, S("RTS"), true);
 
     // Launch render thread
     Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
@@ -224,9 +229,9 @@ int main_entry(int argc, char **argv)
             Guid material = guid_from_string(material_name);
             asset_request(material);
 
-            Entity *E           = entity_alloc(game_state);
-            E->mesh             = mesh->gpu_id;
-            E->material         = material;
+            Entity *E   = entity_alloc(game_state);
+            E->mesh     = mesh->gpu_id;
+            E->material = material;
 
             // The knight was authored in centimetres. The skeleton's root transform
             // (0.01 uniform) is baked into the skinning matrices and brings him to scale.

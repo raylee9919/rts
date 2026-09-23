@@ -153,8 +153,11 @@ void *arena_allocator_proc(Allocator_Mode mode, u64 size, u64 old_size, void *ol
         return ptr;
     } else if (mode == ALLOCATOR_MODE_FREE) {
         return NULL;
-    } else if (mode == ALLOCATOR_MODE_RELEASE) {
+    } else if (mode == ALLOCATOR_MODE_DESTROY) {
         arena_release(arena);
+        return NULL;
+    } else if (mode == ALLOCATOR_MODE_CLEAR) {
+        arena_clear(arena);
         return NULL;
     } else {
         R_ASSERT(!"X");

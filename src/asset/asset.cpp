@@ -114,7 +114,7 @@ void asset_system_init_catalog()
 
 void asset_system_shutdown() 
 {
-    release(asset_system->heap);
+    destroy(asset_system->heap);
     memset(asset_system, 0, sizeof(Asset_System));
 }
 
