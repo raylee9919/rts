@@ -737,10 +737,10 @@ fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Rend
                         v2 box_range_x = v2{min.x, max.x};
                         v2 box_range_y = v2{min.y, max.y};
 
-                        uv_min.x = lerp(uv_min.x,  normalize01(box_range_x, overlap.min.x), uv_max.x);
-                        uv_max.x = lerp(uv_min.x,  normalize01(box_range_x, overlap.max.x), uv_max.x);
-                        uv_min.y = lerp(uv_min.y,  normalize01(box_range_y, overlap.min.y), uv_max.y);
-                        uv_max.y = lerp(uv_min.y,  normalize01(box_range_y, overlap.max.y), uv_max.y);
+                        uv_min.x = lerp(uv_min.x,  uv_max.x, normalize01(box_range_x, overlap.min.x));
+                        uv_max.x = lerp(uv_min.x,  uv_max.x, normalize01(box_range_x, overlap.max.x));
+                        uv_min.y = lerp(uv_min.y,  uv_max.y, normalize01(box_range_y, overlap.min.y));
+                        uv_max.y = lerp(uv_min.y,  uv_max.y, normalize01(box_range_y, overlap.max.y));
 
                         render_quad_tuv(atlas, overlap.min, overlap.max, uv_min, uv_max);
                     }

@@ -348,7 +348,7 @@ internal void gl_end(Opengl *gl, Renderer *r)
 
     for (u32 div = 0; div < CSM_COUNT - 1; ++div) {
         for (u32 i = 0; i < 4; ++i) {
-            frustum_positions[4 + div*4 + i] = lerp(frustum_positions[i], frustum_z_weights[div], frustum_positions[frustum_point_count - (4 - i)]);
+            frustum_positions[4 + div*4 + i] = lerp(frustum_positions[i], frustum_positions[frustum_point_count - (4 - i)], frustum_z_weights[div]);
         }
     }
 
@@ -421,7 +421,7 @@ internal void gl_end(Opengl *gl, Renderer *r)
             f32 k = (4*h*h + b*b - a*a) / (8*h);
             f32 R = sqrtf(k*k + a*a*0.25f);
             f32 t = map(k, 0, h);
-            v3 c = lerp(AB, t, CD);
+            v3 c = lerp(AB, CD, t);
 
             m4x4 light_view = look_at_lh(c, c + frame->csm_to_light * R, v3(0,1,0));
             m4x4 light_proj = ortho(-R, R, -R, R, -2*R, 2*2*R); // TODO: Constant min and max depths

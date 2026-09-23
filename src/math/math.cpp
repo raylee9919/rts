@@ -72,7 +72,7 @@ f32 map_snorm(f32 x, f32 min, f32 max) {
 
 // Easing functions
 //
-f32 lerp(f32 a, f32 t, f32 b) {
+f32 lerp(f32 a, f32 b, f32 t) {
     return a + (b - a) * t;
 }
 
@@ -84,7 +84,7 @@ f32 smoothstep(f32 min, f32 max, f32 x) {
 f32 hermite(f32 min, f32 max, f32 x) {
     f32 t2 = x * x;
     f32 t3 = t2 * x;
-    return lerp(min, t3 * (6 * t2 - 15 * x + 10), max);
+    return lerp(min, max, t3 * (6 * t2 - 15 * x + 10));
 }
 
 
@@ -196,10 +196,10 @@ f32 length(vec2 v) {
     return len;
 }
 
-vec2 lerp(vec2 a, f32 t, vec2 b) {
+vec2 lerp(vec2 a, vec2 b, f32 t) {
     vec2 v;
-    v.x = lerp(a.x, t, b.x);
-    v.y = lerp(a.y, t, b.y);
+    v.x = lerp(a.x, b.x, t);
+    v.y = lerp(a.y, b.y, t);
     return v;
 }
 
@@ -369,11 +369,11 @@ vec3 normalize(vec3 v) {
     return v;
 }
 
-vec3 lerp(vec3 a, f32 t, vec3 b) {
+vec3 lerp(vec3 a, vec3 b, f32 t) {
     vec3 v;
-    v.x = lerp(a.x, t, b.x);
-    v.y = lerp(a.y, t, b.y);
-    v.z = lerp(a.z, t, b.z);
+    v.x = lerp(a.x, b.x, t);
+    v.y = lerp(a.y, b.y, t);
+    v.z = lerp(a.z, b.z, t);
     return v;
 }
 
@@ -442,7 +442,7 @@ vec4 operator * (f32 f, vec4 v)
     return v * f;
 }
 
-vec4 lerp(vec4 a, f32 t, vec4 b) 
+vec4 lerp(vec4 a, vec4 b, f32 t) 
 {
     __m128 ax4 = a.sse;
     __m128 bx4 = b.sse;
@@ -529,7 +529,7 @@ f32 dot(Quaternion a, Quaternion b)
     return dot(a.sse, b.sse);
 }
 
-Quaternion nlerp(Quaternion a, f32 t, Quaternion b) 
+Quaternion nlerp(Quaternion a, Quaternion b, f32 t) 
 {
     __m128 ax4 = a.sse;
     __m128 bx4 = b.sse;
@@ -540,7 +540,7 @@ Quaternion nlerp(Quaternion a, f32 t, Quaternion b)
     return q;
 }
 
-Quaternion slerp(Quaternion q1, f32 t, Quaternion q2) 
+Quaternion slerp(Quaternion q1, Quaternion q2, f32 t) 
 {
     f32 cosom = q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
     Quaternion q3 = q2;

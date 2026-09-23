@@ -8,6 +8,8 @@
 #include "basic/hash_table.h"
 
 #include <windowsx.h>
+#include <hidusage.h>
+#include <dbt.h>
 #include <shlobj.h>
 
 extern "C"
@@ -18,12 +20,18 @@ extern "C"
 
 
 OS_State *os;
+f32 mouse_delta_x;
+f32 mouse_delta_y;
+f32 mouse_delta_z;
+
 static Table<WPARAM, Key_Code> vk_to_key_code;
 static Table<Key_Code, WPARAM> key_code_to_vk;
 static Table<WPARAM, bool>     key_down_table;
 static bool shift_state = false;
 static bool ctrl_state  = false;
 static bool alt_state   = false;
+static Array<RAWINPUT> raw_input_buffer;
+
 
 static struct VK_To_Key_Code {
     u32 vk;
@@ -195,6 +203,21 @@ void os_init() {
     os->events.allocator = os->arena;
 
     init_key_code_tables();
+
+
+    // Regsiter raw input. Follows keyboard focus
+    RAWINPUTDEVICE rid[2] = {
+        { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_MOUSE,    0, NULL},
+        { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_KEYBOARD, 0, NULL},
+    };
+
+    if (!RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
+        log_error(S("Failed to initialize raw input."));
+        R_ASSERT(false);
+    }
+
+    raw_input_buffer.allocator = os->arena;
+    array_reserve(&raw_input_buffer, 8000);
 
     { // Cache QPC frequency
         LARGE_INTEGER li;
@@ -686,6 +709,30 @@ static void maybe_send_vkey_event(u64 vkey, bool key_down, bool repeat = false) 
     send_key_event(get_key_code(vkey), key_down, repeat);
 }
 
+static void process_raw_input(HRAWINPUT handle) {
+    UINT dw_size = 0;
+    GetRawInputData(handle, RID_INPUT, NULL, &dw_size, sizeof(RAWINPUTHEADER));
+
+    UINT written_bytes = GetRawInputData(handle, RID_INPUT, raw_input_buffer.data, &dw_size, sizeof(RAWINPUTHEADER));
+    if (written_bytes == 0xffffffff) return;
+    R_ASSERT(written_bytes <= dw_size);
+
+    RAWINPUT *raw = (RAWINPUT*)raw_input_buffer.data;
+
+    if (raw->header.dwType == RIM_TYPEMOUSE) {
+        RAWMOUSE *mouse = &raw->data.mouse;
+
+        if (mouse->usFlags & MOUSE_MOVE_ABSOLUTE) {
+            // @Todo: Seems bogus
+        } else {
+            mouse_delta_x += mouse->lLastX;
+            mouse_delta_y += mouse->lLastY;
+        }
+    } else if (raw->header.dwType == RIM_TYPEKEYBOARD) {
+        // @Todo: if I ever want print screen key.
+    }
+}
+
 LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     LRESULT result = 0;
 
@@ -801,7 +848,7 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.wheel_delta = (s16)(wparam >> 16);
             array_add(&os->events, event);
 
-            os->mouse_delta_z += event.wheel_delta;
+            mouse_delta_z += event.wheel_delta;
         } break;
 
 
@@ -813,6 +860,18 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             array_add(&os->events, event);
             return DefWindowProcW(hwnd, msg, wparam, lparam);
         }
+
+        
+        case WM_INPUT:
+        {
+            LPARAM extra = GetMessageExtraInfo();
+            if ((extra & 0x82) == 0x82) {
+                // @Ignore touch input.
+            } else {
+                process_raw_input((HRAWINPUT)lparam);
+            }
+            DefWindowProcW(hwnd, msg, wparam, lparam);
+        } break;
 
 
         case WM_SIZE:
@@ -973,7 +1032,7 @@ Pair<u32,u32> window_size(OS_Handle window) {
     return {x,y};
 }
 
-vec2 os_get_mouse_position(OS_Handle window) {
+vec2 get_mouse_position(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
     POINT p;
     GetCursorPos(&p);

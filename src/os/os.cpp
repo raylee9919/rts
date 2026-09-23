@@ -37,9 +37,9 @@ void input_per_frame_event_and_flag_update() {
         }
     }
 
-    os->mouse_delta_x = 0;
-    os->mouse_delta_y = 0;
-    os->mouse_delta_z = 0;
+    mouse_delta_x = 0;
+    mouse_delta_y = 0;
+    mouse_delta_z = 0;
 }
 
 Guid guid_from_bytes(void *bytes, u64 size) {

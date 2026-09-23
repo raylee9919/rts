@@ -129,7 +129,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, String text)
                 f32 t = map_unorm(*x, lo, hi);
                 f32 xl = slider->position[AXIS2_X];
                 f32 xr = slider->position[AXIS2_X] + slider_size_x - thumb_size_x;
-                thumb->position[AXIS2_X] = lerp(xl, t, xr);
+                thumb->position[AXIS2_X] = lerp(xl, xr, t);
 
                 Ui_Signal thumb_signal = ui_signal_from_box(thumb);
 
@@ -159,7 +159,7 @@ ui_slider_f32(f32 *x, f32 lo, f32 hi, String text)
 
                 // Thumb position -> Write to data.
                 t = map_unorm(thumb->position[AXIS2_X], xl, xr);
-                *x = lerp(lo, t, hi);
+                *x = lerp(lo, hi, t);
 
             }
             else

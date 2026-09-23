@@ -106,9 +106,9 @@ void Pose_Channel::eval()
                 if (dot(rot1, rot2) < 0.f) {
                     rot2 = -rot2;
                 }
-                Quaternion rotation = slerp(rot1, t, rot2);
-                v3 translation      = lerp(sample1->translation, t, sample2->translation);
-                v3 scale            = lerp(sample1->scale, t, sample2->scale);
+                Quaternion rotation = slerp(rot1, rot2, t);
+                v3 translation      = lerp(sample1->translation, sample2->translation, t);
+                v3 scale            = lerp(sample1->scale, sample2->scale, t);
 
                 xform.translation = translation;
                 xform.rotation    = rotation;

@@ -448,11 +448,6 @@ struct OS_State {
     Key_State input_button_states[KEY_CODE_MAX];
     b32 input_application_has_focus;
 
-    // Per-frame mouse deltas:
-    s64 mouse_delta_x;
-    s64 mouse_delta_y;
-    s64 mouse_delta_z;
-
 
     //
     // Thing
@@ -466,6 +461,9 @@ struct OS_State {
     OS_Thing *last_thing[OS_THING_KIND_COUNT];
 };
 extern OS_State *os;
+extern f32 mouse_delta_z;
+extern f32 mouse_delta_x;
+extern f32 mouse_delta_y;
 
 
 // System
@@ -579,7 +577,7 @@ void               os_gfx_init();
 OS_Handle          window_create(int w, int h, String name);
 void               toggle_fullscreen(OS_Handle window);
 Pair<u32,u32>      window_size(OS_Handle window);
-vec2               os_get_mouse_position(OS_Handle window);
+vec2               get_mouse_position(OS_Handle window);
 
 // Input
 void update_window_events();

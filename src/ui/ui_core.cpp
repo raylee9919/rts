@@ -460,14 +460,14 @@ ui_draw(Ui_Box *root, v2 root_position)
         if (root->flags & UI_BOX_FLAG_DRAW_SHOOT_EFFECT && root->shoot_t > 0.001f)
         {
             v4 c = v4{0.5f,0.5f,1.0f,1.0f};
-            c = lerp(c, root->shoot_t, root->hot_bg);
+            c = lerp(c, root->hot_bg, root->shoot_t);
             render_quad_c4r4(min, max, root->hot_bg,root->hot_bg,root->hot_bg,root->hot_bg, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }
         else if (root->flags & UI_BOX_FLAG_DRAW_ACTIVE_EFFECT || root->flags & UI_BOX_FLAG_DRAW_HOT_EFFECT)
         {
-            v4 c1 = lerp(root->bg, root->hot_t, root->hot_bg);
-            v4 c2 = lerp(root->bg, root->active_t, root->active_bg);
+            v4 c1 = lerp(root->bg, root->hot_bg, root->hot_t);
+            v4 c2 = lerp(root->bg, root->active_bg, root->active_t);
             v4 c  = (c1+c2)*0.5f;
             render_quad_c4r4(min, max, c,c,c,c, root->corner_radius00, root->corner_radius01, root->corner_radius10, root->corner_radius11);
         }

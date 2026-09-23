@@ -7,7 +7,6 @@
 #include "basic/context.h"
 #include "math/math.h"
 #include "os/os.h"
-#include "rhi/rhi.h"
 #include "gfx/gfx.h"
 #include "renderer/renderer.h"
 #include "profiler/profiler.h"
@@ -18,6 +17,13 @@
 #include "shared.h"
 #include "material/material.h"
 #include "third_party/xxhash3/xxhash.h"
+
+static b8 key_w = 0;
+static b8 key_a = 0;
+static b8 key_s = 0;
+static b8 key_d = 0;
+static b8 key_q = 0;
+static b8 key_e = 0;
 
 
 void game_tick(Game_State *g, f64 dt) 
@@ -45,13 +51,35 @@ void game_tick(Game_State *g, f64 dt)
     }
 
 
-    {
-        Camera *camera = &g->camera;
+    Camera *camera = &g->camera;
 
-        f32 movement_speed = 10.f;
-        f32 turn_speed     = 0.25f;
+    f32 movement_speed = 10.f;
+    f32 turn_speed     = 0.25f;
+
+
+    if (key_w) {
+        camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
     }
 
+    if (key_a) {
+        camera->position -= dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
+    }
+
+    if (key_s) {
+        camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
+    }
+
+    if (key_d) {
+        camera->position += dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
+    }
+
+    if (key_q) {
+        camera->position -= dt * movement_speed * UP_VECTOR.xyz;
+    }
+
+    if (key_e) {
+        camera->position += dt * movement_speed * UP_VECTOR.xyz;
+    }
 
 #if 0
     static v2 p0 = {};
@@ -71,32 +99,6 @@ void game_tick(Game_State *g, f64 dt)
         p0 = p1;
     }
 #endif
-
-#if 0
-    if (g->input_state.key_is_down[KEY_W]) {
-        camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
-    }
-
-    if (g->input_state.key_is_down[KEY_S]) {
-        camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
-    }
-
-    if (g->input_state.key_is_down[KEY_A]) {
-        camera->position -= dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
-    }
-
-    if (g->input_state.key_is_down[KEY_D]) {
-        camera->position += dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
-    }
-
-    if (g->input_state.key_is_down[KEY_E]) {
-        camera->position += dt * movement_speed * UP_VECTOR.xyz;
-    }
-
-    if (g->input_state.key_is_down[KEY_Q]) {
-        camera->position -= dt * movement_speed * UP_VECTOR.xyz;
-    }
-#endif
 }
 
 void input_process()
@@ -106,10 +108,17 @@ void input_process()
     update_window_events();
 
     for (Event& event : os->events) {
-        if (event.key_code == KEY_ENTER && 
-            event.modifier_flags.alt_pressed && 
-            event.key_pressed) {
-            toggle_fullscreen(shared->window);
+        if (event.type == EVENT_KEYBOARD) {
+            if (event.key_code == KEY_ENTER && event.modifier_flags.alt_pressed && event.key_pressed) {
+                toggle_fullscreen(shared->window);
+            }
+
+            if (event.key_code == 'W')  key_w = event.key_pressed;
+            if (event.key_code == 'A')  key_a = event.key_pressed;
+            if (event.key_code == 'S')  key_s = event.key_pressed;
+            if (event.key_code == 'D')  key_d = event.key_pressed;
+            if (event.key_code == 'Q')  key_q = event.key_pressed;
+            if (event.key_code == 'E')  key_e = event.key_pressed;
         }
     }
 }

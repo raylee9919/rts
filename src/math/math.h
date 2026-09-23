@@ -145,7 +145,7 @@ f32        map_unorm(f32 x, f32 min, f32 max);
 f32        map_snorm(f32 x, f32 min, f32 max);
 
 // Easing functions
-f32        lerp(f32 a, f32 t, f32 b);
+f32        lerp(f32 a, f32 b, f32 t);
 f32        smoothstep(f32 min, f32 max, f32 x);
 f32        hermite(f32 min, f32 max, f32 x);
 
@@ -189,32 +189,32 @@ f32            invsqlen(vec3 v);
 f32            invsqlen(vec4 v);
 
 f32            length(vec2 A);
-vec2             normalize(vec2 a);
-vec2             lerp(vec2 a, f32 t, vec2 b);
-vec3             operator - (const vec3 &in);
-vec3             operator * (f32 A, vec3 B);
-vec3             operator * (vec3 B, f32 A);
-vec3             operator / (vec3 a, f32 b);
-vec3&            operator /= (vec3& a, f32 b);
-vec3             operator + (vec3 A, vec3 B);
-vec3             operator - (vec3 A, vec3 B);
-vec3&            operator += (vec3& a, vec3 b);
-vec3&            operator -= (vec3& a, vec3 b);
-vec3&            operator *= (vec3& a, f32 b);
+vec2           normalize(vec2 a);
+vec2           lerp(vec2 a, vec2 b, f32 t);
+vec3           operator - (const vec3 &in);
+vec3           operator * (f32 A, vec3 B);
+vec3           operator * (vec3 B, f32 A);
+vec3           operator / (vec3 a, f32 b);
+vec3&          operator /= (vec3& a, f32 b);
+vec3           operator + (vec3 A, vec3 B);
+vec3           operator - (vec3 A, vec3 B);
+vec3&          operator += (vec3& a, vec3 b);
+vec3&          operator -= (vec3& a, vec3 b);
+vec3&          operator *= (vec3& a, f32 b);
 f32            length(vec3 A);
 b32            is_zero(vec3 v);
 b32            is_inf(vec3 v);
-vec3             normalize(vec3 a);
-vec3             lerp(vec3 a, f32 t, vec3 b);
+vec3           normalize(vec3 a);
+vec3           lerp(vec3 a, vec3 b, f32 t);
 f32            distance(vec3 a, vec3 b);
 f32            distance(vec2 a, vec2 b);
-vec4             V4(f32 x);
-vec4             V4(f32 r, f32 g, f32 b, f32 a);
-vec4             V4(vec2 rg, f32 b, f32 a);
-vec4             V4(vec3 rgb, f32 a);
-vec4             operator * (vec4 v, f32 f);
-vec4             operator * (f32 a, vec4 v);
-vec4             lerp(vec4 a, f32 t, vec4 b);
+vec4           V4(f32 x);
+vec4           V4(f32 r, f32 g, f32 b, f32 a);
+vec4           V4(vec2 rg, f32 b, f32 a);
+vec4           V4(vec3 rgb, f32 a);
+vec4           operator * (vec4 v, f32 f);
+vec4           operator * (f32 a, vec4 v);
+vec4           lerp(vec4 a, vec4 b, f32 t);
 Quaternion     operator + (Quaternion a, Quaternion b);
 Quaternion     operator - (Quaternion l, Quaternion r);
 Quaternion     operator * (Quaternion a, Quaternion b);
@@ -222,11 +222,11 @@ Quaternion     operator * (Quaternion a, f32 b);
 Quaternion     operator * (f32 b, Quaternion a);
 Quaternion     operator - (Quaternion in);
 Quaternion     normalize(Quaternion q);
-Quaternion     nlerp(Quaternion a, f32 t, Quaternion b);
-Quaternion     slerp(Quaternion q1, f32 t, Quaternion q2);
+Quaternion     nlerp(Quaternion a, Quaternion b, f32 t);
+Quaternion     slerp(Quaternion q1, Quaternion q2, f32 t);
 m4x4           operator * (m4x4 a, m4x4 b);
 m4x4&          operator *= (m4x4& m, f32 f);
-vec4             operator * (m4x4 m, vec4 p);
+vec4           operator * (m4x4 m, vec4 p);
 m4x4           operator * (m4x4 m, f32 f);
 m4x4           operator * (f32 f, m4x4 m);
 m4x4           identity();
@@ -258,7 +258,7 @@ m4x4           to_m4x4(Xform xform);
 m4x4           to_m4x4(vec3 translation, Quaternion rotation, vec3 scale);
 Quaternion     build_quaternion(vec3 axis, f32 radian);
 Quaternion     rotate(Quaternion q0, vec3 axis, f32 radian);
-vec3             project(vec3 p, m4x4 view_proj);
+vec3           project(vec3 p, m4x4 view_proj);
 
 
 
@@ -272,12 +272,13 @@ AABB2          intersection(AABB2 a, AABB2 b);
 AABB2          aabb2_infinite(void);
 
 vec2           to_ndc(vec2 p, f32 w, f32 h);
-vec3             unproject(vec3 position, m4x4 viewproj);
+vec3           unproject(vec3 position, m4x4 viewproj);
 Ray3           ray_from_screen_position(vec2 position, f32 screen_width, f32 screen_height, m4x4 viewproj);
 
 
+//
 // Graphics
-
+//
 // I like to view the process of building look-at matrix as determining the
 // local axes of a camera placed in the world. The axes are the camera's own
 // language, into which the objects' positions, expressed in the world's
@@ -310,12 +311,12 @@ m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
 m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
 
 u32  pack_rgba(vec4 rgba);
-vec4   unpack_rgba(u32 rgba);
+vec4 unpack_rgba(u32 rgba);
 
 
 f32           m_tan(f32 f);
 f32           triarea2(vec2 a, vec2 b, vec2 c);
-vec4            operator + (vec4 a, vec4 b);
+vec4          operator + (vec4 a, vec4 b);
 m4x4&         operator += (m4x4& l, m4x4 r);
 bool          ray_plane_intersect(Ray3 ray, vec3 plane_normal, f32 plane_height, vec3* out);
 Xform         to_xform(m4x4 m);
