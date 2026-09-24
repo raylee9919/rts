@@ -184,7 +184,6 @@ force_inline T clamp(T a, T lo, T hi) { return min(max(a, lo), hi); }
 #define int_from_ptr(p) (u64)(((u8*)p) - 0)
 #define ptr_from_int(i) (void*)(((u8*)0) + i)
 #define offset_of(type, member) int_from_ptr(&((type *)0)->member)
-#define base_from_member(type, member_name, ptr) (type *)((u8 *)(ptr) - offset_of(type, member_name))
 
 
 #define quick_sort(base, type, count, cmp) qsort((base), (count), sizeof(type), (int(*)(const void *, const void *))(cmp))

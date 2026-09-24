@@ -189,11 +189,11 @@ int main_entry(int argc, char **argv)
         Knight_Material knight_materials[] = {
             { S("Helm2"),        S("materials/knight/helm.material")         },
             { S("Arms"),         S("materials/knight/arms.material")         },
-            { S("Acessories"),   S("materials/knight/arms.material")         },
-            { S("Acessories2"),  S("materials/knight/arms.material")         },
+            { S("Accessories"),  S("materials/knight/arms.material")         },
+            { S("Accessories2"), S("materials/knight/arms.material")         },
             { S("Breast_Armor"), S("materials/knight/breast_armor.material") },
-            { S("Leegs_Armor1"), S("materials/knight/breast_armor.material") },
-            { S("pants"),        S("materials/knight/breast_armor.material") },
+            { S("Legs_Armor1"),  S("materials/knight/breast_armor.material") },
+            { S("Pants"),        S("materials/knight/breast_armor.material") },
             { S("Weapon2"),      S("materials/knight/sword.material")        },
             { S("Shield"),       S("materials/knight/shield.material")       },
         };

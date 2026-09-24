@@ -1,12 +1,12 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-module material_knight;
+module material_default;
 
 import basic;
 import material;
 #include "shared/shared.h"
 
-struct Mtl_Knight : IMaterial
+struct M_Default : IMaterial
 {
     /* Fields */
     [Texture] uint32_t albedo_id;
@@ -47,7 +47,7 @@ struct Mtl_Knight : IMaterial
 
         // Tangent space to world
         float3 N = normalize(input.normal);
-        float3 T = normalize(input.tangent.xyz - dot(input.tangent.xyz, N) * N); // Gram-Schmidt
+        float3 T = normalize(input.tangent.xyz - dot(input.tangent.xyz, N) * N);
         float3 B = input.tangent.w * cross(N, T);
         n = normalize(T * n.x + B * n.y + N * n.z);
 
@@ -56,5 +56,4 @@ struct Mtl_Knight : IMaterial
     }
 };
 
-// Resolves `extern struct Material` in the shader this gets linked with.
-export struct Material : IMaterial = Mtl_Knight;
+export struct Material : IMaterial = M_Default;

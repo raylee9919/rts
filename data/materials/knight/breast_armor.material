@@ -1,6 +1,6 @@
 [1] # Version number
 
-C "shaders/material/knight.slang" 
+C "shaders/material/default.slang" 
 
 albedo_id    : "textures/knight_breast_armor_albedo.texture"
 normal_id    : "textures/knight_breast_armor_normal.texture"
