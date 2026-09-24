@@ -77,15 +77,15 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 {
     auto *pass = (R_Pass_Geometry *)inPass;
 
-    u32 w = inInfo.width;
-    u32 h = inInfo.height;
+    u32 res_x = inInfo.resolution_x;
+    u32 res_y = inInfo.resolution_y;
 
     Game_State *g = inInfo.game_state;
 
     GFX_Pass gfx_pass  = {};
     gfx_pass.name                 = inPass->name;
-    gfx_pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
-    gfx_pass.scissor              = {0, 0, w, h};
+    gfx_pass.viewport             = {0.f, 0.f, (f32)res_x, (f32)res_y};
+    gfx_pass.scissor              = {0, 0, res_x, res_y};
     gfx_pass.color_attachments[0] = renderer->gbuffer_color[gfx_backbuffer_index()];
     gfx_pass.depth_attachment     = renderer->scene_depth[gfx_backbuffer_index()];
     gfx_pass.min_depth            = 0.f;

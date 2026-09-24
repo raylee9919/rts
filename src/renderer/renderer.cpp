@@ -2,6 +2,7 @@
 
 #include "renderer/renderer.h"
 #include "basic/context.h"
+#include "basic/log.h"
 #include "gfx/gfx.h"
 #include "math/math.h"
 #include "os/os.h"
@@ -25,13 +26,15 @@ void game_tick(Game_State *g, f64 dt);
 static void r_ring_init();
 static void r_ring_deinit();
 
+#define RESOLUTION_X 2560
+#define RESOLUTION_Y 1440
 
 GPU_Camera gpu_camera_from_game(Camera *camera)
 {
     GPU_Camera result = {};
 
     f32 fov = pi32 * 0.5f;
-    f32 aspect_ratio = (f32)gfx->info.width / (f32)gfx->info.height;
+    f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
     vec3 dir = (y_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
 
     result.position  = V4(camera->position, 1.f);
@@ -44,9 +47,9 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
 
 void r_init(void *native_window_handle) 
 {
-    // @Temporary
-    u32 width  = 1920;
-    u32 height = 1080;
+    // @Temporary:
+    u32 width  = RESOLUTION_X;
+    u32 height = RESOLUTION_Y;
 
     { // Init GFX
         GFX_Info init = {};
@@ -118,6 +121,10 @@ void r_init(void *native_window_handle)
                 desc.mip_levels     = 1;
                 desc.depth          = 1;
                 desc.clear          = true;
+                desc.clear_color[0] = 0.05f;
+                desc.clear_color[1] = 0.0f;
+                desc.clear_color[2] = 0.0f;
+                desc.clear_color[3] = 1.0f;
 
                 gfx_texture_create(r->gbuffer_color[i], desc);
             }
@@ -211,6 +218,24 @@ void r_shutdown()
     destroy(renderer->heap);
 }
 
+static R_Rect get_playfield_rect() {
+    R_Rect r;
+
+    f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
+    f32 a = (f32)gfx->info.width / (f32)gfx->info.height;
+    if (a > aspect_ratio) {
+        r.h = gfx->info.height;
+        r.w = r.h * aspect_ratio;
+    } else {
+        r.w = gfx->info.width;
+        r.h = r.w / aspect_ratio;
+    }
+    r.x = ((f32)gfx->info.width  - r.w) * 0.5f;
+    r.y = ((f32)gfx->info.height - r.h) * 0.5f;
+
+    return r;
+}
+
 void r_render(Game_State *g, f64 refresh_dt)
 {
     ProfileScope;
@@ -252,27 +277,8 @@ void r_render(Game_State *g, f64 refresh_dt)
     }
 
 
-#if 0
-    {
-        auto [ww, wh] = window_size(shared->window);
-        f32 window_w = (f32)ww;
-        f32 window_h = (f32)wh;
-
-        f32 aspect_ratio = 1920.f / 1080.f;
-        f32 w, h;
-
-        if (aspect_ratio > (window_w/window_h)) {
-            w = window_w;
-            h = window_w / aspect_ratio;
-        } else {
-            w = window_h * aspect_ratio;
-            h = window_h;
-        }
-
-        f32 x = (window_w - w) * 0.5f;
-        f32 y = (window_h - h) * 0.5f;
-    }
-#endif
+    // Calculate playground rect
+    R_Rect playfield = get_playfield_rect();
 
 
     // Execute render passes.
@@ -280,8 +286,12 @@ void r_render(Game_State *g, f64 refresh_dt)
     for (int i = 0; i < r->passes.count; ++i) 
     {
         R_Pass_Execute_Info info = {};
-        info.width      = gfx->info.width;
-        info.height     = gfx->info.height;
+        info.resolution_x = RESOLUTION_X;
+        info.resolution_y = RESOLUTION_Y;
+        info.x = playfield.x;
+        info.y = playfield.y;
+        info.w = playfield.w;
+        info.h = playfield.h;
         info.game_state = g;
 
         R_Pass *pass = r->passes[i];
@@ -319,6 +329,35 @@ void r_entry(void *param)
                 gfx_request_swapchain_resize(window_w, window_h);
             }
         }
+
+#if 0
+
+        // Inputs
+        // - Selected Resoluion
+        // - Window Size
+        //
+        if (fullscreen)
+        {
+            // What must change? G-Buffer sizes to selected resolution.
+            // Viewport size  = Selected Resolution
+            // Swapchain size = Window size
+            // But! when we're blting to swapchain, the viewport size is
+            // the window size.
+        }
+        else
+        {
+            // Aspect ratio is a thing here. It is determined by selected resolution.
+            // Swapchain size = Window size
+            // when blting,
+            //     viewport_origin = (window_h - playground_h, window_w - playground_w) * 0.5f;
+            //     viewport_size   = (playground_w, playground_h);
+            // 
+            // G-buffers follows the selected resolution.
+            // It's better off that way I believe.
+            // I don't want windowed window's size to impact visual quaility.
+            //
+        }
+#endif
 
         auto *ring = &renderer->ring;
         mutex_lock(&ring->mutex);

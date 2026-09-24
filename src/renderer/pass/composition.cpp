@@ -72,13 +72,11 @@ R_PASS_DEINIT( RenderPassDeinit_Composition )
 R_PASS_EXECUTE( RenderPassExecute_Composition )
 {
     auto *pass = (R_Pass_Composition *)inPass;
-    u32 w = inInfo.width;
-    u32 h = inInfo.height;
 
     GFX_Pass gfx_pass  = {};
     gfx_pass.name                 = inPass->name;
-    gfx_pass.viewport             = {0.f, 0.f, (f32)w, (f32)h};
-    gfx_pass.scissor              = {0, 0, w, h};
+    gfx_pass.viewport             = {inInfo.x, inInfo.y, inInfo.w, inInfo.h};
+    gfx_pass.scissor              = {(u32)inInfo.x, (u32)inInfo.y, (u32)inInfo.w, (u32)inInfo.h};
     gfx_pass.color_attachments[0] = gfx_surface_texture();
 
     gfx_pass_begin(R_PASS_COMPOSITION, &gfx_pass);
@@ -88,8 +86,8 @@ R_PASS_EXECUTE( RenderPassExecute_Composition )
 
         // Push constants
         R_Pass_Composition::Push_Constants c = {};
-        c.dot_sampler_id   = gfx->dot_sampler.bindless;
-        c.scene_texture_id = gfx_srv_bindless_from_texture( renderer->scene_texture[gfx_backbuffer_index()]) ;
+        c.linear_sampler_id = gfx->linear_sampler.bindless;
+        c.scene_texture_id  = gfx_srv_bindless_from_texture( renderer->scene_texture[gfx_backbuffer_index()]) ;
         gfx_push_constants(&c, sizeof(c));
 
         // Draw

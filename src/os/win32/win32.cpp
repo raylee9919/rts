@@ -1039,7 +1039,7 @@ OS_Handle window_create(int w, int h, String name, b32 drag_accept_files) {
 //
 void toggle_fullscreen(OS_Handle window_handle) 
 {
-    auto *window = win32_window_from_handle(window_handle);
+    Win32_Window *window = win32_window_from_handle(window_handle);
     if (window) 
     {
         HWND hwnd = window->handle;

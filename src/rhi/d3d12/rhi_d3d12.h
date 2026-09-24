@@ -41,7 +41,7 @@ struct D3D12_Descriptor_Heap {
 
     ID3D12DescriptorHeap       *heap_0;
 
-    RHI_Device                 *device;
+    Allocator                   allocator;
 
     D3D12_CPU_DESCRIPTOR_HANDLE base_cpu_handle;
     D3D12_GPU_DESCRIPTOR_HANDLE base_gpu_handle; // valid if visible on gpu.

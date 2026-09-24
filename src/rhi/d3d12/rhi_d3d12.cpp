@@ -277,10 +277,13 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
                                        D3D12_Descriptor_Heap *heap, 
                                        D3D12_DESCRIPTOR_HEAP_TYPE type, 
                                        UINT minimum_descriptors, 
-                                       Allocator allocator) {
+                                       Allocator allocator) 
+{
     static_assert(D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES == 4);
 
     heap->type = type;
+
+    heap->allocator = allocator;
 
     D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -337,7 +340,7 @@ static bool d3d12_descriptor_heap_init(D3D12_Device *device,
 static void d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap) {
     if (heap) {
         COM_SAFE_RELEASE(&heap->heap_0);
-        dealloc(heap->free_list, heap->device->allocator);
+        dealloc(heap->free_list, heap->allocator);
     }
 }
 

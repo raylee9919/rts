@@ -21,8 +21,13 @@ struct R_Pass;
 
 
 struct R_Pass_Execute_Info {
-    u32         width;
-    u32         height;
+    // Portion of swapchain to draw. Will be used at blting.
+    f32         x, y, w, h;
+
+    // Resolution users select from the option
+    u32         resolution_x;
+    u32         resolution_y;
+
     Game_State *game_state;
 };
 
@@ -103,6 +108,10 @@ force_inline bool r_should_enable_blend(R_Shading_Model sm) {
 struct Material_Buffer {
     RHI_Buffer      buffer;
     RHI_Buffer_View view;
+};
+
+struct R_Rect {
+    f32 x, y, w, h;
 };
 
 struct Renderer {

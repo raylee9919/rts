@@ -123,6 +123,10 @@ void input_process()
                 toggle_fullscreen(shared->window);
             }
 
+            if (event.key_code == KEY_F4 && event.modifier_flags.alt_pressed) {
+                shared->should_close = true;
+            }
+
             if (event.key_code == 'W')  key_w = event.key_pressed;
             if (event.key_code == 'A')  key_a = event.key_pressed;
             if (event.key_code == 'S')  key_s = event.key_pressed;
