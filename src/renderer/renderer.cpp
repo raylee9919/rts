@@ -12,9 +12,12 @@
 #include "shared.h"
 #include "shader_compiler/shader.h"
 
+#include "./draw.h"
+
 /* Render passes */
 #include "pass/geometry.h"
 #include "pass/postprocess.h"
+#include "pass/ui.h"
 #include "pass/composition.h"
 
 
@@ -28,16 +31,17 @@ static void r_ring_deinit();
 
 #define RESOLUTION_X 2560
 #define RESOLUTION_Y 1440
+#define UI_SCALE     ((f32)RESOLUTION_X / 16.f)
 
 GPU_Camera gpu_camera_from_game(Camera *camera)
 {
     GPU_Camera result = {};
 
-    f32 fov = pi32 * 0.5f;
+    f32 fov = PI * 0.5f;
     f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
     vec3 dir = (y_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
 
-    result.position  = V4(camera->position, 1.f);
+    result.position  = vec4(camera->position, 1.f);
     result.view      = look_to_rh(camera->position, dir, WORLD_UP);
     result.proj      = persp_fov_rh(fov, aspect_ratio, NEAR_Z, FAR_Z);
     result.view_proj = result.proj * result.view;
@@ -81,7 +85,8 @@ void r_init(void *native_window_handle)
     Renderer *r = renderer;
 
     { // Assign allocator
-        r->passes.allocator         = r->heap;
+        r->passes.allocator       = r->heap;
+        immediate_quads.allocator = r->heap;
     }
 
 
@@ -146,12 +151,30 @@ void r_init(void *native_window_handle)
                 }
                 gfx_texture_create(r->scene_texture[i], desc);
             }
+
+            { // UI
+                r->ui_texture[i] = guid_generate();
+
+                RHI_Texture_Desc desc = {};
+                {
+                    desc.name           = S("UI");
+                    desc.type           = RHI_TEXTURE_TYPE_2D;
+                    desc.format         = RHI_FORMAT_RGBA8_UNORM_SRGB;
+                    desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_SAMPLED;
+                    desc.width          = width;
+                    desc.height         = height;
+                    desc.mip_levels     = 1;
+                    desc.depth          = 1;
+                    desc.clear          = true;
+                }
+                gfx_texture_create(r->ui_texture[i], desc);
+            }
         }
     }
 
 
     { // Create full-screen triangle mesh
-        renderer->fullscreen_triangle_mesh  = guid_generate();
+        renderer->fullscreen_triangle_mesh = guid_generate();
         for (int i = 0; i < 3; ++i) renderer->fullscreen_triangle_indices[i] = i;
         gfx_mesh_create(renderer->fullscreen_triangle_mesh, renderer->fullscreen_triangle_vertices, 3, sizeof(f32), renderer->fullscreen_triangle_indices, 3, sizeof(u32));
     }
@@ -164,6 +187,7 @@ void r_init(void *native_window_handle)
     // Register render passes
     r_pass_create(RenderPassInit_Geometry);
     r_pass_create(RenderPassInit_Postprocess);
+    r_pass_create(RenderPassInit_UI);
     r_pass_create(RenderPassInit_Composition);
 
 
@@ -236,6 +260,12 @@ static R_Rect get_playfield_rect() {
     return r;
 }
 
+static vec2 playfield_from_window(f32 x, f32 y) {
+    R_Rect r = get_playfield_rect();
+    return vec2((x - r.x) * (f32)RESOLUTION_X / r.w,
+                (y - r.y) * (f32)RESOLUTION_Y / r.h);
+}
+
 void r_render(Game_State *g, f64 refresh_dt)
 {
     ProfileScope;
@@ -244,13 +274,16 @@ void r_render(Game_State *g, f64 refresh_dt)
 
     Renderer *r = renderer;
 
+    // @Cleanup
+    array_reset_keeping_memory(&immediate_quads);
+
     { // Build frame graph
-        // @Todo: Backbuffer index is hassle. Renderer might want to make a 
-        // frame resource once and be oblivious about it.
+        // @Cleanup: Backbuffer index is hassle. Renderer might want to make a 
+        // frame resource once and be oblivious about it?
         
-        // @Cleanup
         u32 back = gfx_backbuffer_index();
 
+        // -1 means no previous pass.
         gfx_pass_connect(r->gbuffer_color[back],
                          -1, R_PASS_GEOMETRY, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
@@ -267,6 +300,16 @@ void r_render(Game_State *g, f64 refresh_dt)
                          R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
                          RHI_RESOURCE_STATE_RENDER_TARGET);
 
+        // UI
+        gfx_pass_connect(r->ui_texture[back], 
+                         -1, R_PASS_UI, 
+                         RHI_RESOURCE_STATE_RENDER_TARGET);
+
+        // Blt
+        gfx_pass_connect(r->ui_texture[back], 
+                         R_PASS_UI, R_PASS_COMPOSITION,
+                         RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+
         gfx_pass_connect(r->scene_texture[back], 
                          R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
                          RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
@@ -279,6 +322,17 @@ void r_render(Game_State *g, f64 refresh_dt)
 
     // Calculate playground rect
     R_Rect playfield = get_playfield_rect();
+
+    if (auto [mx,my,ok] = get_mouse_pointer_position(shared->window); ok) {
+        vec2 p = playfield_from_window(mx, my);
+
+        f32 s = UI_SCALE * 0.25f;
+        vec4 c = vec4(1.f, 0.f, 1.f, 1.f);
+        vec4 d = vec4(1.f, 1.f, 0.f, 1.f);
+        draw_quad(p.x - s, p.y - s, s*2.f, s*2.f,  c, d, c, d);
+    }
+
+
 
 
     // Execute render passes.
@@ -492,8 +546,6 @@ void r_pass_destroy()
     // Then, call the deinit proc of the pass.
 }
 
-// ------------------------------------------------------------------------- //
-
 static void r_ring_init()
 {
     Renderer *r = renderer;
@@ -522,5 +574,3 @@ static void r_ring_deinit()
         mutex_destroy(&ring->entries[i].mutex);
     }
 }
-
-// ------------------------------------------------------------------------- //

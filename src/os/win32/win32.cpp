@@ -1100,7 +1100,7 @@ static Triplet<s64,s64,b32> _get_mouse_pointer_position(HWND hwnd, bool right_ha
         p.y = h - p.y;
     }
 
-    return { p.x, p.y, true};
+    return {p.x, p.y, true};
 }
 
 Triplet<s64,s64,b32> get_mouse_pointer_position(OS_Handle window, b32 right_handed) {

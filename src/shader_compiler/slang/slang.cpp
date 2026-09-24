@@ -361,14 +361,6 @@ bool shader_compile(Shader_Compiler *compiler,
 
             array_add(&fields, f);
         }
-
-
-        String_Builder sb = {};
-        init(&sb, tctx.temp);
-
-
-        String s = flush(&sb);
-        log_print(s);
     }
 
     log_info(S("Compiled shader."));

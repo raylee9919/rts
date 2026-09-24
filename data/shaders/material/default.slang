@@ -16,7 +16,7 @@ struct M_Default : IMaterial
 
 
     /* Evaluation Implementation */
-    float4 eval( Material_Input input, float3 wi, float3 wo )
+    float4 eval( Material_Input input, float3 radiance, float3 wi, float3 wo )
     {
         SamplerState linear_sampler = SamplerDescriptorHeap[input.linear_sampler_id];
 
@@ -51,7 +51,7 @@ struct M_Default : IMaterial
         float3 B = input.tangent.w * cross(N, T);
         n = normalize(T * n.x + B * n.y + N * n.z);
 
-        float3 result = brdf_cook_torrance(n, wi, wo, albedo, roughness, metallic);
+        float3 result = brdf_cook_torrance(n, wi, wo, albedo, roughness, metallic) * radiance;
         return float4(result, 1.0);
     }
 };

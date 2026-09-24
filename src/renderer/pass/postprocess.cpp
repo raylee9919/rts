@@ -15,7 +15,7 @@ R_PASS_INIT( RenderPassInit_Postprocess )
     result->execute = RenderPassExecute_Postprocess;
 
     // @Temporary
-    String path   = tprint(S("%S/%S"), shared->data_path, S("shaders/pass/postprocess.slang"));
+    String path   = S("shaders/pass/postprocess.slang");
     String source = read_entire_file(path, tctx.temp);
 
     Shader_Compile_Result vs = {};

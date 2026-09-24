@@ -116,7 +116,6 @@ float4 main(VS_Output input) : SV_TARGET
     float3 wi = TO_LIGHT;
     float3 wo = normalize(camera.position.xyz - input.position);
 
-    float4 result = material.eval(mtl, wi, wo);
-    result.rgb *= LIGHT_RADIANCE;
+    float4 result = material.eval(mtl, LIGHT_RADIANCE, wi, wo);
     return result;
 }

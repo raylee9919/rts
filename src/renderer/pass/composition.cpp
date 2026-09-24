@@ -15,7 +15,7 @@ R_PASS_INIT( RenderPassInit_Composition )
     result->execute = RenderPassExecute_Composition;
 
     // @Temporary
-    String path   = tprint(S("%S/%S"), shared->data_path, S("shaders/pass/composition.slang"));
+    String path   = S("shaders/pass/composition.slang");
     String source = read_entire_file(path, tctx.temp);
 
     Shader_Compile_Result vs = {};
@@ -42,7 +42,17 @@ R_PASS_INIT( RenderPassInit_Composition )
         desc.num_color_attachments          = 1;
         {
             desc.color_attachment_formats[0] = gfx_surface_format();
-            desc.blend_enabled[0]            = false;
+            desc.blend_enabled[0]            = true;
+
+            // src.color * src.alpha + dst.color * (1 - src.alpha)
+            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
+            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
+
+            // src.a + dst.a * (1 - src.a)
+            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
+            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
         }
 
         desc.fill_mode                      = RHI_FILL_SOLID;
@@ -84,13 +94,17 @@ R_PASS_EXECUTE( RenderPassExecute_Composition )
         // Set pipeline
         gfx_set_pipeline(pass->pipeline_id);
 
-        // Push constants
+        // Scene
         R_Pass_Composition::Push_Constants c = {};
         c.linear_sampler_id = gfx->linear_sampler.bindless;
-        c.scene_texture_id  = gfx_srv_bindless_from_texture( renderer->scene_texture[gfx_backbuffer_index()]) ;
-        gfx_push_constants(&c, sizeof(c));
 
-        // Draw
+        c.texture_id = gfx_srv_bindless_from_texture( renderer->scene_texture[gfx_backbuffer_index()]);
+        gfx_push_constants(&c, sizeof(c));
+        gfx_draw(renderer->fullscreen_triangle_mesh, 1);
+
+        // UI
+        c.texture_id = gfx_srv_bindless_from_texture( renderer->ui_texture[gfx_backbuffer_index()]);
+        gfx_push_constants(&c, sizeof(c));
         gfx_draw(renderer->fullscreen_triangle_mesh, 1);
     }
     gfx_pass_end();

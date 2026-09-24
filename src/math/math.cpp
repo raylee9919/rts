@@ -393,32 +393,12 @@ f32 distance(vec2 a, vec2 b) {
 // Vector4 
 //
 vec4
-V4(f32 r, f32 g, f32 b, f32 a) 
-{
-    vec4 v = {};
-    v.r = r;
-    v.g = g;
-    v.b = b;
-    v.a = a;
-    return v;
-}
-
-vec4
 V4(vec2 rg, f32 b, f32 a)
 {
     vec4 v = {};
     v.r = rg.x;
     v.g = rg.y;
     v.b = b;
-    v.a = a;
-    return v;
-}
-
-vec4
-V4(vec3 rgb, f32 a) 
-{
-    vec4 v = {};
-    v.rgb = rgb;
     v.a = a;
     return v;
 }
@@ -553,7 +533,7 @@ Quaternion slerp(Quaternion q1, Quaternion q2, f32 t)
     }
 
     f32 sclp, sclq;
-    f32 threshold = epsilon_f32;
+    f32 threshold = 1e-8f;
 
     if (1.0f - cosom > threshold) {
         f32 omega, sinom;
@@ -1021,10 +1001,8 @@ ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z)
     return result;
 }
 
-f32
-radian_from_degree(f32 d) 
-{
-    return d*pi32*0.005556f;
+f32 radian_from_degree(f32 d) {
+    return d * PI * 0.005556f;
 }
 
 f32
@@ -1095,7 +1073,7 @@ vec2 to_ndc(vec2 p, f32 w, f32 h) {
 
 vec3 unproject(vec3 position, m4x4 viewproj) {
     m4x4 inv_viewproj = inverse(viewproj);
-    vec4 h = inv_viewproj*V4(position, 1.f);
+    vec4 h = inv_viewproj*vec4(position, 1.f);
     vec3 result = h.xyz / h.w;
     return result;
 }

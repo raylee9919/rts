@@ -318,7 +318,9 @@ static void gfx_decode_key(u64 key, u64 *out_subkeys) {
     }
 }
 
-void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size)
+void gfx_mesh_create(Guid guid, 
+                     void *vertices, u32 num_vertices, u32 vertex_size, 
+                     void *indices, u32 num_indices, u32 index_size)
 {
     RHI_Buffer vb        = {};
     RHI_Buffer ib        = {};
@@ -622,7 +624,6 @@ void gfx_draw(Guid mesh_id, u32 num_instances) {
         array_add(&gfx->commands[pass], cmd);
     } else if (gfx->info.debug) {
         log(LOG_WARNING, S("Draw attempted with an unregistered mesh."));
-        R_ASSERT(0);
     }
 }
 
@@ -756,8 +757,6 @@ void gfx_begin()
 
         gfx->info.width  = gfx->resize_width;
         gfx->info.height = gfx->resize_height;
-
-        log_info(S("Resized swapchain to %dx%d"), gfx->resize_width, gfx->resize_height);
     }
 }
 

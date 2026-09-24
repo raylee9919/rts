@@ -13,10 +13,10 @@
 // You just use correct builtin/intrinsic from compiler.
 //
 
-
-#define pi32                3.141592f
-#define epsilon_f32         1.19209e-07f
-
+const read_only f32 PI    = 3.1415927f;
+const read_only f64 PI64  = 3.141592653589793;
+const read_only f32 TAU   = 6.283185f;
+const read_only f64 TAU64 = 6.28318530717958648;
 
 // @Robustness
 #define _FAR_Z  ( 1.f)
@@ -72,6 +72,7 @@ union vec4 {
     vec4() = default;
     vec4(f32 f1, f32 f2, f32 f3, f32 f4) : x(f1), y(f2), z(f3), w(f4) {};
     vec4(f32 f)                          : x( f), y( f), z( f), w( f) {};
+    vec4(vec3 xyz, f32 w)                : x(xyz.x), y(xyz.y), z(xyz.z), w(w) {};
 };
 
 union m4x4 {
@@ -207,10 +208,7 @@ vec3           normalize(vec3 a);
 vec3           lerp(vec3 a, vec3 b, f32 t);
 f32            distance(vec3 a, vec3 b);
 f32            distance(vec2 a, vec2 b);
-vec4           V4(f32 x);
-vec4           V4(f32 r, f32 g, f32 b, f32 a);
 vec4           V4(vec2 rg, f32 b, f32 a);
-vec4           V4(vec3 rgb, f32 a);
 vec4           operator * (vec4 v, f32 f);
 vec4           operator * (f32 a, vec4 v);
 vec4           lerp(vec4 a, vec4 b, f32 t);

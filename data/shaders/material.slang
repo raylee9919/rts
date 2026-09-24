@@ -16,12 +16,13 @@ public struct Material_Input {
 
 public interface IMaterial 
 {
-    float4 eval( Material_Input input, float3 wi, float3 wo );
+    float4 eval( Material_Input input, float3 radiance, float3 wi, float3 wo );
 };
 
 
 //
 // Cook-Torrance BRDF
+// @Todo: Better approximation?
 //
 public float3 schlick_fresnel(float3 f0, float hdotl)
 {

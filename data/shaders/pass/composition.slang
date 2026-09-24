@@ -27,8 +27,10 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
 float4 main_fs(VS_Output input) : SV_TARGET
 {
     SamplerState linear_sampler = SamplerDescriptorHeap[push.linear_sampler_id];
-    Texture2D<float4> scene_texture = ResourceDescriptorHeap[push.scene_texture_id];
+
+    Texture2D<float4> scene_texture = ResourceDescriptorHeap[push.texture_id];
     float4 c = scene_texture.Sample(linear_sampler, input.screen_uv);
+
     float4 result = c;
     return result;
 }

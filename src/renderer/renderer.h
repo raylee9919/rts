@@ -63,9 +63,10 @@ void r_pass_destroy();
 
 
 enum Render_Pass : u32 {
-    R_PASS_GEOMETRY    = 0,
-    R_PASS_POSTPROCESS = 1,
-    R_PASS_COMPOSITION = 2,
+    R_PASS_GEOMETRY = 0,
+    R_PASS_POSTPROCESS,
+    R_PASS_UI,
+    R_PASS_COMPOSITION,
 };
 
 struct Render_Entry {
@@ -126,10 +127,11 @@ struct Renderer {
     Guid scene_depth[RHI_MAX_BUFFER_COUNT];
     Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
     Guid scene_texture[RHI_MAX_BUFFER_COUNT];
+    Guid ui_texture[RHI_MAX_BUFFER_COUNT];
 
     // Full-screen Triangle Mesh
-    f32 fullscreen_triangle_vertices[3];
-    u32 fullscreen_triangle_indices[3];
+    f32  fullscreen_triangle_vertices[3];
+    u32  fullscreen_triangle_indices[3];
     Guid fullscreen_triangle_mesh;
 
     // Global shader
@@ -139,10 +141,8 @@ struct Renderer {
     // Registered Passes
     Array<R_Pass*> passes;
 
-
     Material_Buffer material_buffer;
     u64 material_buffer_used = 0;
-
 
     // @Temporary
     RHI_Buffer           camera_buffer;
