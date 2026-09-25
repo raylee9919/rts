@@ -127,7 +127,7 @@ add_library(rts_engine STATIC
     src/shared.cpp
     src/material/material.cpp
 
-    src/console.cpp
+    src/development/console.cpp
 
 
     src/renderer/pass/geometry.cpp

@@ -95,6 +95,7 @@ static void gfx_init_uploader(u64 buffer_size) {
 }
 
 u64 gfx_upload_reserve(u64 size, u64 alignment) {
+    // @Cleanup: wtf?
     u64 capacity = gfx->upload_buffer.desc.size;
     R_ASSERT(size <= capacity);
 

@@ -191,7 +191,7 @@ Guid asset_id_from_path( String path )
 static b32 asset_load( Guid id )
 {
     // Entry must have been added if not exist during request.
-    auto *entry = table_find_pointer(&asset_system->asset_table, id);
+    Asset_Entry *entry = table_find_pointer(&asset_system->asset_table, id);
     R_ASSERT( entry );
 
     // Find path from the catalog.

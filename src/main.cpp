@@ -1,26 +1,28 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "profiler/profiler.h"
 #include "basic/core.h"
 #include "basic/context.h"
 #include "basic/log.h"
 #include "basic/string.h"
 #include "basic/context.h"
-#include "math/math.h"
 #include "os/os.h"
-#include "gfx/gfx.h"
+#include "math/math.h"
+#include "shared.h"
 #include "renderer/renderer.h"
-#include "profiler/profiler.h"
 #include "game.h"
 #include "asset/asset.h"
 #include "asset/mesh.h"
 #include "animation/animation.h"
 #include "renderer/immediate.h"
 #include "audio/audio.h"
-#include "shared.h"
 #include "material/material.h"
+#include "font/font.h"
 
-#include "console.h"
+/* Development */
+#include "development/console.h"
 
+/* Third Party */
 #include "third_party/xxhash3/xxhash.h"
 
 
@@ -287,10 +289,6 @@ int main_entry(int argc, char **argv)
 
         // Input processing
         input_process();
-
-
-        // Development
-        UpdateConsole(dt);
 
 
         // Tick with fixed timestep
