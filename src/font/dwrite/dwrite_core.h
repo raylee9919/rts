@@ -1,19 +1,18 @@
+// Copyright Seong Woo Lee. All Rights Reserved.
+
 #ifndef RTS_DWRITE_H
 #define RTS_DWRITE_H
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Seong Woo Lee $
-   $Notice: (C) Copyright %s by Seong Woo Lee. All Rights Reserved. $
-   ======================================================================== */
 
-
-// # Note: "dwrite_2.h" minimum: Windows 8.1
-//         "dwrite_3.h" minimum: Windows 10 Build 16299
+// dwrite_2.h minimum: Windows 8.1
+// dwrite_3.h minimum: Windows 10 Build 16299
 #include <dwrite_3.h>
 
 #pragma comment(lib, "dwrite")
+
+#include "basic/core.h"
+#include "basic/string.h"
+#include "os/os.h"
+#include "math/math.h"
 
 struct Dwrite_Text_Analysis_Source final : IDWriteTextAnalysisSource
 {
@@ -76,8 +75,7 @@ struct Dwrite_Text_Analysis_Source final : IDWriteTextAnalysisSource
     const UINT32 _text_length;
 };
 
-struct Dwrite_Text_Analysis_Sink_Result 
-{
+struct Dwrite_Text_Analysis_Sink_Result {
     Dwrite_Text_Analysis_Sink_Result *next;
 
     UINT32 text_position;
@@ -85,8 +83,13 @@ struct Dwrite_Text_Analysis_Sink_Result
     DWRITE_SCRIPT_ANALYSIS analysis;
 };
 
-// DirectWrite uses an IDWriteTextAnalysisSink to inform the caller of its segmentation results. The most important part are the
-// DWRITE_SCRIPT_ANALYSIS results which inform the remaining steps during glyph shaping what script ("language") is used in a piece of text.
+
+//
+// DirectWrite uses an IDWriteTextAnalysisSink to inform the caller of its
+// segmentation results. The most important part are the DWRITE_SCRIPT_ANALYSIS
+// results which inform the remaining steps during glyph shaping what script
+// ("language") is used in a piece of text.
+//
 struct Dwrite_Text_Analysis_Sink final : IDWriteTextAnalysisSink 
 {
     Arena *arena;
@@ -136,23 +139,18 @@ struct Dwrite_Text_Analysis_Sink final : IDWriteTextAnalysisSink
     { return E_NOTIMPL; }
 };
 
-struct Dwrite_Map_Complexity_Result
-{
+struct Dwrite_Map_Complexity_Result {
     UINT16 *glyph_indices;
     UINT32 mapped_length;
     BOOL is_simple;
 };
 
-struct Dwrite_Font_Fallback_Result
-{
+struct Dwrite_Font_Fallback_Result {
     u32 length;
     IDWriteFontFace5 *face;
 };
 
-
-
-struct Fp_Run
-{
+struct Fp_Run {
     Fp_Run *next;
     Fp_Run *prev;
 
@@ -163,8 +161,7 @@ struct Fp_Run
     f32              *advances;
 };
 
-struct Fp_Glyph
-{
+struct Fp_Glyph {
     Fp_Glyph *first;
     Fp_Glyph *last;
     Fp_Glyph *next;
@@ -175,13 +172,13 @@ struct Fp_Glyph
     f32 rsb;
     f32 tsb;
     f32 bsb;
-    v2 uv_min;
-    v2 uv_max;
+    vec2 uv_min;
+    vec2 uv_max;
 };
 
-struct Fp_Atlas
-{
-    Render_Id         id;
+struct Rpk_Context;
+struct Fp_Atlas {
+    Guid              id;
     u8               *data;
     u32               width;
     u32               height;
@@ -190,8 +187,7 @@ struct Fp_Atlas
     b32               dirty;
 };
 
-struct Fp_Font
-{
+struct Fp_Font {
     Fp_Font         *first;
     Fp_Font         *last;
     Fp_Font         *next;
@@ -210,8 +206,7 @@ struct Fp_Font
     u64              glyph_table_size;
 };
 
-struct Fp_State
-{
+struct Fp_State {
     Arena                           *arena;
 
     f32                             dpi;
@@ -235,15 +230,19 @@ struct Fp_State
 
     Arena                           *run_arena;
 };
-global Fp_State *fp_state;
+extern Fp_State *fp_state;
 
-struct Fp_Draw_String_Result
-{
+struct Fp_Draw_String_Result {
     AABB2 aabb;
     f32 max_ascent;
     f32 max_descent;
 };
 
-internal Fp_Draw_String_Result fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb = aabb2_infinite());
+Fp_Draw_String_Result fp_draw_string(String string, 
+                                     String base_family, 
+                                     f32 font_size, 
+                                     vec2 origin, 
+                                     Render_String_Flags flags, 
+                                     AABB2 cull_aabb = aabb2_infinite());
 
 #endif // RTS_DWRITE_H

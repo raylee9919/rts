@@ -13,6 +13,19 @@
 #include "os/os.h"
 #include "rhi/rhi_defines.h"
 
+// DXGI
+#pragma comment(lib, "dxgi")
+#pragma comment(lib, "dxguid")
+
+// Direct3D 12
+#pragma comment(lib, "d3d12")
+
+// PIX
+#if BUILD_PROFILE
+# define USE_PIX 1
+# pragma comment(lib, "WinPixEventRuntime")
+#endif
+
 #if USE_PIX
 #include "third_party/WinPixRuntimeEvent/Include/pix3.h"
 #endif

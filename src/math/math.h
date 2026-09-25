@@ -312,6 +312,8 @@ vec4 unpack_rgba(u32 rgba);
 
 
 f32           m_tan(f32 f);
+f32           m_atan(f32 f);
+f32           m_atan2(f32 a, f32 b);
 f32           triarea2(vec2 a, vec2 b, vec2 c);
 vec4          operator + (vec4 a, vec4 b);
 m4x4&         operator += (m4x4& l, m4x4 r);

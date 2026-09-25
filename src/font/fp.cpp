@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #if OS_WINDOWS
-#  include "font_provider/dwrite/dwrite_core.h"
+#  include "./dwrite/dwrite_core.cpp"
 #else
 #  error UNDEFINED OS
 #endif

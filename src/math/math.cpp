@@ -25,6 +25,14 @@ f32 m_tan(f32 f) {
     return tanf(f);
 }
 
+f32 m_atan(f32 f) {
+    return atanf(f);
+}
+
+f32 m_atan2(f32 a, f32 b) {
+    return atan2(a, b);
+}
+
 
 // Absolute
 //

@@ -3,9 +3,8 @@
 #include "./ui.h"
 #include "shared.h"
 #include "shader_compiler/shader.h"
-#include "renderer/draw.h"
-
-#define R_MAX_QUADS 2048
+#include "renderer/immediate.h"
+#include "variables.h"
 
 R_PASS_INIT( RenderPassInit_UI )
 {
@@ -68,7 +67,14 @@ R_PASS_INIT( RenderPassInit_UI )
         desc.num_color_attachments          = 1;
         {
             desc.color_attachment_formats[0] = RHI_FORMAT_RGBA8_UNORM_SRGB;
-            desc.blend_enabled[0]            = false;
+
+            desc.blend_enabled[0]            = true;
+            desc.blend_factor_color_src[0]   = RHI_BLEND_FACTOR_SRC_ALPHA;
+            desc.blend_factor_color_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_color_op[0]           = RHI_BLEND_OP_ADD;
+            desc.blend_factor_alpha_src[0]   = RHI_BLEND_FACTOR_ONE;
+            desc.blend_factor_alpha_dst[0]   = RHI_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
         }
 
         desc.fill_mode                      = RHI_FILL_SOLID;
@@ -142,10 +148,10 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
 
 
         // Fill in the buffer
-        u32 N = min((u64)R_MAX_QUADS, immediate_quads.count);
+        u32 N = min((u32)R_MAX_QUADS, num_immediate_quads);
         for (u32 i = 0; i < N; ++i) {
 
-            R_Quad quad = immediate_quads.data[i];
+            R_Quad quad = immediate_quads[i];
             auto *dst = (R_Pass_UI::Quad*)pass->quad_ptr + base_index + i;
             dst->texture_id = GFX_INVALID_BINDLESS;
 

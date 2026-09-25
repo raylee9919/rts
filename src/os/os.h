@@ -579,8 +579,7 @@ Array<String> file_list(String path,
 OS_Handle               window_create(int w, int h, String name, b32 drag_accept_files);
 void                    toggle_fullscreen(OS_Handle window);
 Triplet<u32,u32,b32>    window_size(OS_Handle window);
-Triplet<s64,s64,b32>    get_mouse_pointer_position(OS_Handle window, b32 right_handed = false);
-Triplet<s64,s64,b32>    get_mouse_pointer_position(b32 right_handed = false);
+Triplet<s64,s64,b32>    get_mouse_pointer_position(OS_Handle window);
 
 // Input
 void update_window_events();

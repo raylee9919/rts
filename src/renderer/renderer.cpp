@@ -12,7 +12,7 @@
 #include "shared.h"
 #include "shader_compiler/shader.h"
 
-#include "./draw.h"
+#include "./immediate.h"
 
 /* Render passes */
 #include "pass/geometry.h"
@@ -28,10 +28,6 @@ Renderer *renderer;
 void game_tick(Game_State *g, f64 dt);
 static void r_ring_init();
 static void r_ring_deinit();
-
-#define RESOLUTION_X 2560
-#define RESOLUTION_Y 1440
-#define UI_SCALE     ((f32)RESOLUTION_X / 16.f)
 
 GPU_Camera gpu_camera_from_game(Camera *camera)
 {
@@ -86,7 +82,6 @@ void r_init(void *native_window_handle)
 
     { // Assign allocator
         r->passes.allocator       = r->heap;
-        immediate_quads.allocator = r->heap;
     }
 
 
@@ -260,22 +255,19 @@ static R_Rect get_playfield_rect() {
     return r;
 }
 
-static vec2 playfield_from_window(f32 x, f32 y) {
+vec2 playfield_from_window(f32 x, f32 y) {
     R_Rect r = get_playfield_rect();
     return vec2((x - r.x) * (f32)RESOLUTION_X / r.w,
                 (y - r.y) * (f32)RESOLUTION_Y / r.h);
 }
 
-void r_render(Game_State *g, f64 refresh_dt)
+static void r_end(Render_Entry *data, f64 refresh_dt)
 {
     ProfileScope;
 
     gfx_begin();
 
     Renderer *r = renderer;
-
-    // @Cleanup
-    array_reset_keeping_memory(&immediate_quads);
 
     { // Build frame graph
         // @Cleanup: Backbuffer index is hassle. Renderer might want to make a 
@@ -323,17 +315,10 @@ void r_render(Game_State *g, f64 refresh_dt)
     // Calculate playground rect
     R_Rect playfield = get_playfield_rect();
 
-    if (auto [mx,my,ok] = get_mouse_pointer_position(shared->window); ok) {
-        vec2 p = playfield_from_window(mx, my);
-
-        f32 s = UI_SCALE * 0.25f;
-        vec4 c = vec4(1.f, 0.f, 1.f, 1.f);
-        vec4 d = vec4(1.f, 1.f, 0.f, 1.f);
-        draw_quad(p.x - s, p.y - s, s*2.f, s*2.f,  c, d, c, d);
-    }
-
-
-
+    // Append received immediate quads to render thread's local storage.
+    u32 n = min(data->num_quads, (u32)R_MAX_QUADS - num_immediate_quads);
+    memcpy(immediate_quads + num_immediate_quads, data->quads, n * sizeof(immediate_quads[0]));
+    num_immediate_quads += n;
 
     // Execute render passes.
     // Passes are sorted and "really" executed afterward.
@@ -346,15 +331,17 @@ void r_render(Game_State *g, f64 refresh_dt)
         info.y = playfield.y;
         info.w = playfield.w;
         info.h = playfield.h;
-        info.game_state = g;
+        info.game_state = data->game_state;
 
         R_Pass *pass = r->passes[i];
         pass->execute(pass, info);
     }
 
+    // Reset immediate quads
+    num_immediate_quads = 0;
 
     // Sorting and submission are done here.
-    gfx_end(g->time, gfx->info.vsync_off ? 0 : 1);
+    gfx_end(data->game_state->time, gfx->info.vsync_off ? 0 : 1);
 }
 
 void r_entry(void *param)
@@ -431,9 +418,8 @@ void r_entry(void *param)
             condvar_wake_all(&ring->condvar);
             mutex_unlock(&ring->mutex);
 
-
             f64 refresh_dt = 1.0 / 120.0; // @Temporary
-            r_render(entry->game_state, refresh_dt);
+            r_end(entry, refresh_dt);
 
         } mutex_unlock(&entry->mutex);
 

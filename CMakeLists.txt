@@ -113,7 +113,7 @@ add_library(rts_engine STATIC
     src/gfx/gfx.cpp
 
     src/renderer/renderer.cpp
-    src/renderer/draw.cpp
+    src/renderer/immediate.cpp
 
     src/shader_compiler/slang/slang.cpp
 
@@ -126,6 +126,8 @@ add_library(rts_engine STATIC
     src/game.cpp
     src/shared.cpp
     src/material/material.cpp
+
+    src/console.cpp
 
 
     src/renderer/pass/geometry.cpp

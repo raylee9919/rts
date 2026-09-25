@@ -7,10 +7,18 @@
 #include "os/os.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
+#include "variables.h"
+#include "renderer/immediate.h"
 #include "shaders/shared/shared.h"
 
 #define R_DEPTH_FORMAT  RHI_FORMAT_D32F
 #define R_COLOR_FORMAT  RHI_FORMAT_RGBA16F
+
+// @Temporary
+#define RESOLUTION_X 2560
+#define RESOLUTION_Y 1440
+#define UI_SCALE     ((f32)RESOLUTION_X / 256.f)
+
 
 struct Game_State;
 struct Camera;
@@ -72,6 +80,9 @@ enum Render_Pass : u32 {
 struct Render_Entry {
     Mutex           mutex;
     Game_State     *game_state;
+
+    R_Quad          quads[R_MAX_QUADS];
+    u32             num_quads;
 };
 
 struct Render_SPSC_Queue {
@@ -155,8 +166,7 @@ extern Renderer *renderer;
 
 GPU_Camera gpu_camera_from_game(Camera *camera);
 
-void       r_render(Game_State *g, f64 refresh_dt);
-void       r_entry(void *param);
+void r_entry(void *param);
 
 
 void r_pipeline_create(Guid id,
@@ -165,5 +175,7 @@ void r_pipeline_create(Guid id,
                        R_Shading_Model shading_model);
 void r_pipeline_destroy(Guid id);
 
+
+vec2 playfield_from_window(f32 x, f32 y);
 
 #endif // RTS_RENDERER_H

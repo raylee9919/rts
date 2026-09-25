@@ -1,12 +1,15 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#include "./dwrite_core.h"
+#include "basic/core.h"
+#include "profiler/profiler.h"
 
-// @Todo: Seems like COM is leaking our precious memory.
+extern Fp_State *fp_state;
+
+// @Fix: Seems like COM is leaking our precious memory.
 
 
-internal Fp_State *
-fp_alloc(void)
-{
+Fp_State *fp_alloc(void) {
     Arena *arena = arena_alloc();
     Fp_State *result = push_struct(arena, Fp_State);
     result->arena = arena;
@@ -14,16 +17,15 @@ fp_alloc(void)
     return result;
 }
 
-internal void
-fp_init(void)
+void fp_init(void)
 {
-    // @Todo: Make this modifiable to according dpi.
+    // @Todo: DPI
     fp_state->dpi = 96.0f;
 
-    WCHAR *default_locale = L"en-US";
+    const WCHAR default_locale[] = L"en-US";
     if (! GetUserDefaultLocaleName(fp_state->locale, array_count(fp_state->locale)))
     {
-        memory_copy(fp_state->locale, default_locale, sizeof(default_locale)); 
+        memcpy(fp_state->locale, default_locale, sizeof(default_locale)); 
     }
 
     if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(fp_state->factory), (IUnknown **)&fp_state->factory)))
@@ -78,8 +80,7 @@ fp_init(void)
     fp_state->run_arena = arena_alloc();
 }
 
-internal void
-fp_add_font_from_memory(void *data, u64 size)
+void fp_add_font_from_memory(void *data, u64 size)
 {
     IDWriteFontFile *font_file;
     if (FAILED(fp_state->in_memory_font_file_loader->CreateInMemoryFontFileReference(fp_state->factory, data, (UINT32)size, NULL, &font_file)))
@@ -88,7 +89,7 @@ fp_add_font_from_memory(void *data, u64 size)
     }
 }
 
-internal Dwrite_Font_Fallback_Result
+Dwrite_Font_Fallback_Result
 dwrite_font_fallback(IDWriteFontFallback1 *font_fallback, IDWriteFontCollection *font_collection, WCHAR *base_family,
                      WCHAR *text, u32 text_length)
 {
@@ -102,17 +103,18 @@ dwrite_font_fallback(IDWriteFontFallback1 *font_fallback, IDWriteFontCollection 
                                  NULL, 0,
                                  &result.length, &dummy_scale, &result.face);
 
-    // @Todo: If no font contains the given codepoints MapCharacters() will return a NULL font_face.
-    //        We need to replace them with ? glyphs, which this code doesn't do yet (by convention that's glyph index 0 in any font).
+    // @Todo:
+    // If no font contains the given codepoints MapCharacters() will
+    // return a NULL font_face. We need to replace them with ? glyphs, which
+    // this code doesn't do yet (by convention that's glyph index 0 in any
+    // font).
     R_ASSERT(result.face);
 
     src.Release();
     return result;
 }
 
-internal Fp_Font *
-dwrite_get_font_entry(IDWriteFontFace5 *face)
-{
+Fp_Font *dwrite_get_font_entry(IDWriteFontFace5 *face) {
     Fp_Font *result = NULL;
 
     u64 slot = int_from_ptr(face) % fp_state->font_table_size;
@@ -128,9 +130,7 @@ dwrite_get_font_entry(IDWriteFontFace5 *face)
     return result;
 }
 
-internal Fp_Glyph *
-dwrite_get_glyph(Fp_Font *font, u16 index)
-{
+Fp_Glyph *dwrite_get_glyph(Fp_Font *font, u16 index) {
     Fp_Glyph *result = NULL;
 
     u64 slot = index % font->glyph_table_size;
@@ -146,9 +146,7 @@ dwrite_get_glyph(Fp_Font *font, u16 index)
     return result;
 }
 
-internal Fp_Font *
-dwrite_font_alloc(IDWriteFontFace5 *face)
-{
+Fp_Font *dwrite_font_alloc(IDWriteFontFace5 *face) {
     u64 slot = int_from_ptr(face) % fp_state->font_table_size;
 
     Fp_Font *font = push_struct(fp_state->arena, Fp_Font);
@@ -161,7 +159,7 @@ dwrite_font_alloc(IDWriteFontFace5 *face)
 // @Note: Determines the longest run of characters that map 1:1 to glyphs without
 //        ambiguity. In that case, it returns TRUE and you can immediately use indices.
 //        Otherwise, perform full glyph shaping.
-internal Dwrite_Map_Complexity_Result
+Dwrite_Map_Complexity_Result
 dwrite_map_complexity(Arena *arena, IDWriteFontFace *face,
                       WCHAR *text, u32 text_length)
 {
@@ -184,8 +182,7 @@ dwrite_map_complexity(Arena *arena, IDWriteFontFace *face,
     return result;
 }
 
-internal Fp_Run *
-dwrite_runs_from_string(String string, String base_family8, f32 font_size)
+Fp_Run *dwrite_runs_from_string(String string, String base_family8, f32 font_size)
 {
     ProfileScope;
 
@@ -429,8 +426,7 @@ dwrite_runs_from_string(String string, String base_family8, f32 font_size)
     return run_first;
 }
 
-internal void
-fp_pack_run(Fp_Run *run, b32 is_cleartype)
+void fp_pack_run(Fp_Run *run, b32 is_cleartype)
 {
     ProfileScope;
 
@@ -666,8 +662,7 @@ fp_pack_run(Fp_Run *run, b32 is_cleartype)
     scratch_end(scratch);
 }
 
-internal Fp_Draw_String_Result
-fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb)
+Fp_Draw_String_Result fp_draw_string(String string, String base_family, f32 font_size, v2 origin, Render_String_Flags flags, AABB2 cull_aabb)
 {
     ProfileScope;
 

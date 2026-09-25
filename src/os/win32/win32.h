@@ -18,19 +18,6 @@
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "rpcrt4")
 
-// DXGI
-#pragma comment(lib, "dxgi")
-#pragma comment(lib, "dxguid")
-
-// D3D12
-#pragma comment(lib, "d3d12")
-
-// PIX
-#if BUILD_PROFILE
-# define USE_PIX 1
-# pragma comment(lib, "WinPixEventRuntime")
-#endif
-
 typedef CRITICAL_SECTION Critical_Section;
 
 

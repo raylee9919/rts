@@ -14,10 +14,15 @@
 #include "asset/asset.h"
 #include "asset/mesh.h"
 #include "animation/animation.h"
+#include "renderer/immediate.h"
 #include "audio/audio.h"
 #include "shared.h"
 #include "material/material.h"
+
+#include "console.h"
+
 #include "third_party/xxhash3/xxhash.h"
+
 
 static b8 key_w = 0;
 static b8 key_a = 0;
@@ -133,6 +138,10 @@ void input_process()
             if (event.key_code == 'D')  key_d = event.key_pressed;
             if (event.key_code == 'Q')  key_q = event.key_pressed;
             if (event.key_code == 'E')  key_e = event.key_pressed;
+
+            if (event.key_code == '`' && event.key_pressed) {
+                ToggleConsole();
+            }
 
         } else if (event.type == EVENT_DRAG_AND_DROP_FILES) {
 
@@ -280,6 +289,10 @@ int main_entry(int argc, char **argv)
         input_process();
 
 
+        // Development
+        UpdateConsole(dt);
+
+
         // Tick with fixed timestep
         for (u32 counter = 0; accumulator >= dt && counter < 10; counter += 1) {
             ProfileScopeN("TickGame");
@@ -297,6 +310,12 @@ int main_entry(int argc, char **argv)
             mutex_lock(&entry->mutex);
 
             game_copy(entry->game_state, game_state);
+
+            // Copy immediate quads and the counter
+            memcpy( entry->quads, immediate_quads, num_immediate_quads * sizeof(immediate_quads[0]) );
+            entry->num_quads = num_immediate_quads;
+            num_immediate_quads = 0;
+
             ring->write_idx = (ring->write_idx + 1) % array_count(ring->entries);
 
             mutex_unlock(&entry->mutex);

@@ -1081,7 +1081,7 @@ Triplet<u32,u32,b32> window_size(OS_Handle window) {
     return {x,y,true};
 }
 
-static Triplet<s64,s64,b32> _get_mouse_pointer_position(HWND hwnd, bool right_handed) {
+static Triplet<s64,s64,b32> _get_mouse_pointer_position(HWND hwnd) {
     POINT p = {};
     BOOL ok = GetCursorPos(&p);
     if (!ok) {
@@ -1093,24 +1093,12 @@ static Triplet<s64,s64,b32> _get_mouse_pointer_position(HWND hwnd, bool right_ha
         return {0,0,false};
     }
 
-    if (right_handed) {
-        RECT rect = {};
-        GetClientRect(hwnd, &rect);
-        LONG h = rect.bottom - rect.top;
-        p.y = h - p.y;
-    }
-
     return {p.x, p.y, true};
 }
 
-Triplet<s64,s64,b32> get_mouse_pointer_position(OS_Handle window, b32 right_handed) {
+Triplet<s64,s64,b32> get_mouse_pointer_position(OS_Handle window) {
     HWND hwnd = hwnd_from_os_handle(window);
-    return _get_mouse_pointer_position(hwnd, right_handed);
-}
-
-Triplet<s64,s64,b32> get_mouse_pointer_position(b32 right_handed) {
-    HWND hwnd = GetActiveWindow();
-    return _get_mouse_pointer_position(hwnd, right_handed);
+    return _get_mouse_pointer_position(hwnd);
 }
 
 void* get_native_window_handle(OS_Handle window) {

@@ -577,10 +577,10 @@ bool d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning, Al
 
     // Create RTV and DSV heap.
     // @Todo: growable?
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         1024, allocator)) return false;
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_DSV,          512, allocator)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->rtv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_RTV,          256, allocator)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->dsv_heap,      D3D12_DESCRIPTOR_HEAP_TYPE_DSV,           32, allocator)) return false;
     if (!d3d12_descriptor_heap_init(d3d12, &d3d12->resource_heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2048, allocator)) return false;
-    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->sampler_heap,  D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,      256, allocator)) return false;
+    if (!d3d12_descriptor_heap_init(d3d12, &d3d12->sampler_heap,  D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,       16, allocator)) return false;
 
 
     // Create command queues.
