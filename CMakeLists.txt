@@ -127,6 +127,9 @@ add_library(rts_engine STATIC
     src/shared.cpp
     src/material/material.cpp
 
+    src/font/harfbuzz/harfbuzz.cpp
+    src/font/harfbuzz/font.cpp
+
     src/development/console.cpp
 
 
