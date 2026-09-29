@@ -32,19 +32,31 @@ struct Asset_System {
 
 extern Asset_System *asset_system;
 
-void asset_system_init();
-void asset_system_shutdown();
-void asset_system_init_catalog();
 
-void asset_type_register( Asset_Type_Info info );
+void 
+asset_system_init();
 
-void asset_request( Guid id );
-void asset_drop( Guid id );
+void 
+asset_system_shutdown();
 
-bool assest_type_info_cmp(Asset_Type_Info a, Asset_Type_Info b);
+void 
+asset_type_register( Asset_Type_Info info );
 
-String asset_shortname( String path );
-Guid   asset_id_from_path( String path );
+void 
+asset_request( Guid id );
+
+void 
+asset_drop( Guid id );
+
+bool 
+asset_type_info_cmp(Asset_Type_Info a, 
+                    Asset_Type_Info b);
+
+String 
+asset_shortname( String path );
+
+Guid   
+asset_id_from_path( String path );
 
 
 #endif // RTS_ASSET_H

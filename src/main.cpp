@@ -250,11 +250,6 @@ int main_entry(int argc, char **argv)
     }
 
 
-    // @Temporary
-    auto [success, font] = font_create_from_file(S("font/FiraCode-Medium.ttf"), 32);
-    R_ASSERT(success);
-
-    
     // Game loop
     while ( !shared->should_close ) 
     {
@@ -298,12 +293,6 @@ int main_entry(int argc, char **argv)
             accumulator -= dt;
             game_tick(game_state, dt);
         }
-
-
-        // @Temporary
-        draw_string(tprint(S("CPU: %.2fms"), time_elapsed*1000.f), 
-                    &font,
-                    vec4(1.f, 1.0f, 0.3f, 1.f));
 
 
         { // Push state to render thread

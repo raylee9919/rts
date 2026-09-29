@@ -348,24 +348,28 @@ upload_atlas_if_dirty()
   font:  font to use
   color: color of the string
 */
-void
-draw_string(String str, 
-            Font  *font,
-            vec4   color)
+Pair<s32, s32>
+draw_text(String str, 
+          Font  *font,
+          vec4   color)
 {
-    s32 pen_x = 0, pen_y = 600; // @Temporary
-
     Font_System *sys = get_font_system();
+
+    s32 pen_x = 0, pen_y = 80;
+
+    // @Fix: It skips whitespaces at the end of each line.
+    s32 min_x = INT32_MAX;
+    s32 max_x = INT32_MIN;
+    s32 min_y = INT32_MAX;
+    s32 max_y = INT32_MIN;
+
     Array<Shaped_Glyph> glyphs = shape_string(str, font, S("en"), tctx.temp, pen_x, pen_y);  // @Todo: script automation
 
     for (Shaped_Glyph& glyph : glyphs) 
     {
         // Find glyph bitmap cache, and if doesn't exist, rasterize new one
         Glyph_Cache *cache = table_find_pointer(&font->glyph_cache, glyph.id);
-        if ( !cache ) {
-            raster_glyph(font, glyph.id);
-        }
-
+        if (!cache) raster_glyph(font, glyph.id);
         cache = table_find_pointer(&font->glyph_cache, glyph.id);
         R_ASSERT(cache);
 
@@ -380,16 +384,23 @@ draw_string(String str,
         vec2 uv1 = vec2(cache->min_uv.x, cache->max_uv.y);
         vec2 uv2 = vec2(cache->max_uv.x, cache->min_uv.y);
         vec2 uv3 = cache->max_uv;
-        f32 x = glyph.origin_x + cache->left;
-        f32 y = glyph.origin_y - cache->top;
-        f32 w = cache->width;
-        f32 h = cache->height;
+        s32 x = glyph.origin_x + cache->left;
+        s32 y = glyph.origin_y - cache->top;
+        s32 w = cache->width;
+        s32 h = cache->height;
         draw_quad(x, y, w, h,
                   uv0, uv1, uv2, uv3, 
                   color, color, color, color,
                   sys->atlas);
+
+        min_x = min(min_x, x);
+        min_y = min(min_y, y);
+        max_x = max(max_x, x + w);
+        max_y = max(max_y, y + h);
     }
-
-
+    
     upload_atlas_if_dirty();
+
+    if (min_x > max_x) return { 0, 0 };
+    else               return { max_x - min_x, max_y - min_y };
 }

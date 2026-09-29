@@ -50,10 +50,10 @@ font_create_from_file(String file, s32 font_size);
 void 
 font_destroy(Font *font);
 
-void
-draw_string(String str, 
-            Font  *font,
-            vec4   color);
+Pair<s32, s32>
+draw_text(String str, 
+          Font  *font,
+          vec4   color);
 
 
 #endif // RTS_FONT_H

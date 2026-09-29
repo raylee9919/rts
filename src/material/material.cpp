@@ -35,7 +35,8 @@ static u64 get_align(M_FieldType type) {
     return material_field_type_size_align[type].y;
 }
 
-void write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material) 
+void 
+write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material) 
 {
     // With each field's type, offset and size, we 
     // can convert and wrtie data to GPU-side buffer.
@@ -60,7 +61,8 @@ void write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material)
     }
 }
 
-static String get_material_shortname(String path)
+static String 
+get_material_shortname(String path)
 {
     // @Robustness
     String short_name = path;
@@ -82,7 +84,9 @@ static String get_material_shortname(String path)
     return String{ dst, len };
 }
 
-static M_FieldType convert_type(Shader_Field_Type type, b32 is_gpu) {
+static M_FieldType 
+convert_type(Shader_Field_Type type, b32 is_gpu) 
+{
     switch (type) {
         case SHADER_FIELD_INT8:    return M_FIELD_S8;
         case SHADER_FIELD_INT16:   return M_FIELD_S16;
@@ -103,7 +107,9 @@ static M_FieldType convert_type(Shader_Field_Type type, b32 is_gpu) {
     }
 }
 
-Pair<b32, M_TypeInfo> get_material_type_info(Shader_Compiler *shader_compiler, String filepath)
+Pair<b32, M_TypeInfo> 
+get_material_type_info(Shader_Compiler *shader_compiler, 
+                       String filepath)
 {
     auto [reflect_ok, mtl] = shader_reflect_material(shader_compiler, filepath);
     if ( !reflect_ok ) {
@@ -147,11 +153,12 @@ Pair<b32, M_TypeInfo> get_material_type_info(Shader_Compiler *shader_compiler, S
     return {true, type_info};
 }
 
-b32 material_system_init(String material_shader_dir, 
-                         Shader_Compiler *shader_compiler) 
+b32 
+material_system_init(String material_shader_dir, 
+                     Shader_Compiler *shader_compiler) 
 {
     // Assign allocators
-    material_system_allocator = {crt_proc, nullptr};
+    material_system_allocator     = {crt_proc, nullptr};
     material_type_table.allocator = material_system_allocator;
     material_table.allocator      = material_system_allocator;
 
@@ -206,28 +213,36 @@ b32 material_system_init(String material_shader_dir,
     return true;
 }
 
-void material_system_shutdown()
+void 
+material_system_shutdown()
 {
     destroy(material_system_allocator);
 }
 
 // @Todo: Entities can share a material, thus we can't 
 // blindly alloc/dealloc material.
-M_Entry *alloc_material(Guid id) {
+M_Entry *
+alloc_material(Guid id) 
+{
     M_Entry *entry = table_add(&material_table, id, {});
     return entry;
 }
 
 // @Todo: This too
-void free_material(Guid id) {
+void 
+free_material(Guid id) 
+{
     table_remove(&material_table, id);
 }
 
-M_Entry *material_from_guid(Guid id) {
+M_Entry *
+material_from_guid(Guid id) 
+{
     return table_find_pointer(&material_table, id);
 }
 
-void upload_material(Guid id) 
+void 
+upload_material(Guid id) 
 {
     M_Entry *entry = table_find_pointer(&material_table, id);
     R_ASSERT(entry);
@@ -253,7 +268,8 @@ void upload_material(Guid id)
     }
 }
 
-void material_load_proc( String filepath, String short_name, void *user_data )
+void 
+material_load_proc( String filepath, String short_name, void *user_data )
 {
     auto parse_string = [](Text_File_Handler *handler, String val) -> Pair<b32, String> {
         if (val.len <= 2) { 
@@ -427,7 +443,8 @@ void material_load_proc( String filepath, String short_name, void *user_data )
     upload_material(alloc_id);
 }
 
-void image_load_proc( String filepath, String short_name, void *user_data )
+void 
+image_load_proc( String filepath, String short_name, void *user_data )
 {
     String contents = read_entire_file(filepath, tctx.temp);
     Bitmap bitmap   = bitmap_import(contents.str, contents.len);
@@ -450,7 +467,10 @@ void image_load_proc( String filepath, String short_name, void *user_data )
     bitmap_free(&bitmap);
 }
 
-void texture_load_proc( String filepath, String short_name, void *user_data )
+void 
+texture_load_proc(String filepath, 
+                  String short_name, 
+                  void  *user_data)
 {
     // '.texture' is our own cooked format: four ASCII header lines - bytes per
     // channel, channel count, width, height - then a raw uncompressed pixel blob.
@@ -532,7 +552,9 @@ void texture_load_proc( String filepath, String short_name, void *user_data )
     gfx_texture_upload(id, desc.format, bitmap.data, (u32)bitmap.size, bitmap.width, bitmap.height);
 }
 
-static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit) {
+static RHI_Format 
+bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit) 
+{
     if (is_hdr) {
         R_ASSERT(!"X"); // @Todo: HDR
     } else if (is_16_bit) {
@@ -549,7 +571,9 @@ static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_
     return RHI_FORMAT_UNKNOWN;
 }
 
-static Bitmap bitmap_import(void *loaded_data, u64 size) {
+static Bitmap 
+bitmap_import(void *loaded_data, u64 size) 
+{
     Bitmap result = {};
 
     u8 *data = (u8*)loaded_data;
