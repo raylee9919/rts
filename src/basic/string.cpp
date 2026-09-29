@@ -596,7 +596,9 @@ s64 find_index_of_any_from_right(String s, String bytes) {
     return -1;
 }
 
-Triplet<b32, String, String> split_from_left(String s, u8 byte) {
+Triplet<b32, String, String>
+split_from_left(String s, u8 byte) 
+{
     s64 index = find_index_from_left(s, byte);
     if ( index == -1 ) return { false, {}, {} };
 
@@ -605,7 +607,9 @@ Triplet<b32, String, String> split_from_left(String s, u8 byte) {
     return { true, left, right };
 }
 
-Triplet<b32, String, String> split_from_right(String s, u8 byte) {
+Triplet<b32, String, String>
+split_from_right(String s, u8 byte) 
+{
     s64 index = find_index_from_right(s, byte);
     if ( index == -1 ) return { false, {}, {} };
 

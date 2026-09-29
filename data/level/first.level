@@ -1,0 +1,14 @@
+[1] # Version
+
+width  : 100.
+height : 100.
+
+this_is_int : 1219;
+
+this_is_string : "Hello, World"
+
+this_is_int_array : int [3] : (2, 4, 8)
+
+this_is_float_array : float32 [3] : (3., 6., 9.)
+
+

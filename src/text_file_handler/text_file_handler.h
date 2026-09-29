@@ -24,7 +24,10 @@ struct Text_File_Handler {
     Pair<String, b32> consume_next_line();
 };
 
-Pair<String, b32> consume_next_line(String *sp);
-Pair<String, String> break_by_spaces(String line);
+Pair<String, b32> 
+consume_next_line(String *sp);
+
+Pair<String, String> 
+break_by_spaces(String line);
 
 #endif // RTS_TEXT_FILE_HANDLER_H

@@ -4,6 +4,7 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "shared.h"
+#include "text_file_handler/text_file_handler.h"
 #include "material/material.h"
 #include "asset/mesh.h"
 #include "animation/animation.h"

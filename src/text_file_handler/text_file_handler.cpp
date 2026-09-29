@@ -4,7 +4,8 @@
 #include "./text_file_handler.h"
 #include "basic/log.h"
 
-void Text_File_Handler::start(String in_file_data) 
+void 
+Text_File_Handler::start(String in_file_data) 
 {
     file_data = in_file_data;
 
@@ -44,7 +45,8 @@ void Text_File_Handler::start(String in_file_data)
     }
 }
 
-Pair<String, b32> Text_File_Handler::consume_next_line()
+Pair<String, b32> 
+Text_File_Handler::consume_next_line()
 {
     while (true)
     {
@@ -82,7 +84,8 @@ Pair<String, b32> Text_File_Handler::consume_next_line()
     }
 }
 
-Pair<String, b32> consume_next_line(String *pstr) 
+Pair<String, b32> 
+consume_next_line(String *pstr) 
 {
     String s = *pstr;
     auto [found, left, right] = split_from_left(s, 10); // LF
@@ -107,7 +110,8 @@ Pair<String, b32> consume_next_line(String *pstr)
     return { left, true };
 }
 
-Pair<String, String> break_by_spaces(String line) 
+Pair<String, String> 
+break_by_spaces(String line) 
 {
     String left = line;
     String right = eat_until_space(line);
