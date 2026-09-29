@@ -4,7 +4,6 @@
 #include "shared.h"
 #include "shader_compiler/shader.h"
 #include "renderer/immediate.h"
-#include "variables.h"
 
 R_PASS_INIT( RenderPassInit_UI )
 {
@@ -138,6 +137,7 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
         u32 base_index = gfx_backbuffer_index() * R_MAX_QUADS;
 
         R_Pass_UI::Push_Constants pc = {};
+        pc.dot_sampler_id    = gfx->dot_sampler.bindless;
         pc.linear_sampler_id = gfx->linear_sampler.bindless;
         pc.buffer_id         = pass->quad_view.bindless;
         pc.base_index        = base_index;
@@ -153,7 +153,6 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
 
             R_Quad quad = immediate_quads[i];
             auto *dst = (R_Pass_UI::Quad*)pass->quad_ptr + base_index + i;
-            dst->texture_id = GFX_INVALID_BINDLESS;
 
             for (int v = 0; v < 4; ++v) {
                 dst->position[v].x = quad.vertices[v].x;
@@ -165,6 +164,8 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
                 dst->color[v].y = quad.colors[v].y;
                 dst->color[v].z = quad.colors[v].z;
                 dst->color[v].w = quad.colors[v].w;
+
+                dst->texture_id = gfx_srv_bindless_from_texture(quad.texture);
             }
         }
 

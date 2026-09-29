@@ -141,10 +141,6 @@ void input_process()
             if (event.key_code == 'Q')  key_q = event.key_pressed;
             if (event.key_code == 'E')  key_e = event.key_pressed;
 
-            if (event.key_code == '`' && event.key_pressed) {
-                ToggleConsole();
-            }
-
         } else if (event.type == EVENT_DRAG_AND_DROP_FILES) {
 
         }
@@ -154,7 +150,6 @@ void input_process()
 
 int main_entry(int argc, char **argv)
 {
-    // Init shared state. Threads share this state.
     shared_init();
 
     // Init timers
@@ -253,6 +248,12 @@ int main_entry(int argc, char **argv)
             E->animation_player = knight_player;
         }
     }
+
+
+    // @Temporary
+    auto [success, font] = font_create_from_file(S("font/FiraCode-Medium.ttf"), 32);
+    R_ASSERT(success);
+
     
     // Game loop
     while ( !shared->should_close ) 
@@ -297,6 +298,12 @@ int main_entry(int argc, char **argv)
             accumulator -= dt;
             game_tick(game_state, dt);
         }
+
+
+        // @Temporary
+        draw_string(tprint(S("CPU: %.2fms"), time_elapsed*1000.f), 
+                    &font,
+                    vec4(1.f, 1.0f, 0.3f, 1.f));
 
 
         { // Push state to render thread

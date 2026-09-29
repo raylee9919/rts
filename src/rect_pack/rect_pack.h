@@ -1,11 +1,11 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
+#ifndef RTS_RECT_PACK_H
+#define RTS_RECT_PACK_H
+
 //
 // Skyline-based rectangle packing.
 //
-
-#ifndef RTS_RECT_PACK_H
-#define RTS_RECT_PACK_H
 
 #include "basic/core.h"
 #include "basic/arena.h"
@@ -28,14 +28,20 @@ struct Rpk_Context {
 
 struct Rpk_Result {
     u32 x, y;
-    b16 did_fit;
+    b32 did_fit;
 };
 
-//
-// API
-//
-void         rpk_init(Rpk_Context *ctx, Arena *arena, u32 w, u32 h);
-Rpk_Result   rpk_do(Rpk_Context *ctx, u32 w, u32 h);
+
+void 
+rpk_init(Rpk_Context *ctx, 
+         Arena       *arena, 
+         u32          width, 
+         u32          height);
+
+Rpk_Result 
+rpk_pack(Rpk_Context *ctx, 
+         u32          width, 
+         u32          height);
 
 
 #endif // RTS_RECT_PACK_H

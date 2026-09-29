@@ -16,6 +16,7 @@
 #include <shlobj.h>
 #include <Xinput.h>
 #include <psapi.h>
+#include <icu.h>
 #include <uxtheme.h>
 #include <vssym32.h>
 #include <dxgi1_6.h>

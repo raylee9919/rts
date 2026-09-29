@@ -257,10 +257,16 @@ RHI_Texture_View *gfx_srv_from_texture(Guid guid);
 // Get UAV from texture GUID. Returns nullptr if texture doesn't exist or UAV wasn't created.
 RHI_Texture_View *gfx_uav_from_texture(Guid guid);
 
-// Get bindless handle of SRV from texture GUID. returns GFX_INVALID_BINDLESS if it doesn't exist.
+/*
+  Returns SRV handle of the input texture.
+  If not exist, returns 'GFX_INVALID_BINDLESS'
+*/
 u32 gfx_srv_bindless_from_texture(Guid guid);
 
-// Get bindless handle of UAV from texture GUID. returns GFX_INVALID_BINDLESS if it doesn't exist.
+/*
+  Returns UAV handle of the input texture.
+  If not exist, returns 'GFX_INVALID_BINDLESS'
+*/
 u32 gfx_uav_bindless_from_texture(Guid guid);
 
 // The last pass state you set will be submitted to the GPU. The system isn't

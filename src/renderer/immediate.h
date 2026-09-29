@@ -4,19 +4,26 @@
 #define RTS_RENDERER_IMMEDIATE_H
 
 #include "math/math.h"
-#include "variables.h"
+#include "os/os.h"
+
+#define R_MAX_QUADS 2048
 
 struct R_Quad {
     vec2 vertices[4];
     vec2 uvs[4];
     vec4 colors[4];
+    Guid texture;
 };
 
 void draw_quad(vec2 p0, vec2 p1, vec2 p2, vec2 p3,
-               vec4 c0, vec4 c1, vec4 c2, vec4 c3);
+               vec2 uv0, vec2 uv1, vec2 uv2, vec2 uv3,
+               vec4 c0, vec4 c1, vec4 c2, vec4 c3,
+               Guid texture);
 
 void draw_quad(f32 x, f32 y, f32 w, f32 h, 
-               vec4 c0, vec4 c1, vec4 c2, vec4 c3);
+               vec2 uv0, vec2 uv1, vec2 uv2, vec2 uv3,
+               vec4 c0, vec4 c1, vec4 c2, vec4 c3, 
+               Guid texture);
 
 void draw_line(vec2 p0, vec2 p1, vec4 c, f32 thickness);
 

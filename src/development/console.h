@@ -15,7 +15,7 @@ struct Console {
 
 extern Console console;
 
-void ToggleConsole();
-void UpdateConsole(f32 dt);
+void console_toggle();
+void console_update(f32 dt);
 
 #endif // RTS_CONSOLE_H

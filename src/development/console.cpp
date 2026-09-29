@@ -7,28 +7,29 @@
 
 Console console;
 
-static void OpenConsole()
+static void console_open()
 {
     console.open = true;
 }
 
-static void CloseConsole()
+static void console_close()
 {
     console.open = false;
 }
 
-void ToggleConsole()
+void console_toggle()
 {
+    print(S("toggle"));
     if (console.open) {
         log_info(S("Close console."));
-        CloseConsole();
+        console_close();
     } else {
         log_info(S("Open console."));
-        OpenConsole();
+        console_open();
     }
 }
 
-void UpdateConsole(f32 dt)
+void console_update(f32 dt)
 {
     if (console.open) {
         console.t = clamp(console.t + dt, 0.0f, console.open_t);
@@ -44,5 +45,7 @@ void UpdateConsole(f32 dt)
               vec2(0.0f, t * height), 
               vec2(RESOLUTION_X, 0.0f), 
               vec2(RESOLUTION_X, t * height), 
-              color, color, color, color);
+              vec2(0.f, 0.f), vec2(0.f, 1.f), vec2(1.f, 0.f), vec2(1.f, 1.f),
+              color, color, color, color,
+              NULL_GUID);
 }

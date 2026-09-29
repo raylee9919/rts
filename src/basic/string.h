@@ -42,7 +42,9 @@ struct String {
     }
 
     u8 operator [] (s64 i) { R_ASSERT(i < len); return str[i]; }
-    explicit operator bool() const { return str && (*str) && len > 0; }
+    explicit operator bool() const {
+        return str && len > 0; 
+    }
 };
 
 struct Utf16 {

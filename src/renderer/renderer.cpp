@@ -2,7 +2,6 @@
 
 #include "renderer/renderer.h"
 #include "basic/context.h"
-#include "basic/log.h"
 #include "gfx/gfx.h"
 #include "math/math.h"
 #include "os/os.h"
@@ -29,7 +28,8 @@ void game_tick(Game_State *g, f64 dt);
 static void r_ring_init();
 static void r_ring_deinit();
 
-GPU_Camera gpu_camera_from_game(Camera *camera)
+GPU_Camera 
+gpu_camera_from_game(Camera *camera)
 {
     GPU_Camera result = {};
 
@@ -45,7 +45,8 @@ GPU_Camera gpu_camera_from_game(Camera *camera)
     return result;
 }
 
-void r_init(void *native_window_handle) 
+void 
+r_init(void *native_window_handle) 
 {
     // @Temporary:
     u32 width  = RESOLUTION_X;
@@ -230,14 +231,17 @@ void r_init(void *native_window_handle)
     atomic_store(&r->initted, true);
 }
 
-void r_shutdown()
+void 
+r_shutdown()
 {
     gfx_mesh_destroy(renderer->fullscreen_triangle_mesh);
     r_ring_deinit();
     destroy(renderer->heap);
 }
 
-static R_Rect get_playfield_rect() {
+static R_Rect 
+get_playfield_rect() 
+{
     R_Rect r;
 
     f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
@@ -255,13 +259,18 @@ static R_Rect get_playfield_rect() {
     return r;
 }
 
-vec2 playfield_from_window(f32 x, f32 y) {
+/*
+  Converts window coordinate to playfield coordinate.
+*/
+vec2 
+playfield_from_window(f32 x, f32 y) {
     R_Rect r = get_playfield_rect();
     return vec2((x - r.x) * (f32)RESOLUTION_X / r.w,
                 (y - r.y) * (f32)RESOLUTION_Y / r.h);
 }
 
-static void r_end(Render_Entry *data, f64 refresh_dt)
+static void 
+r_end(Render_Entry *data, f64 refresh_dt)
 {
     ProfileScope;
 
@@ -514,25 +523,29 @@ void r_pipeline_create(Guid id,
     }
 }
 
-void r_pipeline_destroy(Guid id)
+void 
+r_pipeline_destroy(Guid id)
 {
     gfx_pipeline_destroy(id);
 }
 
-void r_pass_create(R_Pass_Init_Proc *init_proc)
+void 
+r_pass_create(R_Pass_Init_Proc *init_proc)
 {
     R_Pass *pass = init_proc();
     array_add(&renderer->passes, pass);
 }
 
-void r_pass_destroy()
+void 
+r_pass_destroy()
 {
     // @Todo
     // Find pass with name and remove from the array.
     // Then, call the deinit proc of the pass.
 }
 
-static void r_ring_init()
+static void 
+r_ring_init()
 {
     Renderer *r = renderer;
     auto *ring = &r->ring;
@@ -547,7 +560,8 @@ static void r_ring_init()
     }
 }
 
-static void r_ring_deinit() 
+static void 
+r_ring_deinit() 
 {
     Renderer *r = renderer;
     auto *ring = &r->ring;

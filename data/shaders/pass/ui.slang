@@ -40,13 +40,15 @@ VS_Output main_vs(uint vid : SV_VertexID,
 [shader("fragment")]
 float4 main_fs(VS_Output input) : SV_TARGET 
 {
+    if (input.color.a == 0.0) discard;
+
     float4 result = input.color;
 
-    SamplerState linear_sampler = SamplerDescriptorHeap[push.linear_sampler_id];
+    SamplerState dot_sampler = SamplerDescriptorHeap[push.dot_sampler_id];
 
     if (input.texture_id != GFX_INVALID_BINDLESS) {
         Texture2D<float4> tex = ResourceDescriptorHeap[input.texture_id];
-        result *= tex.Sample( linear_sampler, input.uv );
+        result *= tex.Sample( dot_sampler, input.uv );
     }
 
     return result;

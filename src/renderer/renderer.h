@@ -7,7 +7,6 @@
 #include "os/os.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
-#include "variables.h"
 #include "renderer/immediate.h"
 #include "shaders/shared/shared.h"
 
