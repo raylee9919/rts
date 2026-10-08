@@ -71,6 +71,7 @@ target_compile_options(rts_warnings INTERFACE
 
 add_library(rts_third_party STATIC
     src/third_party/xxhash3/xxhash.c
+    src/third_party/ufbx/ufbx.c # @Todo: Shouldn't be included in shipping build.
 )
 if (RTS_PROFILE)
     target_sources(rts_third_party PRIVATE src/third_party/tracy/TracyClient.cpp)
@@ -87,6 +88,7 @@ add_library(rts_engine STATIC
     src/basic/log.cpp
     src/basic/string.cpp
     src/basic/string_builder.cpp
+    src/basic/type.cpp
 
     src/math/math.cpp
 
@@ -126,17 +128,28 @@ add_library(rts_engine STATIC
     src/game.cpp
     src/shared.cpp
     src/material/material.cpp
+    src/level.cpp
 
     src/font/harfbuzz/harfbuzz.cpp
     src/font/harfbuzz/font.cpp
 
     src/development/console.cpp
 
+    src/mesh.cpp
+
+
 
     src/renderer/pass/geometry.cpp
     src/renderer/pass/postprocess.cpp
     src/renderer/pass/ui.cpp
     src/renderer/pass/composition.cpp
+
+
+    src/importer/fbx.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD
+
+    # @Todo: EXCLUDE IN SHIPPING BUILD
+    src/third_party/meshoptimizer/tangentspace.cpp
+    src/third_party/meshoptimizer/indexgenerator.cpp
 )
 target_link_libraries(rts_engine
     PUBLIC  rts_options rts_third_party "${CMAKE_SOURCE_DIR}/src/third_party/slang/lib/slang.lib"

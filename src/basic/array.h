@@ -10,86 +10,121 @@
 template <typename Type>
 struct Array 
 {
-    Type *data      = nullptr;
-    u64  count      = 0;
-    u64  allocated  = 0;
+  Type *data      = nullptr;
+  u64  count      = 0;
+  u64  allocated  = 0;
 
-    Allocator allocator = {};
+  Allocator allocator = {};
 
-    Type& operator [] (u64 idx);
-    const Type& operator [] (u64 idx) const;
+  Type& operator [] (u64 idx);
+  const Type& operator [] (u64 idx) const;
 
-    Type *begin() { return data;         }
-    Type *end()   { return data + count; }
+  Type *begin() { return data;         }
+  Type *end()   { return data + count; }
 };
 
 
 template<typename T>
 T& Array <T>::operator [] (u64 idx) 
 {
-    return data[idx];
+  return data[idx];
 }
 
 template<typename T>
 const T& Array <T>::operator [] (u64 idx) const 
 {
-    return data[idx];
+  return data[idx];
 }
 
 template <typename T>
 void 
 array_add(Array<T>* arr, T item) 
 {
-    if (arr->count >= arr->allocated) {
-        u64 reserve = max(8ull, 2 * arr->count);
-        array_reserve(arr, reserve);
-    }
-    arr->data[arr->count] = item;
-    arr->count += 1;
+  if (arr->count >= arr->allocated) {
+    u64 reserve = max(8ull, 2 * arr->count);
+    array_reserve(arr, reserve);
+  }
+  arr->data[arr->count] = item;
+  arr->count += 1;
 }
 
 template <typename T> 
 b32 
 array_add_unique(Array<T> *arr, T item) 
 {
-    for (u64 i = 0; i < arr->count; ++i) {
-        if (arr->data[i] == item) return false;
-    }
+  for (u64 i = 0; i < arr->count; ++i) {
+    if (arr->data[i] == item) return false;
+  }
 
-    array_add(arr, item);
-    return true;
+  array_add(arr, item);
+  return true;
 }
 
 template <typename T> 
 void 
 array_reserve(Array<T>* arr, u64 desired_count) 
 {
-    if (desired_count <= arr->allocated) return;
+  if (desired_count <= arr->allocated) return;
 
-    if (!arr->allocator.proc) {
-        R_ASSERT(0);
-    }
+  if (!arr->allocator.proc) {
+    R_ASSERT(0);
+  }
 
-    arr->data = (T *)realloc(arr->data, desired_count * sizeof(T), arr->allocated * sizeof(T), arr->allocator);
-    R_ASSERT(arr->data != NULL);
+  arr->data = (T *)realloc(arr->data, desired_count * sizeof(T), arr->allocated * sizeof(T), arr->allocator);
+  R_ASSERT(arr->data != NULL);
 
-    arr->allocated = desired_count;
+  arr->allocated = desired_count;
 }
 
 template <typename T>
 void 
 array_reset_keeping_memory(Array<T>* arr) 
 {
-    arr->count = 0;
+  arr->count = 0;
 }
 
 template <typename T>
 void 
 array_reset(Array<T> *arr) 
 {
-    dealloc(arr->data, arr->allocator);
-    arr->data = NULL;
-    arr->count = 0;
+  dealloc(arr->data, arr->allocator);
+  arr->data = NULL;
+  arr->count = 0;
+}
+
+template <typename T>
+void 
+array_pop_back(Array<T> *arr)
+{
+  R_ASSERT(arr->count > 0);
+  arr->count -= 1;
+}
+
+
+//
+// S t a c k
+//
+template <typename T>
+T
+stack_top(Array<T> *arr)
+{
+  R_ASSERT(arr->count > 0);
+  return arr->data[arr->count - 1];
+}
+
+template <typename T>
+void
+stack_pop(Array<T> *arr)
+{
+  R_ASSERT(arr->count > 0);
+  array_pop_back(arr);
+}
+
+template <typename T>
+void
+stack_push(Array<T> *arr, T item)
+{
+  array_add(arr, item);
 }
 
 

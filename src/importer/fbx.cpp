@@ -1,0 +1,471 @@
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#include "./fbx.h"
+#include "os/os.h"
+#include "basic/log.h"
+#include "basic/queue.h"
+#include "math/math.h"
+#include "mesh.h"
+#include "third_party/ufbx/ufbx.h"
+#include "third_party/meshoptimizer/meshoptimizer.h"
+
+/*
+
+                      ufbx_node  ufbx_mesh  ufbx_material
+
+  .. have 'ufbx_element' as a header. Users can access it, so they kind of
+  "inherit". 'ufbx_element' is equivalent to what FBX calls as 'object' which
+  is an overloaded term.
+
+  FBX's 'Property' is key:value relationship exposed as ufbx_element.props
+  You don't typically access properties directly.
+
+
+                                    Node
+
+  Like any other scenes, 'ufbx_scene' consists of 'ufbx_node's.
+  Talking about hierarchy, it has 'local_transform', 'parent', 'children',
+  'node_to_parent', and 'node_to_world'.
+
+  Nodes are specialized by 'attributes'. As a matter of fact, ufbx_mesh is
+  an attribute.
+
+  Nodes and attributes can reference in either way. For example, ufbx_mesh has
+  array of nodes that use it.
+
+
+                                    Mesh
+                                   / | \
+                             Vertex Index Face
+                                         / | \
+                                     tri quad N-gons
+
+  ufbx_mesh contains ufbx_vertex_attrib. List of attributes follow:
+
+    position  <--  only this isn't optional
+    normal
+    tangent
+    bitangent
+    uv
+    color
+    crease
+
+  As you know, attributes may have multiple values within a single vertex.
+  So a "proper" way to identify attribute is by using index.
+  It is well-documented in the header file, above the ufbx_mesh struct.
+
+  As mesh can be instanced with different material in the scene,
+  you want to look into ufbx_node instead of ufbx_material to extract materials.
+
+
+                                  Animation
+
+  'ufbx_anim_stack' is equivalent to animation clip and contains list of
+  'ufbx_anim_layer'.
+
+  Whatever. 'ufbx_bake_anim' transforms animation into simple linearly
+  interpolated tracks. Iterate over stacks (clips) in the scene.
+
+
+                                   Deformer
+                                   /  |  \
+                               skin blend cache
+
+  We'll just focus on skin deformers.
+  Skeleton = hierarchy of ufbx_nodes with ufbx_bone attribute.
+  Bone influences are defined in clusters (ufbx_skin_cluster).
+  ufbx_skin_cluster.vertices[] and weights[] contain per-vertex weight, and
+  weights are sorted in descending order :)
+
+
+                                  Dependency
+
+  Skeleton doesn't have dependency.
+  Mesh references skeleton.
+  Animation references skeleton.
+
+  Thus, process skeleton first.
+
+
+                               Finding Skeletons
+
+  I want skeletons. Starting from scene->skin_deformers isn't the way.
+  Skin deformer represents relationship between a mesh and *some* bones.
+  That is, even though a skeleton consists of bone A, B and C, a mesh might
+  be referencing only A, so if you want a unique hierarchy of bones, it's
+  better off to start from root node and find for node with bone attribute and
+  regard it as a root bone.
+
+  Or, as ufbx_bone has 'is_root' field, which means the node is a root *bone* 
+  if the field is true, iterating over 'scene->bones' to find root bones is 
+  feasible.
+
+*/
+
+static m4x4
+m4x4_from_ufbx_matrix(ufbx_matrix& m)
+{
+  m4x4 result;
+  result._11 = m.m00;
+  result._12 = m.m01;
+  result._13 = m.m02;
+
+  result._21 = m.m10;
+  result._22 = m.m11;
+  result._23 = m.m12;
+
+  result._31 = m.m20;
+  result._32 = m.m21;
+  result._33 = m.m22;
+
+  result._14 = m.m03;
+  result._24 = m.m13;
+  result._34 = m.m23;
+
+  result._41 = 0.f;
+  result._42 = 0.f;
+  result._43 = 0.f;
+  result._44 = 1.f;
+  return result;
+}
+
+static vec2
+vec2_from_ufbx(ufbx_vec2 v)
+{
+  return vec2((f32)v.x, (f32)v.y);
+}
+
+static vec3
+vec3_from_ufbx(ufbx_vec3 v)
+{
+  return vec3((f32)v.x, (f32)v.y, (f32)v.z);
+}
+
+static void
+fbx_import_mesh_internal(ufbx_node*            node, 
+                         FBX_Import_Options    options, 
+                         Array<Triangle_Mesh>* out_meshes,
+                         Allocator             allocator)
+{
+  Triangle_Mesh m = {};
+  ufbx_mesh *mesh = node->mesh;
+
+
+  if (mesh && 
+      node->attrib_type == UFBX_ELEMENT_MESH && 
+      node->visible)
+  {
+    // @Todo: Iterate over material list and make submeshes out of it...
+
+    // Check if attributes exist. If it doesn't, we'll create manually.
+    b32 has_normal    = mesh->vertex_normal.exists;
+    b32 has_uv        = mesh->vertex_uv.exists;
+
+
+    // Number of triangles if the mesh is fully triangulated.
+    s64 num_tri = mesh->num_triangles;
+    s64 num_indices = num_tri * 3;
+
+
+    // Here's our attributes for the engine.
+    Vertex_Attribute attribs[4] = {
+      { S("position"), VERTEX_ATTRIBUTE_FLOAT32, 3,  0 },
+      { S("uv"),       VERTEX_ATTRIBUTE_FLOAT32, 2, 12 },
+      { S("normal"),   VERTEX_ATTRIBUTE_FLOAT32, 3, 20 },
+      { S("tangent"),  VERTEX_ATTRIBUTE_FLOAT32, 4, 32 },
+    };
+    s64 vertex_size = 48;
+
+
+    // Reserve vertices upfront. Will be deduplicated afterwards.
+    u8 *vertices = alloc(vertex_size*num_indices, tctx.temp);
+
+
+    // Reserve arrays of attributes up to maximum index count.
+    Array<vec3> positions;
+    Array<vec2> uvs;
+    Array<vec3> normals;
+    Array<vec4> tangents;
+
+    positions.allocator = tctx.temp;
+    uvs.allocator       = tctx.temp;
+    normals.allocator   = tctx.temp;
+    tangents.allocator  = tctx.temp;
+
+    array_reserve(&positions, num_indices);
+    array_reserve(&uvs,       num_indices);
+    array_reserve(&normals,   num_indices);
+    array_reserve(&tangents,  num_indices);
+
+
+    // Reserves a temporary buffer with size of a maximum indices 
+    // a triangulated face might hold in this mesh.
+    s64 num_indices_in_face = mesh->max_face_triangles * 3;
+    u32 *indices_in_face    = (u32*)alloc(sizeof(u32) * num_indices_in_face, tctx.temp);
+
+
+    // Iterate over faces in this mesh.
+    for (ufbx_face& face : mesh->faces)
+    {
+      s64 num_tri_in_face = ufbx_triangulate_face(indices_in_face, num_indices_in_face, mesh, face);
+
+      for (s64 i = 0; i < num_tri_in_face*3; ++i)
+      {
+        // Index
+        u32 index = indices_in_face[i];
+
+        // Position
+        vec3 position = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_position, index));
+        array_add(&positions, position);
+
+        // Unlike from normals and tangents, UV isn't 
+        // generated even if it doesn't exist. 
+        // @Todo: use xatlas or something and generate uv
+        vec2 uv = has_uv ? vec2_from_ufbx(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
+        array_add(&uvs, uv);
+
+        // Normal
+        vec3 normal = {};
+        if (has_normal)
+        {
+          normal = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_normal, index));
+          array_add(&normals, normal);
+        }
+      }
+    }
+    R_ASSERT(positions.count == num_indices);
+
+
+    // Generate normals and tangents
+    if (!has_normal && options.generate_normals_with_mesh_optimizer)
+    {
+      float crease_angle = radian_from_degree(60.f);
+      float smoothing    = 3.f;
+      meshopt_generateNormals((float*)normals.data, 
+                              NULL, num_indices,
+                              (float*)positions.data, positions.count, sizeof(positions.data[0]),
+                              crease_angle, smoothing);
+    }
+
+    // I'll just generate tangents myself, without ufbx, 
+    // so I won't worry about handedness.
+    if (has_uv)
+    {
+      meshopt_generateTangents((float*)tangents.data, 
+                               NULL, num_indices, 
+                               (float*)positions.data, positions.count, sizeof(positions.data[0]), 
+                               (float*)normals.data, sizeof(normals.data[0]), 
+                               (float*)uvs.data, sizeof(uvs.data[0]),
+                               0u);
+    }
+    else
+    {
+      log_warning(S("Mesh %s doesn't have UVs, so tangent generation will be skipped."), mesh->name.data);
+    }
+
+
+    // Write attributes
+    for (s64 i = 0; i < num_indices; ++i)
+    {
+      u8 *vertex = vertices + vertex_size*i;
+      memcpy(vertex +  0, &positions.data[i], 12);
+      memcpy(vertex + 12,       &uvs.data[i],  8);
+      memcpy(vertex + 20,   &normals.data[i], 12);
+      memcpy(vertex + 32,  &tangents.data[i], 16);
+    }
+
+
+    //
+    // Afterwards is optimizations, and meshoptimizer does all the heavy work.
+    //
+    // 1. Indexing
+    //
+    //    Since we reserved vertices up to the number of indices,
+    //    it's time to deduplicate vertices.
+    //
+    u32 *remap = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
+    s64 num_vertices = meshopt_generateVertexRemap(remap,
+                                                   NULL, num_indices,
+                                                   vertices, num_indices, vertex_size);
+
+    u32 *new_indices = (u32*)alloc(sizeof(u32)*num_indices, allocator);
+    meshopt_remapIndexBuffer(new_indices, NULL, num_indices, remap);
+
+    u8 *new_vertices = alloc(vertex_size*num_vertices, allocator);
+    meshopt_remapVertexBuffer(new_vertices, vertices, num_indices, vertex_size, remap);
+
+
+    //
+    // Fill in the mesh
+    //
+    m.num_attributes = array_count(attribs);
+    for (s64 i = 0; i < m.num_attributes; ++i)
+    {
+      m.attributes[i] = attribs[i];
+    }
+
+    m.num_vertices = num_vertices;
+    m.vertices     = new_vertices;
+
+    m.num_indices  = num_indices;
+    m.indices      = new_indices;
+
+    array_add(out_meshes, m);
+  }
+
+
+  // Recursion
+  ufbx_node_list children = node->children;
+  for (int i = 0; i < children.count; ++i) 
+  {
+    fbx_import_mesh_internal(children.data[i], options, out_meshes, allocator);
+  }
+}
+
+static Array<Triangle_Mesh>
+fbx_import_mesh(ufbx_node*         node, 
+                FBX_Import_Options options, 
+                Allocator          allocator)
+{
+  Array<Triangle_Mesh> meshes;
+  meshes.allocator = allocator;
+
+  fbx_import_mesh_internal(node, options, &meshes, allocator);
+
+  return meshes;
+}
+
+//
+// Returns an array of skeletons and a boolean 
+// representing whether it was successful.
+//
+static Pair< Array<Skeleton>, b32 >
+fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
+{
+  Array<Skeleton> skeletons = {};
+  skeletons.allocator = allocator;
+
+  for (int i = 0; i < scene->bones.count; ++i)
+  {
+    ufbx_bone *bone = scene->bones[i];
+    if (!bone->is_root)
+      continue;
+
+    // We found the root bone of a skeleton.
+    // Now we can make a skeleton.
+    Array<Joint> joints = {};
+    joints.allocator = tctx.temp;
+
+    if (bone->instances.count == 0)
+    {
+      log_error(S("No instance of the bone: '%s' was found."), bone->name.data);
+      return {{}, false};
+    }
+
+    ufbx_node *root_bone_node = bone->instances[0];
+
+    // BFS 
+    s32 self_index    = -1;
+    s32 unnamed_index = 0;
+
+    Queue <Pair<ufbx_node*, s32>> q;
+    q.array.allocator = tctx.temp;
+    queue_push(&q, {root_bone_node, -1});
+
+    while (q.count != 0)
+    {
+      auto [node, parent] = queue_front(&q);
+      queue_pop(&q);
+
+      Joint joint = {};
+      joint.parent              = parent;
+      joint.local_transform     = m4x4_from_ufbx_matrix(node->node_to_parent);
+      joint.inverse_bind_matrix = m4x4_from_ufbx_matrix(node->geometry_to_node);
+
+      if (!node->name.data || node->name.length == 0)
+      {
+        String unnamed = tprint(S("unnamed_%d"), unnamed_index++);
+        joint.name = make_name(unnamed.str, unnamed.len);
+      }
+      else
+      {
+        joint.name = make_name((u8*)node->name.data, node->name.length);
+      }
+
+      array_add(&joints, joint);
+
+      // This is now my index in the bone list, which will be 
+      // passed to my children.
+      self_index += 1;
+
+      for (s32 ch = 0; ch < node->children.count; ++ch)
+      {
+        queue_push(&q, {node->children[ch], self_index});
+      }
+    }
+
+    // Add the skeleton to the array to be returned.
+    array_add(&skeletons, {});
+    Skeleton *skeleton = &skeletons.data[skeletons.count-1];
+    skeleton->joints = (Joint*)alloc(sizeof(Joint) * joints.count, allocator);
+    skeleton->num_joints = joints.count;
+  }
+
+  return {skeletons, true};
+}
+
+b32
+fbx_import(String filepath, 
+           String output_filepath,
+           FBX_Import_Options options)
+{
+  ufbx_load_opts opts = {};
+  opts.target_unit_meters          = 1.0f;
+  opts.target_axes                 = ufbx_axes_right_handed_y_up;
+  opts.target_camera_axes          = ufbx_axes_right_handed_y_up;
+  opts.target_light_axes           = ufbx_axes_right_handed_y_up;
+  opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; // bakes it into node
+  opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE;
+  opts.generate_missing_normals    = true;
+  opts.evaluate_skinning           = true;
+  opts.clean_skin_weights          = true;
+  opts.normalize_normals           = true;
+  
+  if (options.generate_normals_with_mesh_optimizer) {
+    opts.generate_missing_normals = false;
+  }
+
+
+  String contents = read_entire_file(filepath, tctx.temp);
+  if (!contents)
+  {
+    log_error(S("Failed to read file: '%S'."), filepath);
+    return false;
+  }
+
+  ufbx_error error;
+  ufbx_scene *scene = ufbx_load_memory(contents.str, contents.len, &opts, &error);
+
+  if (!scene) 
+  {
+    log_error(S("Failed to load fbx scene from '%S'. Description from ufbx: %s"), filepath, error.description.data);
+    return false;
+  }
+
+  // @Temporary
+  Allocator allocator = tctx.temp;
+
+  // Import skeletons
+  auto [skeletons, skeletons_success] = fbx_import_skeleton(scene, allocator);
+  if (skeletons_success)
+  {
+    log_info(S("Imported %d skeletons."), skeletons.count);
+  }
+
+  // Import meshes
+  Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, allocator);
+
+  ufbx_free_scene(scene);
+
+  return true;
+}

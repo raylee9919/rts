@@ -21,6 +21,7 @@
 
 /* Development */
 #include "development/console.h"
+#include "importer/fbx.h"
 
 /* Third Party */
 #include "third_party/xxhash3/xxhash.h"
@@ -183,6 +184,18 @@ int main_entry(int argc, char **argv)
 
     // Init camera
     game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
+
+
+
+    // @Temporary
+    // @Temporary
+    // @Temporary
+    FBX_Import_Options options = {};
+    options.generate_normals_with_mesh_optimizer = true;
+    R_ASSERT( fbx_import(S("C:/Users/swl/Desktop/rts_assets/input/knight.fbx"), S(""), options) );
+    // @Temporary
+    // @Temporary
+    // @Temporary
 
 
     // @Temporary

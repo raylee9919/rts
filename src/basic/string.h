@@ -13,7 +13,7 @@
 
 // Faster 'sprintf' than stdlib.
 #define STB_SPRINTF_DECORATE(name) str_##name
-#include "basic/vendor/stb_sprintf.h"
+#include "third_party/stb/stb_sprintf.h"
 
 
 #if OS_WINDOWS

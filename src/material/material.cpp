@@ -269,7 +269,9 @@ upload_material(Guid id)
 }
 
 void 
-material_load_proc( String filepath, String short_name, void *user_data )
+material_load_proc(String filepath, 
+                   String short_name, 
+                   void  *user_data)
 {
     auto parse_string = [](Text_File_Handler *handler, String val) -> Pair<b32, String> {
         if (val.len <= 2) { 

@@ -98,7 +98,10 @@ void image_load_proc( String filepath, String short_name, void *user_data );
 
 void texture_load_proc( String filepath, String short_name, void *user_data );
 
-void material_load_proc( String filepath, String short_name, void *user_data );
+void 
+material_load_proc(String filepath, 
+                   String short_name, 
+                   void *user_data);
 
 
 #endif // RTS_MATERIALH

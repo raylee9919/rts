@@ -1010,7 +1010,7 @@ ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z)
 }
 
 f32 radian_from_degree(f32 d) {
-    return d * PI * 0.005556f;
+    return d * PI * 0.005556f; // = d * PI / 180
 }
 
 f32

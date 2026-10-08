@@ -28,8 +28,10 @@ union vec2 {
     f32 e[2];
 
     vec2() = default;
+
     vec2(f32 x_, f32 y_) : x(x_), y(y_) {};
-    vec2(f32 f)          : x( f), y( f) {};
+
+    explicit vec2(f32 f) : x( f), y( f) {};
 };
 
 struct vec3 {
@@ -40,7 +42,7 @@ struct vec3 {
 
     vec3() = default;
     vec3(f32 x_, f32 y_, f32 z_)  : x(x_), y(y_), z(z_) {};
-    vec3(f32 f)                   : x( f), y( f), z( f) {};
+    explicit vec3(f32 f)          : x( f), y( f), z( f) {};
 };
 
 union vec4 {
@@ -71,7 +73,7 @@ union vec4 {
 
     vec4() = default;
     vec4(f32 f1, f32 f2, f32 f3, f32 f4) : x(f1), y(f2), z(f3), w(f4) {};
-    vec4(f32 f)                          : x( f), y( f), z( f), w( f) {};
+    explicit vec4(f32 f)                 : x( f), y( f), z( f), w( f) {};
     vec4(vec3 xyz, f32 w)                : x(xyz.x), y(xyz.y), z(xyz.z), w(w) {};
 };
 

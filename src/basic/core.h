@@ -218,10 +218,12 @@ force_inline T clamp(T a, T lo, T hi) { return min(max(a, lo), hi); }
 #define sll_pop_front_n(f, l, next) sll_pop_front_nz(f,l,next,set_null)
 #define sll_pop_front(f, l) sll_pop_front_nz(f,l,next,set_null)
 
+#if 0
 #define stack_push_n(f, n, next) ((n)->next=(f), (f)=(n))
 #define stack_push(f, n) stack_push_n(f, n, next)
 #define stack_pop_nz(f, next, zchk) (zchk(f) ? 0 : ((f)=(f)->next))
 #define stack_pop(f) stack_pop_nz(f, next, check_null)
+#endif
 
 #define list_for_n(f, it, next) \
     for (auto *it = (f), *_n = (it) ? (it)->next : NULL; \
