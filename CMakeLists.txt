@@ -102,12 +102,9 @@ add_library(rts_engine STATIC
 
     src/rect_pack/rect_pack.cpp
 
-    src/asset/mesh.cpp
     src/asset/parser.cpp
     src/asset/system.cpp
     src/asset/texture.cpp
-
-    src/animation/animation.cpp
 
     src/rhi/rhi.cpp
     src/rhi/d3d12/rhi_d3d12.cpp
@@ -144,6 +141,8 @@ add_library(rts_engine STATIC
     src/renderer/pass/ui.cpp
     src/renderer/pass/composition.cpp
 
+
+    src/asset_lexer.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD
 
     src/importer/fbx.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD
 

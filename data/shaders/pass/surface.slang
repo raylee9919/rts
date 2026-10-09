@@ -5,25 +5,18 @@ import material;
 #include "shared/shared.h"
 #include "./surface.h"
 
-// Slang links with corresponding material implementation.
 extern struct Material : IMaterial;
 
-// Mirrors Asset::Vertex in src/asset/mesh.h. Keep the two in sync.
-// Every 4-component vector is 16-byte aligned, so this lays out identically under
-// scalar and cbuffer-style packing. int4/float4 rather than arrays for the same reason.
-struct Vertex {
-    float4 tangent;      // 0
-    float3 position;     // 16
-    uint   color;        // 28
-    float3 normal;       // 32
-    float  _pad0;        // 44
-    float4 node_weights; // 48
-    int4   node_ids;     // 64
-    float2 uv;           // 80
-    float2 _pad1;        // 88
+struct Vertex 
+{
+    float3 position;
+    float2 uv;
+    float3 normal;
+    float4 tangent;
 };
 
-struct VS_Output {
+struct VS_Output 
+{
     float4 sv_position : SV_Position;
     float3 position    : POSITION;
     float3 normal      : NORMAL;
@@ -53,31 +46,6 @@ VS_Output main(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID)
     float3 model_position = vert.position;
     float3 model_normal   = vert.normal;
     float3 model_tangent  = vert.tangent.xyz;
-
-    if (inst.num_joints > 0) {
-        StructuredBuffer<float3x4> skinning_buffer = ResourceDescriptorHeap[push.skinning_buffer_id];
-
-        float3 skinned_position = 0.0;
-        float3 skinned_normal   = 0.0;
-        float3 skinned_tangent  = 0.0;
-        float  weights_sum      = 0.0;
-
-        for (int i = 0; i < 4 && vert.node_ids[i] >= 0; ++i) {
-            float3x4 m = skinning_buffer[inst.skinning_base_index + vert.node_ids[i]];
-            float    w = vert.node_weights[i];
-
-            skinned_position += w * mul(m, float4(vert.position, 1.0));
-            skinned_normal   += w * mul(m, float4(vert.normal,   0.0));
-            skinned_tangent  += w * mul(m, float4(vert.tangent.xyz, 0.0));
-            weights_sum      += w;
-        }
-
-        if (weights_sum > 1e-8) {
-            model_position = skinned_position / weights_sum;
-            model_normal   = normalize(skinned_normal);
-            model_tangent  = normalize(skinned_tangent);
-        }
-    }
 
     float4 position = mul(inst.transform, float4(model_position, 1.0));
 

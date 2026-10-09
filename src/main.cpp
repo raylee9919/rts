@@ -12,12 +12,12 @@
 #include "renderer/renderer.h"
 #include "game.h"
 #include "asset/asset.h"
-#include "asset/mesh.h"
-#include "animation/animation.h"
+#include "asset_lexer.h"
 #include "renderer/immediate.h"
 #include "audio/audio.h"
 #include "material/material.h"
 #include "font/font.h"
+#include "mesh.h"
 
 /* Development */
 #include "development/console.h"
@@ -40,14 +40,6 @@ void game_tick(Game_State *g, f64 dt)
     ProfileScope;
 
     g->time += dt;
-
-    // Advance animations. Players shared between entities advance once.
-    entity_dfs(g, g->root, &dt, [](Game_State *g, Entity *E, u64 i, void *data) {
-        Animation_Player *player = animation_player_from_offset(g, E->animation_player);
-        if (player) {
-            animation_player_update(g, player, (f32)*(f64 *)data);
-        }
-    });
 
     {
 #if 0
@@ -162,11 +154,6 @@ int main_entry(int argc, char **argv)
     // Register asset types and init catalog.
     asset_system_init();
 
-    // Init material system.
-    // Reflect and construct material type table.
-    String material_shader_path = tprint(S("%S/%S"), shared->data_path, S("shaders/material/"));
-    material_system_init(material_shader_path, shared->shader_compiler);
-
     // Init Game
     game_init(time_old);
 
@@ -182,6 +169,11 @@ int main_entry(int argc, char **argv)
     // Spin-lock until renderer is initted.
     while (!renderer || !renderer->initted) {}
 
+    // Init material system.
+    // Reflect and construct material type table.
+    String material_shader_path = tprint(S("%S/%S"), shared->data_path, S("shaders/material/"));
+    material_system_init(material_shader_path, shared->shader_compiler);
+
     // Init camera
     game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
 
@@ -190,9 +182,12 @@ int main_entry(int argc, char **argv)
     // @Temporary
     // @Temporary
     // @Temporary
+#if 1
     FBX_Import_Options options = {};
     options.generate_normals_with_mesh_optimizer = true;
+    options.overwrite_existing_file = true;
     R_ASSERT( fbx_import(S("C:/Users/swl/Desktop/rts_assets/input/knight.fbx"), S(""), options) );
+#endif
     // @Temporary
     // @Temporary
     // @Temporary
@@ -202,6 +197,7 @@ int main_entry(int argc, char **argv)
     // Create and initalize entities. This is a placeholder.
     // Entities are assets, thus will be loaded from the disk as well.
     {
+#if 0
         // Submesh name -> material. The mesh carries no material reference itself,
         // so the binding lives here until entities become assets of their own.
         struct Knight_Material { String mesh; String material; };
@@ -216,50 +212,19 @@ int main_entry(int argc, char **argv)
             { S("Weapon2"),      S("materials/knight/sword.material")        },
             { S("Shield"),       S("materials/knight/shield.material")       },
         };
+#endif
 
-        Guid knight_id = guid_from_string(S("mesh/knight.triangle_mesh"));
-        asset_request(knight_id);
+#if 0
+        Guid knight_id = guid_from_string();
 
         Asset::Model *knight = Asset::model_from_guid(knight_id);
         R_ASSERT(knight);
+#endif
 
-        Guid skeleton_id = guid_from_string(S("skeleton/knight.skeleton"));
-        Guid idle_id     = guid_from_string(S("animation/knight_idle.keyframed_animation"));
-        asset_request(skeleton_id);
-        asset_request(idle_id);
-
-        Asset::Skeleton  *skeleton = Asset::skeleton_from_guid(skeleton_id);
-        Asset::Animation *idle     = Asset::animation_from_guid(idle_id);
-        R_ASSERT(skeleton && idle);
-
-        // Every submesh is skinned to the same skeleton, so they share one player.
-        u64 knight_player = animation_player_alloc(game_state, skeleton);
-        animation_player_set(animation_player_from_offset(game_state, knight_player), 0, idle, true, 1.f);
-
-        for (u32 i = 0; i < knight->num_meshes; ++i) {
-            Asset::Mesh *mesh = &knight->meshes[i];
-
-            String material_name = {};
-            for (Knight_Material &km : knight_materials) {
-                if (km.mesh == mesh->name) { material_name = km.material; break; }
-            }
-
-            if ( !material_name.str ) {
-                log_warning(S("No material for knight submesh '%S', skipping."), mesh->name);
-                continue;
-            }
-
-            Guid material = guid_from_string(material_name);
-            asset_request(material);
-
-            Entity *E   = entity_alloc(game_state);
-            E->mesh     = mesh->gpu_id;
-            E->material = material;
-
-            // The knight was authored in centimetres. The skeleton's root transform
-            // (0.01 uniform) is baked into the skinning matrices and brings him to scale.
-            E->animation_player = knight_player;
-        }
+        Guid mesh_id = guid_from_string(S("knight.triangle_mesh"));
+        Entity *knight = entity_alloc(game_state);
+        knight->mesh = mesh_id;
+        asset_request(mesh_id);
     }
 
 

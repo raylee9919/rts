@@ -161,14 +161,17 @@ String tprint(char *fmt, ...);
 String tprint(String fmt, ...);
 
 
-/*    Path    */
-
+//
+// P a t h 
+//
 Pair<String, b32> path_extension(String path);
 
-// Returns a slice of the input string with file name removed, but including path separator.
-String path_strip_filename(String path);
+// Returns a slice of the input string with file name removed, but including
+// path separator.
+String 
+path_strip_filename(String path);
 
-String path_strip_extension(String path);
-
+String 
+path_strip_extension(String path);
 
 #endif // RTS_STRING_H

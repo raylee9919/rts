@@ -164,7 +164,7 @@ typedef double      f64;
 
 #define CONCAT(A, B) A##B
 #define CONCAT2(A, B) CONCAT(A, B)
-#define R_ASSERT(exp)  if (!(exp)) do { debug_break(); } while(0)
+#define R_ASSERT(exp, ...)  if (!(exp)) do { debug_break(); } while(0)
 #define INVALID_CODE_PATH R_ASSERT(! "Invalid Code Path")
 #define INVALID_DEFAULT_CASE default: { INVALID_CODE_PATH; } break
 #define defer_loop(start, end) for(int CONCAT2(_i_,__LINE__) = ((start), 0); CONCAT2(_i_,__LINE__) == 0; (CONCAT2(_i_,__LINE__) += 1, (end)))

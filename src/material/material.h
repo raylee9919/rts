@@ -5,6 +5,7 @@
 
 #include "basic/string.h"
 #include "rhi/rhi.h"
+#include "asset/asset.h"
 
 struct Shader_Compiler;
 struct Material_Field_Info;
@@ -98,14 +99,9 @@ struct Bitmap {
     u32             height;
 };
 
-void image_load_proc( String filepath, String short_name, void *user_data );
-
-void texture_load_proc( String filepath, String short_name, void *user_data );
-
-void 
-material_load_proc(String filepath, 
-                   String short_name, 
-                   void *user_data);
+ASSET_LOAD_PROC(image_load_proc);
+ASSET_LOAD_PROC(texture_load_proc);
+ASSET_LOAD_PROC(material_load_proc);
 
 
 #endif // RTS_MATERIALH

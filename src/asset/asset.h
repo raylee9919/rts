@@ -7,27 +7,31 @@
 #include "basic/hash_table.h"
 #include "os/os.h"
 
+
+#define ASSET_LOAD_PROC(Name) void Name(String filepath, void *user_data)
+typedef ASSET_LOAD_PROC(Asset_Load_Proc);
+
 struct Asset_Entry {
-    s64 ref_count;
+  s64 ref_count;
 };
 
 struct Asset_Type_Info {
-    String  path_extension;
+  String  path_extension;
 
-    void (*load_proc)(String filepath, String short_name, void *user_data);
+  Asset_Load_Proc *load_proc;
 
-    bool operator == (Asset_Type_Info &other) {
-        return path_extension == other.path_extension;
-    }
+  bool operator == (Asset_Type_Info &other) {
+    return path_extension == other.path_extension;
+  }
 };
 
 struct Asset_System {
-    Allocator heap;
+  Allocator heap;
 
-    Table<Guid, Asset_Entry, hash_guid> asset_table;
-    Table<Guid, String, hash_guid> guid_to_short_name;
+  Table<Guid, Asset_Entry, hash_guid> asset_table;
+  Table<Guid, String, hash_guid> guid_to_short_name;
 
-    Array<Asset_Type_Info> type_infos;
+  Array<Asset_Type_Info> type_infos;
 };
 
 extern Asset_System *asset_system;
@@ -40,23 +44,17 @@ void
 asset_system_shutdown();
 
 void 
-asset_type_register( Asset_Type_Info info );
+asset_type_register(Asset_Type_Info info);
 
 void 
-asset_request( Guid id );
+asset_request(Guid id);
 
 void 
-asset_drop( Guid id );
+asset_drop(Guid id);
 
 bool 
 asset_type_info_cmp(Asset_Type_Info a, 
                     Asset_Type_Info b);
-
-String 
-asset_shortname( String path );
-
-Guid   
-asset_id_from_path( String path );
 
 
 #endif // RTS_ASSET_H

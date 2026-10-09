@@ -107,6 +107,8 @@ struct GFX_Pass {
 struct GFX_Command {
     Guid         mesh_handle;
     u32          num_instances;
+    u32          index_offset;
+    u32          index_count;
 };
 
 struct GFX_Callback_Entry {
@@ -240,8 +242,13 @@ void gfx_shutdown();
 // fit, blocks until previous uploads are complete and wraps around to the start.
 u64  gfx_upload_reserve(u64 size, u64 alignment);
 
-void gfx_mesh_create(Guid guid, void *vertices, u32 num_vertices, u32 vertex_size, void *indices, u32 num_indices, u32 index_size);
-void gfx_mesh_destroy(Guid guid);
+void 
+gfx_mesh_create(Guid guid, 
+                void *vertices, u32 num_vertices, u32 vertex_size, 
+                void *indices, u32 num_indices, u32 index_size);
+
+void 
+gfx_mesh_destroy(Guid guid);
 
 // Creates texture, SRV and UAV according to the desc's usage flags.
 void gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
@@ -291,13 +298,25 @@ u32 gfx_backbuffer_count();
 RHI_Format gfx_surface_format();
 
 
-void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc);
-void gfx_pipeline_destroy(Guid guid);
-void gfx_set_pipeline(Guid guid);
+void 
+gfx_pipeline_create(Guid guid, 
+                    RHI_Pipeline_Desc desc);
 
-void gfx_push_constants(void *data, u32 size);
+void 
+gfx_pipeline_destroy(Guid guid);
 
-void gfx_draw(Guid mesh_id, u32 num_instances);
+void 
+gfx_set_pipeline(Guid guid);
+
+void 
+gfx_push_constants(void *data, 
+                   u32   size);
+
+void 
+gfx_draw(Guid mesh_id, 
+         u32  num_instances,
+         u32  index_offset,
+         u32  num_indices);
 
 
 void gfx_begin();

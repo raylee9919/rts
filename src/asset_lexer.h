@@ -1,0 +1,85 @@
+// Copyright Seong Woo Lee. All Rights Reserved.
+
+#ifndef RTS_ASSET_LEXER_H
+#define RTS_ASSET_LEXER_H
+
+#include "basic/string.h"
+#include "basic/array.h"
+
+enum Asset_Token_Type : u16
+{
+  // Mentally insert ASCII here.
+
+  ASSET_TOKEN_IDENTIFIER = 256,
+  ASSET_TOKEN_NUMBER     = 257,
+  ASSET_TOKEN_STRING     = 258,
+
+  ASSET_TOKEN_END_OF_INPUT,
+};
+
+typedef u16 Asset_Token_Flags;
+enum 
+{
+  ASSET_TOKEN_FLAG_FLOAT            = 0x1,
+  ASSET_TOKEN_FLAG_REQUIRES_FLOAT64 = 0x2,
+};
+
+struct Asset_Token
+{
+  Asset_Token_Type  type;
+  Asset_Token_Flags flags;
+  union
+  {
+    String string_value;
+    u64    integer_value;
+    f64    float64_value;
+  };
+};
+
+struct Asset_Lexer
+{
+  String             input;
+  s64                input_cursor;
+
+  s64                line;
+
+  Array<Asset_Token> tokens;
+  s64                token_cursor;
+};
+
+b32
+asset_tokenize(Asset_Lexer *lexer, 
+               String       input, 
+               Allocator    token_allocator);
+
+void
+asset_debug_print_tokens(Asset_Lexer *lexer);
+
+Asset_Token *
+peek_token(Asset_Lexer *lexer);
+
+void 
+eat_token(Asset_Lexer *lexer);
+
+
+// Those procedures assumes the next token is 
+// the type it is looking for, and naively consumes it. 
+// If it is different from the expectation, asserts.
+//
+s64
+eat_unsigned_int(Asset_Lexer *lexer);
+
+f64
+eat_unsigned_float(Asset_Lexer *lexer);
+
+s64 
+eat_signed_int(Asset_Lexer *lexer);
+
+f64 
+eat_signed_float(Asset_Lexer *lexer);
+
+String
+eat_string(Asset_Lexer *lexer);
+
+
+#endif // RTS_ASSET_LEXER_H

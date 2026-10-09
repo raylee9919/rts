@@ -9,6 +9,7 @@ struct FBX_Import_Options
 {
   // If false, use ufbx as default
   b8 generate_normals_with_mesh_optimizer;
+  b8 overwrite_existing_file;
 };
 
 b32

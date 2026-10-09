@@ -4,6 +4,7 @@
 #include "os/os.h"
 #include "basic/log.h"
 #include "basic/queue.h"
+#include "shared.h"
 #include "math/math.h"
 #include "mesh.h"
 #include "third_party/ufbx/ufbx.h"
@@ -164,18 +165,8 @@ fbx_import_mesh_internal(ufbx_node*            node,
     s64 num_indices = num_tri * 3;
 
 
-    // Here's our attributes for the engine.
-    Vertex_Attribute attribs[4] = {
-      { S("position"), VERTEX_ATTRIBUTE_FLOAT32, 3,  0 },
-      { S("uv"),       VERTEX_ATTRIBUTE_FLOAT32, 2, 12 },
-      { S("normal"),   VERTEX_ATTRIBUTE_FLOAT32, 3, 20 },
-      { S("tangent"),  VERTEX_ATTRIBUTE_FLOAT32, 4, 32 },
-    };
-    s64 vertex_size = 48;
-
-
     // Reserve vertices upfront. Will be deduplicated afterwards.
-    u8 *vertices = alloc(vertex_size*num_indices, tctx.temp);
+    Vertex *vertices = (Vertex*)alloc(sizeof(Vertex)*num_indices, tctx.temp);
 
 
     // Reserve arrays of attributes up to maximum index count.
@@ -281,11 +272,11 @@ fbx_import_mesh_internal(ufbx_node*            node,
     // Write attributes
     for (s64 i = 0; i < num_indices; ++i)
     {
-      u8 *vertex = vertices + vertex_size*i;
-      memcpy(vertex +  0, &positions.data[i], 12);
-      memcpy(vertex + 12,       &uvs.data[i],  8);
-      memcpy(vertex + 20,   &normals.data[i], 12);
-      memcpy(vertex + 32,  &tangents.data[i], 16);
+      Vertex *vertex = &vertices[i]; 
+      memcpy(vertex->position, &positions.data[i], 12);
+      memcpy(vertex->uv,       &uvs.data[i],        8);
+      memcpy(vertex->normal,   &normals.data[i],   12);
+      memcpy(vertex->tangent,  &tangents.data[i],  16);
     }
 
 
@@ -300,25 +291,19 @@ fbx_import_mesh_internal(ufbx_node*            node,
     u32 *remap = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
     s64 num_vertices = meshopt_generateVertexRemap(remap,
                                                    NULL, num_indices,
-                                                   vertices, num_indices, vertex_size);
+                                                   vertices, num_indices, sizeof(Vertex));
 
     u32 *new_indices = (u32*)alloc(sizeof(u32)*num_indices, allocator);
     meshopt_remapIndexBuffer(new_indices, NULL, num_indices, remap);
 
-    u8 *new_vertices = alloc(vertex_size*num_vertices, allocator);
-    meshopt_remapVertexBuffer(new_vertices, vertices, num_indices, vertex_size, remap);
+    Vertex *new_vertices = (Vertex*)alloc(sizeof(Vertex)*num_vertices, allocator);
+    meshopt_remapVertexBuffer(new_vertices, vertices, num_indices, sizeof(Vertex), remap);
 
 
     //
     // Fill in the mesh
     //
     m.name = copy_string(utf8c((u8*)node->name.data), allocator);
-
-    m.num_attributes = array_count(attribs);
-    for (s64 i = 0; i < m.num_attributes; ++i)
-    {
-      m.attributes[i] = attribs[i];
-    }
 
     m.num_vertices = num_vertices;
     m.vertices     = new_vertices;
@@ -407,14 +392,13 @@ fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
       joint.local_transform     = m4x4_from_ufbx_matrix(node->node_to_parent);
       joint.inverse_bind_matrix = m4x4_from_ufbx_matrix(node->geometry_to_node);
 
+      // @Todo: name
       if (!node->name.data || node->name.length == 0)
       {
         String unnamed = tprint(S("unnamed_%d"), unnamed_index++);
-        joint.name = make_name(unnamed.str, unnamed.len);
       }
       else
       {
-        joint.name = make_name((u8*)node->name.data, node->name.length);
       }
 
       array_add(&joints, joint);
@@ -444,6 +428,40 @@ fbx_import(String filepath,
            String output_filepath,
            FBX_Import_Options options)
 {
+  b32 result = false;
+
+  // Check if the input file exists.
+  if (!file_exists(filepath))
+  {
+    log_error(S("Input file: '%S' doesn't exit."), filepath);
+    return false;
+  }
+
+  if (!output_filepath)
+  {
+    String name;
+    s64 index = find_index_of_any_from_right(filepath, S("/\\"));
+    if (index == -1) {
+      // It is itself a filename
+      name = filepath;
+    } else  {
+      name = slice(filepath, index + 1, filepath.len - index - 1);
+    }
+    name = path_strip_extension(name);
+    output_filepath = tprint(S("%S/%S.triangle_mesh"), shared->data_path, name); // @Temporary
+  }
+
+  int index = 0;
+  while (file_exists(output_filepath))
+  {
+    if (options.overwrite_existing_file)
+      break;
+
+    output_filepath = path_strip_extension(output_filepath);
+    output_filepath = tprint(S("%S_%d.txt"), output_filepath, index);
+    index += 1;
+  }
+
   ufbx_load_opts opts = {};
   opts.target_unit_meters          = 1.0f;
   opts.target_axes                 = ufbx_axes_right_handed_y_up;
@@ -466,7 +484,7 @@ fbx_import(String filepath,
   if (!scene) 
   {
     log_error(S("Failed to load fbx scene from '%S'. Description from ufbx: %s"), filepath, error.description.data);
-    return false;
+    return result;
   }
 
   // @Temporary
@@ -481,8 +499,30 @@ fbx_import(String filepath,
 
   // Import meshes
   Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, allocator);
+  String s = asset_string_from_meshes(meshes, tctx.temp);
+
+
+
+  File file = file_open(output_filepath, true);
+  if (file_is_valid(file))
+  {
+    if (file_write(file, s.str, s.len))
+    {
+      result = true;
+      log_info(S("Written to file: '%S'"), output_filepath);
+    }
+    else
+    {
+      log_error(S("Failed to write to file: '%S'"), output_filepath);
+    }
+  }
+  else
+  {
+    log_error(S("Failed to open file: '%S'"), output_filepath);
+  }
+  file_close(&file);
 
   ufbx_free_scene(scene);
 
-  return true;
+  return result;
 }

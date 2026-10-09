@@ -9,6 +9,7 @@
 #include "gfx/gfx.h"
 #include "renderer/immediate.h"
 #include "shaders/shared/shared.h"
+#include "mesh.h"
 
 #define R_DEPTH_FORMAT  RHI_FORMAT_D32F
 #define R_COLOR_FORMAT  RHI_FORMAT_RGBA16F
@@ -25,6 +26,15 @@ struct R_Pass;
 
 
 // ------------------------------------------------------------------------- //
+
+
+struct R_Mesh
+{
+  Guid          id;
+  Array<Guid>   materials;
+  Array<u32>    offsets;
+  Array<u32>    counts;
+};
 
 
 struct R_Pass_Execute_Info {
@@ -125,7 +135,8 @@ struct R_Rect {
     f32 x, y, w, h;
 };
 
-struct Renderer {
+struct Renderer 
+{
     Allocator heap;
 
     volatile b32 initted;
@@ -158,23 +169,36 @@ struct Renderer {
     RHI_Buffer           camera_buffer;
     RHI_Buffer_View      camera_view;
     void                *camera_ptr;
+
+    // Mesh table
+    Table<Guid, Array<R_Mesh>, hash_guid> mesh_table;
 };
 
 extern Renderer *renderer;
 
 
-GPU_Camera gpu_camera_from_game(Camera *camera);
+GPU_Camera 
+gpu_camera_from_game(Camera *camera);
 
-void r_entry(void *param);
-
-
-void r_pipeline_create(Guid id,
-                       String shader_filepath, 
-                       String material_filepath,
-                       R_Shading_Model shading_model);
-void r_pipeline_destroy(Guid id);
+void 
+r_entry(void *param);
 
 
-vec2 playfield_from_window(f32 x, f32 y);
+void 
+r_pipeline_create(Guid id,
+                  String shader_filepath, 
+                  String material_filepath,
+                  R_Shading_Model shading_model);
+void 
+r_pipeline_destroy(Guid id);
+
+
+vec2 
+playfield_from_window(f32 x, f32 y);
+
+
+void
+r_meshes_alloc(Guid id, 
+               Array<Triangle_Mesh> meshes);
 
 #endif // RTS_RENDERER_H

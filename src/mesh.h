@@ -7,29 +7,18 @@
 #include "basic/string.h"
 #include "os/os.h"
 #include "math/math.h"
-#include "asset.h"
+#include "asset/asset.h"
 
-//
-// M e s h
-//
-enum Vertex_Attribute_Type : u16
+#define MAX_VERTEX_ATTRIBUTES 16
+
+struct Asset_Lexer;
+
+struct Vertex
 {
-  VERTEX_ATTRIBUTE_FLOAT32,
-  VERTEX_ATTRIBUTE_INT32,
-};
-
-struct Vertex_Attribute 
-{
-  // Name of the vertex attribute (e.g. "normal")
-  String name;
-
-  // Data type and array length. 
-  // (e.g. bone weight might be type: float32 with width: 4)
-  Vertex_Attribute_Type type;
-  s64 width;
-
-  // Offset of this attribute in a vertex.
-  s64 offset;
+  float position[3];
+  float uv[2];
+  float normal[3];
+  float tangent[4];
 };
 
 struct Mesh_Part
@@ -37,17 +26,16 @@ struct Mesh_Part
   // offset and count into index buffer
   s64 offset;
   s64 count;
+  
+  // @Todo: Material
 };
 
 struct Triangle_Mesh 
 {
   String            name;
 
-  s64               num_attributes;
-  Vertex_Attribute  attributes[16];
-
   s64               num_vertices;
-  u8               *vertices;
+  Vertex           *vertices;
 
   s64               num_indices;
   u32              *indices;
@@ -57,15 +45,20 @@ struct Triangle_Mesh
 };
 
 String
-string_from_mesh(Triangle_Mesh *mesh, Allocator allocator);
+asset_string_from_meshes(Array<Triangle_Mesh> meshes, 
+                         Allocator            allocator);
 
+Array<Triangle_Mesh>
+parse_and_eval_mesh_asset(Asset_Lexer *lexer, 
+                          Allocator    allocator);
+
+ASSET_LOAD_PROC(mesh_load_proc);
 
 //
 // S k e l e t o n
 //
 struct Joint 
 {
-  Name name;
   s32  parent; // Always precedes the child. -1 for the root
   m4x4 local_transform;
   m4x4 inverse_bind_matrix;
@@ -76,5 +69,8 @@ struct Skeleton
   Joint *joints;
   s64    num_joints;
 };
+
+
+
 
 #endif // RTS_MESH_H
