@@ -11,5 +11,11 @@ string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
 {
   String s = {};
 
+  String_Builder b = {};
+  init(&b, allocator);
+
+  append(&b, S(""));
+
+  s = flush(&b);
   return s;
 }

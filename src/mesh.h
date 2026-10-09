@@ -5,9 +5,9 @@
 
 #include "basic/array.h"
 #include "basic/string.h"
+#include "os/os.h"
 #include "math/math.h"
 #include "asset.h"
-
 
 //
 // M e s h
@@ -32,8 +32,17 @@ struct Vertex_Attribute
   s64 offset;
 };
 
+struct Mesh_Part
+{
+  // offset and count into index buffer
+  s64 offset;
+  s64 count;
+};
+
 struct Triangle_Mesh 
 {
+  String            name;
+
   s64               num_attributes;
   Vertex_Attribute  attributes[16];
 
@@ -42,6 +51,9 @@ struct Triangle_Mesh
 
   s64               num_indices;
   u32              *indices;
+
+  s64               num_parts;
+  Mesh_Part        *parts;
 };
 
 String

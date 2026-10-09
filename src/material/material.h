@@ -14,54 +14,58 @@ struct Material_Field_Info;
 #define MAX_MATERIAL_FIELDS     32
 #define MAX_CPU_MATERIAL_SIZE  256
 
-enum M_FieldType {
-    M_FIELD_S8,
-    M_FIELD_S16,
-    M_FIELD_S32,
-    M_FIELD_S64,
+enum M_FieldType 
+{
+  M_FIELD_S8,
+  M_FIELD_S16,
+  M_FIELD_S32,
+  M_FIELD_S64,
 
-    M_FIELD_U8,
-    M_FIELD_U16,
-    M_FIELD_U32,
-    M_FIELD_U64,
+  M_FIELD_U8,
+  M_FIELD_U16,
+  M_FIELD_U32,
+  M_FIELD_U64,
 
-    M_FIELD_F32,
-    M_FIELD_VEC2,
-    M_FIELD_VEC3,
-    M_FIELD_VEC4,
+  M_FIELD_F32,
+  M_FIELD_VEC2,
+  M_FIELD_VEC3,
+  M_FIELD_VEC4,
 
-    M_FIELD_GUID,
+  M_FIELD_GUID,
 
-    M_FIELD_TEXTURE, // bindless handle to texture
+  M_FIELD_TEXTURE, // bindless handle to texture
 
-    M_FIELD_TYPE_COUNT,
+  M_FIELD_TYPE_COUNT,
 };
 
-struct M_Field {
-    String      name;
+struct M_Field 
+{
+  String      name;
 
-    M_FieldType cpu_type;
-    u64         cpu_size;
-    u64         cpu_offset;
+  M_FieldType cpu_type;
+  u64         cpu_size;
+  u64         cpu_offset;
 
-    M_FieldType gpu_type;
-    u64         gpu_size;
-    u64         gpu_offset;
+  M_FieldType gpu_type;
+  u64         gpu_size;
+  u64         gpu_offset;
 };
 
-struct M_TypeInfo {
-    Guid    id; // hash from canonical path from data dir
-    u32     num_fields;
-    M_Field fields[MAX_MATERIAL_FIELDS];
-    u64     cpu_size;
-    u64     gpu_size;
+struct M_TypeInfo 
+{
+  Guid    id; // hash from canonical path from data dir
+  u32     num_fields;
+  M_Field fields[MAX_MATERIAL_FIELDS];
+  u64     cpu_size;
+  u64     gpu_size;
 };
 
-struct M_Entry {
-    Guid type_id; // key into `material_type_table`
-    Guid pipeline;
-    u64  offset;  // offset into gpu buffer
-    alignas(16) u8 data[MAX_CPU_MATERIAL_SIZE];
+struct M_Entry 
+{
+  Guid type_id; // key into `material_type_table`
+  Guid pipeline;
+  u64  offset;  // offset into gpu buffer
+  alignas(16) u8 data[MAX_CPU_MATERIAL_SIZE];
 };
 
 b32 

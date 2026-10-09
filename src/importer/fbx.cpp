@@ -147,15 +147,12 @@ fbx_import_mesh_internal(ufbx_node*            node,
                          Array<Triangle_Mesh>* out_meshes,
                          Allocator             allocator)
 {
-  Triangle_Mesh m = {};
   ufbx_mesh *mesh = node->mesh;
-
-
   if (mesh && 
       node->attrib_type == UFBX_ELEMENT_MESH && 
       node->visible)
   {
-    // @Todo: Iterate over material list and make submeshes out of it...
+    Triangle_Mesh m = {};
 
     // Check if attributes exist. If it doesn't, we'll create manually.
     b32 has_normal    = mesh->vertex_normal.exists;
@@ -204,34 +201,51 @@ fbx_import_mesh_internal(ufbx_node*            node,
     u32 *indices_in_face    = (u32*)alloc(sizeof(u32) * num_indices_in_face, tctx.temp);
 
 
-    // Iterate over faces in this mesh.
-    for (ufbx_face& face : mesh->faces)
+    struct Part {
+      s32 offset;
+      s32 count;
+    };
+    Array<Part> parts;
+    parts.allocator = tctx.temp;
+    array_reserve(&parts, mesh->material_parts.count);
+
+    
+    for (ufbx_mesh_part part : mesh->material_parts)
     {
-      s64 num_tri_in_face = ufbx_triangulate_face(indices_in_face, num_indices_in_face, mesh, face);
+      Part p = {};
+      p.offset = positions.count;
 
-      for (s64 i = 0; i < num_tri_in_face*3; ++i)
+      for (u32 face_index : part.face_indices)
       {
-        // Index
-        u32 index = indices_in_face[i];
-
-        // Position
-        vec3 position = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_position, index));
-        array_add(&positions, position);
-
-        // Unlike from normals and tangents, UV isn't 
-        // generated even if it doesn't exist. 
-        // @Todo: use xatlas or something and generate uv
-        vec2 uv = has_uv ? vec2_from_ufbx(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
-        array_add(&uvs, uv);
-
-        // Normal
-        vec3 normal = {};
-        if (has_normal)
+        ufbx_face face = mesh->faces[face_index];
+        s64 num_tri_in_face = ufbx_triangulate_face(indices_in_face, num_indices_in_face, mesh, face);
+        for (s64 i = 0; i < num_tri_in_face*3; ++i)
         {
-          normal = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_normal, index));
-          array_add(&normals, normal);
+          // Index
+          u32 index = indices_in_face[i];
+
+          // Position
+          vec3 position = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_position, index));
+          array_add(&positions, position);
+
+          // Unlike from normals and tangents, UV isn't 
+          // generated even if it doesn't exist. 
+          // @Todo: use xatlas or something and generate uv
+          vec2 uv = has_uv ? vec2_from_ufbx(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
+          array_add(&uvs, uv);
+
+          // Normal
+          vec3 normal = {};
+          if (has_normal)
+          {
+            normal = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_normal, index));
+            array_add(&normals, normal);
+          }
         }
       }
+
+      p.count = positions.count - p.offset;
+      array_add(&parts, p);
     }
     R_ASSERT(positions.count == num_indices);
 
@@ -298,6 +312,8 @@ fbx_import_mesh_internal(ufbx_node*            node,
     //
     // Fill in the mesh
     //
+    m.name = copy_string(utf8c((u8*)node->name.data), allocator);
+
     m.num_attributes = array_count(attribs);
     for (s64 i = 0; i < m.num_attributes; ++i)
     {
@@ -309,6 +325,15 @@ fbx_import_mesh_internal(ufbx_node*            node,
 
     m.num_indices  = num_indices;
     m.indices      = new_indices;
+
+    m.num_parts    = parts.count;
+    m.parts        = (Mesh_Part*)alloc(sizeof(Mesh_Part)*m.num_parts, allocator);
+
+    for (u32 i = 0; i < parts.count; ++i)
+    {
+      m.parts[i].offset = parts[i].offset;
+      m.parts[i].count  = parts[i].count;
+    }
 
     array_add(out_meshes, m);
   }
@@ -339,7 +364,7 @@ fbx_import_mesh(ufbx_node*         node,
 // Returns an array of skeletons and a boolean 
 // representing whether it was successful.
 //
-static Pair< Array<Skeleton>, b32 >
+static Pair<Array<Skeleton>, b32>
 fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
 {
   Array<Skeleton> skeletons = {};
@@ -435,16 +460,8 @@ fbx_import(String filepath,
     opts.generate_missing_normals = false;
   }
 
-
-  String contents = read_entire_file(filepath, tctx.temp);
-  if (!contents)
-  {
-    log_error(S("Failed to read file: '%S'."), filepath);
-    return false;
-  }
-
   ufbx_error error;
-  ufbx_scene *scene = ufbx_load_memory(contents.str, contents.len, &opts, &error);
+  ufbx_scene *scene = ufbx_load_file((const char*)filepath.str, &opts, &error);
 
   if (!scene) 
   {
