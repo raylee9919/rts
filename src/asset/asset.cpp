@@ -38,7 +38,7 @@ asset_file_list(String    path,
 
   auto visitor = [](File_Visit_Info *info, void *user_data) {
     auto *arr = (Array<String>*)user_data;
-    array_add(arr, copy_string(_to_shortpath(info->full_name), arr->allocator));
+    append(arr, copy_string(_to_shortpath(info->full_name), arr->allocator));
   };
 
   visit_files(path, true, &files, visitor, follow_directory_symlinks);
@@ -49,11 +49,10 @@ asset_file_list(String    path,
 static void 
 asset_system_init_catalog()
 {
-  // @Todo
+  // @Robustness
   // Strings are allocated in the heap at the moment. 
   // So when you free the entry from the table, you must 
   // free the according string memory as well.
-  // @Robustness
   Array<String> fl = asset_file_list(shared->data_path, asset_system->heap, true);
   for (int i = 0; i < fl.count; ++i) 
   {
@@ -70,7 +69,7 @@ asset_system_init_catalog()
       {
         if ( info.path_extension && (info.path_extension == ext) )
         {
-          table_add(&asset_system->guid_to_short_name, id, path);
+          table_add(&asset_system->guid_to_path, id, path);
           break;
         }
       }
@@ -87,7 +86,7 @@ asset_system_init()
   asset_system->heap = heap;
 
   asset_system->asset_table.allocator        = heap;
-  asset_system->guid_to_short_name.allocator = heap;
+  asset_system->guid_to_path.allocator = heap;
   asset_system->type_infos.allocator         = heap;
 
   asset_type_register({S("material"),             material_load_proc});
@@ -110,7 +109,7 @@ asset_type_register(Asset_Type_Info info)
 {
   if (info.path_extension)
   {
-    if (!array_add_unique(&asset_system->type_infos, info))
+    if (!append_unique(&asset_system->type_infos, info))
       log_warning(S("asset type with path extension: '%S' was already registered."), info.path_extension);
     else 
       log_info(S("Registerd asset type with path extension: '%S'"), info.path_extension);
@@ -140,7 +139,7 @@ asset_request(Guid id)
 }
 
 void 
-asset_drop( Guid id ) 
+asset_drop(Guid id) 
 {
   auto *entry = table_find_pointer(&asset_system->asset_table, id);
   R_ASSERT( entry );
@@ -148,7 +147,7 @@ asset_drop( Guid id )
   entry->ref_count -= 1;
 
   if ( entry->ref_count == 0 ) {
-    // @Todo: unlaod asset
+    // @Todo: Unload asset
     table_remove(&asset_system->asset_table, id);
   }
 }
@@ -169,10 +168,12 @@ asset_load(Guid id)
   R_ASSERT(entry);
 
   // Find path from the catalog.
-  String *path_ = table_find_pointer(&asset_system->guid_to_short_name, id);
+  String *path_ = table_find_pointer(&asset_system->guid_to_path, id);
   if (!path_)
   {
+    // @Todo: FUCKING TERRIBLE LOG. GUID isn't enough! I need PATH
     log_error(S("Failed to fetch asset path from GUID: '%llu-%llu'."), id._64[1], id._64[0]);
+    debug_break();
     return false;
   }
 

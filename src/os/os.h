@@ -549,7 +549,11 @@ String read_entire_file(File file, Allocator allocator, bool zero_terminated = f
 
 String read_entire_file(String name, Allocator allocator, bool zero_terminated = false);
 
-bool file_write(File file, void *data, s64 size);
+b32 
+file_write(File file, void *data, s64 size);
+
+b32 
+file_write(File file, String data);
 
 b32 file_is_valid(File file);
 

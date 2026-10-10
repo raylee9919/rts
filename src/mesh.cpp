@@ -53,6 +53,7 @@ string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
     Mesh_Part *part = &mesh->parts[i];
     append(&b, tprint(S("%u "), part->offset));
     append(&b, tprint(S("%u "), part->count));
+    append(&b, tprint(S("\"%S\" "), part->material_path));
     append(&b, S("\n"));
   }
 
@@ -108,6 +109,7 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
   result.allocator = allocator;
 
   s64 version = eat_unsigned_int(lexer);
+  R_ASSERT(version == 1);
 
   s64 num_triangle_meshes = eat_unsigned_int(lexer);
   array_reserve(&result, num_triangle_meshes);
@@ -157,11 +159,15 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
     tm.parts = (Mesh_Part*)alloc(sizeof(Mesh_Part)*tm.num_parts, allocator);
     for (int p = 0; p < tm.num_parts; ++p)
     {
-      tm.parts[p].offset = eat_unsigned_int(lexer);
-      tm.parts[p].count  = eat_unsigned_int(lexer);
+      tm.parts[p].offset        = eat_unsigned_int(lexer);
+      tm.parts[p].count         = eat_unsigned_int(lexer);
+      tm.parts[p].material_path = copy_string(eat_string(lexer), allocator);
+
+
+      asset_request(guid_from_string(tm.parts[p].material_path));
     }
 
-    array_add(&result, tm);
+    append(&result, tm);
   }
 
   R_ASSERT(peek_token(lexer)->type == ASSET_TOKEN_END_OF_INPUT);
@@ -174,9 +180,12 @@ ASSET_LOAD_PROC(mesh_load_proc)
   Allocator allocator = asset_system->heap;
   Guid guid = guid_from_string(filepath);
 
+  // Tokenize asset file
   Asset_Lexer lexer = {};
   String asset = read_entire_file(filepath, tctx.temp, false);
   asset_tokenize(&lexer, asset, tctx.temp);
+
+  // Parse and evaluate meshes
   Array<Triangle_Mesh> meshes = parse_and_eval_mesh_asset(&lexer, allocator);
 
   Array<Guid> guids;

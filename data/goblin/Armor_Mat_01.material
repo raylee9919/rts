@@ -1,0 +1,7 @@
+[1]
+
+@"shaders/material/default.slang"
+
+albedo_id : "goblin/Armor_BaseColor.png"
+roughness_id : "goblin/Armor_Roughness.png"
+metallic_id : "goblin/Armor_Metalness.png"

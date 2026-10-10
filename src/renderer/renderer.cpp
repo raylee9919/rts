@@ -2,6 +2,7 @@
 
 #include "renderer/renderer.h"
 #include "basic/context.h"
+#include "basic/log.h"
 #include "gfx/gfx.h"
 #include "math/math.h"
 #include "os/os.h"
@@ -452,14 +453,16 @@ r_entry(void *param)
 void 
 r_pipeline_create(Guid id,
                   String shader_filepath, 
-                  String material_filepath,
+                  String material_shader,
                   R_Shading_Model shading_model)
 {
   // Read shader source code
   String shader_source   = read_entire_file(shader_filepath, tctx.temp);
-  String material_source = {};
-  if (material_filepath.len) {
-    material_source = read_entire_file(material_filepath, tctx.temp);
+  String material_source = read_entire_file(material_shader, tctx.temp);
+  if (!material_source)
+  {
+    log_error(S("Failed to read material shader: '%S'"), material_shader);
+    return;
   }
 
   // Compile vertex and pixel shader into IL bytes.
@@ -473,7 +476,7 @@ r_pipeline_create(Guid id,
       vs_opts.path   = shader_filepath;
 
       vs_opts.material_source = material_source;
-      vs_opts.material_path   = material_filepath;
+      vs_opts.material_path   = material_shader;
     }
     R_ASSERT(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
 
@@ -484,7 +487,7 @@ r_pipeline_create(Guid id,
       ps_opts.path   = shader_filepath;
 
       ps_opts.material_source = material_source;
-      ps_opts.material_path   = material_filepath;
+      ps_opts.material_path   = material_shader;
     }
     R_ASSERT(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
   }
@@ -540,7 +543,7 @@ void
 r_pass_create(R_Pass_Init_Proc *init_proc)
 {
   R_Pass *pass = init_proc();
-  array_add(&renderer->passes, pass);
+  append(&renderer->passes, pass);
 }
 
 void 
@@ -608,12 +611,12 @@ r_meshes_alloc(Guid id,
     for (int p = 0; p < tm->num_parts; ++p)
     {
       Mesh_Part part = tm->parts[p];
-      array_add(&mesh.materials, NULL_GUID);
-      array_add(&mesh.offsets,   (u32)part.offset);
-      array_add(&mesh.counts,    (u32)part.count);
+      append(&mesh.materials, guid_from_string(part.material_path));
+      append(&mesh.offsets,   (u32)part.offset);
+      append(&mesh.counts,    (u32)part.count);
     }
 
-    array_add(&entry, mesh);
+    append(&entry, mesh);
   }
 
   table_add(&renderer->mesh_table, id, entry);

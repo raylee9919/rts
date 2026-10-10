@@ -14,7 +14,7 @@ Array<String> file_list(String path,
 
     auto visitor = [](File_Visit_Info *info, void *user_data) {
         auto *arr = (Array<String>*)user_data;
-        array_add(arr, copy_string(info->full_name, arr->allocator));
+        append(arr, copy_string(info->full_name, arr->allocator));
     };
 
     visit_files(path, recursive, &files, visitor, follow_directory_symlinks);

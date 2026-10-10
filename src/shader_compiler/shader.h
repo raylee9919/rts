@@ -20,14 +20,15 @@ enum Shader_Stage : u8 {
     SHADER_STAGE_TS,        // Task (amplification) shader
 };
 
-struct Shader_Compile_Options {
-    Shader_Stage stage;
-    String       source;
-    String       path;              // Used for diagnostics. Optional.
+struct Shader_Compile_Options 
+{
+  Shader_Stage stage;
+  String       source;
+  String       path;    // Used for diagnostics. Optional.
 
-    // Material implementation linked in to resolve `extern struct Material`. Optional.
-    String       material_source;
-    String       material_path;
+  // Material implementation linked in to resolve `extern struct Material`. Optional.
+  String       material_source;
+  String       material_path;
 };
 
 struct Shader_Compile_Result {

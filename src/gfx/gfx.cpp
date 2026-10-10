@@ -516,7 +516,7 @@ void gfx_pass_connect(Guid resource,
 
     if (src_pass == -1)  src_pass = GFX_MAX_PASS; // nil
 
-    array_add(&gfx->out_edges[src_pass], edge);
+    append(&gfx->out_edges[src_pass], edge);
 }
 
 u32 gfx_backbuffer_index() {
@@ -563,7 +563,7 @@ gfx_set_pipeline(Guid guid)
     table_add(&gfx->pipeline_to_index_this_frame, guid, gfx->next_pipeline);
     index = gfx->next_pipeline;
     gfx->next_pipeline += 1;
-    array_add(&gfx->pipelines, guid);
+    append(&gfx->pipelines, guid);
   } 
   else 
   {
@@ -592,7 +592,7 @@ gfx_push_constants(void *data, u32 size)
     gfx->next_push_constants += 1;
 
     // Add constants to the array
-    array_add(&gfx->push_constants, {});
+    append(&gfx->push_constants, {});
     auto *arr = &gfx->push_constants;
     GFX_Push_Constants *entry = &arr->data[arr->count - 1];
     u32 *dst = &entry->data[0];
@@ -630,7 +630,7 @@ gfx_draw(Guid mesh_id,
     key.bits      = gfx_encode_key(subkeys);
     key.cmd_index = gfx->commands[pass].count;
 
-    array_add(&gfx->sort_keys[pass], key);
+    append(&gfx->sort_keys[pass], key);
 
     GFX_Command cmd = {};
     cmd.mesh_handle         = mesh_id;
@@ -638,7 +638,7 @@ gfx_draw(Guid mesh_id,
     cmd.index_offset        = index_offset;
     cmd.index_count         = num_indices;
 
-    array_add(&gfx->commands[pass], cmd);
+    append(&gfx->commands[pass], cmd);
   } 
   else if (gfx->info.debug) 
   {
@@ -756,7 +756,7 @@ gfx_sort_frame_graph()
     u32 p = queue_front(&q);
     queue_pop(&q);
 
-    array_add(&result, p);
+    append(&result, p);
 
     for (GFX_Edge &edge : gfx->out_edges[p]) {
       in_degree[edge.dst_pass] -= 1;

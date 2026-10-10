@@ -183,7 +183,7 @@ break_by_paragraphs(String s, Allocator allocator)
             cursor += 1;
         }
 
-        array_add(&result, p);
+        append(&result, p);
     }
     return result;
 }
@@ -247,7 +247,7 @@ shape_string(String     str,
                 glyph.id       = glyph_id;
                 glyph.origin_x = pen_x + x_offset;
                 glyph.origin_y = pen_y - y_offset;
-                array_add(&result, glyph);
+                append(&result, glyph);
             }
 
             pen_x += x_advance;

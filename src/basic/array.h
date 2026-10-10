@@ -38,7 +38,7 @@ const T& Array <T>::operator [] (u64 idx) const
 
 template <typename T>
 void 
-array_add(Array<T>* arr, T item) 
+append(Array<T>* arr, T item) 
 {
   if (arr->count >= arr->allocated) {
     u64 reserve = max(8ull, 2 * arr->count);
@@ -50,13 +50,13 @@ array_add(Array<T>* arr, T item)
 
 template <typename T> 
 b32 
-array_add_unique(Array<T> *arr, T item) 
+append_unique(Array<T> *arr, T item) 
 {
   for (u64 i = 0; i < arr->count; ++i) {
     if (arr->data[i] == item) return false;
   }
 
-  array_add(arr, item);
+  append(arr, item);
   return true;
 }
 
@@ -124,7 +124,7 @@ template <typename T>
 void
 stack_push(Array<T> *arr, T item)
 {
-  array_add(arr, item);
+  append(arr, item);
 }
 
 

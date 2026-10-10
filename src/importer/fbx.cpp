@@ -4,9 +4,11 @@
 #include "os/os.h"
 #include "basic/log.h"
 #include "basic/queue.h"
+#include "basic/string_builder.h"
 #include "shared.h"
 #include "math/math.h"
 #include "mesh.h"
+#include "material/material.h"
 #include "third_party/ufbx/ufbx.h"
 #include "third_party/meshoptimizer/meshoptimizer.h"
 
@@ -103,6 +105,7 @@
 
 */
 
+
 static m4x4
 m4x4_from_ufbx_matrix(ufbx_matrix& m)
 {
@@ -142,11 +145,100 @@ vec3_from_ufbx(ufbx_vec3 v)
   return vec3((f32)v.x, (f32)v.y, (f32)v.z);
 }
 
+static u32
+_util_hash_pointer(ufbx_material *ptr)
+{
+  u64 u = (uintptr_t)ptr;
+  return knuth_hash(u);
+}
+
+static String
+_to_string(ufbx_string c)
+{
+  String s = { (u8*)c.data, (s64)c.length };
+  return s;
+}
+
+// @Incomplete:
+// Import all materials in the scene.
+// At the moment, we are not doing the followings:
+//
+//     - prune unreferenced materials from meshes
+//     - check for duplicate material name
+//     - check if the texture file exists
+//
+static Table<ufbx_material*, String, _util_hash_pointer>
+fbx_import_materials(ufbx_scene *scene)
+{
+  Table<ufbx_material*, String, _util_hash_pointer> result = {};
+  result.allocator = tctx.temp;
+ 
+  for (ufbx_material *material : scene->materials)
+  {
+    String_Builder sb = {};
+    init(&sb, tctx.temp);
+    {
+      append(&sb, S("[1]\n\n"));
+
+      append(&sb, tprint(S("@\"%S\"\n\n"), DEFAULT_MATERIAL_SHADER_PATH));
+
+      struct Type_String {
+        ufbx_material_pbr_map type;
+        String string;
+      } type_strings[] = {
+        { UFBX_MATERIAL_PBR_BASE_COLOR, S("albedo_id") },
+        { UFBX_MATERIAL_PBR_NORMAL_MAP, S("normal_id") },
+        { UFBX_MATERIAL_PBR_ROUGHNESS,  S("roughness_id") },
+        { UFBX_MATERIAL_PBR_METALNESS,  S("metallic_id") },
+      };
+
+      for (int i = 0; i < array_count(type_strings); ++i)
+      {
+        ufbx_texture *texture = material->pbr.maps[type_strings[i].type].texture;
+        if (texture && texture->type == UFBX_TEXTURE_FILE) 
+        {
+          String texture_file = _to_string(texture->filename);
+          if (!file_exists(texture_file))
+          {
+            log_warning(S("Texture: %`%S` doesn't exit. Ignoring for now..."), texture_file);
+          }
+          append(&sb, tprint(S("%S : \"%S\"\n"), type_strings[i].string, texture_file));
+        }
+      }
+    }
+
+    String s_ = flush(&sb);
+
+    String path = tprint(S("%s.material"), material->name.data);
+    File file = file_open(path, true);
+    if (file_is_valid(file))
+    {
+      if (file_write(file, s_))
+      {
+        table_add(&result, material, path);
+        log_info(S("Imported material to file: '%S'"), path);
+      }
+      else
+      {
+        log_error(S("Failed to write material to file: '%S'."), path);
+      }
+      file_close(&file);
+    }
+    else
+    {
+      log_error(S("Failed to open file: '%S' to write material."), path);
+    }
+  }
+
+  return result;
+}
+
 static void
-fbx_import_mesh_internal(ufbx_node*            node, 
-                         FBX_Import_Options    options, 
-                         Array<Triangle_Mesh>* out_meshes,
-                         Allocator             allocator)
+fbx_import_mesh_internal(ufbx_node*                                        node, 
+                         FBX_Import_Options                                options, 
+                         Array<Triangle_Mesh>*                             out_meshes,
+                         Table<ufbx_material*, String, _util_hash_pointer> material_pointer_to_path,
+                         Allocator                                         allocator)
 {
   ufbx_mesh *mesh = node->mesh;
   if (mesh && 
@@ -192,18 +284,14 @@ fbx_import_mesh_internal(ufbx_node*            node,
     u32 *indices_in_face    = (u32*)alloc(sizeof(u32) * num_indices_in_face, tctx.temp);
 
 
-    struct Part {
-      s32 offset;
-      s32 count;
-    };
-    Array<Part> parts;
+    Array<Mesh_Part> parts;
     parts.allocator = tctx.temp;
     array_reserve(&parts, mesh->material_parts.count);
 
-    
+
     for (ufbx_mesh_part part : mesh->material_parts)
     {
-      Part p = {};
+      Mesh_Part p = {};
       p.offset = positions.count;
 
       for (u32 face_index : part.face_indices)
@@ -217,26 +305,35 @@ fbx_import_mesh_internal(ufbx_node*            node,
 
           // Position
           vec3 position = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_position, index));
-          array_add(&positions, position);
+          append(&positions, position);
 
           // Unlike from normals and tangents, UV isn't 
           // generated even if it doesn't exist. 
           // @Todo: use xatlas or something and generate uv
           vec2 uv = has_uv ? vec2_from_ufbx(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
-          array_add(&uvs, uv);
+          append(&uvs, uv);
 
           // Normal
           vec3 normal = {};
           if (has_normal)
           {
             normal = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_normal, index));
-            array_add(&normals, normal);
+            append(&normals, normal);
           }
         }
       }
 
+
+      ufbx_material *material = node->materials[part.index];
+      String *material_path = table_find_pointer(&material_pointer_to_path, material);
+      if (material_path)
+      {
+        p.material_path = *material_path;
+      }
+
+
       p.count = positions.count - p.offset;
-      array_add(&parts, p);
+      append(&parts, p);
     }
     R_ASSERT(positions.count == num_indices);
 
@@ -316,11 +413,10 @@ fbx_import_mesh_internal(ufbx_node*            node,
 
     for (u32 i = 0; i < parts.count; ++i)
     {
-      m.parts[i].offset = parts[i].offset;
-      m.parts[i].count  = parts[i].count;
+      m.parts[i] = parts[i];
     }
 
-    array_add(out_meshes, m);
+    append(out_meshes, m);
   }
 
 
@@ -328,19 +424,20 @@ fbx_import_mesh_internal(ufbx_node*            node,
   ufbx_node_list children = node->children;
   for (int i = 0; i < children.count; ++i) 
   {
-    fbx_import_mesh_internal(children.data[i], options, out_meshes, allocator);
+    fbx_import_mesh_internal(children.data[i], options, out_meshes, material_pointer_to_path, allocator);
   }
 }
 
 static Array<Triangle_Mesh>
-fbx_import_mesh(ufbx_node*         node, 
-                FBX_Import_Options options, 
-                Allocator          allocator)
+fbx_import_mesh(ufbx_node*                                        node, 
+                FBX_Import_Options                                options, 
+                Table<ufbx_material*, String, _util_hash_pointer> material_pointer_to_path,
+                Allocator                                         allocator)
 {
   Array<Triangle_Mesh> meshes;
   meshes.allocator = allocator;
 
-  fbx_import_mesh_internal(node, options, &meshes, allocator);
+  fbx_import_mesh_internal(node, options, &meshes, material_pointer_to_path, allocator);
 
   return meshes;
 }
@@ -401,7 +498,7 @@ fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
       {
       }
 
-      array_add(&joints, joint);
+      append(&joints, joint);
 
       // This is now my index in the bone list, which will be 
       // passed to my children.
@@ -414,7 +511,7 @@ fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
     }
 
     // Add the skeleton to the array to be returned.
-    array_add(&skeletons, {});
+    append(&skeletons, {});
     Skeleton *skeleton = &skeletons.data[skeletons.count-1];
     skeleton->joints = (Joint*)alloc(sizeof(Joint) * joints.count, allocator);
     skeleton->num_joints = joints.count;
@@ -473,7 +570,7 @@ fbx_import(String filepath,
   opts.evaluate_skinning           = true;
   opts.clean_skin_weights          = true;
   opts.normalize_normals           = true;
-  
+
   if (options.generate_normals_with_mesh_optimizer) {
     opts.generate_missing_normals = false;
   }
@@ -487,8 +584,10 @@ fbx_import(String filepath,
     return result;
   }
 
+
   // @Temporary
   Allocator allocator = tctx.temp;
+
 
   // Import skeletons
   auto [skeletons, skeletons_success] = fbx_import_skeleton(scene, allocator);
@@ -497,12 +596,16 @@ fbx_import(String filepath,
     log_info(S("Imported %d skeletons."), skeletons.count);
   }
 
+  // Import materials
+  auto material_pointer_to_path = fbx_import_materials(scene);
+
   // Import meshes
-  Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, allocator);
+  Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, material_pointer_to_path, allocator);
   String s = asset_string_from_meshes(meshes, tctx.temp);
 
 
 
+  // @Temporary
   File file = file_open(output_filepath, true);
   if (file_is_valid(file))
   {

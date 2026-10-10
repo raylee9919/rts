@@ -68,9 +68,18 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
   gfx_pass.min_depth            = 0.f;
   gfx_pass.max_depth            = 1.f;
 
+  struct Data {
+    R_Pass_Geometry *pass;
+    s64 num_draws;
+  } data_;
+  data_.pass = pass;
+  data_.num_draws = 0;
+
   gfx_pass_begin(R_PASS_GEOMETRY, &gfx_pass);
   {
-    entity_dfs(g, g->root, pass, [](Game_State *g, Entity *E, u64 i, void *data) {
+    entity_dfs(g, g->root, &data_, [](Game_State *g, Entity *E, u64 counter, void *data_) {
+      Data *data = (Data*)data_;
+
       // One mesh asset may contain multiple meshes.
       Array<R_Mesh> *meshes = table_find_pointer(&renderer->mesh_table, E->mesh);
       if (meshes)
@@ -83,20 +92,20 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
           {
             // Draw each part with its own material.
             u32 num_parts = mesh.offsets.count;
-            for (u32 i = 0; i < num_parts; ++i)
+            for (u32 part_idx = 0; part_idx < num_parts; ++part_idx)
             {
               // Indices
-              u32 index_offset = mesh.offsets[i];
-              u32 index_count  = mesh.counts[i];
+              u32 index_offset = mesh.offsets[part_idx];
+              u32 index_count  = mesh.counts[part_idx];
 
               // Set pipeline
-              Guid material_id = mesh.materials[i];
+              Guid material_id = mesh.materials[part_idx];
               M_Entry *material = material_from_guid(material_id);
               gfx_set_pipeline(material->pipeline);
 
               // Upload arguments
-              auto *p = (R_Pass_Geometry*)data;
-              auto *args = (R_Pass_Geometry::Arguments*)p->arguments_ptr + i;
+              R_Pass_Geometry *p = data->pass;
+              auto *args = (R_Pass_Geometry::Arguments*)p->arguments_ptr + data->num_draws;
               m4x4 m = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
               memcpy(&args->transform, &m, sizeof(args->transform));
               args->material_index = material->offset;
@@ -107,12 +116,13 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               c.linear_sampler_id   = gfx->linear_sampler.bindless;
               c.camera_buffer_id    = renderer->camera_view.bindless;
               c.argument_buffer_id  = p->arguments_view.bindless;
-              c.argument_base_index = i;
+              c.argument_base_index = data->num_draws;
               c.material_buffer_id  = renderer->material_buffer.view.bindless;
               gfx_push_constants(&c, sizeof(c));
 
               // Draw
               gfx_draw(mesh.id, 1, index_offset, index_count);
+              data->num_draws += 1;
             }
           }
         }

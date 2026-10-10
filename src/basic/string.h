@@ -27,54 +27,55 @@
 //
 // UTF-8 string.
 //
-struct String {
-    u8 *str;
-    s64 len;
+struct String 
+{
+  u8 *str;
+  s64 len;
 
-    bool operator == (const String& other) {
-        if (len != other.len)  return false;
-        return memcmp(str, other.str, len) == 0;
-    }
+  bool operator == (const String& other) {
+    if (len != other.len)  return false;
+    return memcmp(str, other.str, len) == 0;
+  }
 
-    bool operator != (const String& other) {
-        if (len != other.len)  return true;
-        return memcmp(str, other.str, len) != 0;
-    }
+  bool operator != (const String& other) {
+    if (len != other.len)  return true;
+    return memcmp(str, other.str, len) != 0;
+  }
 
-    u8 operator [] (s64 i) { R_ASSERT(i < len); return str[i]; }
-    explicit operator bool() const {
-        return str && len > 0; 
-    }
+  u8 operator [] (s64 i) { R_ASSERT(i < len); return str[i]; }
+  explicit operator bool() const {
+    return str && len > 0; 
+  }
 };
 
 struct Utf16 {
-    u16 *str;
-    u64 len;
+  u16 *str;
+  u64 len;
 };
 
 struct Utf32 {
-    u32 *str;
-    u64 len;
+  u32 *str;
+  u64 len;
 };
 
 struct Unicode_Decode {
-    u32 inc;
-    u32 codepoint;
+  u32 inc;
+  u32 codepoint;
 };
 
 read_only global u8 utf8_class[32] =
 {
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,2,2,2,2,3,3,4,5,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,2,2,2,2,3,3,4,5,
 };
 
 typedef u32 Str_Match_Flags;
 enum
 {
-    STR_MATCH_CASE_INSENSITIVE  = (1<<0),
-    STR_MATCH_RIGHT_SIDE_SLOPPY = (1<<1),
-    STR_MATCH_SLASH_INSENTISIVE = (1<<2),
-    STR_MATCH_FIND_LAST         = (1<<3),
-    STR_MATCH_KEEP_EMPTIES      = (1<<4),
+  STR_MATCH_CASE_INSENSITIVE  = (1<<0),
+  STR_MATCH_RIGHT_SIDE_SLOPPY = (1<<1),
+  STR_MATCH_SLASH_INSENTISIVE = (1<<2),
+  STR_MATCH_FIND_LAST         = (1<<3),
+  STR_MATCH_KEEP_EMPTIES      = (1<<4),
 };
 
 
@@ -109,14 +110,6 @@ String to_utf8(Arena *arena, Utf16 in);
 String to_utf8(Allocator allocator, Utf16 in);
 Utf16 to_utf16(Arena *arena, String in);
 Utf16 to_utf16(Allocator allocator, String in);
-
-//
-// Manipulation (Old)
-//
-b32 utf8_match(String a, String b, Str_Match_Flags flags);
-String utf8_substr(String str, s64 min, s64 max);
-s64 utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags);
-String utf8_path_chop_last_slash(String string);
 
 
 /* Manipulation */

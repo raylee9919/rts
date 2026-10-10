@@ -373,100 +373,6 @@ Utf16 to_utf16(Allocator allocator, String in) {
     return result;
 }
 
-
-
-// # Note: Manipulation.
-//
-b32
-utf8_match(String a, String b, Str_Match_Flags flags)
-{
-    auto to_forward_slash = [](u8 c) -> u8 {
-        if (c == '\\')  return '/';
-        else return c;
-    };
-
-    b32 result = 0;
-    if (a.len == b.len || flags & STR_MATCH_RIGHT_SIDE_SLOPPY)
-    {
-        result = 1;
-        for(s64 i = 0; i < a.len; i += 1)
-        {
-            b32 match = (a[i] == b[i]);
-            if (flags & STR_MATCH_CASE_INSENSITIVE)
-            {
-                match |= (to_lower(a[i]) == to_lower(b[i]));
-            }
-            if (flags & STR_MATCH_SLASH_INSENTISIVE)
-            {
-                match |= (to_forward_slash(a[i]) == to_forward_slash(b[i]));
-            }
-            if (match == 0)
-            {
-                result = 0;
-                break;
-            }
-        }
-    }
-    return result;
-}
-
-String
-utf8_substr(String str, s64 min, s64 max)
-{
-    if (max > str.len)
-    {
-        max = str.len;
-    }
-    if (min > str.len)
-    {
-        min = str.len;
-    }
-    if (min > max)
-    {
-        s64 swap = min;
-        min = max;
-        max = swap;
-    }
-    str.len = max - min;
-    str.str += min;
-    return str;
-}
-
-s64
-utf8_find_substr(String haystack, String needle, u64 start_pos, Str_Match_Flags flags)
-{
-    b32 found = 0;
-    s64 found_idx = haystack.len;
-    for (s64 i = start_pos; i < haystack.len; i += 1)
-    {
-        if (i + needle.len <= haystack.len)
-        {
-            String substr = utf8_substr(haystack, i, i+needle.len);
-            if (utf8_match(substr, needle, flags))
-            {
-                found_idx = i;
-                found = 1;
-                if (! (flags & STR_MATCH_FIND_LAST))
-                { break; }
-            }
-        }
-    }
-    return found_idx;
-}
-
-String
-utf8_path_chop_last_slash(String string)
-{
-    Str_Match_Flags flags = STR_MATCH_SLASH_INSENTISIVE | STR_MATCH_FIND_LAST;
-    s64 slash_pos = utf8_find_substr(string, S("/"), 0, flags);
-    if(slash_pos < string.len)
-    {
-        string.len = slash_pos;
-    }
-    return string;
-}
-
-
 b32 equal_nocase(String a, String b) {
     if ( a.len != b.len ) return false;
     for ( s64 i = 0; i < a.len; ++i ) {
@@ -754,38 +660,44 @@ String path_strip_extension(String path) {
     return result;
 }
 
-String tprint(char *fmt, va_list args) {
-    String result = {};
-    va_list args2;
-    va_copy(args2, args);
-    u64 needed_bytes = str_vsnprintf(0, 0, fmt, args) + 1;
-    result.str = (u8*)alloc(needed_bytes, tctx.temp);
-    result.len = needed_bytes - 1;
-    str_vsnprintf((char*)result.str, (int)needed_bytes, fmt, args2);
-    va_end(args2);
-    return result;
+String 
+tprint(char *fmt, va_list args) 
+{
+  String result = {};
+  va_list args2;
+  va_copy(args2, args);
+  u64 needed_bytes = str_vsnprintf(0, 0, fmt, args) + 1;
+  result.str = (u8*)alloc(needed_bytes, tctx.temp);
+  result.len = needed_bytes - 1;
+  str_vsnprintf((char*)result.str, (int)needed_bytes, fmt, args2);
+  va_end(args2);
+  return result;
 }
 
-String tprint(char *fmt, ...) {
-    String result = {};
-    va_list args;
-    va_start(args, fmt);
-    result = tprint(fmt, args);
-    va_end(args);
-    return result;
+String 
+tprint(char *fmt, ...) 
+{
+  String result = {};
+  va_list args;
+  va_start(args, fmt);
+  result = tprint(fmt, args);
+  va_end(args);
+  return result;
 }
 
-String tprint(String fmt, ...) {
-    auto tprintv = [](String fmt, va_list args) {
-        u8 *cfmt = alloc(fmt.len + 1, tctx.temp);
-        memcpy(cfmt, fmt.str, fmt.len);
-        cfmt[fmt.len] = 0;
-        return tprint((char*)cfmt, args);
-    };
+String 
+tprint(String fmt, ...) 
+{
+  auto tprintv = [](String fmt, va_list args) {
+    u8 *cfmt = alloc(fmt.len + 1, tctx.temp);
+    memcpy(cfmt, fmt.str, fmt.len);
+    cfmt[fmt.len] = 0;
+    return tprint((char*)cfmt, args);
+  };
 
-    va_list args;
-    va_start(args, fmt);
-    String result = tprintv(fmt, args);
-    va_end(args);
-    return result;
+  va_list args;
+  va_start(args, fmt);
+  String result = tprintv(fmt, args);
+  va_end(args);
+  return result;
 }

@@ -182,50 +182,19 @@ int main_entry(int argc, char **argv)
     // @Temporary
     // @Temporary
     // @Temporary
-#if 1
+#if 0
     FBX_Import_Options options = {};
     options.generate_normals_with_mesh_optimizer = true;
     options.overwrite_existing_file = true;
-    R_ASSERT( fbx_import(S("C:/Users/swl/Desktop/rts_assets/input/knight.fbx"), S(""), options) );
+    R_ASSERT( fbx_import(S("C:/Users/swl/Downloads/Goblin_FBX/Files/Goblin_FBX.fbx"), S(""), options) );
 #endif
+    Guid mesh_id = guid_from_string(S("goblin/goblin.triangle_mesh"));
+    Entity *knight = entity_alloc(game_state);
+    knight->mesh = mesh_id;
+    asset_request(mesh_id);
     // @Temporary
     // @Temporary
     // @Temporary
-
-
-    // @Temporary
-    // Create and initalize entities. This is a placeholder.
-    // Entities are assets, thus will be loaded from the disk as well.
-    {
-#if 0
-        // Submesh name -> material. The mesh carries no material reference itself,
-        // so the binding lives here until entities become assets of their own.
-        struct Knight_Material { String mesh; String material; };
-        Knight_Material knight_materials[] = {
-            { S("Helm2"),        S("materials/knight/helm.material")         },
-            { S("Arms"),         S("materials/knight/arms.material")         },
-            { S("Accessories"),  S("materials/knight/arms.material")         },
-            { S("Accessories2"), S("materials/knight/arms.material")         },
-            { S("Breast_Armor"), S("materials/knight/breast_armor.material") },
-            { S("Legs_Armor1"),  S("materials/knight/breast_armor.material") },
-            { S("Pants"),        S("materials/knight/breast_armor.material") },
-            { S("Weapon2"),      S("materials/knight/sword.material")        },
-            { S("Shield"),       S("materials/knight/shield.material")       },
-        };
-#endif
-
-#if 0
-        Guid knight_id = guid_from_string();
-
-        Asset::Model *knight = Asset::model_from_guid(knight_id);
-        R_ASSERT(knight);
-#endif
-
-        Guid mesh_id = guid_from_string(S("knight.triangle_mesh"));
-        Entity *knight = entity_alloc(game_state);
-        knight->mesh = mesh_id;
-        asset_request(mesh_id);
-    }
 
 
     // Game loop

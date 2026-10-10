@@ -359,7 +359,7 @@ bool shader_compile(Shader_Compiler *compiler,
             // Get name
             f.name = utf8c((u8*)field->getName());
 
-            array_add(&fields, f);
+            append(&fields, f);
         }
     }
 

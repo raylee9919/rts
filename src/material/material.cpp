@@ -22,10 +22,10 @@ static void bitmap_free(Bitmap *bitmap);
 // Material System
 //
 static Allocator material_system_allocator;
-static Pair<u64, u64> material_field_type_size_align[M_FIELD_TYPE_COUNT];
+static Pair<u64, u64> material_field_type_size_align[MTL_FIELD_TYPE_COUNT];
 static Table<Guid, M_TypeInfo, hash_guid> material_type_table;
 static Table<Guid, M_Entry, hash_guid> material_table;
-static Guid null_material_id;
+static Guid default_material_id;
 
 static u64 get_size(M_FieldType type) {
   return material_field_type_size_align[type].x;
@@ -43,8 +43,8 @@ write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material)
   auto convert = [](u8 *src, M_FieldType cpu_type, M_FieldType gpu_type) -> u8* {
     u8 *data = src;
     if (cpu_type == gpu_type) return data;
-    if (cpu_type == M_FIELD_GUID) {
-      R_ASSERT(gpu_type == M_FIELD_TEXTURE);
+    if (cpu_type == MTL_FIELD_GUID) {
+      R_ASSERT(gpu_type == MTL_FIELD_TEXTURE);
       data = alloc(4, tctx.temp);
       Guid guid = *(Guid*)src;
       u32 bindless = gfx_srv_bindless_from_texture(guid);
@@ -88,22 +88,22 @@ static M_FieldType
 convert_type(Shader_Field_Type type, b32 is_gpu) 
 {
   switch (type) {
-    case SHADER_FIELD_INT8:    return M_FIELD_S8;
-    case SHADER_FIELD_INT16:   return M_FIELD_S16;
-    case SHADER_FIELD_INT32:   return M_FIELD_S32;
-    case SHADER_FIELD_INT64:   return M_FIELD_S64;
+    case SHADER_FIELD_INT8:    return MTL_FIELD_S8;
+    case SHADER_FIELD_INT16:   return MTL_FIELD_S16;
+    case SHADER_FIELD_INT32:   return MTL_FIELD_S32;
+    case SHADER_FIELD_INT64:   return MTL_FIELD_S64;
 
-    case SHADER_FIELD_UINT8:   return M_FIELD_U8;
-    case SHADER_FIELD_UINT16:  return M_FIELD_U16;
-    case SHADER_FIELD_UINT32:  return M_FIELD_U32;
-    case SHADER_FIELD_UINT64:  return M_FIELD_U64;
+    case SHADER_FIELD_UINT8:   return MTL_FIELD_U8;
+    case SHADER_FIELD_UINT16:  return MTL_FIELD_U16;
+    case SHADER_FIELD_UINT32:  return MTL_FIELD_U32;
+    case SHADER_FIELD_UINT64:  return MTL_FIELD_U64;
 
-    case SHADER_FIELD_FLOAT:   return M_FIELD_F32;
-    case SHADER_FIELD_FLOAT2:  return M_FIELD_VEC2;
-    case SHADER_FIELD_FLOAT3:  return M_FIELD_VEC3;
-    case SHADER_FIELD_FLOAT4:  return M_FIELD_VEC4;
+    case SHADER_FIELD_FLOAT:   return MTL_FIELD_F32;
+    case SHADER_FIELD_FLOAT2:  return MTL_FIELD_VEC2;
+    case SHADER_FIELD_FLOAT3:  return MTL_FIELD_VEC3;
+    case SHADER_FIELD_FLOAT4:  return MTL_FIELD_VEC4;
 
-    default: R_ASSERT(0); return M_FIELD_S32;
+    default: R_ASSERT(0); return MTL_FIELD_S32;
   }
 }
 
@@ -132,11 +132,11 @@ get_material_type_info(Shader_Compiler *shader_compiler,
     M_Field *f = &type_info.fields[i];
     f->name = field.name; // @Todo: is it `const char *` in read-only memory?
 
-    f->cpu_type   = field.attribute == S("Texture") ? M_FIELD_GUID : convert_type(field.type, false);
+    f->cpu_type   = field.attribute == S("Texture") ? MTL_FIELD_GUID : convert_type(field.type, false);
     f->cpu_size   = get_size(f->cpu_type);
     f->cpu_offset = (i > 0) ? align_up(type_info.fields[i-1].cpu_offset + type_info.fields[i-1].cpu_size, get_align(f->cpu_type)) : 0;
 
-    f->gpu_type   = field.attribute == S("Texture") ? M_FIELD_TEXTURE : convert_type(field.type, true);
+    f->gpu_type   = field.attribute == S("Texture") ? MTL_FIELD_TEXTURE : convert_type(field.type, true);
     f->gpu_size   = get_size(f->gpu_type);
     f->gpu_offset = (i > 0) ? align_up(type_info.fields[i-1].gpu_offset + type_info.fields[i-1].gpu_size, get_align(f->gpu_type)) : 0;
 
@@ -164,24 +164,24 @@ material_system_init(String material_shader_dir,
 
 
   // Fill in size/alignment table for each field type.
-  material_field_type_size_align[M_FIELD_S8]  = { sizeof(s8),  align_of(s8)  };
-  material_field_type_size_align[M_FIELD_S16] = { sizeof(s16), align_of(s16) };
-  material_field_type_size_align[M_FIELD_S32] = { sizeof(s32), align_of(s32) };
-  material_field_type_size_align[M_FIELD_S64] = { sizeof(s64), align_of(s64) };
+  material_field_type_size_align[MTL_FIELD_S8]  = { sizeof(s8),  align_of(s8)  };
+  material_field_type_size_align[MTL_FIELD_S16] = { sizeof(s16), align_of(s16) };
+  material_field_type_size_align[MTL_FIELD_S32] = { sizeof(s32), align_of(s32) };
+  material_field_type_size_align[MTL_FIELD_S64] = { sizeof(s64), align_of(s64) };
 
-  material_field_type_size_align[M_FIELD_U8]  = { sizeof(u8),  align_of(u8)  };
-  material_field_type_size_align[M_FIELD_U16] = { sizeof(u16), align_of(u16) };
-  material_field_type_size_align[M_FIELD_U32] = { sizeof(u32), align_of(u32) };
-  material_field_type_size_align[M_FIELD_U64] = { sizeof(u64), align_of(u64) };
+  material_field_type_size_align[MTL_FIELD_U8]  = { sizeof(u8),  align_of(u8)  };
+  material_field_type_size_align[MTL_FIELD_U16] = { sizeof(u16), align_of(u16) };
+  material_field_type_size_align[MTL_FIELD_U32] = { sizeof(u32), align_of(u32) };
+  material_field_type_size_align[MTL_FIELD_U64] = { sizeof(u64), align_of(u64) };
 
-  material_field_type_size_align[M_FIELD_F32]  = {           4, align_of(f32) };
-  material_field_type_size_align[M_FIELD_VEC2] = {           8, align_of(f32) };
-  material_field_type_size_align[M_FIELD_VEC3] = {          12, align_of(f32) };
-  material_field_type_size_align[M_FIELD_VEC4] = {          16, align_of(f32) };
+  material_field_type_size_align[MTL_FIELD_F32]  = {           4, align_of(f32) };
+  material_field_type_size_align[MTL_FIELD_VEC2] = {           8, align_of(f32) };
+  material_field_type_size_align[MTL_FIELD_VEC3] = {          12, align_of(f32) };
+  material_field_type_size_align[MTL_FIELD_VEC4] = {          16, align_of(f32) };
 
-  material_field_type_size_align[M_FIELD_GUID] = { sizeof(Guid), align_of(Guid) };
+  material_field_type_size_align[MTL_FIELD_GUID] = { sizeof(Guid), align_of(Guid) };
 
-  material_field_type_size_align[M_FIELD_TEXTURE] = { sizeof(u32), align_of(u32) };
+  material_field_type_size_align[MTL_FIELD_TEXTURE] = { sizeof(u32), align_of(u32) };
 
 
   // Iterate over file list in the directory, reflect, 
@@ -214,8 +214,8 @@ material_system_init(String material_shader_dir,
   // Allocate fallback material if user couldn't find 
   // material from given GUID. For exmaple, there may 
   // be a mesh with no material assigned.
-  null_material_id = guid_from_string(S("materials/null.material"));
-  asset_request(null_material_id);
+  default_material_id = guid_from_string(S("materials/default.material"));
+  asset_request(default_material_id);
 
   return true;
 }
@@ -252,7 +252,7 @@ material_from_guid(Guid id)
   }
   else
   {
-    return table_find_pointer(&material_table, null_material_id);
+    return table_find_pointer(&material_table, default_material_id);
   }
 }
 
@@ -285,19 +285,21 @@ upload_material(Guid id)
 
 ASSET_LOAD_PROC(material_load_proc)
 {
-  auto parse_string = [](Text_File_Handler *handler, String val) -> Pair<b32, String> {
+  auto parse_string = [](String file, Text_File_Handler *handler, String val) -> Pair<b32, String> {
     if (val.len <= 2) { 
-      log_error(S("Expected string at line: %d"), handler->line_number);
+      log_error(S("File: `%S`: Expected string at line: %d"), handler->line_number);
       return { false, {} };
     }
 
     if ( !begins_with(val, S("\"")) ) {
-      log_error(S("Expected '\"' at the beginning of the string, at line: %d, but encountered '%S'"), handler->line_number, val[0]);
+      log_error(S("File: `%S`: Expected `\"` at the beginning of the string, at line: %d, but encountered '%c'"), 
+                file, handler->line_number, val[0]);
       return { false, {} };
     }
 
     if ( !ends_with(val, S("\"")) ) {
-      log_error(S("Expected '\"' at the end of the string, at line: %d, but encountered '%S'"), handler->line_number, val[val.len - 1]);
+      log_error(S("File: `%S`: Expected `\"` at the end of the string, at line: %d, but encountered '%c'"), 
+                file, handler->line_number, val[val.len - 1]);
       return { false, {} };
     }
 
@@ -323,14 +325,14 @@ ASSET_LOAD_PROC(material_load_proc)
     }
 
     if (line[0] != '@') {
-      log_error(S("Expected '@', but encounterd %S."), break_by_spaces(line).x);
+      log_error(S("In file: '%S', Expected '@', but encounterd %S."), filepath, break_by_spaces(line).x);
       return;
     }
 
     line = advance(line, 1);
     line = trim_left(line);
 
-    auto [success, _shader] = parse_string(&handler, line);
+    auto [success, _shader] = parse_string(filepath, &handler, line);
     if ( !success ) return;
 
     type_id = guid_from_string(_shader);
@@ -341,7 +343,8 @@ ASSET_LOAD_PROC(material_load_proc)
 
   /* Find material's type info */
   auto find_result = table_find(&material_type_table, type_id);
-  if ( !find_result.found ) {
+  if (!find_result.found) 
+  {
     log_error(S("Couldn't find material: '%S' info."), shader);
     return;
   }
@@ -349,8 +352,9 @@ ASSET_LOAD_PROC(material_load_proc)
   M_TypeInfo type_info = find_result.value;
   u32 num_fields = type_info.num_fields;
 
-  if (type_info.cpu_size > MAX_CPU_MATERIAL_SIZE) {
-    log_error(S("Material on CPU-side is bigger than max size: '%d'."), MAX_CPU_MATERIAL_SIZE);
+  if (type_info.cpu_size > MAX_CPU_MATERIAL_SIZE) 
+  {
+    log_error(S("Material's CPU-side size is bigger than the max: '%d'."), MAX_CPU_MATERIAL_SIZE);
     return;
   }
 
@@ -395,9 +399,11 @@ ASSET_LOAD_PROC(material_load_proc)
     // Should I do DAG thing or what.
     // Load assets this is depending on:
 
-    switch (field_info->cpu_type) {
-      case M_FIELD_GUID: {
-        auto [success, s] = parse_string(&handler, val);
+    switch (field_info->cpu_type) 
+    {
+      case MTL_FIELD_GUID: 
+      {
+        auto [success, s] = parse_string(filepath, &handler, val);
         if (!success) {
           log_error(S("Failed to parse field in '%S' at line '%d'."), filepath, handler.line_number);
           return;
@@ -409,14 +415,14 @@ ASSET_LOAD_PROC(material_load_proc)
         memcpy(material->data + field_info->cpu_offset, &child_asset, field_info->cpu_size);
       } break;
 
-      case M_FIELD_S8:
-      case M_FIELD_S16:
-      case M_FIELD_S32:
-      case M_FIELD_S64:
-      case M_FIELD_U8:
-      case M_FIELD_U16:
-      case M_FIELD_U32:
-      case M_FIELD_U64:
+      case MTL_FIELD_S8:
+      case MTL_FIELD_S16:
+      case MTL_FIELD_S32:
+      case MTL_FIELD_S64:
+      case MTL_FIELD_U8:
+      case MTL_FIELD_U16:
+      case MTL_FIELD_U32:
+      case MTL_FIELD_U64:
       {
         auto [int_val, ok, remainder] = int_from_string(val);
         if (!ok) {
@@ -428,7 +434,8 @@ ASSET_LOAD_PROC(material_load_proc)
 
       // @Todo: float/vector
 
-      default: {
+      default: 
+      {
         R_ASSERT(!"Invalid default value");
       } break;
     }
@@ -446,9 +453,8 @@ ASSET_LOAD_PROC(material_load_proc)
   // `shader` is the material implementation (IMaterial). It gets linked
   // into the template shader, which owns the entry points.
   // @Temporary: Single template for every material.
-  String surface_shader_path  = tprint(S("%S/shaders/pass/surface.slang"), shared->data_path);
-  String material_shader_path = tprint(S("%S/%S"), shared->data_path, shader);
-  r_pipeline_create(pipeline_id, surface_shader_path, material_shader_path, SHADING_MODEL_OPAQUE);
+  String surface_shader_path  = S("shaders/pass/surface.slang");
+  r_pipeline_create(pipeline_id, surface_shader_path, shader, SHADING_MODEL_OPAQUE);
 
 
   // @Fix: As I stated in the function definition, 
@@ -480,8 +486,8 @@ ASSET_LOAD_PROC(image_load_proc)
   bitmap_free(&bitmap);
 }
 
-
-// @Todo: REMOVE THIS SHIT. Just use .dds or .png or whatever!
+// @Todo: REMOVE THIS SHIT. Just use .dds or .png or whatever, 
+// instead of my garbage format.
 ASSET_LOAD_PROC(texture_load_proc)
 {
   // '.texture' is our own cooked format: four ASCII header lines - bytes per
@@ -586,6 +592,7 @@ bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit)
 static Bitmap 
 bitmap_import(void *loaded_data, u64 size) 
 {
+  stbi_set_flip_vertically_on_load(1);
   Bitmap result = {};
 
   u8 *data = (u8*)loaded_data;

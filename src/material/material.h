@@ -15,28 +15,30 @@ struct Material_Field_Info;
 #define MAX_MATERIAL_FIELDS     32
 #define MAX_CPU_MATERIAL_SIZE  256
 
+const read_only String DEFAULT_MATERIAL_SHADER_PATH = S("shaders/material/default.slang");
+
 enum M_FieldType 
 {
-  M_FIELD_S8,
-  M_FIELD_S16,
-  M_FIELD_S32,
-  M_FIELD_S64,
+  MTL_FIELD_S8,
+  MTL_FIELD_S16,
+  MTL_FIELD_S32,
+  MTL_FIELD_S64,
 
-  M_FIELD_U8,
-  M_FIELD_U16,
-  M_FIELD_U32,
-  M_FIELD_U64,
+  MTL_FIELD_U8,
+  MTL_FIELD_U16,
+  MTL_FIELD_U32,
+  MTL_FIELD_U64,
 
-  M_FIELD_F32,
-  M_FIELD_VEC2,
-  M_FIELD_VEC3,
-  M_FIELD_VEC4,
+  MTL_FIELD_F32,
+  MTL_FIELD_VEC2,
+  MTL_FIELD_VEC3,
+  MTL_FIELD_VEC4,
 
-  M_FIELD_GUID,
+  MTL_FIELD_GUID,
 
-  M_FIELD_TEXTURE, // bindless handle to texture
+  MTL_FIELD_TEXTURE, // bindless handle to texture
 
-  M_FIELD_TYPE_COUNT,
+  MTL_FIELD_TYPE_COUNT,
 };
 
 struct M_Field 

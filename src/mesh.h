@@ -9,8 +9,6 @@
 #include "math/math.h"
 #include "asset/asset.h"
 
-#define MAX_VERTEX_ATTRIBUTES 16
-
 struct Asset_Lexer;
 
 struct Vertex
@@ -27,21 +25,21 @@ struct Mesh_Part
   s64 offset;
   s64 count;
   
-  // @Todo: Material
+  String material_path;
 };
 
 struct Triangle_Mesh 
 {
-  String            name;
+  String     name;
 
-  s64               num_vertices;
-  Vertex           *vertices;
+  s64        num_vertices;
+  Vertex    *vertices;
 
-  s64               num_indices;
-  u32              *indices;
+  s64        num_indices;
+  u32       *indices;
 
-  s64               num_parts;
-  Mesh_Part        *parts;
+  s64        num_parts;
+  Mesh_Part *parts;
 };
 
 String

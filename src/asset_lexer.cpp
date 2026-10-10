@@ -95,7 +95,7 @@ _continues_single_line_comment(Asset_Lexer *lexer)
 static Asset_Token *
 push_token(Asset_Lexer *lexer, Asset_Token_Type type)
 {
-  array_add(&lexer->tokens, Asset_Token{});
+  append(&lexer->tokens, Asset_Token{});
   Asset_Token *t = &lexer->tokens.data[lexer->tokens.count-1];
   t->type = type;
   return t;

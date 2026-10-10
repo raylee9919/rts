@@ -189,44 +189,45 @@ static void init_key_code_tables() {
     }
 }
 
-void os_init() {
-    // Bootstrap arena
-    Allocator arena = arena_allocator_alloc();
-    os = (OS_State*)alloc(sizeof(OS_State), arena);
-    os->arena = arena;
+void 
+os_init() 
+{
+  // Bootstrap arena
+  Allocator arena = arena_allocator_alloc();
+  os = (OS_State*)alloc(sizeof(OS_State), arena);
+  os->arena = arena;
 
-    // Win32 State
-    os->native = (Win32_State*)alloc(sizeof(Win32_State), arena);
-    Win32_State *win32 = (Win32_State *)os->native;
-    win32->window_arena = arena_alloc();
+  // Win32 State
+  os->native = (Win32_State*)alloc(sizeof(Win32_State), arena);
+  Win32_State *win32 = (Win32_State *)os->native;
+  win32->window_arena = arena_alloc();
 
-    // Events
-    os->event_arena = arena_allocator_alloc();
-    os->events.allocator = os->arena;
+  // Events
+  os->event_arena = arena_allocator_alloc();
+  os->events.allocator = os->arena;
 
-    init_key_code_tables();
+  init_key_code_tables();
 
 
+  // Regsiter raw input. Follows keyboard focus
+  RAWINPUTDEVICE rid[2] = {
+    { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_MOUSE,    0, NULL},
+    { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_KEYBOARD, 0, NULL},
+  };
 
-    // Regsiter raw input. Follows keyboard focus
-    RAWINPUTDEVICE rid[2] = {
-        { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_MOUSE,    0, NULL},
-        { HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_KEYBOARD, 0, NULL},
-    };
+  if (!RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
+    log_error(S("Failed to initialize raw input."));
+    R_ASSERT(false);
+  }
 
-    if (!RegisterRawInputDevices(rid, 2, sizeof(RAWINPUTDEVICE))) {
-        log_error(S("Failed to initialize raw input."));
-        R_ASSERT(false);
-    }
+  raw_input_buffer.allocator = os->arena;
+  array_reserve(&raw_input_buffer, 8000);
 
-    raw_input_buffer.allocator = os->arena;
-    array_reserve(&raw_input_buffer, 8000);
 
-    { // Cache QPC frequency
-        LARGE_INTEGER li;
-        QueryPerformanceFrequency(&li);
-        win32->qpc_frequency = li.QuadPart;
-    }
+  // Cache QPC frequency
+  LARGE_INTEGER li;
+  QueryPerformanceFrequency(&li);
+  win32->qpc_frequency = li.QuadPart;
 }
 
 
@@ -532,17 +533,25 @@ String read_entire_file(String name, Allocator allocator, bool zero_terminated) 
     return s;
 }
 
-bool file_write(File file, void *data, s64 size) {
-    // WritreFile maybe blocks unitl it writes everything, as long as the file it not set to nonblocking.
-    // @Todo(swL): Deal with inputs > 32 bits.
+b32 
+file_write(File file, void *data, s64 size) 
+{
+  // WritreFile maybe blocks unitl it writes everything, as long as the file it not set to nonblocking.
+  // @Todo(swL): Deal with inputs > 32 bits.
 
-    u32 size32 = (u32)size;
-    R_ASSERT(size32 == size);
+  u32 size32 = (u32)size;
+  R_ASSERT(size32 == size);
 
-    DWORD written = 0;
-    BOOL status = WriteFile(file.handle, data, size32, &written, NULL);
+  DWORD written = 0;
+  BOOL status = WriteFile(file.handle, data, size32, &written, NULL);
 
-    return (bool)status;
+  return (bool)status;
+}
+
+b32 
+file_write(File file, String data)
+{
+  return file_write(file, data.str, data.len);
 }
 
 b32 file_is_valid(File file) {
@@ -577,7 +586,7 @@ b32 visit_files(String _dir_name,
     Array<String> directories;
     directories.allocator = tctx.temp;
 
-    array_add(&directories, _dir_name);
+    append(&directories, _dir_name);
 
     File_Visit_Info info = {};
 
@@ -617,7 +626,7 @@ b32 visit_files(String _dir_name,
                         proc(&info, user_data);
                     }
 
-                    if ( info.descend_into_directory )  array_add(&directories, full_name);
+                    if ( info.descend_into_directory )  append(&directories, full_name);
                 }
             } else {
                 if ( visit_files && (visit_symlinks || !info.is_symlink) ) {
@@ -691,7 +700,7 @@ static void send_key_event(Key_Code key_code, bool key_down, bool repeat = false
     event.modifier_flags.ctrl_pressed  = ctrl_state;
     event.modifier_flags.alt_pressed   = alt_state;
     event.repeat = repeat;
-    array_add(&os->events, event);
+    append(&os->events, event);
 
     os->input_button_states[key_code] |= ( key_down ? (KEY_STATE_DOWN | KEY_STATE_START) : KEY_STATE_END) ;
 }
@@ -782,7 +791,7 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                 event.type = EVENT_TEXT_INPUT;
                 event.utf32 = keycode;
 
-                array_add(&os->events, event);
+                append(&os->events, event);
             }
         } break;
 
@@ -849,7 +858,7 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             event.type = EVENT_MOUSE_WHEEL;
             event.typical_wheel_delta = WHEEL_DELTA;
             event.wheel_delta = (s16)(wparam >> 16);
-            array_add(&os->events, event);
+            append(&os->events, event);
 
             mouse_delta_z += event.wheel_delta;
         } break;
@@ -860,7 +869,7 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         {
             Event event = {};
             event.type = EVENT_QUIT;
-            array_add(&os->events, event);
+            append(&os->events, event);
             return DefWindowProcW(hwnd, msg, wparam, lparam);
         }
 
@@ -893,7 +902,7 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
                 R_ASSERT(success);
 
                 String filename = wide_to_utf8(filename_wide, n, os->event_arena);
-                array_add(&files, filename);
+                append(&files, filename);
             }
 
             DragFinish(drop);
@@ -901,7 +910,7 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             Event event;
             event.type  = EVENT_DRAG_AND_DROP_FILES;
             event.files = files;
-            array_add(&os->events, event);
+            append(&os->events, event);
 
             return 0;
         }

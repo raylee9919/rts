@@ -29,7 +29,7 @@ struct Asset_System {
   Allocator heap;
 
   Table<Guid, Asset_Entry, hash_guid> asset_table;
-  Table<Guid, String, hash_guid> guid_to_short_name;
+  Table<Guid, String, hash_guid> guid_to_path;
 
   Array<Asset_Type_Info> type_infos;
 };
