@@ -182,16 +182,16 @@ int main_entry(int argc, char **argv)
     // @Temporary
     // @Temporary
     // @Temporary
-#if 0
+#if 1
     FBX_Import_Options options = {};
     options.generate_normals_with_mesh_optimizer = true;
     options.overwrite_existing_file = true;
-    R_ASSERT( fbx_import(S("C:/Users/swl/Downloads/Goblin_FBX/Files/Goblin_FBX.fbx"), S(""), options) );
+    R_ASSERT( fbx_import(S("C:/Arts/Goblin/Files/Goblin_FBX.fbx"), S(""), options) );
 #endif
-    Guid mesh_id = guid_from_string(S("goblin/goblin.triangle_mesh"));
+    Guid mesh_id = guid_from_string(S("goblin/Goblin_FBX.triangle_mesh"));
     Entity *knight = entity_alloc(game_state);
     knight->mesh = mesh_id;
-    asset_request(mesh_id);
+    asset_request(mesh_id, NULL_GUID);
     // @Temporary
     // @Temporary
     // @Temporary

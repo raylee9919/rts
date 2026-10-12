@@ -3,7 +3,6 @@
 #include "./mesh.h"
 #include "os/os.h"
 #include "basic/context.h"
-#include "basic/log.h"
 #include "basic/string_builder.h"
 #include "asset_lexer.h"
 #include "asset/asset.h"
@@ -53,7 +52,7 @@ string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
     Mesh_Part *part = &mesh->parts[i];
     append(&b, tprint(S("%u "), part->offset));
     append(&b, tprint(S("%u "), part->count));
-    append(&b, tprint(S("\"%S\" "), part->material_path));
+    append(&b, tprint(S("@\"%S\" "), part->material_path));
     append(&b, S("\n"));
   }
 
@@ -161,10 +160,12 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
     {
       tm.parts[p].offset        = eat_unsigned_int(lexer);
       tm.parts[p].count         = eat_unsigned_int(lexer);
-      tm.parts[p].material_path = copy_string(eat_string(lexer), allocator);
 
 
-      asset_request(guid_from_string(tm.parts[p].material_path));
+      // @Temporary: request material
+      Guid ref = eat_reference(lexer);
+      asset_request(ref, lexer->id);
+      tm.parts[p].material_path = asset_name_from_guid(ref);
     }
 
     append(&result, tm);
@@ -177,19 +178,18 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
 
 ASSET_LOAD_PROC(mesh_load_proc)
 {
-  Allocator allocator = asset_system->heap;
-  Guid guid = guid_from_string(filepath);
-
-  // Tokenize asset file
   Asset_Lexer lexer = {};
-  String asset = read_entire_file(filepath, tctx.temp, false);
-  asset_tokenize(&lexer, asset, tctx.temp);
+  asset_tokenize(&lexer, id, tctx.temp);
+
+
+  Allocator allocator = asset_system->heap;
 
   // Parse and evaluate meshes
-  Array<Triangle_Mesh> meshes = parse_and_eval_mesh_asset(&lexer, allocator);
+  Array<Triangle_Mesh> meshes = parse_and_eval_mesh_asset(&lexer, 
+                                                          allocator);
 
   Array<Guid> guids;
   guids.allocator = allocator;
 
-  r_meshes_alloc(guid, meshes);
+  r_meshes_alloc(id, meshes);
 }

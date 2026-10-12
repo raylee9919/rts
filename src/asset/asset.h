@@ -8,15 +8,18 @@
 #include "os/os.h"
 
 
-#define ASSET_LOAD_PROC(Name) void Name(String filepath, void *user_data)
+#define ASSET_LOAD_PROC(Name) void Name(Guid id, Guid referrer, void *user_data)
 typedef ASSET_LOAD_PROC(Asset_Load_Proc);
 
-struct Asset_Entry {
+
+struct Asset_Entry 
+{
   s64 ref_count;
 };
 
-struct Asset_Type_Info {
-  String  path_extension;
+struct Asset_Type_Info 
+{
+  String path_extension;
 
   Asset_Load_Proc *load_proc;
 
@@ -25,7 +28,8 @@ struct Asset_Type_Info {
   }
 };
 
-struct Asset_System {
+struct Asset_System 
+{
   Allocator heap;
 
   Table<Guid, Asset_Entry, hash_guid> asset_table;
@@ -37,6 +41,9 @@ struct Asset_System {
 extern Asset_System *asset_system;
 
 
+String
+asset_name_from_guid(Guid id);
+
 void 
 asset_system_init();
 
@@ -47,7 +54,7 @@ void
 asset_type_register(Asset_Type_Info info);
 
 void 
-asset_request(Guid id);
+asset_request(Guid id, Guid referrer);
 
 void 
 asset_drop(Guid id);

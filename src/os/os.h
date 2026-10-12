@@ -523,31 +523,42 @@ struct File_Visit_Info {
     b32    descend_into_directory;
 };
 
-File file_open(String name, bool for_writing = false, bool keep_existing_content = false);
+File 
+file_open(String name, bool for_writing = false, bool keep_existing_content = false);
 
-void file_close(File *file);
+void 
+file_close(File *file);
 
-b32  file_move(String name_old, String name_new);
+b32  
+file_move(String name_old, String name_new);
 
-b32  file_copy(String src, String dst);
+b32  
+file_copy(String src, String dst);
 
-b32  file_delete(String name);
+b32  
+file_delete(String name);
 
 // Returns true on success.
-b32 file_read(File file, void *vdata, s64 bytes_to_read);
+b32 
+file_read(File file, void *vdata, s64 bytes_to_read);
 
 // Returns length of the file. Returns -1 on error.
-s64 file_length(File file);
+s64 
+file_length(File file);
 
 // Returns the current file pointer offset. Returns -1 on error.
-s64 file_current_position(File file);
+s64 
+file_current_position(File file);
 
 // Sets file pointer offset. Returns false on error.
-b32 file_set_position(File file, s64 pos);
+b32 
+file_set_position(File file, s64 pos);
 
-String read_entire_file(File file, Allocator allocator, bool zero_terminated = false);
+String 
+read_entire_file(File file, Allocator allocator, bool zero_terminated = false);
 
-String read_entire_file(String name, Allocator allocator, bool zero_terminated = false);
+String 
+read_entire_file(String name, Allocator allocator, bool zero_terminated = false);
 
 b32 
 file_write(File file, void *data, s64 size);
@@ -555,27 +566,37 @@ file_write(File file, void *data, s64 size);
 b32 
 file_write(File file, String data);
 
-b32 file_is_valid(File file);
+b32 
+file_is_valid(File file);
 
-b32 delete_directory(String dirname);
+b32 
+delete_directory(String dirname);
 
-b32 file_exists(String path);
+b32 
+file_exists(String path);
 
-b32 is_directory(String path);
+b32 
+is_directory(String path);
 
-b32 visit_files(String dir_name, 
-                b32 recursive, 
-                void *user_data, 
-                void (*proc)(File_Visit_Info *, void *), 
-                b32 follow_directory_symlinks = true,
-                b32 visit_files = true,
-                b32 visit_directories = false,
-                b32 visit_symlinks = true);
+b32 
+visit_files(String dir_name, 
+            b32 recursive, 
+            void *user_data, 
+            void (*proc)(File_Visit_Info *, void *), 
+            b32 follow_directory_symlinks = true,
+            b32 visit_files = true,
+            b32 visit_directories = false,
+            b32 visit_symlinks = true);
 
-Array<String> file_list(String path, 
-                        Allocator allocator, 
-                        b32 recursive = false, 
-                        b32 follow_directory_symlinks = true);
+Array<String> 
+file_list(String    path, 
+          Allocator allocator, 
+          b32       recursive = false, 
+          b32       follow_directory_symlinks = true);
+
+String
+get_absolute_path(String    relative_path, 
+                  Allocator allocator);
 
 
 

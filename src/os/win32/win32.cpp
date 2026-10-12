@@ -79,37 +79,39 @@ static struct VK_To_Key_Code {
 //
 // Utf
 //
-static String wide_to_utf8(u16 *data, s32 length, Allocator allocator) {
-    if (length == 0)  return {};
-    
-    // length of -1 means it's zero-terminated.
-    int query_result = WideCharToMultiByte(CP_UTF8, 0, (LPCWCH)data, length, NULL, 0, NULL, NULL);
+static String 
+wide_to_utf8(u16 *data, s32 length, Allocator allocator) 
+{
+  if (length == 0)  return {};
 
-    if (query_result <= 0)  return {};
+  // length of -1 means it's zero-terminated.
+  int query_result = WideCharToMultiByte(CP_UTF8, 0, (LPCWCH)data, length, NULL, 0, NULL, NULL);
 
-    if (length != -1) {
-        query_result += 1;
-    }
+  if (query_result <= 0)  return {};
 
-    String name = {};
-    u8 *name_bytes = alloc(sizeof(u8) * query_result, allocator);
-    int result = WideCharToMultiByte(CP_UTF8, 0, (LPCWCH)data, length, (LPSTR)name_bytes, query_result, NULL, NULL);
-    
-    if (result <= 0) {
-        return {};
-    }
+  if (length != -1) {
+    query_result += 1;
+  }
 
-    R_ASSERT(result <= query_result);
+  String name = {};
+  u8 *name_bytes = alloc(sizeof(u8) * query_result, allocator);
+  int result = WideCharToMultiByte(CP_UTF8, 0, (LPCWCH)data, length, (LPSTR)name_bytes, query_result, NULL, NULL);
 
-    name.str = name_bytes;
-    if (length == -1) {
-        name.len = result - 1;
-    } else {
-        name.len = result;
-        name.str[name.len] = 0;
-    }
+  if (result <= 0) {
+    return {};
+  }
 
-    return name;
+  R_ASSERT(result <= query_result);
+
+  name.str = name_bytes;
+  if (length == -1) {
+    name.len = result - 1;
+  } else {
+    name.len = result;
+    name.str[name.len] = 0;
+  }
+
+  return name;
 }
 
 
@@ -643,6 +645,27 @@ b32 visit_files(String _dir_name,
     }
 
     return true;
+}
+
+String
+get_absolute_path(String    relative_path,
+                  Allocator allocator)
+{
+  String result = {};
+
+  Utf16 relative_path_wide = to_utf16(tctx.temp, relative_path);
+  if (!relative_path_wide.str || relative_path_wide.len <= 0)  return result;
+
+  DWORD full_path_size = GetFullPathNameW((LPWSTR)relative_path_wide.str, 0, NULL, NULL);
+  if (!full_path_size) return result;
+
+  u16 *absolute_path_wide = (u16*)alloc(2*full_path_size, tctx.temp);
+  DWORD final_length = GetFullPathNameW((LPWSTR)relative_path_wide.str, full_path_size, (LPWSTR)absolute_path_wide, NULL);
+  if (!final_length) return result;
+
+  R_ASSERT(final_length <= full_path_size - 1);
+
+  return wide_to_utf8(absolute_path_wide, final_length, allocator);
 }
 
 //

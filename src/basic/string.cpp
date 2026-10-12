@@ -6,6 +6,7 @@
 #include "basic/arena.h"
 #include "basic/allocator.h"
 #include "basic/context.h"
+#include "basic/string_builder.h"
 
 // Faster 'sprintf' than stdlib.
 #define STB_SPRINTF_IMPLEMENTATION
@@ -110,49 +111,50 @@ String advance(String s, s64 amount) {
 
 
 
-// # Note: String Constructors
+//
+// String Constructors
 //
 String utf8(u8 *str, u64 len)
 {
-    String result = {};
-    result.str = str;
-    result.len = len;
-    return result;
+  String result = {};
+  result.str = str;
+  result.len = len;
+  return result;
 }
 
 String utf8c(u8 *ptr)
 {
-    u8 *p = ptr;
-    for (;*p; ++p);
-    String result = utf8(ptr, p - ptr);
-    return result;
+  u8 *p = ptr;
+  for (;*p; ++p);
+  String result = utf8(ptr, p - ptr);
+  return result;
 }
 
 Utf16
 utf16(u16 *str, u64 len)
 {
-    Utf16 result = {};
-    result.str = str;
-    result.len = len;
-    return result;
+  Utf16 result = {};
+  result.str = str;
+  result.len = len;
+  return result;
 }
 
 Utf16
 utf16c(u16 *ptr)
 {
-    u16 *p = ptr;
-    for (;*p; ++p);
-    Utf16 result = utf16(ptr, p - ptr);
-    return result;
+  u16 *p = ptr;
+  for (;*p; ++p);
+  Utf16 result = utf16(ptr, p - ptr);
+  return result;
 }
 
 Utf32
 utf32(u32 *str, u64 len)
 {
-    Utf32 result = {};
-    result.str = str;
-    result.len = len;
-    return result;
+  Utf32 result = {};
+  result.str = str;
+  result.len = len;
+  return result;
 }
 
 // # Note: Encoding/Decoding.
@@ -352,25 +354,26 @@ Utf16 to_utf16(Arena *arena, String in) {
     return result;
 }
 
-Utf16 to_utf16(Allocator allocator, String in) {
-    // @Todo: pop...
-    Utf16 result = {};
-    if (in.len) {
-        u64 cap = in.len*2;
-        u16 *str = (u16 *)alloc(sizeof(u16) * (cap + 1), allocator);
-        u8 *ptr = in.str;
-        u8 *opl = ptr + in.len;
-        u64 size = 0;
-        Unicode_Decode consume = {};
-        for (;ptr < opl; ptr += consume.inc)
-        {
-            consume = utf8_decode(ptr, opl - ptr);
-            size += utf16_encode(str + size, consume.codepoint);
-        }
-        str[size] = 0;
-        result = utf16(str, size);
+Utf16 to_utf16(Allocator allocator, String in) 
+{
+  // @Todo: pop...
+  Utf16 result = {};
+  if (in.len) {
+    u64 cap = in.len*2;
+    u16 *str = (u16 *)alloc(sizeof(u16) * (cap + 1), allocator);
+    u8 *ptr = in.str;
+    u8 *opl = ptr + in.len;
+    u64 size = 0;
+    Unicode_Decode consume = {};
+    for (;ptr < opl; ptr += consume.inc)
+    {
+      consume = utf8_decode(ptr, opl - ptr);
+      size += utf16_encode(str + size, consume.codepoint);
     }
-    return result;
+    str[size] = 0;
+    result = utf16(str, size);
+  }
+  return result;
 }
 
 b32 equal_nocase(String a, String b) {
@@ -423,36 +426,54 @@ String eat_until_space( String _s ) {
     return s;
 }
 
-b32 begins_with(String s, String prefix) {
-    if (s.len < prefix.len)  return false;
+b32 
+begins_with(String s, String prefix) 
+{
+  if (s.len < prefix.len)  return false;
 
-    String t = slice(s, 0, prefix.len);
+  String t = slice(s, 0, prefix.len);
 
-    return t == prefix;
+  return t == prefix;
 }
 
-b32 ends_with(String s, String suffix) {
-    if (s.len < suffix.len)  return false;
+b32 
+ends_with(String s, String suffix) 
+{
+  if (s.len < suffix.len)  return false;
 
-    String t = slice(s, s.len - suffix.len, suffix.len);
+  String t = slice(s, s.len - suffix.len, suffix.len);
 
-    return t == suffix;
+  return t == suffix;
 }
 
-String slice(String s, s64 index, s64 count) {
-    R_ASSERT(index >= 0);
-    R_ASSERT(count >= 0);
+String 
+slice(String s, s64 index, s64 count) 
+{
+  R_ASSERT(index >= 0);
+  R_ASSERT(count >= 0);
 
-    if (index >= s.len)  return {};
+  if (index >= s.len)  return {};
 
-    if (index + count > s.len) {
-        count = s.len - index;
+  if (index + count > s.len) {
+    count = s.len - index;
+  }
+
+  String c;
+  c.str = s.str + index;
+  c.len = count;
+  return c;
+}
+
+void
+replace_in_place(String *s, u8 from, u8 to)
+{
+  for (s64 i = 0; i < s->len; ++i)
+  {
+    if (s->str[i] == from)
+    {
+      s->str[i] = to;
     }
-
-    String c;
-    c.str = s.str + index;
-    c.len = count;
-    return c;
+  }
 }
 
 static bool is_any(u8 c, String chars) {
@@ -616,50 +637,107 @@ Triplet<s64, b32, String> int_from_string(String t, s64 base)
 //
 // Path
 //
-Pair<String, b32> path_extension(String path) {
-    s64 index = find_index_of_any_from_right(path, S(".\\/"));
+Pair<String, b32> 
+path_extension(String path) 
+{
+  s64 index = find_index_of_any_from_right(path, S(".\\/"));
 
-    if ( index < 0 ) return { {}, false };
+  if ( index < 0 ) return { {}, false };
 
-    if ( path[index] != '.' ) return { {}, false };
+  if ( path[index] != '.' ) return { {}, false };
 
-    // Dot right after slash
-    u8 previous = path[index - 1];
-    if ( index == 0 ) return { {}, false }; // Path can't start with '.' I guess... but let me just be pedantic about it.
-    if ( previous == '\\' || previous == '/' ) {
-        return { {}, false };
+  // Dot right after slash
+  u8 previous = path[index - 1];
+  if ( index == 0 ) return { {}, false }; // Path can't start with '.' I guess... but let me just be pedantic about it.
+  if ( previous == '\\' || previous == '/' ) {
+    return { {}, false };
+  }
+
+  // Two dots after slash
+  if ( previous == '.' ) {
+    if ( index == 1 ) return { {}, false };
+    u8 two_previous = path[index - 2];
+    if ( two_previous == '\\' || two_previous == '/' ) {
+      return { {}, false };
     }
+  }
 
-    // Two dots after slash
-    if ( previous == '.' ) {
-        if ( index == 1 ) return { {}, false };
-        u8 two_previous = path[index - 2];
-        if ( two_previous == '\\' || two_previous == '/' ) {
-            return { {}, false };
-        }
-    }
+  String ext = slice(path, index + 1, path.len - index - 1);
 
-    String ext = slice(path, index + 1, path.len - index - 1);
-
-    return { ext, true };
+  return { ext, true };
 }
 
-String path_strip_filename(String path) {
-    s64 index = find_index_of_any_from_right(path, S("\\/"));
-    if (index < 0)  return {};
-    return slice(path, 0, index + 1);
+String
+path_filename(String path)
+{
+  s64 index = find_index_of_any_from_right(path, S("/\\"));
+  if (index == -1) return path;
+  index += 1;
+  return slice(path, index, path.len - index);
 }
 
-String path_strip_extension(String path) {
-    auto [ext, found] = path_extension(path);
-
-    if ( !found ) return path;
-
-    String result = path;
-    result.len -= ext.len + 1;
-    return result;
+String 
+path_basename(String path)
+{
+  return path_strip_extension(path_filename(path));
 }
 
+String 
+path_strip_filename(String path) 
+{
+  s64 index = find_index_of_any_from_right(path, S("\\/"));
+  if (index < 0)  return {};
+  return slice(path, 0, index + 1);
+}
+
+String 
+path_strip_extension(String path) 
+{
+  auto [ext, found] = path_extension(path);
+
+  if (!found) return path;
+
+  String result = path;
+  result.len -= ext.len + 1;
+  return result;
+}
+
+b32
+path_is_absolute(String path)
+{
+#if OS_WINDOWS
+  if (path.len < 3) return false;
+  return path[1]==':' && (path[2]=='/' || path[2]=='\\');
+#else
+# error Undefined OS
+#endif
+}
+
+String
+path_join(String   *strings, 
+          s64       count, 
+          u8        separator, 
+          Allocator allocator)
+{
+  if (count <= 0) return String{};
+
+  String_Builder sb = {};
+  init(&sb, allocator);
+
+  for (s64 i = 0; i < count-1; ++i)
+  {
+    append(&sb, strings[i]);
+    append(&sb, '/');
+  }
+  append(&sb, strings[count-1]);
+
+  String s = flush(&sb);
+  return s;
+}
+
+//
+// String format
+//
 String 
 tprint(char *fmt, va_list args) 
 {

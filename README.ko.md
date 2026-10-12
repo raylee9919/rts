@@ -1,7 +1,7 @@
 [English](README.md)
 
 # RTS
-![Status](data/branding/battle.gif "Status")  
+![Status](misc/branding/battle.gif "Status")  
 스타크래프트는 언제나 제 마음속에 특별한 자리를 차지하고 있습니다.
 제가 처음으로 게임 개발자가 되고 싶다는 꿈을 가지게 된 계기가 바로 이 게임이었습니다.
 "이 모든 것은 내부적으로 어떻게 동작하는 걸까?"라는 질문을 제 마음속에 심어주었고,
@@ -33,6 +33,6 @@
 
 
 ## 링크
-[<img src="data/branding/youtube_icon.png" width="64"/>](https://www.youtube.com/@seongwoolee9919)
-[<img src="data/branding/blog.png" width="64"/>](https://seongwoolee.com/ko/)
-[<img src="data/branding/x_icon.png" width="64"/>](https://www.x.com/raylee9919)
+[<img src="misc/branding/youtube_icon.png" width="64"/>](https://www.youtube.com/@seongwoolee9919)
+[<img src="misc/branding/blog.png" width="64"/>](https://seongwoolee.com/ko/)
+[<img src="misc/branding/x_icon.png" width="64"/>](https://www.x.com/raylee9919)

@@ -16,11 +16,6 @@
 #include "third_party/stb/stb_sprintf.h"
 
 
-#if OS_WINDOWS
-#  define PATH_SEPARATOR '\\'
-#else
-#  define PATH_SEPARATOR '/'
-#endif
 
 
 
@@ -43,6 +38,7 @@ struct String
   }
 
   u8 operator [] (s64 i) { R_ASSERT(i < len); return str[i]; }
+
   explicit operator bool() const {
     return str && len > 0; 
   }
@@ -134,10 +130,29 @@ b32     begins_with(String s, String prefix);
 b32     ends_with(String s, String suffix);
 String  slice(String s, s64 index, s64 count);
 
-s64     find_index_from_left(String s, u8 byte, s64 start_index = 0);
-s64     find_index_from_right(String s, u8 byte);
-s64     find_index_of_any_from_left(String s, String bytes, s64 start_index = 0);
-s64     find_index_of_any_from_right(String s, String bytes);
+
+// Replace all bytes occurences of `from` to `to`.
+void
+replace_in_place(String *s, u8 from, u8 to);
+
+s64     
+find_index_from_left(String s, 
+                     u8     byte, 
+                     s64    start_index = 0);
+
+s64     
+find_index_from_right(String s, 
+                      u8     byte);
+
+s64     
+find_index_of_any_from_left(String s, 
+                            String bytes, 
+                            s64    start_index = 0);
+
+s64     
+find_index_of_any_from_right(String s, 
+                             String bytes);
+
 
 Triplet<b32, String, String>  split_from_left(String s, u8 byte);
 Triplet<b32, String, String>  split_from_right(String s, u8 byte);
@@ -157,14 +172,33 @@ String tprint(String fmt, ...);
 //
 // P a t h 
 //
-Pair<String, b32> path_extension(String path);
+Pair<String, b32> 
+path_extension(String path);
 
-// Returns a slice of the input string with file name removed, but including
-// path separator.
+String
+path_filename(String path);
+
+String 
+path_basename(String path);
+
+// Returns a slice of the input string with file name removed, 
+// but including path separator.
 String 
 path_strip_filename(String path);
 
 String 
 path_strip_extension(String path);
+
+b32
+path_is_absolute(String path);
+
+b32
+path_is_dot_relative(String path);
+
+String
+path_join(String   *strings, 
+          s64       count, 
+          u8        separator, 
+          Allocator allocator);
 
 #endif // RTS_STRING_H

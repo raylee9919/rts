@@ -4,9 +4,9 @@
 #include "os/os.h"
 #include "basic/context.h"
 #include "basic/log.h"
-#include "text_file_handler/text_file_handler.h"
 #include "renderer/renderer.h"
 #include "asset/parser.h"
+#include "asset_lexer.h"
 #include "shared.h"
 #include "shader_compiler/shader.h"
 #include "third_party/stb/stb_image.h"
@@ -214,8 +214,8 @@ material_system_init(String material_shader_dir,
   // Allocate fallback material if user couldn't find 
   // material from given GUID. For exmaple, there may 
   // be a mesh with no material assigned.
-  default_material_id = guid_from_string(S("materials/default.material"));
-  asset_request(default_material_id);
+  default_material_id = guid_from_string(S("material/default.material"));
+  asset_request(default_material_id, NULL_GUID);
 
   return true;
 }
@@ -285,162 +285,106 @@ upload_material(Guid id)
 
 ASSET_LOAD_PROC(material_load_proc)
 {
-  auto parse_string = [](String file, Text_File_Handler *handler, String val) -> Pair<b32, String> {
-    if (val.len <= 2) { 
-      log_error(S("File: `%S`: Expected string at line: %d"), handler->line_number);
-      return { false, {} };
-    }
-
-    if ( !begins_with(val, S("\"")) ) {
-      log_error(S("File: `%S`: Expected `\"` at the beginning of the string, at line: %d, but encountered '%c'"), 
-                file, handler->line_number, val[0]);
-      return { false, {} };
-    }
-
-    if ( !ends_with(val, S("\"")) ) {
-      log_error(S("File: `%S`: Expected `\"` at the end of the string, at line: %d, but encountered '%c'"), 
-                file, handler->line_number, val[val.len - 1]);
-      return { false, {} };
-    }
-
-    // Trim "
-    String s = val;
-    s.len -= 2;
-    s.str += 1;
-
-    return { true, s };
-  };
-
-  Text_File_Handler handler = {};
-  handler.start(read_entire_file(filepath, tctx.temp));
-
-  String shader = {};
-  Guid type_id = NULL_GUID;
-
-  {
-    auto [line, found] = handler.consume_next_line();
-    if ( !found ) {
-      log_error(S("Nothing to parse in '%S'."), filepath);
-      return;
-    }
-
-    if (line[0] != '@') {
-      log_error(S("In file: '%S', Expected '@', but encounterd %S."), filepath, break_by_spaces(line).x);
-      return;
-    }
-
-    line = advance(line, 1);
-    line = trim_left(line);
-
-    auto [success, _shader] = parse_string(filepath, &handler, line);
-    if ( !success ) return;
-
-    type_id = guid_from_string(_shader);
-
-    shader = _shader;
-  }
+  Asset_Lexer lexer = {};
+  asset_tokenize(&lexer, id, tctx.temp);
 
 
-  /* Find material's type info */
-  auto find_result = table_find(&material_type_table, type_id);
-  if (!find_result.found) 
-  {
-    log_error(S("Couldn't find material: '%S' info."), shader);
-    return;
-  }
+  // Get version
+  s64 version = eat_unsigned_int(&lexer);
+  R_ASSERT(version == 1);
 
-  M_TypeInfo type_info = find_result.value;
-  u32 num_fields = type_info.num_fields;
+  // Get base shader. Shader also determines type of the material
+  Guid type_id  = eat_reference(&lexer);
+  String shader = asset_name_from_guid(type_id);
 
-  if (type_info.cpu_size > MAX_CPU_MATERIAL_SIZE) 
+  // Get material type info from base shader string
+  M_TypeInfo *type_info = table_find_pointer(&material_type_table, type_id);
+  R_ASSERT(type_info);
+
+  if (type_info->cpu_size > MAX_CPU_MATERIAL_SIZE) 
   {
     log_error(S("Material's CPU-side size is bigger than the max: '%d'."), MAX_CPU_MATERIAL_SIZE);
     return;
   }
 
-
   /* Material entry to fill in */
-  Guid material_asset_id = guid_from_string(filepath);
+  Guid material_asset_id = id;
   Guid alloc_id = material_asset_id;
   M_Entry *material = alloc_material(alloc_id);
   material->type_id = type_id;
 
+  auto parse_key_val = [&](Asset_Lexer *lexer) {
+    Asset_Token *token = peek_token(lexer);
 
-  /* Parse */
-  while (1) 
-  {
-    auto [line, found] = handler.consume_next_line();
-    if (!found) break;
+    String field = token->string_value;
+    eat_token(lexer);
 
-    auto [field, rhs] = break_by_spaces(line);
-    auto [colon, val] = break_by_spaces(rhs);
-
-    if (colon != S(":")) {
-      log_error(S("Expected ':' at line: %d, but encountered '%S'"), handler.line_number, colon);
-      return;
-    }
-
+    R_ASSERT(peek_token(lexer)->type == ':');
+    eat_token(lexer);
 
     // Iterate over field infos and match string
     M_Field *field_info = nullptr;
-    for (u32 i = 0; i < num_fields; ++i) {
-      if (type_info.fields[i].name == field) {
-        field_info = type_info.fields + i;
-        break;
+    {
+      for (u32 i = 0; i < type_info->num_fields; ++i) 
+      {
+        if (type_info->fields[i].name == field) 
+        {
+          field_info = type_info->fields + i;
+          break;
+        }
+      }
+
+      if (!field_info) 
+      {
+        log_error(S("Couldn't find field: '%S'."), field);
+        return;
       }
     }
-
-    if (!field_info) {
-      log_error(S("Couldn't find field: '%S'."), field);
-      return;
-    }
-
-    // @Cleanup: 
-    // Should I do DAG thing or what.
-    // Load assets this is depending on:
 
     switch (field_info->cpu_type) 
     {
       case MTL_FIELD_GUID: 
       {
-        auto [success, s] = parse_string(filepath, &handler, val);
-        if (!success) {
-          log_error(S("Failed to parse field in '%S' at line '%d'."), filepath, handler.line_number);
-          return;
-        }
-
-        Guid child_asset = guid_from_string(s);
-        asset_request(child_asset);
-
-        memcpy(material->data + field_info->cpu_offset, &child_asset, field_info->cpu_size);
-      } break;
+        Guid ref = eat_reference(lexer);
+        asset_request(ref, referrer);
+        memcpy(material->data + field_info->cpu_offset, &ref, field_info->cpu_size);
+      }break;
 
       case MTL_FIELD_S8:
       case MTL_FIELD_S16:
       case MTL_FIELD_S32:
       case MTL_FIELD_S64:
+      {
+        s64 value = eat_signed_int(lexer);
+        memcpy(material->data + field_info->cpu_offset, &value, field_info->cpu_size);
+      }break;
+
       case MTL_FIELD_U8:
       case MTL_FIELD_U16:
       case MTL_FIELD_U32:
       case MTL_FIELD_U64:
       {
-        auto [int_val, ok, remainder] = int_from_string(val);
-        if (!ok) {
-          log_error(S("Failed to convert int from string in '%S' at line '%d'. String was '%S'."), 
-                    filepath, handler.line_number, val);
-          return;
-        }
-      } break;
+        u64 value = eat_unsigned_int(lexer);
+        memcpy(material->data + field_info->cpu_offset, &value, field_info->cpu_size);
+      }break;
 
       // @Todo: float/vector
 
       default: 
       {
         R_ASSERT(!"Invalid default value");
-      } break;
+      }break;
     }
-  }
+  };
 
+  while (1)
+  {
+    Asset_Token *t = peek_token(&lexer);
+    if (t->type == ASSET_TOKEN_END_OF_INPUT)
+      break;
+
+    parse_key_val(&lexer);
+  }
 
   // @Temporary
   // If I ever decide to have a material instance, instances 
@@ -465,10 +409,9 @@ ASSET_LOAD_PROC(material_load_proc)
 
 ASSET_LOAD_PROC(image_load_proc)
 {
-  String contents = read_entire_file(filepath, tctx.temp);
+  String path = asset_name_from_guid(id);
+  String contents = read_entire_file(path, tctx.temp);
   Bitmap bitmap   = bitmap_import(contents.str, contents.len);
-
-  Guid id = guid_from_string(filepath);
 
   RHI_Texture_Desc desc = {};
   {
@@ -493,7 +436,9 @@ ASSET_LOAD_PROC(texture_load_proc)
   // '.texture' is our own cooked format: four ASCII header lines - bytes per
   // channel, channel count, width, height - then a raw uncompressed pixel blob.
   Temporary_Arena scratch = scratch_begin();
-  defer( scratch_end(scratch) );
+  defer(scratch_end(scratch));
+  
+  String filepath = asset_name_from_guid(id);
 
   String contents = read_entire_file(filepath, tctx.temp);
   if ( !contents.str ) {
@@ -553,8 +498,6 @@ ASSET_LOAD_PROC(texture_load_proc)
       src += 3;
     }
   }
-
-  Guid id = guid_from_string(filepath);
 
   RHI_Texture_Desc desc = {};
   {

@@ -81,15 +81,6 @@
   weights are sorted in descending order :)
 
 
-                                  Dependency
-
-  Skeleton doesn't have dependency.
-  Mesh references skeleton.
-  Animation references skeleton.
-
-  Thus, process skeleton first.
-
-
                                Finding Skeletons
 
   I want skeletons. Starting from scene->skin_deformers isn't the way.
@@ -103,6 +94,13 @@
   if the field is true, iterating over 'scene->bones' to find root bones is 
   feasible.
 
+                      mesh
+                        |
+                  skin_deformers
+                  : binding between a set of bones and a mesh
+                        |
+                   skin_clusters
+                   : vertices bound to a single bone
 */
 
 
@@ -146,7 +144,7 @@ vec3_from_ufbx(ufbx_vec3 v)
 }
 
 static u32
-_util_hash_pointer(ufbx_material *ptr)
+_hash_ptr(ufbx_material *ptr)
 {
   u64 u = (uintptr_t)ptr;
   return knuth_hash(u);
@@ -167,10 +165,10 @@ _to_string(ufbx_string c)
 //     - check for duplicate material name
 //     - check if the texture file exists
 //
-static Table<ufbx_material*, String, _util_hash_pointer>
+static Table<ufbx_material*, String, _hash_ptr>
 fbx_import_materials(ufbx_scene *scene)
 {
-  Table<ufbx_material*, String, _util_hash_pointer> result = {};
+  Table<ufbx_material*, String, _hash_ptr> result = {};
   result.allocator = tctx.temp;
  
   for (ufbx_material *material : scene->materials)
@@ -178,7 +176,7 @@ fbx_import_materials(ufbx_scene *scene)
     String_Builder sb = {};
     init(&sb, tctx.temp);
     {
-      append(&sb, S("[1]\n\n"));
+      append(&sb, S("1 // Version\n\n"));
 
       append(&sb, tprint(S("@\"%S\"\n\n"), DEFAULT_MATERIAL_SHADER_PATH));
 
@@ -198,18 +196,20 @@ fbx_import_materials(ufbx_scene *scene)
         if (texture && texture->type == UFBX_TEXTURE_FILE) 
         {
           String texture_file = _to_string(texture->filename);
+          String path_to_write = texture_file;
           if (!file_exists(texture_file))
           {
-            log_warning(S("Texture: %`%S` doesn't exit. Ignoring for now..."), texture_file);
+            path_to_write = path_filename(texture_file);
+            log_warning(S("Texture: %`%S` doesn't exit. Will write as `./%S`"), texture_file, path_to_write);
           }
-          append(&sb, tprint(S("%S : \"%S\"\n"), type_strings[i].string, texture_file));
+          append(&sb, tprint(S("%S : @\"./%S\"\n"), type_strings[i].string, path_to_write));
         }
       }
     }
 
     String s_ = flush(&sb);
 
-    String path = tprint(S("%s.material"), material->name.data);
+    String path = tprint(S("./%.*s.material"), (int)material->name.length, material->name.data);
     File file = file_open(path, true);
     if (file_is_valid(file))
     {
@@ -234,11 +234,11 @@ fbx_import_materials(ufbx_scene *scene)
 }
 
 static void
-fbx_import_mesh_internal(ufbx_node*                                        node, 
-                         FBX_Import_Options                                options, 
-                         Array<Triangle_Mesh>*                             out_meshes,
-                         Table<ufbx_material*, String, _util_hash_pointer> material_pointer_to_path,
-                         Allocator                                         allocator)
+fbx_import_mesh_internal(ufbx_node*                               node, 
+                         FBX_Import_Options                       options, 
+                         Array<Triangle_Mesh>*                    out_meshes,
+                         Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
+                         Allocator                                allocator)
 {
   ufbx_mesh *mesh = node->mesh;
   if (mesh && 
@@ -304,8 +304,9 @@ fbx_import_mesh_internal(ufbx_node*                                        node,
           u32 index = indices_in_face[i];
 
           // Position
-          vec3 position = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_position, index));
-          append(&positions, position);
+          ufbx_vec3 geomtry_space_position = ufbx_get_vertex_vec3(&mesh->vertex_position, index);
+          vec3 world_space_position = vec3_from_ufbx(ufbx_transform_position(&node->geometry_to_world, geomtry_space_position));
+          append(&positions, world_space_position);
 
           // Unlike from normals and tangents, UV isn't 
           // generated even if it doesn't exist. 
@@ -314,11 +315,11 @@ fbx_import_mesh_internal(ufbx_node*                                        node,
           append(&uvs, uv);
 
           // Normal
-          vec3 normal = {};
           if (has_normal)
           {
-            normal = vec3_from_ufbx(ufbx_get_vertex_vec3(&mesh->vertex_normal, index));
-            append(&normals, normal);
+            ufbx_vec3 geometry_space_normal = ufbx_get_vertex_vec3(&mesh->vertex_normal, index);
+            vec3 world_space_normal = vec3_from_ufbx(ufbx_transform_direction(&node->geometry_to_world, geometry_space_normal));
+            append(&normals, world_space_normal);
           }
         }
       }
@@ -429,10 +430,10 @@ fbx_import_mesh_internal(ufbx_node*                                        node,
 }
 
 static Array<Triangle_Mesh>
-fbx_import_mesh(ufbx_node*                                        node, 
-                FBX_Import_Options                                options, 
-                Table<ufbx_material*, String, _util_hash_pointer> material_pointer_to_path,
-                Allocator                                         allocator)
+fbx_import_mesh(ufbx_node*                               node, 
+                FBX_Import_Options                       options, 
+                Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
+                Allocator                                allocator)
 {
   Array<Triangle_Mesh> meshes;
   meshes.allocator = allocator;
@@ -487,7 +488,7 @@ fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
       Joint joint = {};
       joint.parent              = parent;
       joint.local_transform     = m4x4_from_ufbx_matrix(node->node_to_parent);
-      joint.inverse_bind_matrix = m4x4_from_ufbx_matrix(node->geometry_to_node);
+      joint.inverse_bind_matrix = m4x4_from_ufbx_matrix(node->geometry_to_node); // @Fix
 
       // @Todo: name
       if (!node->name.data || node->name.length == 0)
@@ -536,18 +537,11 @@ fbx_import(String filepath,
 
   if (!output_filepath)
   {
-    String name;
-    s64 index = find_index_of_any_from_right(filepath, S("/\\"));
-    if (index == -1) {
-      // It is itself a filename
-      name = filepath;
-    } else  {
-      name = slice(filepath, index + 1, filepath.len - index - 1);
-    }
-    name = path_strip_extension(name);
+    String name = path_basename(filepath);
     output_filepath = tprint(S("%S/%S.triangle_mesh"), shared->data_path, name); // @Temporary
   }
 
+  // @Fix: Wrong
   int index = 0;
   while (file_exists(output_filepath))
   {

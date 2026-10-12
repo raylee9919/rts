@@ -4,14 +4,12 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "shared.h"
-#include "text_file_handler/text_file_handler.h"
 #include "material/material.h"
-#include "animation/animation.h"
 #include "mesh.h"
 
 Asset_System *asset_system;
 
-static b32 asset_load( Guid id );
+static b32 asset_load(Guid id, Guid referrer);
 
 // Trims full path to project relative path 
 // which is hashed to asset ID (GUID)
@@ -77,6 +75,14 @@ asset_system_init_catalog()
   }
 }
 
+String
+asset_name_from_guid(Guid id)
+{
+  String *s = table_find_pointer(&asset_system->guid_to_path, id);
+  R_ASSERT(s);
+  return *s;
+}
+
 void 
 asset_system_init() 
 {
@@ -85,14 +91,15 @@ asset_system_init()
   Construct(asset_system);
   asset_system->heap = heap;
 
-  asset_system->asset_table.allocator        = heap;
+  asset_system->asset_table.allocator  = heap;
   asset_system->guid_to_path.allocator = heap;
-  asset_system->type_infos.allocator         = heap;
+  asset_system->type_infos.allocator   = heap;
 
-  asset_type_register({S("material"),             material_load_proc});
-  asset_type_register({S("png"),                  image_load_proc});
-  asset_type_register({S("texture"),              texture_load_proc});
-  asset_type_register({S("triangle_mesh"),        mesh_load_proc});
+  asset_type_register({S("material"),         material_load_proc});
+  asset_type_register({S("png"),              image_load_proc});
+  asset_type_register({S("texture"),          texture_load_proc});
+  asset_type_register({S("triangle_mesh"),    mesh_load_proc});
+  asset_type_register({S("slang"),            NULL});
 
   asset_system_init_catalog();
 }
@@ -121,7 +128,7 @@ asset_type_register(Asset_Type_Info info)
 }
 
 void 
-asset_request(Guid id) 
+asset_request(Guid id, Guid referrer) 
 {
   auto *entry = table_find_pointer(&asset_system->asset_table, id);
   if (!entry)
@@ -133,7 +140,7 @@ asset_request(Guid id)
   R_ASSERT(entry);
   if (entry->ref_count == 0)
   {
-    asset_load(id); 
+    asset_load(id, referrer); 
   }
   entry->ref_count += 1;
 }
@@ -161,7 +168,7 @@ asset_type_info_cmp(Asset_Type_Info a,
 }
 
 static b32 
-asset_load(Guid id)
+asset_load(Guid id, Guid referrer)
 {
   // Entry must have been added if not exist during request.
   Asset_Entry *entry = table_find_pointer(&asset_system->asset_table, id);
@@ -193,7 +200,7 @@ asset_load(Guid id)
       if (info.path_extension && (info.path_extension == ext))
       {
         R_ASSERT(info.load_proc);
-        info.load_proc(path, NULL); // this.
+        info.load_proc(id, referrer, NULL); // this.
         ext_match = true;
         break;
       }

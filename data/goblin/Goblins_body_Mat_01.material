@@ -1,6 +1,6 @@
-[1]
+1 // Version
 
 @"shaders/material/default.slang"
 
-albedo_id : "goblin/Goblins_body_BaseColor.png"
-roughness_id : "goblin/Goblins_body_Roughness.png"
+albedo_id : @"./Goblins_body_BaseColor.png"
+roughness_id : @"./Goblins_body_Roughness.png"

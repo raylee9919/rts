@@ -5,6 +5,19 @@
 
 #include "basic/string.h"
 #include "basic/array.h"
+#include "asset/asset.h"
+
+/*
+    Asset reference consists of a string enclosed by double quotes, prefixed by `@`.
+    No spaces in-between.
+    e.g. `@"path_to_material"`  is valid.
+         `@ "path_to_material"` is invalid.
+    
+    Should I keep @ and "" as separate tokens? I dunno. 
+    Based on my current understanding, I don't see a compelling reason 
+    to separate them.
+                                                  - SeongWoo 2026-10-12
+*/
 
 enum Asset_Token_Type : u16
 {
@@ -13,7 +26,9 @@ enum Asset_Token_Type : u16
   ASSET_TOKEN_IDENTIFIER = 256,
   ASSET_TOKEN_NUMBER     = 257,
   ASSET_TOKEN_STRING     = 258,
+  ASSET_TOKEN_REF        = 259,
 
+  ASSET_TOKEN_ERROR,
   ASSET_TOKEN_END_OF_INPUT,
 };
 
@@ -30,14 +45,18 @@ struct Asset_Token
   Asset_Token_Flags flags;
   union
   {
-    String string_value;
-    u64    integer_value;
-    f64    float64_value;
+    String     string_value;
+    u64        integer_value;
+    f64        float64_value;
+    Guid       guid_value;
   };
 };
 
 struct Asset_Lexer
 {
+  Guid               id;
+  String             name;
+
   String             input;
   s64                input_cursor;
 
@@ -49,7 +68,7 @@ struct Asset_Lexer
 
 b32
 asset_tokenize(Asset_Lexer *lexer, 
-               String       input, 
+               Guid         id,
                Allocator    token_allocator);
 
 void
@@ -80,6 +99,9 @@ eat_signed_float(Asset_Lexer *lexer);
 
 String
 eat_string(Asset_Lexer *lexer);
+
+Guid
+eat_reference(Asset_Lexer *lexer);
 
 
 #endif // RTS_ASSET_LEXER_H

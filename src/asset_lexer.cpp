@@ -1,6 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "asset_lexer.h"
+#include "shared.h"
 
 
 // Peek next character in the input stream.
@@ -305,8 +306,8 @@ push_identifier_or_keyword(Asset_Lexer *lexer)
 //
 // @Todo: We are not allowing escape double quote at the moment.
 //
-static Asset_Token *
-push_string(Asset_Lexer *lexer)
+static String 
+_get_string(Asset_Lexer *lexer)
 {
   R_ASSERT(peek_char(lexer) == '"');
   eat_char(lexer);
@@ -331,21 +332,60 @@ push_string(Asset_Lexer *lexer)
   s64 count = s1 - s0;
 
   String s = {lexer->input.str + s0, count};
+  return s;
+}
 
+static Asset_Token *
+push_string(Asset_Lexer *lexer)
+{
   Asset_Token *t = push_token(lexer, ASSET_TOKEN_STRING);
-  t->string_value = s;
+  t->string_value = _get_string(lexer);
+  return t;
+}
+
+static Asset_Token *
+push_reference(Asset_Lexer *lexer)
+{
+  Asset_Token *t = push_token(lexer, ASSET_TOKEN_REF);
+  String resolved_name;
+  String referent = _get_string(lexer);
+  if (referent.str[0] == '.')
+  {
+    String referrer = lexer->name;
+    String strings[2] = {path_strip_filename(referrer), referent};
+    String joined = path_join(strings, 2, '/', tctx.temp);
+
+    String absolute_path = get_absolute_path(joined, tctx.temp);
+    replace_in_place(&absolute_path, '\\', '/');
+    R_ASSERT(begins_with(absolute_path, shared->data_path));
+    absolute_path.str += shared->data_path.len;
+    absolute_path.len -= shared->data_path.len;
+    absolute_path = trim_left(absolute_path, S("/\\"));
+
+    resolved_name = absolute_path;
+  }
+  else
+  {
+    resolved_name = referent;
+  }
+
+  t->guid_value = guid_from_string(resolved_name);
   return t;
 }
 
 b32
 asset_tokenize(Asset_Lexer *lexer, 
-               String       input, 
-               Allocator    token_allocator)
+               Guid         id,
+               Allocator    allocator)
 {
+  String input = read_entire_file(asset_name_from_guid(id), allocator);
+
+  lexer->id               = id;
+  lexer->name             = asset_name_from_guid(id);
   lexer->input            = input;
   lexer->input_cursor     = 0;
   lexer->line             = 0;
-  lexer->tokens.allocator = token_allocator;
+  lexer->tokens.allocator = allocator;
   lexer->token_cursor     = 0;
 
   while (1)
@@ -388,6 +428,19 @@ asset_tokenize(Asset_Lexer *lexer,
           {
             eat_char(lexer);
           }
+        }
+        else
+        {
+          push_token(lexer, (Asset_Token_Type)c);
+        }
+      }break;
+
+      case '@':
+      {
+        eat_char(lexer);
+        if (peek_char(lexer) == '"')
+        {
+          push_reference(lexer);
         }
         else
         {
@@ -506,4 +559,13 @@ eat_string(Asset_Lexer *lexer)
   R_ASSERT(t->type == ASSET_TOKEN_STRING);
   eat_token(lexer);
   return t->string_value;
+}
+
+Guid
+eat_reference(Asset_Lexer *lexer)
+{
+  Asset_Token *t = peek_token(lexer);
+  R_ASSERT(t->type == ASSET_TOKEN_REF);
+  eat_token(lexer);
+  return t->guid_value;
 }
