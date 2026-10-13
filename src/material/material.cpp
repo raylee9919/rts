@@ -41,8 +41,10 @@ static u64 get_align(M_FieldType type) {
   return material_field_type_size_align[type].y;
 }
 
-void 
-write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material) 
+static void 
+write_gpu_material(M_TypeInfo *info, 
+                   void       *gpu_ptr, 
+                   void       *material)
 {
   // With each field's type, offset and size, we 
   // can convert and wrtie data to GPU-side buffer.
@@ -113,7 +115,7 @@ convert_type(Shader_Field_Type type, b32 is_gpu)
   }
 }
 
-Pair<b32, M_TypeInfo> 
+static Pair<b32, M_TypeInfo> 
 get_material_type_info(Shader_Compiler *shader_compiler, 
                        String           filepath)
 {
@@ -160,7 +162,7 @@ get_material_type_info(Shader_Compiler *shader_compiler,
 }
 
 b32 
-material_system_init(String material_shader_dir, 
+material_system_init(String           shader_directory, 
                      Shader_Compiler *shader_compiler) 
 {
   // Assign allocators
@@ -192,7 +194,7 @@ material_system_init(String material_shader_dir,
 
   // Iterate over file list in the directory, reflect, 
   // get type info and push it to the type table.
-  Array<String> list = file_list(material_shader_dir, tctx.temp, true);
+  Array<String> list = file_list(shader_directory, tctx.temp, true);
   for (int file_idx = 0; file_idx < list.count; ++file_idx)
   {
     String path = list.data[file_idx];
@@ -221,7 +223,7 @@ material_system_init(String material_shader_dir,
   // material from given GUID. For exmaple, there may 
   // be a mesh with no material assigned.
   default_material_id = guid_from_string(S("material/default.material"));
-  asset_request(default_material_id, NULL_GUID);
+  asset_request(default_material_id, NULL_GUID, NULL);
 
   return true;
 }
@@ -352,7 +354,7 @@ ASSET_LOAD_PROC(material_load_proc)
       case MTL_FIELD_GUID: 
       {
         Guid ref = eat_reference(lexer);
-        asset_request(ref, referrer);
+        asset_request(ref, referrer, NULL);
         memcpy(material->data + field_info->cpu_offset, &ref, field_info->cpu_size);
       }break;
 
@@ -396,7 +398,10 @@ ASSET_LOAD_PROC(material_load_proc)
 
 
   // @Temporary: Single template for every material.
-  String surface_shader_path  = S("shaders/pass/surface.slang");
+  // @Todo: There are more than material file that determined the uniqueness of a pipeline...
+  //        e.g., entry point, alpha mode, ...
+  b32 is_skeletal = user_data ? *(b32*)user_data : false;
+  String surface_shader_path = is_skeletal ? S("shaders/pass/surface_skeletal.slang") : S("shaders/pass/surface.slang");
   r_pipeline_create(id, surface_shader_path, shader, SHADING_MODEL_OPAQUE);
 
 

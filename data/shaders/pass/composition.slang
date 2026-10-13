@@ -23,8 +23,8 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
     return result;
 }
 
-[shader("fragment")]
-float4 main_fs(VS_Output input) : SV_TARGET
+[shader("pixel")]
+float4 main_ps(VS_Output input) : SV_TARGET
 {
     SamplerState linear_sampler = SamplerDescriptorHeap[push.linear_sampler_id];
 

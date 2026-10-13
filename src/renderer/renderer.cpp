@@ -457,14 +457,14 @@ r_pipeline_create(Guid            id,
                   R_Shading_Model shading_model)
 {
   // Read shader source code
-  String shader_source = read_entire_file(shader_filepath, tctx.temp);
+  String shader_source = read_entire_file(shader_filepath, tctx.temp, true);
   if (!shader_source)
   {
     log_error(S("Failed to read material shader: '%S'"), material_shader);
     return;
   }
 
-  String material_source = read_entire_file(material_shader, tctx.temp);
+  String material_source = read_entire_file(material_shader, tctx.temp, true);
   if (!material_source)
   {
     log_error(S("Failed to read material shader: '%S'"), material_shader);
@@ -472,30 +472,23 @@ r_pipeline_create(Guid            id,
   }
 
   // Compile vertex and pixel shader into IL bytes.
-  Shader_Compile_Result vs = {};
-  Shader_Compile_Result ps = {};
+  Shader_Compile_Result vs = {}, ps = {};
   {
-    Shader_Compile_Options vs_opts = {};
-    {
-      vs_opts.stage  = SHADER_STAGE_VS;
-      vs_opts.source = shader_source;
-      vs_opts.path   = shader_filepath;
+    Shader_Compile_Options opts = {};
+    opts.source = shader_source;
+    opts.path   = shader_filepath;
 
-      vs_opts.material_source = material_source;
-      vs_opts.material_path   = material_shader;
-    }
-    R_ASSERT(shader_compile(shared->shader_compiler, vs_opts, true, &vs, tctx.temp));
+    String modules[] = { material_source };
+    opts.modules = modules;
+    opts.num_modules = array_count(modules);
 
-    Shader_Compile_Options ps_opts = {};
-    {
-      ps_opts.stage  = SHADER_STAGE_PS;
-      ps_opts.source = shader_source;
-      ps_opts.path   = shader_filepath;
+    opts.entry  = S("main_vs");
+    opts.stage  = SHADER_STAGE_VS;
+    R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &vs, tctx.temp));
 
-      ps_opts.material_source = material_source;
-      ps_opts.material_path   = material_shader;
-    }
-    R_ASSERT(shader_compile(shared->shader_compiler, ps_opts, true, &ps, tctx.temp));
+    opts.entry  = S("main_ps");
+    opts.stage  = SHADER_STAGE_PS;
+    R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &ps, tctx.temp));
   }
 
   { // Create pipeline state object(PSO)

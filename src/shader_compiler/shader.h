@@ -24,12 +24,13 @@ enum Shader_Stage : u8
 struct Shader_Compile_Options 
 {
   Shader_Stage stage;
+
   String       source;
   String       path;    // Used for diagnostics. Optional.
+  String       entry;
 
-  // Material implementation linked in to resolve `extern struct Material`. Optional.
-  String       material_source;
-  String       material_path;
+  String      *modules;
+  s64          num_modules;
 };
 
 struct Shader_Compile_Result 
@@ -102,13 +103,5 @@ shader_compile(Shader_Compiler       *compiler,
 Pair<b32, Shader_Struct> 
 shader_reflect_material(Shader_Compiler *compiler, 
                         String           filepath); 
-
-
-/*
-  Converts `Shader_Field_Type` to string.
-  For example, `SHADER_FIELD_FLOAT` becomes `float`.
-*/
-String 
-string_from_shader_field_type(Shader_Field_Type type);
 
 #endif // RTS_SHADER_H

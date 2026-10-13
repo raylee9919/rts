@@ -11,9 +11,20 @@
 #include "third_party/ufbx/ufbx.h"
 #include "third_party/meshoptimizer/meshoptimizer.h"
 
-// @Todo: 
-// Cleanup filename creation. I've added an option whether I'll 
-// overwrite the existing file or not.
+/*
+   @Todos: 
+
+   - Cleanup filename creation. I've added an option whether I'll 
+     overwrite the existing file or not.
+
+   - There are common parts in writing procedures. Might be collapsible.
+  
+   - More optimizations
+  
+   - Meshlet asset? (Low priority)
+   
+   - Revise the long arse comment right below.
+*/
 
 /*
 
@@ -106,6 +117,13 @@
                        : vertices bound to a single bone
 */
 
+
+struct Import_State 
+{
+  ufbx_scene *scene;
+  String      directory; // Relative directory where output files will be written.
+  String      basename;  // Base name used to name output files, derived from the input file.
+};
 
 static m4x4
 _to_m4x4(ufbx_matrix& m)
@@ -236,8 +254,10 @@ fbx_import_materials(ufbx_scene *scene)
   return result;
 }
 
+// `.visible` field isn't enough.
+// Should check parents as well.
 static b32
-_is_visible(ufbx_node *node)
+is_visible(ufbx_node *node)
 {
   while (node)
   {
@@ -258,7 +278,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
   ufbx_mesh *mesh = node->mesh;
   if (mesh && 
       node->attrib_type == UFBX_ELEMENT_MESH && 
-      _is_visible(node))
+      is_visible(node))
   {
     Triangle_Mesh m = {};
 
@@ -284,24 +304,27 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
 
     // Reserve only if skinned
-    Array<vec4> joints; // @Fix: int32
+    struct int32x4 {
+      s32 e[4];
+    };
+    Array<int32x4> joints;
     Array<vec4> weights;
     if (skin) {
-      joints  = Array<vec4>(tctx.temp, num_indices);
+      joints  = Array<int32x4>(tctx.temp, num_indices);
       weights = Array<vec4>(tctx.temp, num_indices);
     }
 
 
     // Make attributes
     Array<Vertex_Attribute> attributes(allocator, 6);
-    append(&attributes, { S("position"), VERTEX_ATTRIBUTE_FLOAT32, 3, 12,  0, });
-    append(&attributes, { S("uv"),       VERTEX_ATTRIBUTE_FLOAT32, 2,  8, 12, });
-    append(&attributes, { S("normal"),   VERTEX_ATTRIBUTE_FLOAT32, 3, 12, 20, });
-    append(&attributes, { S("tangent"),  VERTEX_ATTRIBUTE_FLOAT32, 4, 16, 32, });
+    append(&attributes, { VERTEX_ATTRIBUTE_POSITION, VERTEX_ATTRIBUTE_FLOAT32, 3, 12,  0, });
+    append(&attributes, { VERTEX_ATTRIBUTE_UV,       VERTEX_ATTRIBUTE_FLOAT32, 2,  8, 12, });
+    append(&attributes, { VERTEX_ATTRIBUTE_NORMAL,   VERTEX_ATTRIBUTE_FLOAT32, 3, 12, 20, });
+    append(&attributes, { VERTEX_ATTRIBUTE_TANGENT,  VERTEX_ATTRIBUTE_FLOAT32, 4, 16, 32, });
     if (skin)
     {
-      append(&attributes, { S("joint"),     VERTEX_ATTRIBUTE_INT32, 4, 16, 48, });
-      append(&attributes, { S("weight"),  VERTEX_ATTRIBUTE_FLOAT32, 4, 16, 64, });
+      append(&attributes, { VERTEX_ATTRIBUTE_JOINT,     VERTEX_ATTRIBUTE_INT32, 4, 16, 48, });
+      append(&attributes, { VERTEX_ATTRIBUTE_WEIGHT,  VERTEX_ATTRIBUTE_FLOAT32, 4, 16, 64, });
     }
 
 
@@ -575,13 +598,6 @@ _find_bind_to_world(ufbx_scene *scene, ufbx_node *node, ufbx_matrix *out)
   return false;
 }
 
-struct Import_State 
-{
-  ufbx_scene *scene;
-  String directory;
-  String basename;
-};
-
 static Array<Skeleton>
 fbx_import_skeleton(Import_State *state, Allocator allocator)
 {
@@ -645,12 +661,13 @@ fbx_import_skeleton(Import_State *state, Allocator allocator)
   return skeletons;
 }
 
-// Write out skeleton files.
-// If there are multiple skeletons, filenames are prefixed 
-// by numbers starting from `0`.
-//
+/*
+  Write out skeleton files.
+  If there are multiple skeletons, filenames are prefixed 
+  by numbers starting from `0`.
+*/
 static void
-_write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
+write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
 {
   for (u32 i = 0; i < skeletons.count; ++i)
   {
@@ -692,7 +709,7 @@ _write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
 }
 
 static void
-_write_mesh_files(Import_State *state, Array<Triangle_Mesh> meshes)
+write_mesh_files(Import_State *state, Array<Triangle_Mesh> meshes)
 {
   String filename;
   filename = tprint(S("%S.triangle_mesh"), state->basename);
@@ -728,7 +745,6 @@ fbx_import(String             filepath,
            String             out_directory,
            FBX_Import_Options options)
 {
-  // Check if the input file exists.
   if (!file_exists(filepath))
   {
     log_error(S("Input file: '%S' doesn't exit."), filepath);
@@ -743,7 +759,6 @@ fbx_import(String             filepath,
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; // bakes it into node
   opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE;
   opts.generate_missing_normals    = true;
-  // opts.evaluate_skinning           = true;
   opts.clean_skin_weights          = true;
   opts.normalize_normals           = true;
 
@@ -775,7 +790,7 @@ fbx_import(String             filepath,
 
   // Import skeletons
   Array<Skeleton> skeletons = fbx_import_skeleton(&state, allocator);
-  _write_skeleton_files(&state, skeletons); // @Todo: Prune unreferenced skeletons first
+  write_skeleton_files(&state, skeletons); // @Todo: Prune unreferenced skeletons first
 
 
   // Import materials
@@ -784,7 +799,7 @@ fbx_import(String             filepath,
 
   // Import meshes
   Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, material_pointer_to_path, allocator);
-  _write_mesh_files(&state, meshes);
+  write_mesh_files(&state, meshes);
 
   ufbx_free_scene(scene);
 

@@ -194,10 +194,10 @@ int main_entry(int argc, char **argv)
     Guid mesh_id = guid_from_string(S("goblin/Goblin_FBX.triangle_mesh"));
     Entity *my_entity = entity_alloc(game_state);
     my_entity->mesh = mesh_id;
-    asset_request(mesh_id, NULL_GUID);
+    asset_request(mesh_id, NULL_GUID, NULL);
 
     String s = S("Goblin_FBX_2.skeleton");
-    asset_request(guid_from_string(s), NULL_GUID);
+    asset_request(guid_from_string(s), NULL_GUID, NULL);
     auto [sk, ok] = skeleton_from_guid(guid_from_string(s));
     R_ASSERT(ok);
     // @Temporary

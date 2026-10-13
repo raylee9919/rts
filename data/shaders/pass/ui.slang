@@ -37,8 +37,8 @@ VS_Output main_vs(uint vid : SV_VertexID,
     return result;
 }
 
-[shader("fragment")]
-float4 main_fs(VS_Output input) : SV_TARGET 
+[shader("pixel")]
+float4 main_ps(VS_Output input) : SV_TARGET 
 {
     if (input.color.a == 0.0) discard;
 

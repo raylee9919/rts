@@ -23,8 +23,8 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
     return result;
 }
 
-[shader("fragment")]
-float4 main_fs(VS_Output input) : SV_TARGET
+[shader("pixel")]
+float4 main_ps(VS_Output input) : SV_TARGET
 {
     SamplerState dot_sampler = SamplerDescriptorHeap[push.dot_sampler_id];
     Texture2D<float4> scene_texture = ResourceDescriptorHeap[push.scene_texture_id];

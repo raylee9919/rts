@@ -9,7 +9,7 @@
 
 Asset_System *asset_system;
 
-static b32 asset_load(Guid id, Guid referrer);
+static b32 asset_load(Guid id, Guid referrer, void *user_data);
 
 // Trims full path to project relative path 
 // which is hashed to asset ID (GUID)
@@ -128,7 +128,7 @@ asset_type_register(Asset_Type_Info info)
 }
 
 void 
-asset_request(Guid id, Guid referrer) 
+asset_request(Guid id, Guid referrer, void *user_data) 
 {
   auto *entry = table_find_pointer(&asset_system->asset_table, id);
   if (!entry)
@@ -140,7 +140,7 @@ asset_request(Guid id, Guid referrer)
   R_ASSERT(entry);
   if (entry->ref_count == 0)
   {
-    asset_load(id, referrer); 
+    asset_load(id, referrer, user_data); 
   }
   entry->ref_count += 1;
 }
@@ -168,7 +168,7 @@ asset_type_info_cmp(Asset_Type_Info a,
 }
 
 static b32 
-asset_load(Guid id, Guid referrer)
+asset_load(Guid id, Guid referrer, void *user_data)
 {
   // Entry must have been added if not exist during request.
   Asset_Entry *entry = table_find_pointer(&asset_system->asset_table, id);
@@ -200,7 +200,7 @@ asset_load(Guid id, Guid referrer)
       if (info.path_extension && (info.path_extension == ext))
       {
         R_ASSERT(info.load_proc);
-        info.load_proc(id, referrer, NULL); // this.
+        info.load_proc(id, referrer, user_data); // this.
         ext_match = true;
         break;
       }

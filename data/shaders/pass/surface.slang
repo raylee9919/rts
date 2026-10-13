@@ -32,7 +32,7 @@ PUSH_CONSTANTS(Push_Constants, push);
 
 
 [shader("vertex")]
-VS_Output main(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID) 
+VS_Output main_vs(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID) 
 {
     VS_Output result;
 
@@ -67,8 +67,8 @@ VS_Output main(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID)
 static const float3 TO_LIGHT        = normalize(float3(0.5, 1.0, 0.8));
 static const float3 LIGHT_RADIANCE  = float3(1.0, 1.0, 1.0) * 4.0;
 
-[shader("fragment")]
-float4 main(VS_Output input) : SV_TARGET 
+[shader("pixel")]
+float4 main_ps(VS_Output input) : SV_TARGET 
 {
     ByteAddressBuffer material_buffer = ResourceDescriptorHeap[push.material_buffer_id];
     Material material = material_buffer.Load<Material>(input.material_id);

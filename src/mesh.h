@@ -13,6 +13,14 @@ struct Skeleton;
 struct Asset_Lexer;
 
 
+#define VERTEX_ATTRIBUTE_POSITION  S("position")
+#define VERTEX_ATTRIBUTE_UV        S("uv")
+#define VERTEX_ATTRIBUTE_NORMAL    S("normal")
+#define VERTEX_ATTRIBUTE_TANGENT   S("tangent")
+#define VERTEX_ATTRIBUTE_JOINT     S("joint")
+#define VERTEX_ATTRIBUTE_WEIGHT    S("weight")
+
+
 enum Vertex_Attribute_Type : s16
 {
   VERTEX_ATTRIBUTE_INVALID = 0,
@@ -66,6 +74,9 @@ vertex_size_from_attributes(Array<Vertex_Attribute> *attributes);
 
 b32 
 mesh_has_attribute(Triangle_Mesh *mesh, String attribute_name);
+
+b32 
+mesh_is_skeletal(Triangle_Mesh *mesh);
 
 String
 asset_string_from_skeleton(Skeleton *sk, 

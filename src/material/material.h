@@ -71,24 +71,29 @@ struct M_Entry
   alignas(16) u8 data[MAX_CPU_MATERIAL_SIZE];
 };
 
+
+/*
+  Initializes field info and reflects material implementation 
+  shader files in the specified `shader_directory`.
+*/
 b32 
-material_system_init(String material_shader_dir, 
+material_system_init(String           shader_directory, 
                      Shader_Compiler *shader_compiler);
 
+/*
+  Shutdowns material system.
+*/
 void 
 material_system_shutdown();
 
-Pair<b32, M_TypeInfo> 
-get_material_type_info(Shader_Compiler *shader_compiler, String filepath);
-
-void 
-write_gpu_material(M_TypeInfo *info, void *gpu_ptr, void *material);
 
 M_Entry *
 alloc_material(Guid id);
 
 M_Entry *
 material_from_guid(Guid id);
+
+ASSET_LOAD_PROC(material_load_proc);
 
 
 // ------------------------------------------------------------------------- //
@@ -102,7 +107,6 @@ struct Bitmap {
 };
 
 ASSET_LOAD_PROC(image_load_proc);
-ASSET_LOAD_PROC(material_load_proc);
 
 
 #endif // RTS_MATERIALH

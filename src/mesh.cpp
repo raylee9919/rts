@@ -39,6 +39,13 @@ mesh_has_attribute(Triangle_Mesh *mesh, String attribute_name)
   return false;
 }
 
+b32 
+mesh_is_skeletal(Triangle_Mesh *mesh)
+{
+  return (mesh_has_attribute(mesh, VERTEX_ATTRIBUTE_JOINT) && 
+          mesh_has_attribute(mesh, VERTEX_ATTRIBUTE_WEIGHT));
+}
+
 static String
 string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
 {
@@ -266,45 +273,31 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
     for (u32 i = 0; i < num_attributes; ++i)
     {
       String semantic = eat_identifier(lexer);
-      if (semantic == S("position"))
-      {
-      }
-      else if (semantic == S("uv"))
-      {
-      }
-      else if (semantic == S("normal"))
-      {
-      }
-      else if (semantic == S("tangent"))
-      {
-      }
-      else if (semantic == S("joint"))
-      {
-      }
-      else if (semantic == S("weight"))
-      {
-      }
-      else
-      {
-        R_ASSERT(!"Undefined vertex attribute semantic.");
-      }
+      // @Cleanup
+      if      (semantic == VERTEX_ATTRIBUTE_POSITION) {}
+      else if (semantic == VERTEX_ATTRIBUTE_UV) {}
+      else if (semantic == VERTEX_ATTRIBUTE_NORMAL) {}
+      else if (semantic == VERTEX_ATTRIBUTE_TANGENT) {}
+      else if (semantic == VERTEX_ATTRIBUTE_JOINT) {}
+      else if (semantic == VERTEX_ATTRIBUTE_WEIGHT) {}
+      else R_ASSERT(!"Undefined vertex attribute semantic.");
 
       Vertex_Attribute_Type type = {};
-      s64 scalar_size = 0;
+      s64 scalar = 0;
 
       String type_s = eat_identifier(lexer);
       if (type_s == S("float32")) {
         type   = VERTEX_ATTRIBUTE_FLOAT32;
-        scalar_size = 4;
+        scalar = 4;
       } else if (type_s == S("int32")) {
         type   = VERTEX_ATTRIBUTE_INT32;
-        scalar_size = 4;
+        scalar = 4;
       } else {
         R_ASSERT(!"Undefined vertex attribute type.");
       }
 
       s64 width = eat_unsigned_int(lexer);
-      s64 stride = scalar_size * width;
+      s64 stride = scalar * width;
 
       Vertex_Attribute attr = {};
       attr.name   = copy_string(semantic, allocator);
@@ -369,10 +362,10 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
       tm.parts[p].offset = eat_unsigned_int(lexer);
       tm.parts[p].count  = eat_unsigned_int(lexer);
 
-
       // @Temporary: request material
       Guid ref = eat_reference(lexer);
-      asset_request(ref, lexer->id);
+      b32 is_skeletal = mesh_is_skeletal(&tm);
+      asset_request(ref, lexer->id, &is_skeletal);
       tm.parts[p].material_path = asset_name_from_guid(ref);
     }
 

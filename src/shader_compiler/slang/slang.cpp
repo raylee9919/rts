@@ -9,7 +9,9 @@
 
 #include "third_party/slang/include/slang-com-ptr.h"
 
-static SlangStage slang_stage_from_shader_stage(Shader_Stage stage) {
+static SlangStage 
+slang_stage_from_shader_stage(Shader_Stage stage) 
+{
   switch (stage) {
     case SHADER_STAGE_VS: return SLANG_STAGE_VERTEX;
     case SHADER_STAGE_PS: return SLANG_STAGE_FRAGMENT;
@@ -87,7 +89,7 @@ get_shader_field_type(slang::TypeLayoutReflection *l, const char *file)
   }
 }
 
-String 
+static String 
 string_from_shader_field_type(Shader_Field_Type type)
 {
   switch (type) {
@@ -137,9 +139,9 @@ shader_compiler_shutdown(Shader_Compiler *compiler)
 }
 
 static bool 
-_create_session(Shader_Compiler  *compiler, 
-                bool              debug, 
-                slang::ISession **out_session)
+create_session(Shader_Compiler  *compiler, 
+               bool              debug, 
+               slang::ISession **out_session)
 {
   using namespace slang;
 
@@ -185,7 +187,8 @@ _create_session(Shader_Compiler  *compiler,
   {
     const char *search_paths[1];
     u32 num_search_paths = 0;
-    if (compiler->include_path.str) {
+    if (compiler->include_path.str) 
+    {
       search_paths[num_search_paths++] = (char *)copy_string(compiler->include_path, tctx.temp).str;
     }
 
@@ -198,7 +201,8 @@ _create_session(Shader_Compiler  *compiler,
     desc.compilerOptionEntries    = option_entries;
     desc.compilerOptionEntryCount = num_option_entries;
 
-    if (SLANG_FAILED(compiler->global_session->createSession(desc, out_session))) {
+    if (SLANG_FAILED(compiler->global_session->createSession(desc, out_session))) 
+    {
       log_error(S("IGlobalSession::createSession failed."));
       return false;
     }
@@ -228,81 +232,73 @@ shader_compile(Shader_Compiler       *compiler,
   char *source = (char *)copy_string(options.source, tctx.temp).str;
   char *path   = (char *)copy_string(options.path.str ? options.path : S("shader.slang"), tctx.temp).str;
 
-  char *material_source = options.material_source.str ? (char *)copy_string(options.material_source, tctx.temp).str : NULL;
-  char *material_path   = (char *)copy_string(options.material_path.str ? options.material_path : S("material.slang"), tctx.temp).str;
 
-
-  if ( !_create_session(compiler, debug, session.writeRef()) ) {
+  if (!create_session(compiler, debug, session.writeRef())) 
+  {
     return false;
   }
 
 
-  // Load module
+  // Load main module
   IModule *module = session->loadModuleFromSourceString(path, path, source, diagnostics.writeRef());
   log_diagnostics(diagnostics);
-  if (!module) {
+  if (!module) 
+  {
     log_error(S("ISession::loadModuleFromSourceString failed."));
     return false;
   }
 
 
-  // Material module
-  IModule *material_module = NULL;
-  if (material_source) {
-    material_module = session->loadModuleFromSourceString(material_path, material_path, material_source, diagnostics.writeRef());
-    log_diagnostics(diagnostics);
-    if (!material_module) {
-      log_error(S("%s: Failed to load material."), material_path);
-      return false;
-    }
-  }
-
-
-  // Entry point: whichever [shader("...")] function matches the requested stage.
-  SlangStage stage = slang_stage_from_shader_stage(options.stage);
-  for (SlangInt32 i = 0; i < module->getDefinedEntryPointCount(); ++i) {
-    Slang::ComPtr<IEntryPoint> candidate;
-    if (SLANG_FAILED(module->getDefinedEntryPoint(i, candidate.writeRef()))) {
-      continue;
-    }
-
-    if (candidate->getLayout()->getEntryPointByIndex(0)->getStage() != stage) {
-      continue;
-    }
-
-    if (entry_point) {
-      log_error(S("%s: Multiple entry points for the same shader stage."), path);
-      return false;
-    }
-    entry_point = candidate;
-  }
-
-  if (!entry_point) {
-    log_error(S("%s: No entry point for the requested shader stage."), path);
+  // Get entry point from the main module
+  const char *entry_c = (const char *)copy_string(options.entry, tctx.temp).str;
+  if (SLANG_FAILED(module->findEntryPointByName(entry_c, entry_point.writeRef())))
+  {
+    log_error(S("findEntryPointByName() failed. Passed name: `%S`. File: `%S`"), options.entry, options.path);
     return false;
   }
 
-  const char *entry = entry_point->getLayout()->getEntryPointByIndex(0)->getName();
+
+
+  // Material module
+  Array<IModule*> modules(tctx.temp, options.num_modules);
+
+  for (s64 i = 0; i < options.num_modules; ++i)
+  {
+    String module_contents = options.modules[i];
+    IModule *module = NULL;
+    module = session->loadModuleFromSourceString(NULL, NULL, (char*)module_contents.str, diagnostics.writeRef());
+    if (!module)
+    {
+      log_diagnostics(diagnostics);
+      log_error(S("loadModuleFromSourString() failed."));
+      return false;
+    }
+    append(&modules, module);
+  }
+
 
 
   // Compose and link
   {
-    IComponentType *components[3];
-    SlangInt num_components = 0;
-    components[num_components++] = module;
-    if (material_module) {
-      components[num_components++] = material_module;
-    }
-    components[num_components++] = entry_point;
+    // Prepare components: main module + additional modules + entry_point
+    Array<IComponentType *> components(tctx.temp);
+    append(&components, (IComponentType*)module);
+    for (u32 i = 0; i < modules.count; ++i)
+      append(&components, (IComponentType*)modules.data[i]);
+    append(&components, (IComponentType*)entry_point);
 
-    if (SLANG_FAILED(session->createCompositeComponentType(components, num_components,
-                                                           composite.writeRef(), diagnostics.writeRef()))) {
+    if (SLANG_FAILED(session->createCompositeComponentType(components.data, 
+                                                           components.count,
+                                                           composite.writeRef(), 
+                                                           diagnostics.writeRef()))) 
+    {
       log_diagnostics(diagnostics);
       log_error(S("ISession::createCompositeComponentType failed."));
       return false;
     }
 
-    if (SLANG_FAILED(composite->link(linked.writeRef(), diagnostics.writeRef()))) {
+    if (SLANG_FAILED(composite->link(linked.writeRef(), diagnostics.writeRef()))) 
+    {
       log_diagnostics(diagnostics);
       log_error(S("IComponentType::link failed."));
       return false;
@@ -311,7 +307,8 @@ shader_compile(Shader_Compiler       *compiler,
 
 
   // Result object
-  if (SLANG_FAILED(linked->getEntryPointCode(0, 0, shader_blob.writeRef(), diagnostics.writeRef()))) {
+  if (SLANG_FAILED(linked->getEntryPointCode(0, 0, shader_blob.writeRef(), diagnostics.writeRef()))) 
+  {
     log_diagnostics(diagnostics);
     log_error(S("IComponentType::getEntryPointCode failed."));
     return false;
@@ -327,55 +324,7 @@ shader_compile(Shader_Compiler       *compiler,
   out_result->stage = options.stage;
 
 
-  // Reflection
-  if ( material_module )
-  {
-    TypeReflection *type = linked->getLayout()->findTypeByName("Material");
-    if ( !type ) {
-      log_error(S("Failed to find type 'Material' in %s"), material_path);
-      return false;
-    }
-
-    TypeLayoutReflection *layout = session->getTypeLayout(type);
-    if ( !layout ) {
-      log_error(S("Failed to get layout of 'Material' in %s"), material_path);
-      return false;
-    }
-
-    // Reflect each field in the material
-    u32 num_fields = layout->getFieldCount();
-
-    Array<Shader_Field> fields = {};
-    fields.allocator = tctx.temp;
-
-    for (u32 i = 0; i < num_fields; ++i) 
-    {
-      Shader_Field f = {};
-
-      VariableLayoutReflection *field = layout->getFieldByIndex(i);
-      TypeLayoutReflection *l = field->getTypeLayout();
-      VariableReflection *var = field->getVariable();
-
-      // Get attribute
-      for (u32 a = 0; a < var->getUserAttributeCount(); ++a) {
-        UserAttribute *attr = var->getUserAttributeByIndex(a);
-        f.attribute = utf8c((u8*)attr->getName());
-      }
-
-      // Get type
-      auto type = get_shader_field_type(l, material_path);
-      if (type == SHADER_FIELD_INVALID) return false;
-      f.type = type;
-
-      // Get name
-      f.name = utf8c((u8*)field->getName());
-
-      append(&fields, f);
-    }
-  }
-
   log_info(S("Compiled shader."));
-
   return true;
 }
 
@@ -390,7 +339,7 @@ shader_reflect_material(Shader_Compiler *compiler,
   Slang::ComPtr<slang::ISession> session;
   Slang::ComPtr<slang::IBlob>    diagnostics;
 
-  if (!_create_session(compiler, true, session.writeRef())) 
+  if (!create_session(compiler, true, session.writeRef())) 
   {
     return {false, result};
   }

@@ -54,7 +54,7 @@ void
 asset_type_register(Asset_Type_Info info);
 
 void 
-asset_request(Guid id, Guid referrer);
+asset_request(Guid id, Guid referrer, void *user_data);
 
 void 
 asset_drop(Guid id);

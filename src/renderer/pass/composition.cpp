@@ -25,9 +25,11 @@ R_PASS_INIT( RenderPassInit_Composition )
     opts.source = source;
     opts.path   = path;
 
+    opts.entry = S("main_vs");
     opts.stage = SHADER_STAGE_VS;
     R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &vs, tctx.temp));
 
+    opts.entry = S("main_ps");
     opts.stage = SHADER_STAGE_PS;
     R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &ps, tctx.temp));
   }
