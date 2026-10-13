@@ -13,6 +13,8 @@ struct Vertex
     float2 uv;
     float3 normal;
     float4 tangent;
+    int4   joints;
+    float4 weights;
 };
 
 struct VS_Output 

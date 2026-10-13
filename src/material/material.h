@@ -102,7 +102,6 @@ struct Bitmap {
 };
 
 ASSET_LOAD_PROC(image_load_proc);
-ASSET_LOAD_PROC(texture_load_proc);
 ASSET_LOAD_PROC(material_load_proc);
 
 

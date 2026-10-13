@@ -16,6 +16,12 @@ struct Array
 
   Allocator allocator = {};
 
+  Array() = default;
+  Array(Allocator allocator_) : allocator(allocator_) {}
+  Array(Allocator allocator_, u64 n) : allocator(allocator_) {
+    array_reserve(this, n);
+  }
+
   Type& operator [] (u64 idx);
   const Type& operator [] (u64 idx) const;
 

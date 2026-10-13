@@ -28,6 +28,9 @@ enum Asset_Token_Type : u16
   ASSET_TOKEN_STRING     = 258,
   ASSET_TOKEN_REF        = 259,
 
+  ASSET_TOKEN_KEYWORD_TRUE,
+  ASSET_TOKEN_KEYWORD_FALSE,
+
   ASSET_TOKEN_ERROR,
   ASSET_TOKEN_END_OF_INPUT,
 };
@@ -71,9 +74,6 @@ asset_tokenize(Asset_Lexer *lexer,
                Guid         id,
                Allocator    token_allocator);
 
-void
-asset_debug_print_tokens(Asset_Lexer *lexer);
-
 Asset_Token *
 peek_token(Asset_Lexer *lexer);
 
@@ -102,6 +102,9 @@ eat_m4x4(Asset_Lexer *lexer);
 
 String
 eat_string(Asset_Lexer *lexer);
+
+String
+eat_identifier(Asset_Lexer *lexer);
 
 Guid
 eat_reference(Asset_Lexer *lexer);

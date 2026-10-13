@@ -275,28 +275,20 @@ push_identifier_or_keyword(Asset_Lexer *lexer)
 
   s.len = lexer->input.str + lexer->input_cursor - s.str;
 
-#if 0
   switch (s.len)
   {
-    case 2:
-    {
-      if (string_equal(s, S("if")))  
-        return push_token(lexer, TOK_KEYWORD_IF);
-    }
-
-    case 3:
-    {
-      if (string_equal(s, S("for")))  
-        return push_token(lexer, TOK_KEYWORD_FOR);
-    }
-
     case 4:
     {
-      if (string_equal(s, S("else")))  
-        return push_token(lexer, TOK_KEYWORD_ELSE);
+      if (s == S("true")) 
+        return push_token(lexer, ASSET_TOKEN_KEYWORD_TRUE);
+    }
+
+    case 5:
+    {
+      if (s == S("false")) 
+        return push_token(lexer, ASSET_TOKEN_KEYWORD_FALSE);
     }
   }
-#endif
 
   Asset_Token *t = push_token(lexer, ASSET_TOKEN_IDENTIFIER);
   t->string_value = s;
@@ -464,22 +456,6 @@ asset_tokenize(Asset_Lexer *lexer,
   return true;
 }
 
-void
-asset_debug_print_tokens(Asset_Lexer *lexer)
-{
-  for (Asset_Token t : lexer->tokens)
-  {
-    if (t.type >= 0 && t.type <= 255)
-    {
-      // printf("%c\n", t.type);
-    }
-    else if (t.type == ASSET_TOKEN_IDENTIFIER)
-    {
-      printf("%.*s\n", (int)t.string_value.len, t.string_value.str);
-    }
-  }
-}
-
 Asset_Token *
 peek_token(Asset_Lexer *lexer)
 {
@@ -568,6 +544,15 @@ eat_string(Asset_Lexer *lexer)
 {
   Asset_Token *t = peek_token(lexer);
   R_ASSERT(t->type == ASSET_TOKEN_STRING);
+  eat_token(lexer);
+  return t->string_value;
+}
+
+String
+eat_identifier(Asset_Lexer *lexer)
+{
+  Asset_Token *t = peek_token(lexer);
+  R_ASSERT(t->type == ASSET_TOKEN_IDENTIFIER);
   eat_token(lexer);
   return t->string_value;
 }

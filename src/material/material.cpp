@@ -5,11 +5,17 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "renderer/renderer.h"
-#include "asset/parser.h"
 #include "asset/lexer.h"
 #include "shared.h"
 #include "shader_compiler/shader.h"
+
+#define STBI_ASSERT(x)
+#define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
+
+#define STBIW_ASSERT(x)
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "third_party/stb/stb_image_write.h"
 
 
 
@@ -109,7 +115,7 @@ convert_type(Shader_Field_Type type, b32 is_gpu)
 
 Pair<b32, M_TypeInfo> 
 get_material_type_info(Shader_Compiler *shader_compiler, 
-                       String filepath)
+                       String           filepath)
 {
   auto [reflect_ok, mtl] = shader_reflect_material(shader_compiler, filepath);
   if ( !reflect_ok ) {
@@ -235,7 +241,7 @@ alloc_material(Guid id)
   return entry;
 }
 
-// @Todo: This too
+// @Todo: This as well.
 void 
 free_material(Guid id) 
 {
@@ -256,6 +262,8 @@ material_from_guid(Guid id)
   }
 }
 
+// @Todo: If material is *static*, we just need one material allocated.
+// If it is *dynamic*, we need it per owner.
 void 
 upload_material(Guid id) 
 {
@@ -308,9 +316,7 @@ ASSET_LOAD_PROC(material_load_proc)
   }
 
   /* Material entry to fill in */
-  Guid material_asset_id = id;
-  Guid alloc_id = material_asset_id;
-  M_Entry *material = alloc_material(alloc_id);
+  M_Entry *material = alloc_material(id);
   material->type_id = type_id;
 
   auto parse_key_val = [&](Asset_Lexer *lexer) {
@@ -386,25 +392,16 @@ ASSET_LOAD_PROC(material_load_proc)
     parse_key_val(&lexer);
   }
 
-  // @Temporary
-  // If I ever decide to have a material instance, instances 
-  // share a base material's pipeline, thus, pipeline id must be 
-  // discriminated from material id.
-  Guid pipeline_id  = alloc_id;
-  material->pipeline = pipeline_id;
+  material->pipeline = id;
 
 
-  // `shader` is the material implementation (IMaterial). It gets linked
-  // into the template shader, which owns the entry points.
   // @Temporary: Single template for every material.
   String surface_shader_path  = S("shaders/pass/surface.slang");
-  r_pipeline_create(pipeline_id, surface_shader_path, shader, SHADING_MODEL_OPAQUE);
+  r_pipeline_create(id, surface_shader_path, shader, SHADING_MODEL_OPAQUE);
 
 
-  // @Fix: As I stated in the function definition, 
-  // entites can share material. Blindly alloc/deallocing 
-  // material is wrong.
-  upload_material(alloc_id);
+  // @Todo: Handle static/dynamic material variation.
+  upload_material(id);
 }
 
 ASSET_LOAD_PROC(image_load_proc)
@@ -427,90 +424,6 @@ ASSET_LOAD_PROC(image_load_proc)
   gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
 
   bitmap_free(&bitmap);
-}
-
-// @Todo: REMOVE THIS SHIT. Just use .dds or .png or whatever, 
-// instead of my garbage format.
-ASSET_LOAD_PROC(texture_load_proc)
-{
-  // '.texture' is our own cooked format: four ASCII header lines - bytes per
-  // channel, channel count, width, height - then a raw uncompressed pixel blob.
-  Temporary_Arena scratch = scratch_begin();
-  defer(scratch_end(scratch));
-  
-  String filepath = asset_name_from_guid(id);
-
-  String contents = read_entire_file(filepath, tctx.temp);
-  if ( !contents.str ) {
-    log_error(S("Couldn't read texture '%S'."), filepath);
-    return;
-  }
-
-  Asset::Parser p = {};
-  Asset::init(&p, contents.str, contents.len);
-
-  u32 bytes_per_channel = Asset::parse_u32(&p);
-  u32 num_channels      = Asset::parse_u32(&p);
-  u32 width             = Asset::parse_u32(&p);
-  u32 height            = Asset::parse_u32(&p);
-
-  // Exactly one line ending, deliberately not eat_whitespace(): the first pixel
-  // byte is free to hold a value that happens to be ASCII whitespace.
-  if (p.cursor < p.end && *p.cursor == '\r')  p.cursor += 1;
-  if (p.cursor < p.end && *p.cursor == '\n')  p.cursor += 1;
-
-  if ( bytes_per_channel != 1 ) {
-    log_error(S("'%S': only 8-bit channels are supported, got %u bytes per channel."),
-              filepath, bytes_per_channel);
-    return;
-  }
-
-  u64 num_texels    = (u64)width * (u64)height;
-  u64 expected_size = num_texels * num_channels;
-  if ( (u64)(p.end - p.cursor) < expected_size ) {
-    log_error(S("'%S': pixel data is truncated, expected %llu bytes."), filepath, expected_size);
-    return;
-  }
-
-  // There is no 24-bit format in D3D12, so widen RGB to RGBA - the same thing
-  // 'bitmap_import' does for 3-channel images coming through stb.
-  u32 dst_channels = (num_channels == 3) ? 4 : num_channels;
-
-  Bitmap bitmap = {};
-  bitmap.format = bitmap_compute_format(dst_channels, false, false);
-  bitmap.width  = width;
-  bitmap.height = height;
-  bitmap.size   = num_texels * dst_channels;
-
-  if ( num_channels == dst_channels ) {
-    bitmap.data = p.cursor;
-  } else {
-    u8 *src = p.cursor;
-    u8 *dst = push_array_noz(scratch.arena, u8, bitmap.size);
-    bitmap.data = dst;
-
-    for (u64 i = 0; i < num_texels; ++i) {
-      dst[0] = src[0];
-      dst[1] = src[1];
-      dst[2] = src[2];
-      dst[3] = 0xff;
-      dst += 4;
-      src += 3;
-    }
-  }
-
-  RHI_Texture_Desc desc = {};
-  {
-    desc.type       = RHI_TEXTURE_TYPE_2D;
-    desc.format     = bitmap.format;
-    desc.usage      = RHI_TEXTURE_USAGE_SAMPLED;
-    desc.width      = bitmap.width;
-    desc.height     = bitmap.height;
-    desc.mip_levels = 1;
-    desc.depth      = 1;
-  }
-  gfx_texture_create(id, desc);
-  gfx_texture_upload(id, desc.format, bitmap.data, (u32)bitmap.size, bitmap.width, bitmap.height);
 }
 
 static RHI_Format 

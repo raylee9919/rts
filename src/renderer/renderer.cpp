@@ -451,13 +451,19 @@ r_entry(void *param)
 
 // @Cleanup: I don't like this a single bit.
 void 
-r_pipeline_create(Guid id,
-                  String shader_filepath, 
-                  String material_shader,
+r_pipeline_create(Guid            id,
+                  String          shader_filepath, 
+                  String          material_shader,
                   R_Shading_Model shading_model)
 {
   // Read shader source code
-  String shader_source   = read_entire_file(shader_filepath, tctx.temp);
+  String shader_source = read_entire_file(shader_filepath, tctx.temp);
+  if (!shader_source)
+  {
+    log_error(S("Failed to read material shader: '%S'"), material_shader);
+    return;
+  }
+
   String material_source = read_entire_file(material_shader, tctx.temp);
   if (!material_source)
   {
@@ -606,7 +612,7 @@ r_meshes_alloc(Guid id,
     mesh.id = mesh_id;
     mesh.aabb = tm->aabb;
     gfx_mesh_create(mesh_id, 
-                    tm->vertices, tm->num_vertices, sizeof(Vertex), 
+                    tm->vertices, tm->num_vertices, tm->vertex_size, 
                     tm->indices, tm->num_indices, sizeof(u32));
 
 

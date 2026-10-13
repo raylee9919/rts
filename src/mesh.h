@@ -12,12 +12,25 @@
 struct Skeleton;
 struct Asset_Lexer;
 
-struct Vertex
+
+enum Vertex_Attribute_Type : s16
 {
-  float position[3];
-  float uv[2];
-  float normal[3];
-  float tangent[4];
+  VERTEX_ATTRIBUTE_INVALID = 0,
+  VERTEX_ATTRIBUTE_FLOAT32,
+  VERTEX_ATTRIBUTE_INT32,
+};
+
+struct Vertex_Attribute
+{
+  // semantically binds with the engine.
+  // List: 
+  // "position", "uv", "normal", "tangent", "joint", "weight"
+  String                name; 
+
+  Vertex_Attribute_Type type;
+  s64                   width;
+  s64                   stride; // equivalent to `type.size * width`
+  s64                   offset; // offset in a single vertex
 };
 
 struct Mesh_Part
@@ -31,19 +44,28 @@ struct Mesh_Part
 
 struct Triangle_Mesh 
 {
-  String     name;
+  String                  name;
 
-  s64        num_vertices;
-  Vertex    *vertices;
+  Array<Vertex_Attribute> attributes;
 
-  s64        num_indices;
-  u32       *indices;
+  s64                     num_vertices;
+  u8                     *vertices;
+  s64                     vertex_size;
 
-  s64        num_parts;
-  Mesh_Part *parts;
+  s64                     num_indices;
+  u32                    *indices;
 
-  AABB       aabb;
+  s64                     num_parts;
+  Mesh_Part              *parts;
+
+  AABB                    aabb;
 };
+
+s64
+vertex_size_from_attributes(Array<Vertex_Attribute> *attributes);
+
+b32 
+mesh_has_attribute(Triangle_Mesh *mesh, String attribute_name);
 
 String
 asset_string_from_skeleton(Skeleton *sk, 
@@ -78,6 +100,8 @@ struct Skeleton
 
 ASSET_LOAD_PROC(skeleton_load_proc);
 
+Pair<Skeleton, b32>
+skeleton_from_guid(Guid id);
 
 
 #endif // RTS_MESH_H

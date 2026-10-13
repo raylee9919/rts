@@ -102,10 +102,6 @@ add_library(rts_engine STATIC
 
     src/rect_pack/rect_pack.cpp
 
-    src/asset/parser.cpp
-    src/asset/system.cpp
-    src/asset/texture.cpp
-
     src/rhi/rhi.cpp
     src/rhi/d3d12/rhi_d3d12.cpp
 

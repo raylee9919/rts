@@ -9,6 +9,35 @@
 
 #include "renderer/renderer.h"
 
+Table<Guid, Skeleton, hash_guid> skeleton_table;
+b32 skeleton_table_initted;
+
+
+s64
+vertex_size_from_attributes(Array<Vertex_Attribute> *attributes)
+{
+  s64 result = 0;
+  for (u64 i = 0; i < attributes->count; i += 1)
+  {
+    Vertex_Attribute *attr = &attributes->data[i];
+    result += attr->stride;
+  }
+  return result;
+}
+
+b32 
+mesh_has_attribute(Triangle_Mesh *mesh, String attribute_name)
+{
+  for (u32 i = 0; i < mesh->attributes.count; ++i)
+  {
+    Vertex_Attribute *attr = mesh->attributes.data + i;
+    if (attr->name == attribute_name)
+    {
+      return true;
+    }
+  }
+  return false;
+}
 
 static String
 string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
@@ -21,15 +50,60 @@ string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
   append(&b, S("\n// Name\n"));
   append(&b, tprint(S("\"%S\"\n"), mesh->name));
 
+  append(&b, S("\n// Attributes\n"));
+  append(&b, tprint(S("%d\n"), mesh->attributes.count));
+  for (u32 i = 0; i < mesh->attributes.count; ++i)
+  {
+    Vertex_Attribute *attr = mesh->attributes.data + i;
+
+    append(&b, tprint(S("%S "), attr->name));
+
+    if (attr->type == VERTEX_ATTRIBUTE_FLOAT32) {
+      append(&b, S("float32 "));
+    } else if (attr->type == VERTEX_ATTRIBUTE_INT32) {
+      append(&b, S("int32 "));
+    } else {
+      R_ASSERT(!"Unknown vertex attribute type");
+    }
+
+    append(&b, tprint(S("%d "), attr->width));
+    // We can derive those at runtime
+    // append(&b, tprint(S("%d "), attr->stride));
+    // append(&b, tprint(S("%d "), attr->offset));
+    append(&b, S("\n"));
+  }
+
   append(&b, S("\n// Vertices\n"));
   append(&b, tprint(S("%d\n"), mesh->num_vertices));
   for (s64 i = 0; i < mesh->num_vertices; ++i)
   {
-    Vertex *v = mesh->vertices + i;
-    append(&b, tprint(S("%.6f %.6f %.6f\n"), v->position[0], v->position[1], v->position[2]));
-    append(&b, tprint(S("%.6f %.6f\n"), v->uv[0], v->uv[1]));
-    append(&b, tprint(S("%.6f %.6f %.6f\n"), v->normal[0], v->normal[1], v->normal[2]));
-    append(&b, tprint(S("%.6f %.6f %.6f %.6f\n"), v->tangent[0], v->tangent[1], v->tangent[2], v->tangent[3]));
+    u8 *src = mesh->vertices + mesh->vertex_size*i;
+    for (u32 ai = 0; ai < mesh->attributes.count; ++ai)
+    {
+      Vertex_Attribute *attr = mesh->attributes.data + ai;
+      if (attr->type == VERTEX_ATTRIBUTE_FLOAT32) 
+      {
+        for (s64 w = 0; w < attr->width; ++w) 
+        {
+          append(&b, tprint(S("%.6f "), *(f32*)src));
+          src += 4;
+        }
+        append(&b, S("\n"));
+      } 
+      else if (attr->type == VERTEX_ATTRIBUTE_INT32) 
+      {
+        for (s64 w = 0; w < attr->width; ++w) 
+        {
+          append(&b, tprint(S("%d "), *(s32*)src));
+          src += 4;
+        }
+        append(&b, S("\n"));
+      } 
+      else 
+      {
+        R_ASSERT(!"Unknown vertex attribute type");
+      }
+    }
     append(&b, S("\n"));
   }
 
@@ -187,27 +261,92 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
     String name = eat_string(lexer);
     tm.name = copy_string(name, allocator);
 
+    u32 num_attributes = eat_unsigned_int(lexer);
+    tm.attributes = Array<Vertex_Attribute>(allocator, num_attributes);
+    for (u32 i = 0; i < num_attributes; ++i)
+    {
+      String semantic = eat_identifier(lexer);
+      if (semantic == S("position"))
+      {
+      }
+      else if (semantic == S("uv"))
+      {
+      }
+      else if (semantic == S("normal"))
+      {
+      }
+      else if (semantic == S("tangent"))
+      {
+      }
+      else if (semantic == S("joint"))
+      {
+      }
+      else if (semantic == S("weight"))
+      {
+      }
+      else
+      {
+        R_ASSERT(!"Undefined vertex attribute semantic.");
+      }
+
+      Vertex_Attribute_Type type = {};
+      s64 scalar_size = 0;
+
+      String type_s = eat_identifier(lexer);
+      if (type_s == S("float32")) {
+        type   = VERTEX_ATTRIBUTE_FLOAT32;
+        scalar_size = 4;
+      } else if (type_s == S("int32")) {
+        type   = VERTEX_ATTRIBUTE_INT32;
+        scalar_size = 4;
+      } else {
+        R_ASSERT(!"Undefined vertex attribute type.");
+      }
+
+      s64 width = eat_unsigned_int(lexer);
+      s64 stride = scalar_size * width;
+
+      Vertex_Attribute attr = {};
+      attr.name   = copy_string(semantic, allocator);
+      attr.type   = type; 
+      attr.width  = width;
+      attr.stride = stride;
+      if (i > 0)
+        attr.offset = tm.attributes[i-1].offset + tm.attributes[i-1].stride;
+      append(&tm.attributes, attr);
+    }
+    tm.vertex_size = vertex_size_from_attributes(&tm.attributes);
+
     // Vertices
     tm.num_vertices = eat_unsigned_int(lexer);
-    tm.vertices = (Vertex*)alloc(sizeof(Vertex)*tm.num_vertices, allocator);
-    for (int v = 0; v < tm.num_vertices; ++v)
+    tm.vertices     = alloc(tm.vertex_size*tm.num_vertices, allocator);
+    for (s64 v = 0; v < tm.num_vertices; ++v)
     {
-      Vertex* vertex = tm.vertices + v;
-      vertex->position[0] = eat_signed_float(lexer);
-      vertex->position[1] = eat_signed_float(lexer);
-      vertex->position[2] = eat_signed_float(lexer);
-
-      vertex->uv[0] = eat_signed_float(lexer);
-      vertex->uv[1] = eat_signed_float(lexer);
-
-      vertex->normal[0] = eat_signed_float(lexer);
-      vertex->normal[1] = eat_signed_float(lexer);
-      vertex->normal[2] = eat_signed_float(lexer);
-
-      vertex->tangent[0] = eat_signed_float(lexer);
-      vertex->tangent[1] = eat_signed_float(lexer);
-      vertex->tangent[2] = eat_signed_float(lexer);
-      vertex->tangent[3] = eat_signed_float(lexer);
+      u8 *dst = tm.vertices + tm.vertex_size*v;
+      for (u32 ai = 0; ai < tm.attributes.count; ++ai)
+      {
+        Vertex_Attribute *attr = &tm.attributes[ai];
+        if (attr->type == VERTEX_ATTRIBUTE_FLOAT32)
+        {
+          for (s64 w = 0; w < attr->width; ++w)
+          {
+            *(f32*)dst = eat_signed_float(lexer);
+            dst += 4;
+          }
+        }
+        else if (attr->type == VERTEX_ATTRIBUTE_INT32)
+        {
+          for (s64 w = 0; w < attr->width; ++w)
+          {
+            *(s32*)dst = eat_signed_int(lexer);
+            dst += 4;
+          }
+        }
+        else
+        {
+          R_ASSERT(!"Undefined vertex attribute type.");
+        }
+      }
     }
 
     // Indices
@@ -274,7 +413,7 @@ parse_and_eval_skeleton_asset(Asset_Lexer *lexer, Allocator allocator)
   for (s64 i = 0; i < result.num_joints; i += 1)
   {
     Joint *j = result.joints + i;
-    j->name                = eat_string(lexer);
+    j->name                = copy_string(eat_string(lexer), allocator);
     j->parent              = eat_signed_int(lexer);
     j->local_transform     = eat_m4x4(lexer);
     j->inverse_bind_matrix = eat_m4x4(lexer);
@@ -293,4 +432,18 @@ ASSET_LOAD_PROC(skeleton_load_proc)
   Allocator allocator = asset_system->heap;
 
   Skeleton skeleton = parse_and_eval_skeleton_asset(&lexer, allocator);
+
+  if (!skeleton_table_initted)
+  {
+    skeleton_table.allocator = allocator;
+  }
+  table_add(&skeleton_table, id, skeleton);
+}
+
+Pair<Skeleton, b32>
+skeleton_from_guid(Guid id)
+{
+  Skeleton *sk = table_find_pointer(&skeleton_table, id);
+  if (!sk) return { {}, false };
+  return { *sk, true };
 }

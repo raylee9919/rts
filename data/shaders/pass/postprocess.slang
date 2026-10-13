@@ -31,7 +31,7 @@ float4 main_fs(VS_Output input) : SV_TARGET
     float4 c = scene_texture.Sample(dot_sampler, input.screen_uv);
 
     // Tone-mapping and linear to sRGB conversion
-    float3 color = tone_mapping_aces(c.rgb);
+    float3 color = tone_mapping_jodie_reinhard(c.rgb);
     color = sRGB_from_linear(color);
 
     float4 result = float4(color, c.a);

@@ -5,12 +5,15 @@
 #include "basic/log.h"
 #include "basic/queue.h"
 #include "basic/string_builder.h"
-#include "shared.h"
 #include "math/math.h"
 #include "mesh.h"
 #include "material/material.h"
 #include "third_party/ufbx/ufbx.h"
 #include "third_party/meshoptimizer/meshoptimizer.h"
+
+// @Todo: 
+// Cleanup filename creation. I've added an option whether I'll 
+// overwrite the existing file or not.
 
 /*
 
@@ -95,12 +98,12 @@
   feasible.
 
                       mesh
-                        |
-                  skin_deformers
-                  : binding between a set of bones and a mesh
-                        |
-                   skin_clusters
-                   : vertices bound to a single bone
+                        \
+                    skin_deformers
+                    : binding between a set of bones and a mesh
+                            \
+                       skin_clusters
+                       : vertices bound to a single bone
 */
 
 
@@ -233,6 +236,18 @@ fbx_import_materials(ufbx_scene *scene)
   return result;
 }
 
+static b32
+_is_visible(ufbx_node *node)
+{
+  while (node)
+  {
+    ufbx_node *parent = node->parent;
+    if (!node->visible) return false;
+    node = parent;
+  }
+  return true;
+}
+
 static void
 fbx_import_mesh_internal(ufbx_node*                               node, 
                          FBX_Import_Options                       options, 
@@ -243,7 +258,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
   ufbx_mesh *mesh = node->mesh;
   if (mesh && 
       node->attrib_type == UFBX_ELEMENT_MESH && 
-      node->visible)
+      _is_visible(node))
   {
     Triangle_Mesh m = {};
 
@@ -252,30 +267,47 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     b32 has_uv        = mesh->vertex_uv.exists;
 
 
+    // Find skin
+    ufbx_skin_deformer *skin = mesh->skin_deformers.count ? mesh->skin_deformers[0] : NULL;
+
+
     // Number of triangles if the mesh is fully triangulated.
     s64 num_tri = mesh->num_triangles;
     s64 num_indices = num_tri * 3;
 
 
-    // Reserve vertices upfront. Will be deduplicated afterwards.
-    Vertex *vertices = (Vertex*)alloc(sizeof(Vertex)*num_indices, tctx.temp);
-
-
     // Reserve arrays of attributes up to maximum index count.
-    Array<vec3> positions;
-    Array<vec2> uvs;
-    Array<vec3> normals;
-    Array<vec4> tangents;
+    Array<vec3> positions(tctx.temp, num_indices);
+    Array<vec2>       uvs(tctx.temp, num_indices);
+    Array<vec3>   normals(tctx.temp, num_indices);
+    Array<vec4>  tangents(tctx.temp, num_indices);
 
-    positions.allocator = tctx.temp;
-    uvs.allocator       = tctx.temp;
-    normals.allocator   = tctx.temp;
-    tangents.allocator  = tctx.temp;
 
-    array_reserve(&positions, num_indices);
-    array_reserve(&uvs,       num_indices);
-    array_reserve(&normals,   num_indices);
-    array_reserve(&tangents,  num_indices);
+    // Reserve only if skinned
+    Array<vec4> joints; // @Fix: int32
+    Array<vec4> weights;
+    if (skin) {
+      joints  = Array<vec4>(tctx.temp, num_indices);
+      weights = Array<vec4>(tctx.temp, num_indices);
+    }
+
+
+    // Make attributes
+    Array<Vertex_Attribute> attributes(allocator, 6);
+    append(&attributes, { S("position"), VERTEX_ATTRIBUTE_FLOAT32, 3, 12,  0, });
+    append(&attributes, { S("uv"),       VERTEX_ATTRIBUTE_FLOAT32, 2,  8, 12, });
+    append(&attributes, { S("normal"),   VERTEX_ATTRIBUTE_FLOAT32, 3, 12, 20, });
+    append(&attributes, { S("tangent"),  VERTEX_ATTRIBUTE_FLOAT32, 4, 16, 32, });
+    if (skin)
+    {
+      append(&attributes, { S("joint"),     VERTEX_ATTRIBUTE_INT32, 4, 16, 48, });
+      append(&attributes, { S("weight"),  VERTEX_ATTRIBUTE_FLOAT32, 4, 16, 64, });
+    }
+
+
+    // Reserve vertices upfront. Will be deduplicated afterwards.
+    s64 vertex_size = vertex_size_from_attributes(&attributes);
+    u8 *vertices = alloc(vertex_size*num_indices, tctx.temp);
 
 
     // Reserves a temporary buffer with size of a maximum indices 
@@ -283,11 +315,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     s64 num_indices_in_face = mesh->max_face_triangles * 3;
     u32 *indices_in_face    = (u32*)alloc(sizeof(u32) * num_indices_in_face, tctx.temp);
 
-
-    Array<Mesh_Part> parts;
-    parts.allocator = tctx.temp;
-    array_reserve(&parts, mesh->material_parts.count);
-
+    Array<Mesh_Part> parts(tctx.temp, mesh->material_parts.count);
 
     for (ufbx_mesh_part part : mesh->material_parts)
     {
@@ -370,11 +398,16 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     // Write attributes
     for (s64 i = 0; i < num_indices; ++i)
     {
-      Vertex *vertex = &vertices[i]; 
-      memcpy(vertex->position, &positions.data[i], 12);
-      memcpy(vertex->uv,       &uvs.data[i],        8);
-      memcpy(vertex->normal,   &normals.data[i],   12);
-      memcpy(vertex->tangent,  &tangents.data[i],  16);
+      u8 *vertex = vertices + vertex_size*i;
+      memcpy(vertex +  0, &positions.data[i], 12);
+      memcpy(vertex + 12,       &uvs.data[i],  8);
+      memcpy(vertex + 20,   &normals.data[i], 12);
+      memcpy(vertex + 32,  &tangents.data[i], 16);
+      if (skin)
+      {
+        memcpy(vertex + 48,  &joints.data[i], 16);
+        memcpy(vertex + 64, &weights.data[i], 16);
+      }
     }
 
 
@@ -389,13 +422,13 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     u32 *remap = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
     s64 num_vertices = meshopt_generateVertexRemap(remap,
                                                    NULL, num_indices,
-                                                   vertices, num_indices, sizeof(Vertex));
+                                                   vertices, num_indices, vertex_size);
 
     u32 *new_indices = (u32*)alloc(sizeof(u32)*num_indices, allocator);
     meshopt_remapIndexBuffer(new_indices, NULL, num_indices, remap);
 
-    Vertex *new_vertices = (Vertex*)alloc(sizeof(Vertex)*num_vertices, allocator);
-    meshopt_remapVertexBuffer(new_vertices, vertices, num_indices, sizeof(Vertex), remap);
+    u8 *new_vertices = alloc(vertex_size*num_vertices, allocator);
+    meshopt_remapVertexBuffer(new_vertices, vertices, num_indices, vertex_size, remap);
 
 
     //
@@ -403,8 +436,10 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     //
     m.name = copy_string(utf8c((u8*)node->name.data), allocator);
 
+    m.attributes   = attributes;
     m.num_vertices = num_vertices;
     m.vertices     = new_vertices;
+    m.vertex_size  = vertex_size;
 
     m.num_indices  = num_indices;
     m.indices      = new_indices;
@@ -656,6 +691,38 @@ _write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
   }
 }
 
+static void
+_write_mesh_files(Import_State *state, Array<Triangle_Mesh> meshes)
+{
+  String filename;
+  filename = tprint(S("%S.triangle_mesh"), state->basename);
+
+  String strings[] = {
+    state->directory, filename
+  };
+  String path = path_join(strings, 2, '/', tctx.temp);
+
+
+  File file = file_open(path, true);
+  if (file_is_valid(file))
+  {
+    String s = asset_string_from_meshes(meshes, tctx.temp);
+    if (file_write(file, s.str, s.len))
+    {
+      log_info(S("Written meshes to file: '%S'"), path);
+    }
+    else
+    {
+      log_error(S("Failed to write meshes to file: '%S'"), path);
+    }
+  }
+  else
+  {
+    log_error(S("Failed to open file: '%S' during importing meshes."), path);
+  }
+  file_close(&file);
+}
+
 b32
 fbx_import(String             filepath, 
            String             out_directory,
@@ -676,7 +743,7 @@ fbx_import(String             filepath,
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; // bakes it into node
   opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE;
   opts.generate_missing_normals    = true;
-  opts.evaluate_skinning           = false;
+  // opts.evaluate_skinning           = true;
   opts.clean_skin_weights          = true;
   opts.normalize_normals           = true;
 
@@ -708,7 +775,7 @@ fbx_import(String             filepath,
 
   // Import skeletons
   Array<Skeleton> skeletons = fbx_import_skeleton(&state, allocator);
-  _write_skeleton_files(&state, skeletons);
+  _write_skeleton_files(&state, skeletons); // @Todo: Prune unreferenced skeletons first
 
 
   // Import materials
@@ -717,6 +784,7 @@ fbx_import(String             filepath,
 
   // Import meshes
   Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, material_pointer_to_path, allocator);
+  _write_mesh_files(&state, meshes);
 
   ufbx_free_scene(scene);
 
