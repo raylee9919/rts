@@ -13,8 +13,8 @@ struct FBX_Import_Options
 };
 
 b32
-fbx_import(String filepath, 
-           String output_filepath,
+fbx_import(String             filepath, 
+           String             out_directory,
            FBX_Import_Options options);
 
 #endif // RTS_IMPORTER_FBX_H

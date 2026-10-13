@@ -120,7 +120,8 @@ String  advance(String  s, s64 amount = 1);
 
 b32     equal_nocase(String a, String b);
 
-String  copy_string(String s, Allocator allocator);
+String 
+copy_string(String s, Allocator allocator);
 
 String  eat_spaces( String s );
 String  eat_trailing_spaces( String s );

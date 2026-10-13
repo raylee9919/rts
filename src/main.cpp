@@ -12,7 +12,7 @@
 #include "renderer/renderer.h"
 #include "game.h"
 #include "asset/asset.h"
-#include "asset_lexer.h"
+#include "asset/lexer.h"
 #include "renderer/immediate.h"
 #include "audio/audio.h"
 #include "material/material.h"

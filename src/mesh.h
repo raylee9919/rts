@@ -9,6 +9,7 @@
 #include "math/math.h"
 #include "asset/asset.h"
 
+struct Skeleton;
 struct Asset_Lexer;
 
 struct Vertex
@@ -40,7 +41,13 @@ struct Triangle_Mesh
 
   s64        num_parts;
   Mesh_Part *parts;
+
+  AABB       aabb;
 };
+
+String
+asset_string_from_skeleton(Skeleton *sk, 
+                           Allocator allocator);
 
 String
 asset_string_from_meshes(Array<Triangle_Mesh> meshes, 
@@ -57,9 +64,10 @@ ASSET_LOAD_PROC(mesh_load_proc);
 //
 struct Joint 
 {
-  s32  parent; // Always precedes the child. -1 for the root
-  m4x4 local_transform;
-  m4x4 inverse_bind_matrix;
+  String name;
+  s32    parent; // Always precedes the child. -1 for the root
+  m4x4   local_transform;
+  m4x4   inverse_bind_matrix;
 };
 
 struct Skeleton 
@@ -68,6 +76,7 @@ struct Skeleton
   s64    num_joints;
 };
 
+ASSET_LOAD_PROC(skeleton_load_proc);
 
 
 

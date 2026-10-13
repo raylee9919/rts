@@ -384,27 +384,31 @@ b32 equal_nocase(String a, String b) {
     return true;
 }
 
-String copy_string(String s, Allocator allocator) {
-    if ( !s.len ) return S("");
+String 
+copy_string(String s, Allocator allocator) 
+{
+  if ( !s.len ) return S("");
 
-    R_ASSERT( s.len >= 0 );
+  R_ASSERT( s.len >= 0 );
 
-    String t;
-    t.str = alloc(s.len + 1, allocator);
-    t.len = s.len;
-    t.str[t.len] = 0;
-    memcpy(t.str, s.str, s.len);
-    return t;
+  String t;
+  t.str = alloc(s.len + 1, allocator);
+  t.len = s.len;
+  t.str[t.len] = 0;
+  memcpy(t.str, s.str, s.len);
+  return t;
 }
 
-String eat_spaces( String _s ) {
-    String s = _s;
-    while ( s.len > 0 && *s.str ) {
-        if ( (s[0] != ' ') && (s[0] != 9) ) break;
-        advance(&s, 1);
-    }
+String 
+eat_spaces(String _s) 
+{
+  String s = _s;
+  while ( s.len > 0 && *s.str ) {
+    if ( (s[0] != ' ') && (s[0] != 9) ) break;
+    advance(&s, 1);
+  }
 
-    return s;
+  return s;
 }
 
 String eat_trailing_spaces( String _s ) {
@@ -726,10 +730,15 @@ path_join(String   *strings,
 
   for (s64 i = 0; i < count-1; ++i)
   {
-    append(&sb, strings[i]);
-    append(&sb, '/');
+    if (strings[i])
+    {
+      append(&sb, strings[i]);
+      append(&sb, separator);
+    }
   }
-  append(&sb, strings[count-1]);
+
+  if (strings[count-1])
+    append(&sb, strings[count-1]);
 
   String s = flush(&sb);
   return s;

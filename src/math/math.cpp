@@ -688,72 +688,54 @@ m4x4 transpose(m4x4 m) {
     return n;
 }
 
-m4x4 inverse(m4x4 m) {
-    f32 A2323 = m.e[2][2] * m.e[3][3] - m.e[2][3] * m.e[3][2];
-    f32 A1323 = m.e[2][1] * m.e[3][3] - m.e[2][3] * m.e[3][1];
-    f32 A1223 = m.e[2][1] * m.e[3][2] - m.e[2][2] * m.e[3][1];
-    f32 A0323 = m.e[2][0] * m.e[3][3] - m.e[2][3] * m.e[3][0];
-    f32 A0223 = m.e[2][0] * m.e[3][2] - m.e[2][2] * m.e[3][0];
-    f32 A0123 = m.e[2][0] * m.e[3][1] - m.e[2][1] * m.e[3][0];
-    f32 A2313 = m.e[1][2] * m.e[3][3] - m.e[1][3] * m.e[3][2];
-    f32 A1313 = m.e[1][1] * m.e[3][3] - m.e[1][3] * m.e[3][1];
-    f32 A1213 = m.e[1][1] * m.e[3][2] - m.e[1][2] * m.e[3][1];
-    f32 A2312 = m.e[1][2] * m.e[2][3] - m.e[1][3] * m.e[2][2];
-    f32 A1312 = m.e[1][1] * m.e[2][3] - m.e[1][3] * m.e[2][1];
-    f32 A1212 = m.e[1][1] * m.e[2][2] - m.e[1][2] * m.e[2][1];
-    f32 A0313 = m.e[1][0] * m.e[3][3] - m.e[1][3] * m.e[3][0];
-    f32 A0213 = m.e[1][0] * m.e[3][2] - m.e[1][2] * m.e[3][0];
-    f32 A0312 = m.e[1][0] * m.e[2][3] - m.e[1][3] * m.e[2][0];
-    f32 A0212 = m.e[1][0] * m.e[2][2] - m.e[1][2] * m.e[2][0];
-    f32 A0113 = m.e[1][0] * m.e[3][1] - m.e[1][1] * m.e[3][0];
-    f32 A0112 = m.e[1][0] * m.e[2][1] - m.e[1][1] * m.e[2][0];
+m4x4 
+inverse(m4x4 m) 
+{
+  f32 A2323 = m.e[2][2] * m.e[3][3] - m.e[2][3] * m.e[3][2];
+  f32 A1323 = m.e[2][1] * m.e[3][3] - m.e[2][3] * m.e[3][1];
+  f32 A1223 = m.e[2][1] * m.e[3][2] - m.e[2][2] * m.e[3][1];
+  f32 A0323 = m.e[2][0] * m.e[3][3] - m.e[2][3] * m.e[3][0];
+  f32 A0223 = m.e[2][0] * m.e[3][2] - m.e[2][2] * m.e[3][0];
+  f32 A0123 = m.e[2][0] * m.e[3][1] - m.e[2][1] * m.e[3][0];
+  f32 A2313 = m.e[1][2] * m.e[3][3] - m.e[1][3] * m.e[3][2];
+  f32 A1313 = m.e[1][1] * m.e[3][3] - m.e[1][3] * m.e[3][1];
+  f32 A1213 = m.e[1][1] * m.e[3][2] - m.e[1][2] * m.e[3][1];
+  f32 A2312 = m.e[1][2] * m.e[2][3] - m.e[1][3] * m.e[2][2];
+  f32 A1312 = m.e[1][1] * m.e[2][3] - m.e[1][3] * m.e[2][1];
+  f32 A1212 = m.e[1][1] * m.e[2][2] - m.e[1][2] * m.e[2][1];
+  f32 A0313 = m.e[1][0] * m.e[3][3] - m.e[1][3] * m.e[3][0];
+  f32 A0213 = m.e[1][0] * m.e[3][2] - m.e[1][2] * m.e[3][0];
+  f32 A0312 = m.e[1][0] * m.e[2][3] - m.e[1][3] * m.e[2][0];
+  f32 A0212 = m.e[1][0] * m.e[2][2] - m.e[1][2] * m.e[2][0];
+  f32 A0113 = m.e[1][0] * m.e[3][1] - m.e[1][1] * m.e[3][0];
+  f32 A0112 = m.e[1][0] * m.e[2][1] - m.e[1][1] * m.e[2][0];
 
-    f32 det = (m.e[0][0] * ( m.e[1][1] * A2323 - m.e[1][2] * A1323 + m.e[1][3] * A1223 ) - 
-               m.e[0][1] * ( m.e[1][0] * A2323 - m.e[1][2] * A0323 + m.e[1][3] * A0223 ) +
-               m.e[0][2] * ( m.e[1][0] * A1323 - m.e[1][1] * A0323 + m.e[1][3] * A0123 ) -
-               m.e[0][3] * ( m.e[1][0] * A1223 - m.e[1][1] * A0223 + m.e[1][2] * A0123 ));
-    det = 1.f / det;
+  f32 det = (m.e[0][0] * ( m.e[1][1] * A2323 - m.e[1][2] * A1323 + m.e[1][3] * A1223 ) - 
+             m.e[0][1] * ( m.e[1][0] * A2323 - m.e[1][2] * A0323 + m.e[1][3] * A0223 ) +
+             m.e[0][2] * ( m.e[1][0] * A1323 - m.e[1][1] * A0323 + m.e[1][3] * A0123 ) -
+             m.e[0][3] * ( m.e[1][0] * A1223 - m.e[1][1] * A0223 + m.e[1][2] * A0123 ));
+  det = 1.f / det;
 
-    m4x4 result = m4x4{{
-        det *   ( m.e[1][1] * A2323 - m.e[1][2] * A1323 + m.e[1][3] * A1223 ),
-            det * - ( m.e[0][1] * A2323 - m.e[0][2] * A1323 + m.e[0][3] * A1223 ),
-            det *   ( m.e[0][1] * A2313 - m.e[0][2] * A1313 + m.e[0][3] * A1213 ),
-            det * - ( m.e[0][1] * A2312 - m.e[0][2] * A1312 + m.e[0][3] * A1212 ),
-            det * - ( m.e[1][0] * A2323 - m.e[1][2] * A0323 + m.e[1][3] * A0223 ),
-            det *   ( m.e[0][0] * A2323 - m.e[0][2] * A0323 + m.e[0][3] * A0223 ),
-            det * - ( m.e[0][0] * A2313 - m.e[0][2] * A0313 + m.e[0][3] * A0213 ),
-            det *   ( m.e[0][0] * A2312 - m.e[0][2] * A0312 + m.e[0][3] * A0212 ),
-            det *   ( m.e[1][0] * A1323 - m.e[1][1] * A0323 + m.e[1][3] * A0123 ),
-            det * - ( m.e[0][0] * A1323 - m.e[0][1] * A0323 + m.e[0][3] * A0123 ),
-            det *   ( m.e[0][0] * A1313 - m.e[0][1] * A0313 + m.e[0][3] * A0113 ),
-            det * - ( m.e[0][0] * A1312 - m.e[0][1] * A0312 + m.e[0][3] * A0112 ),
-            det * - ( m.e[1][0] * A1223 - m.e[1][1] * A0223 + m.e[1][2] * A0123 ),
-            det *   ( m.e[0][0] * A1223 - m.e[0][1] * A0223 + m.e[0][2] * A0123 ),
-            det * - ( m.e[0][0] * A1213 - m.e[0][1] * A0213 + m.e[0][2] * A0113 ),
-            det *   ( m.e[0][0] * A1212 - m.e[0][1] * A0212 + m.e[0][2] * A0112 ),
-    }};
+  m4x4 result = m4x4{{
+    det *   ( m.e[1][1] * A2323 - m.e[1][2] * A1323 + m.e[1][3] * A1223 ),
+    det * - ( m.e[0][1] * A2323 - m.e[0][2] * A1323 + m.e[0][3] * A1223 ),
+    det *   ( m.e[0][1] * A2313 - m.e[0][2] * A1313 + m.e[0][3] * A1213 ),
+    det * - ( m.e[0][1] * A2312 - m.e[0][2] * A1312 + m.e[0][3] * A1212 ),
+    det * - ( m.e[1][0] * A2323 - m.e[1][2] * A0323 + m.e[1][3] * A0223 ),
+    det *   ( m.e[0][0] * A2323 - m.e[0][2] * A0323 + m.e[0][3] * A0223 ),
+    det * - ( m.e[0][0] * A2313 - m.e[0][2] * A0313 + m.e[0][3] * A0213 ),
+    det *   ( m.e[0][0] * A2312 - m.e[0][2] * A0312 + m.e[0][3] * A0212 ),
+    det *   ( m.e[1][0] * A1323 - m.e[1][1] * A0323 + m.e[1][3] * A0123 ),
+    det * - ( m.e[0][0] * A1323 - m.e[0][1] * A0323 + m.e[0][3] * A0123 ),
+    det *   ( m.e[0][0] * A1313 - m.e[0][1] * A0313 + m.e[0][3] * A0113 ),
+    det * - ( m.e[0][0] * A1312 - m.e[0][1] * A0312 + m.e[0][3] * A0112 ),
+    det * - ( m.e[1][0] * A1223 - m.e[1][1] * A0223 + m.e[1][2] * A0123 ),
+    det *   ( m.e[0][0] * A1223 - m.e[0][1] * A0223 + m.e[0][2] * A0123 ),
+    det * - ( m.e[0][0] * A1213 - m.e[0][1] * A0213 + m.e[0][2] * A0113 ),
+    det *   ( m.e[0][0] * A1212 - m.e[0][1] * A0212 + m.e[0][2] * A0112 ),
+  }};
 
-    return result;
-}
-
-m4x4 rows(vec3 x, vec3 y, vec3 z) {
-    m4x4 r = {
-        x.x, x.y, x.z, 0,
-        y.x, y.y, y.z, 0,
-        z.x, z.y, z.z, 0,
-        0, 0, 0, 1
-    };
-    return r;
-}
-
-m4x4 columns(vec3 x, vec3 y, vec3 z) {
-    m4x4 r = {
-        x.x, y.x, z.x, 0,
-        x.y, y.y, z.y, 0,
-        x.z, y.z, z.z, 0,
-        0, 0, 0, 1
-    };
-    return r;
+  return result;
 }
 
 m4x4 m4x4_translate(f32 x, f32 y, f32 z) {
@@ -860,65 +842,6 @@ m4x4 m4x4_scale(f32 x, f32 y, f32 z) {
     return m;
 }
 
-
-// Rect
-//
-Rect2
-rect2_min_max(vec2 min, vec2 max)
-{
-    Rect2 result = {};
-    result.min = min;
-    result.max = max;
-    return result;
-}
-
-Rect2
-rect2_cen_half_dim(vec2 cen, vec2 h_dim)
-{
-    Rect2 result = {};
-    result.min = cen - h_dim;
-    result.max = cen + h_dim;
-    return result;
-}
-
-Rect2
-rect2_min_dim(vec2 min, vec2 dim)
-{
-    Rect2 result = {};
-    result.min = min;
-    result.max = min + dim;
-    return result;
-}
-
-Rect2
-rect2_inv_inf()
-{
-    Rect2 result = {};
-    result.min.x =  F32_MAX;
-    result.min.y =  F32_MAX;
-    result.max.x = -F32_MAX;
-    result.max.y = -F32_MAX;
-    return result;
-}
-
-Rect2
-offset(Rect2 rect, vec2 offset)
-{
-    Rect2 result = {};
-    result.min = rect.min + offset;
-    result.max = rect.max + offset;
-    return result;
-}
-
-Rect2
-add_radius_to(Rect2 rect, vec2 radius)
-{
-    Rect2 result = rect;
-    result.min -= radius;
-    result.max += radius;
-    return result;
-}
-
 m4x4 to_m4x4(Xform xform)
 {
     m4x4 m;
@@ -986,27 +909,6 @@ project(vec3 p, m4x4 view_proj)
     res.y /= res.w;
     res.z /= res.w;
     return res.xyz;
-}
-
-// @Todo: Opengl's clip-space's z range is [-1,1] while d3d's is [0,1].
-m4x4
-ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z) 
-{
-    f32 a = safe_ratio(2.0f, max_x - min_x);
-    f32 b = safe_ratio(min_x + max_x, min_x - max_x);
-    f32 c = safe_ratio(2.0f, max_y - min_y);
-    f32 d = safe_ratio(min_y + max_y, min_y - max_y);
-    f32 N = min_z;
-    f32 F = max_z;
-    f32 e = safe_ratio(2.0f , (N - F));
-    f32 f = safe_ratio((N + F), (N - F));
-    m4x4 result = m4x4{{
-        { a,  0,  0,  b},
-        { 0,  c,  0,  d},
-        { 0,  0,  e,  f},
-        { 0,  0,  0,  1}
-    }};
-    return result;
 }
 
 f32 radian_from_degree(f32 d) {

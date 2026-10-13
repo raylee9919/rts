@@ -15,20 +15,6 @@ struct Queue {
     Array<T> array  = {};
 };
 
-template <typename T>
-T queue_front(Queue<T> *q);
-
-template <typename T>
-void queue_push(Queue<T> *q, T item);
-
-template <typename T>
-void queue_pop(Queue<T> *q);
-
-template <typename T>
-void queue_reserve(Queue<T> *q, u64 count);
-
-
-
 // @Correctness
 
 template <typename T>
@@ -42,23 +28,28 @@ T queue_front(Queue<T> *q)
 template <typename T>
 void queue_push(Queue<T> *q, T item)
 {
-    if (q->count == q->allocated) {
-        u64 new_allocated = max(8ull, 2 * q->allocated);
-        queue_reserve(q, new_allocated);
-    }
+  if (q->count == q->allocated) 
+  {
+    u64 new_allocated = max(8ull, 2 * q->allocated);
+    queue_reserve(q, new_allocated);
+  }
 
-    q->array.data[q->rear_index] = item;
-    q->rear_index = (q->rear_index + 1) % q->allocated;
-    q->count += 1;
+  q->array.data[q->rear_index] = item;
+  q->rear_index = (q->rear_index + 1) % q->allocated;
+  q->count += 1;
 }
 
 template <typename T>
-void queue_pop(Queue<T> *q)
+T queue_pop(Queue<T> *q)
 {
-    R_ASSERT(q->count > 0);
+  R_ASSERT(q->count > 0);
 
-    q->front_index = (q->front_index + 1) % q->allocated;
-    q->count -= 1;
+  T result = q->array.data[q->front_index];
+
+  q->front_index = (q->front_index + 1) % q->allocated;
+  q->count -= 1;
+
+  return result;
 }
 
 template <typename T>

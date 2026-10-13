@@ -77,23 +77,26 @@ union vec4 {
     vec4(vec3 xyz, f32 w)                : x(xyz.x), y(xyz.y), z(xyz.z), w(w) {};
 };
 
-union m4x4 {
-    f32 e[4][4];
-    struct {
-        f32 _11, _12, _13, _14; 
-        f32 _21, _22, _23, _24; 
-        f32 _31, _32, _33, _34; 
-        f32 _41, _42, _43, _44; 
-    };
-    vec4 rows[4];
+union m4x4 
+{
+  f32 f[16];
+  f32 e[4][4];
+  struct {
+    f32 _11, _12, _13, _14; 
+    f32 _21, _22, _23, _24; 
+    f32 _31, _32, _33, _34; 
+    f32 _41, _42, _43, _44; 
+  };
+  vec4 rows[4];
 };
 
-union m3x4 {
-    struct {
-        f32 _11, _12, _13, _14; 
-        f32 _21, _22, _23, _24; 
-        f32 _31, _32, _33, _34; 
-    };
+union m3x4 
+{
+  struct {
+    f32 _11, _12, _13, _14; 
+    f32 _21, _22, _23, _24; 
+    f32 _31, _32, _33, _34; 
+  };
 };
 
 union Quaternion {
@@ -112,18 +115,19 @@ struct Xform {
     Xform();
 };
 
-struct Rect2 {
-    vec2 min, max;
+struct AABB {
+  vec3 min;
+  vec3 max;
 };
 
 struct AABB2 {
-    vec2 min;
-    vec2 max;
+  vec2 min;
+  vec2 max;
 };
 
 struct Ray3 {
-    vec3 origin;
-    vec3 direction;
+  vec3 origin;
+  vec3 direction;
 };
 
 // Sloppy
@@ -234,8 +238,6 @@ m4x4           y_rotation(f32 a);
 m4x4           z_rotation(f32 a);
 m4x4           transpose(m4x4 m);
 m4x4           inverse(m4x4 m);
-m4x4           rows(vec3 x, vec3 y, vec3 z);
-m4x4           columns(vec3 x, vec3 y, vec3 z);
 
 m4x4           m4x4_translate(f32 x, f32 y, f32 z);
 m4x4           m4x4_translate(vec3 t);
@@ -247,12 +249,6 @@ m4x4           scale(m4x4 transform, vec3 factor);
 m4x4           scale(m4x4 transform, f32 factor);
 m4x4           scale(f32 s);
 m4x4           m4x4_scale(f32 x, f32 y, f32 z);
-Rect2          rect2_min_max(vec2 min, vec2 max);
-Rect2          rect2_cen_half_dim(vec2 cen, vec2 h_dim);
-Rect2          rect2_min_dim(vec2 min, vec2 dim);
-Rect2          rect2_inv_inf();
-Rect2          offset(Rect2 rect, vec2 offset);
-Rect2          add_radius_to(Rect2 rect, vec2 radius);
 m4x4           to_m4x4(Xform xform);
 m4x4           to_m4x4(vec3 translation, Quaternion rotation, vec3 scale);
 Quaternion     build_quaternion(vec3 axis, f32 radian);
@@ -261,7 +257,6 @@ vec3           project(vec3 p, m4x4 view_proj);
 
 
 
-m4x4           ortho(f32 min_x, f32 max_x, f32 min_y, f32 max_y, f32 min_z, f32 max_z);
 f32            radian_from_degree(f32 d);
 
 f32            normalize01(vec2 range, f32 val);

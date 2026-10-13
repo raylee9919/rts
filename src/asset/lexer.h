@@ -97,6 +97,9 @@ eat_signed_int(Asset_Lexer *lexer);
 f64 
 eat_signed_float(Asset_Lexer *lexer);
 
+m4x4
+eat_m4x4(Asset_Lexer *lexer);
+
 String
 eat_string(Asset_Lexer *lexer);
 

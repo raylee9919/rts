@@ -99,6 +99,7 @@ asset_system_init()
   asset_type_register({S("png"),              image_load_proc});
   asset_type_register({S("texture"),          texture_load_proc});
   asset_type_register({S("triangle_mesh"),    mesh_load_proc});
+  asset_type_register({S("skeleton"),         skeleton_load_proc});
   asset_type_register({S("slang"),            NULL});
 
   asset_system_init_catalog();

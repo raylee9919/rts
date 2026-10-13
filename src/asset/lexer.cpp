@@ -1,6 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#include "asset_lexer.h"
+#include "./lexer.h"
 #include "shared.h"
 
 
@@ -549,6 +549,17 @@ eat_signed_float(Asset_Lexer *lexer)
   if (sign) f = -f;
 
   return f;
+}
+
+m4x4
+eat_m4x4(Asset_Lexer *lexer)
+{
+  m4x4 m;
+  for (int i = 0; i < 16; ++i)
+  {
+    m.f[i] = eat_signed_float(lexer);
+  }
+  return m;
 }
 
 // Assume it's a string literal

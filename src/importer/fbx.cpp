@@ -105,7 +105,7 @@
 
 
 static m4x4
-m4x4_from_ufbx_matrix(ufbx_matrix& m)
+_to_m4x4(ufbx_matrix& m)
 {
   m4x4 result;
   result._11 = m.m00;
@@ -132,13 +132,13 @@ m4x4_from_ufbx_matrix(ufbx_matrix& m)
 }
 
 static vec2
-vec2_from_ufbx(ufbx_vec2 v)
+_to_vec2(ufbx_vec2 v)
 {
   return vec2((f32)v.x, (f32)v.y);
 }
 
 static vec3
-vec3_from_ufbx(ufbx_vec3 v)
+_to_vec3(ufbx_vec3 v)
 {
   return vec3((f32)v.x, (f32)v.y, (f32)v.z);
 }
@@ -305,20 +305,20 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
           // Position
           ufbx_vec3 geomtry_space_position = ufbx_get_vertex_vec3(&mesh->vertex_position, index);
-          vec3 world_space_position = vec3_from_ufbx(ufbx_transform_position(&node->geometry_to_world, geomtry_space_position));
+          vec3 world_space_position = _to_vec3(ufbx_transform_position(&node->geometry_to_world, geomtry_space_position));
           append(&positions, world_space_position);
 
           // Unlike from normals and tangents, UV isn't 
           // generated even if it doesn't exist. 
           // @Todo: use xatlas or something and generate uv
-          vec2 uv = has_uv ? vec2_from_ufbx(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
+          vec2 uv = has_uv ? _to_vec2(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
           append(&uvs, uv);
 
           // Normal
           if (has_normal)
           {
             ufbx_vec3 geometry_space_normal = ufbx_get_vertex_vec3(&mesh->vertex_normal, index);
-            vec3 world_space_normal = vec3_from_ufbx(ufbx_transform_direction(&node->geometry_to_world, geometry_space_normal));
+            vec3 world_space_normal = _to_vec3(ufbx_transform_direction(&node->geometry_to_world, geometry_space_normal));
             append(&normals, world_space_normal);
           }
         }
@@ -417,6 +417,27 @@ fbx_import_mesh_internal(ufbx_node*                               node,
       m.parts[i] = parts[i];
     }
 
+    AABB aabb = {};
+    if (positions.count > 0)
+    {
+      aabb.min = vec3( F32_MAX);
+      aabb.max = vec3(-F32_MAX);
+      for (u32 i = 0; i < positions.count; ++i)
+      {
+        vec3 p = positions.data[i];
+        aabb.min.x = min(aabb.min.x, p.x);
+        aabb.min.y = min(aabb.min.y, p.y);
+        aabb.min.z = min(aabb.min.z, p.z);
+        aabb.max.x = max(aabb.max.x, p.x);
+        aabb.max.y = max(aabb.max.y, p.y);
+        aabb.max.z = max(aabb.max.z, p.z);
+      }
+      vec3 padding = vec3(0.01f);
+      aabb.min -= padding;
+      aabb.max += padding;
+    }
+    m.aabb = aabb;
+
     append(out_meshes, m);
   }
 
@@ -443,114 +464,208 @@ fbx_import_mesh(ufbx_node*                               node,
   return meshes;
 }
 
-//
-// Returns an array of skeletons and a boolean 
-// representing whether it was successful.
-//
-static Pair<Array<Skeleton>, b32>
-fbx_import_skeleton(ufbx_scene *scene, Allocator allocator)
+// Breadth-First Search the scene and return
+// an array with root bone nodes. I'm doing this 
+// because I don't trust `bone.is_root`.
+static Array<ufbx_node *>
+_get_root_bone_nodes(ufbx_scene *scene)
+{
+  Array<ufbx_node *> result = {};
+  result.allocator = tctx.temp;
+
+  Queue<ufbx_node*> q = {};
+  q.array.allocator = tctx.temp;
+  queue_push(&q, scene->root_node);
+
+  while (q.count != 0)
+  {
+    ufbx_node *node = queue_pop(&q);
+    if (node->bone)
+    {
+      append(&result, node);
+      continue;
+    }
+
+    for (ufbx_node *child : node->children)
+    {
+      queue_push(&q, child);
+    }
+  }
+
+  return result;
+}
+
+// Depth-First Search and iteratively collect 
+// bones nodes and it's parent index. Won't 
+// append non-bone nodes. 
+static void
+_collect_bones(ufbx_node *node, 
+               Array<Pair<ufbx_node*, s32>> *result, 
+               s32 parent)
+{
+  if (node->bone)
+  {
+    append(result, { node, parent });
+    parent = (s32)result->count - 1;
+  }
+
+  for (ufbx_node *child : node->children)
+  {
+    _collect_bones(child, result, parent);
+  }
+}
+
+static b32
+_find_bind_to_world(ufbx_scene *scene, ufbx_node *node, ufbx_matrix *out)
+{
+  for (ufbx_skin_cluster *cluster : scene->skin_clusters)
+  {
+    if (cluster->bone_node == node)
+    {
+      *out = cluster->bind_to_world;
+      return true;
+    }
+  }
+
+  if (node->bind_pose)
+  {
+    ufbx_bone_pose *pose = ufbx_get_bone_pose(node->bind_pose, node);
+    if (pose)
+    {
+      *out = pose->bone_to_world;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+struct Import_State 
+{
+  ufbx_scene *scene;
+  String directory;
+  String basename;
+};
+
+static Array<Skeleton>
+fbx_import_skeleton(Import_State *state, Allocator allocator)
 {
   Array<Skeleton> skeletons = {};
   skeletons.allocator = allocator;
 
-  for (int i = 0; i < scene->bones.count; ++i)
+  Array<ufbx_node *> root_bones = _get_root_bone_nodes(state->scene);
+
+  for (ufbx_node *root : root_bones)
   {
-    ufbx_bone *bone = scene->bones[i];
-    if (!bone->is_root)
-      continue;
+    // Collect bones consisting a skeleton 
+    // starting from the root bone.
+    Array<Pair<ufbx_node*, s32>> bones = {};
+    bones.allocator = tctx.temp;
+    _collect_bones(root, &bones, -1);
 
-    // We found the root bone of a skeleton.
-    // Now we can make a skeleton.
-    Array<Joint> joints = {};
-    joints.allocator = tctx.temp;
 
-    if (bone->instances.count == 0)
+    Skeleton skel = {};
+    skel.joints = (Joint*)alloc(sizeof(Joint) * bones.count, allocator);
+    skel.num_joints = bones.count;
+
+    ufbx_matrix *bind_world     = (ufbx_matrix*)alloc(sizeof(ufbx_matrix) * bones.count, tctx.temp);
+    ufbx_matrix *inv_bind_world = (ufbx_matrix*)alloc(sizeof(ufbx_matrix) * bones.count, tctx.temp);
+
+    for (u32 i = 0; i < bones.count; ++i)
     {
-      log_error(S("No instance of the bone: '%s' was found."), bone->name.data);
-      return {{}, false};
+      auto       pair = bones[i];
+      ufbx_node *node = pair.x;
+      s32      parent = pair.y;
+
+      if (!_find_bind_to_world(state->scene, node, &bind_world[i]))
+      {
+        if (parent < 0)
+        {
+          R_ASSERT(parent == -1);
+          bind_world[i] = node->node_to_world;
+        }
+        else
+        {
+          ufbx_matrix parent_world_inv = ufbx_matrix_invert(&bones[parent].x->node_to_world);
+          ufbx_matrix rel              = ufbx_matrix_mul(&parent_world_inv, &node->node_to_world);
+          bind_world[i]                = ufbx_matrix_mul(&bind_world[parent], &rel);
+        }
+      }
+
+      inv_bind_world[i] = ufbx_matrix_invert(&bind_world[i]);
+
+      ufbx_matrix local = (parent < 0) ? bind_world[i] : ufbx_matrix_mul(&inv_bind_world[parent], &bind_world[i]);
+
+      // Fill in the joint
+      Joint *joint = &skel.joints[i];
+      joint->name                = copy_string(_to_string(node->name), allocator);
+      joint->parent              = parent;
+      joint->local_transform     = _to_m4x4(local);
+      joint->inverse_bind_matrix = _to_m4x4(inv_bind_world[i]);
     }
 
-    ufbx_node *root_bone_node = bone->instances[0];
+    append(&skeletons, skel);
+  }
 
-    // BFS 
-    s32 self_index    = -1;
-    s32 unnamed_index = 0;
+  return skeletons;
+}
 
-    Queue <Pair<ufbx_node*, s32>> q;
-    q.array.allocator = tctx.temp;
-    queue_push(&q, {root_bone_node, -1});
-
-    while (q.count != 0)
+// Write out skeleton files.
+// If there are multiple skeletons, filenames are prefixed 
+// by numbers starting from `0`.
+//
+static void
+_write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
+{
+  for (u32 i = 0; i < skeletons.count; ++i)
+  {
+    String filename;
+    if (skeletons.count == 1)
     {
-      auto [node, parent] = queue_front(&q);
-      queue_pop(&q);
+      filename = tprint(S("%S.skeleton"), state->basename);
+    }
+    else
+    {
+      filename = tprint(S("%S_%u.skeleton"), state->basename, i);
+    }
 
-      Joint joint = {};
-      joint.parent              = parent;
-      joint.local_transform     = m4x4_from_ufbx_matrix(node->node_to_parent);
-      joint.inverse_bind_matrix = m4x4_from_ufbx_matrix(node->geometry_to_node); // @Fix
+    String strings[] = {
+      state->directory, filename
+    };
+    String path = path_join(strings, 2, '/', tctx.temp);
 
-      // @Todo: name
-      if (!node->name.data || node->name.length == 0)
+
+    File file = file_open(path, true);
+    if (file_is_valid(file))
+    {
+      String s = asset_string_from_skeleton(&skeletons.data[i], tctx.temp);
+      if (file_write(file, s.str, s.len))
       {
-        String unnamed = tprint(S("unnamed_%d"), unnamed_index++);
+        log_info(S("Written skeleton to file: '%S'"), path);
       }
       else
       {
-      }
-
-      append(&joints, joint);
-
-      // This is now my index in the bone list, which will be 
-      // passed to my children.
-      self_index += 1;
-
-      for (s32 ch = 0; ch < node->children.count; ++ch)
-      {
-        queue_push(&q, {node->children[ch], self_index});
+        log_error(S("Failed to write skeleton to file: '%S'"), path);
       }
     }
-
-    // Add the skeleton to the array to be returned.
-    append(&skeletons, {});
-    Skeleton *skeleton = &skeletons.data[skeletons.count-1];
-    skeleton->joints = (Joint*)alloc(sizeof(Joint) * joints.count, allocator);
-    skeleton->num_joints = joints.count;
+    else
+    {
+      log_error(S("Failed to open file: '%S' during importing skeleton."), path);
+    }
+    file_close(&file);
   }
-
-  return {skeletons, true};
 }
 
 b32
-fbx_import(String filepath, 
-           String output_filepath,
+fbx_import(String             filepath, 
+           String             out_directory,
            FBX_Import_Options options)
 {
-  b32 result = false;
-
   // Check if the input file exists.
   if (!file_exists(filepath))
   {
     log_error(S("Input file: '%S' doesn't exit."), filepath);
     return false;
-  }
-
-  if (!output_filepath)
-  {
-    String name = path_basename(filepath);
-    output_filepath = tprint(S("%S/%S.triangle_mesh"), shared->data_path, name); // @Temporary
-  }
-
-  // @Fix: Wrong
-  int index = 0;
-  while (file_exists(output_filepath))
-  {
-    if (options.overwrite_existing_file)
-      break;
-
-    output_filepath = path_strip_extension(output_filepath);
-    output_filepath = tprint(S("%S_%d.txt"), output_filepath, index);
-    index += 1;
   }
 
   ufbx_load_opts opts = {};
@@ -561,7 +676,7 @@ fbx_import(String filepath,
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; // bakes it into node
   opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE;
   opts.generate_missing_normals    = true;
-  opts.evaluate_skinning           = true;
+  opts.evaluate_skinning           = false;
   opts.clean_skin_weights          = true;
   opts.normalize_normals           = true;
 
@@ -569,57 +684,41 @@ fbx_import(String filepath,
     opts.generate_missing_normals = false;
   }
 
+
+  // Load scene
   ufbx_error error;
   ufbx_scene *scene = ufbx_load_file((const char*)filepath.str, &opts, &error);
-
   if (!scene) 
   {
     log_error(S("Failed to load fbx scene from '%S'. Description from ufbx: %s"), filepath, error.description.data);
-    return result;
+    return false;
   }
 
 
-  // @Temporary
+  // Make import state
+  Import_State state = {};
+  state.scene     = scene;
+  state.directory = out_directory;
+  state.basename  = path_basename(filepath);
+
+
+  // 
   Allocator allocator = tctx.temp;
 
 
   // Import skeletons
-  auto [skeletons, skeletons_success] = fbx_import_skeleton(scene, allocator);
-  if (skeletons_success)
-  {
-    log_info(S("Imported %d skeletons."), skeletons.count);
-  }
+  Array<Skeleton> skeletons = fbx_import_skeleton(&state, allocator);
+  _write_skeleton_files(&state, skeletons);
+
 
   // Import materials
   auto material_pointer_to_path = fbx_import_materials(scene);
 
+
   // Import meshes
   Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, material_pointer_to_path, allocator);
-  String s = asset_string_from_meshes(meshes, tctx.temp);
-
-
-
-  // @Temporary
-  File file = file_open(output_filepath, true);
-  if (file_is_valid(file))
-  {
-    if (file_write(file, s.str, s.len))
-    {
-      result = true;
-      log_info(S("Written to file: '%S'"), output_filepath);
-    }
-    else
-    {
-      log_error(S("Failed to write to file: '%S'"), output_filepath);
-    }
-  }
-  else
-  {
-    log_error(S("Failed to open file: '%S'"), output_filepath);
-  }
-  file_close(&file);
 
   ufbx_free_scene(scene);
 
-  return result;
+  return true;
 }

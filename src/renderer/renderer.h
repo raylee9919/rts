@@ -17,7 +17,6 @@
 // @Temporary
 #define RESOLUTION_X 2560
 #define RESOLUTION_Y 1440
-#define UI_SCALE     ((f32)RESOLUTION_X / 256.f)
 
 
 struct Game_State;
@@ -31,6 +30,7 @@ struct R_Pass;
 struct R_Mesh
 {
   Guid          id;
+  AABB          aabb;
   Array<Guid>   materials;
   Array<u32>    offsets;
   Array<u32>    counts;

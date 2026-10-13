@@ -5,7 +5,7 @@
 #include "game.h"
 #include "material/material.h"
 #include "animation/animation.h"
-#include "mesh.h"
+#include "math/math.h"
 
 #define R_MAX_SKINNING_MATRICES 65536 // @Temporary
 
@@ -68,12 +68,18 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
   gfx_pass.min_depth            = 0.f;
   gfx_pass.max_depth            = 1.f;
 
+  // Upload camera
+  GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
+  memcpy(renderer->camera_ptr, &gpu_camera, sizeof(gpu_camera));
+
   struct Data {
     R_Pass_Geometry *pass;
+    GPU_Camera *camera;
     s64 num_draws;
   } data_;
   data_.pass = pass;
   data_.num_draws = 0;
+  data_.camera = &gpu_camera;
 
   gfx_pass_begin(R_PASS_GEOMETRY, &gfx_pass);
   {
@@ -104,10 +110,10 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               gfx_set_pipeline(material->pipeline);
 
               // Upload arguments
-              R_Pass_Geometry *p = data->pass;
-              auto *args = (R_Pass_Geometry::Arguments*)p->arguments_ptr + data->num_draws;
-              m4x4 m = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
-              memcpy(&args->transform, &m, sizeof(args->transform));
+              R_Pass_Geometry *pass = data->pass;
+              auto *args = (R_Pass_Geometry::Arguments*)pass->arguments_ptr + data->num_draws;
+              m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
+              memcpy(&args->transform, &transform, sizeof(args->transform));
               args->material_index = material->offset;
 
               // Push constants
@@ -115,10 +121,43 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               c.vertex_buffer_id    = gfx_mesh->vertex_buffer_view.bindless;
               c.linear_sampler_id   = gfx->linear_sampler.bindless;
               c.camera_buffer_id    = renderer->camera_view.bindless;
-              c.argument_buffer_id  = p->arguments_view.bindless;
+              c.argument_buffer_id  = pass->arguments_view.bindless;
               c.argument_base_index = data->num_draws;
               c.material_buffer_id  = renderer->material_buffer.view.bindless;
               gfx_push_constants(&c, sizeof(c));
+
+              // @Temporary: Draw AABB
+              {
+                m4x4 mvp = data->camera->view_proj * transform;
+                vec3 lo = mesh.aabb.min;
+                vec3 hi = mesh.aabb.max;
+
+                // Corner i: bit 0 -> x, bit 1 -> y, bit 2 -> z (0 = min, 1 = max)
+                vec2 px[8];
+                b32  visible[8];
+                for (int i = 0; i < 8; ++i)
+                {
+                  vec3 c = vec3((i & 1) ? hi.x : lo.x,
+                                (i & 2) ? hi.y : lo.y,
+                                (i & 4) ? hi.z : lo.z);
+                  vec4 clip = mvp * vec4(c, 1.f);
+                  visible[i] = clip.w > 0.f;
+                  vec2 ndc = clip.xy * (1.f/clip.w);
+                  px[i] = vec2((ndc.x*0.5f + 0.5f) * 2560, (0.5f - ndc.y*0.5f) * 1440);
+                }
+
+                // 12 edges: connect corners whose indices differ in exactly one bit
+                for (int i = 0; i < 8; ++i)
+                {
+                  for (int bit = 1; bit < 8; bit <<= 1)
+                  {
+                    if (i & bit) continue;
+                    int j = i | bit;
+                    if (visible[i] && visible[j])
+                      draw_line(px[i], px[j], vec4(1, 0, 1, 1), 2.f);
+                  }
+                }
+              }
 
               // Draw
               gfx_draw(mesh.id, 1, index_offset, index_count);
@@ -128,11 +167,6 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
         }
       }
     });
-
-
-    // Upload camera
-    GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
-    memcpy(renderer->camera_ptr, &gpu_camera, sizeof(gpu_camera));
   }
   gfx_pass_end();
 }

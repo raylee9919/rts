@@ -604,9 +604,11 @@ r_meshes_alloc(Guid id,
     Guid mesh_id = guid_generate(); // @Temporary
 
     mesh.id = mesh_id;
+    mesh.aabb = tm->aabb;
     gfx_mesh_create(mesh_id, 
                     tm->vertices, tm->num_vertices, sizeof(Vertex), 
                     tm->indices, tm->num_indices, sizeof(u32));
+
 
     for (int p = 0; p < tm->num_parts; ++p)
     {

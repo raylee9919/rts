@@ -117,8 +117,7 @@ add_library(rts_engine STATIC
     src/shader_compiler/slang/slang.cpp
 
     src/asset/asset.cpp
-
-    src/text_file_handler/text_file_handler.cpp
+    src/asset/lexer.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD
 
     src/audio/audio.cpp
 
@@ -142,7 +141,6 @@ add_library(rts_engine STATIC
     src/renderer/pass/composition.cpp
 
 
-    src/asset_lexer.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD
 
     src/importer/fbx.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD
 
