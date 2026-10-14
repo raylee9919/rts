@@ -340,6 +340,21 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     s64 num_indices_in_face = mesh->max_face_triangles * 3;
     u32 *indices_in_face    = (u32*)alloc(sizeof(u32) * num_indices_in_face, tctx.temp);
 
+
+    // Matrix to transform vertices in `geometry(geomtric) space` to 
+    // `world(global) space`.
+    ufbx_matrix geometry_to_world;
+    if (skin)
+    {
+      ufbx_skin_cluster *c = skin->clusters[0];
+      geometry_to_world = ufbx_matrix_mul(&c->bind_to_world, &c->geometry_to_bone);
+    }
+    else
+    {
+      geometry_to_world = node->geometry_to_world;
+    }
+
+
     Array<Mesh_Part> parts(tctx.temp, mesh->material_parts.count);
 
     for (ufbx_mesh_part part : mesh->material_parts)
@@ -358,7 +373,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
           // Position
           ufbx_vec3 geomtry_space_position = ufbx_get_vertex_vec3(&mesh->vertex_position, index);
-          vec3 world_space_position = to_vec3(ufbx_transform_position(&node->geometry_to_world, geomtry_space_position));
+          vec3 world_space_position = to_vec3(ufbx_transform_position(&geometry_to_world, geomtry_space_position));
           append(&positions, world_space_position);
 
           // Unlike from normals and tangents, UV isn't 
@@ -370,8 +385,9 @@ fbx_import_mesh_internal(ufbx_node*                               node,
           // Normal
           if (has_normal)
           {
+            ufbx_matrix normal_matrix = ufbx_matrix_for_normals(&geometry_to_world);
             ufbx_vec3 geometry_space_normal = ufbx_get_vertex_vec3(&mesh->vertex_normal, index);
-            vec3 world_space_normal = to_vec3(ufbx_transform_direction(&node->geometry_to_world, geometry_space_normal));
+            vec3 world_space_normal = to_vec3(ufbx_vec3_normalize(ufbx_transform_direction(&normal_matrix, geometry_space_normal)));
             append(&normals, world_space_normal);
           }
 
@@ -380,26 +396,21 @@ fbx_import_mesh_internal(ufbx_node*                               node,
           {
             u32 vertex = mesh->vertex_indices[index];
             ufbx_skin_vertex skin_vertex = skin->vertices[vertex];
-            s64 num_weights = skin_vertex.num_weights;
-            if (num_weights > 4)
-              num_weights = 4;
 
             s32 _joints[4]   = {-1,-1,-1,-1};
             f32 _weights[4]  = {0,0,0,0};
             f32 total_weight = 0.f;
 
             s64 n = 0;
-            for (s64 i = 0; i < skin_vertex.num_weights; ++i)
+            for (s64 vi = 0; vi < skin_vertex.num_weights; ++vi)
             {
-              if (n >= 4)
-                break;
+              if (n >= 4) break;
 
-              ufbx_skin_weight skin_weight = skin->weights[skin_vertex.weight_begin + i];
+              ufbx_skin_weight skin_weight = skin->weights[skin_vertex.weight_begin + vi];
               ufbx_skin_cluster *cluster = skin->clusters[skin_weight.cluster_index];
 
               Joint_Ref *joint_ref = table_find_pointer(&state->node_to_joint, cluster->bone_node);
-              if (!joint_ref)
-                continue;
+              if (!joint_ref) continue;
 
               m.skeleton = state->skeletons[joint_ref->skeleton_index_in_array].id;
 
@@ -524,6 +535,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
       m.parts[i] = parts[i];
     }
 
+    // @Robustness: AABB for skeletal meshes...
     AABB aabb = {};
     if (positions.count > 0)
     {
@@ -820,12 +832,10 @@ fbx_import(String             filepath,
   opts.target_light_axes           = ufbx_axes_right_handed_y_up;
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; // bakes it into node
   opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE;
-  opts.generate_missing_normals    = true;
   opts.clean_skin_weights          = true;
   opts.normalize_normals           = true;
-
-  if (options.generate_normals_with_mesh_optimizer) {
-    opts.generate_missing_normals = false;
+  if (!options.generate_normals_with_mesh_optimizer) {
+    opts.generate_missing_normals = true;
   }
 
 

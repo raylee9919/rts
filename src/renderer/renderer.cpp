@@ -572,7 +572,7 @@ r_meshes_alloc(Guid id,
 
     Triangle_Mesh *tm = &meshes.data[i];
 
-    mesh.id       = guid_generate(); // @Temporary: use same ID as `Triangle_Mesh`?
+    mesh.id       = guid_generate(); // @Temporary: use same ID as a `Triangle_Mesh`?
     mesh.skeleton = tm->skeleton;
     mesh.aabb     = tm->aabb;
 
