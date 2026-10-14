@@ -387,35 +387,6 @@ r_entry(void *param)
       }
     }
 
-#if 0
-
-    // Inputs
-    // - Selected Resoluion
-    // - Window Size
-    //
-    if (fullscreen)
-    {
-      // What must change? G-Buffer sizes to selected resolution.
-      // Viewport size  = Selected Resolution
-      // Swapchain size = Window size
-      // But! when we're blting to swapchain, the viewport size is
-      // the window size.
-    }
-    else
-    {
-      // Aspect ratio is a thing here. It is determined by selected resolution.
-      // Swapchain size = Window size
-      // when blting,
-      //     viewport_origin = (window_h - playground_h, window_w - playground_w) * 0.5f;
-      //     viewport_size   = (playground_w, playground_h);
-      // 
-      // G-buffers follows the selected resolution.
-      // It's better off that way I believe.
-      // I don't want windowed window's size to impact visual quaility.
-      //
-    }
-#endif
-
     auto *ring = &renderer->ring;
     mutex_lock(&ring->mutex);
 
@@ -453,6 +424,7 @@ r_entry(void *param)
 void 
 r_pipeline_create(Guid            id,
                   String          shader_filepath, 
+                  String          vertex_shader_entry,
                   String          material_shader,
                   R_Shading_Model shading_model)
 {
@@ -482,7 +454,7 @@ r_pipeline_create(Guid            id,
     opts.modules = modules;
     opts.num_modules = array_count(modules);
 
-    opts.entry  = S("main_vs");
+    opts.entry  = vertex_shader_entry;
     opts.stage  = SHADER_STAGE_VS;
     R_ASSERT(shader_compile(shared->shader_compiler, opts, true, &vs, tctx.temp));
 
@@ -600,11 +572,11 @@ r_meshes_alloc(Guid id,
 
     Triangle_Mesh *tm = &meshes.data[i];
 
-    Guid mesh_id = guid_generate(); // @Temporary
+    mesh.id       = guid_generate(); // @Temporary: use same ID as `Triangle_Mesh`?
+    mesh.skeleton = tm->skeleton;
+    mesh.aabb     = tm->aabb;
 
-    mesh.id = mesh_id;
-    mesh.aabb = tm->aabb;
-    gfx_mesh_create(mesh_id, 
+    gfx_mesh_create(mesh.id, 
                     tm->vertices, tm->num_vertices, tm->vertex_size, 
                     tm->indices, tm->num_indices, sizeof(u32));
 

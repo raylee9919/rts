@@ -32,6 +32,8 @@ struct float4x4 {
 #define GFX_CONSTANTS_INDEX_GLOBAL      0
 #define GFX_CONSTANTS_INDEX_USER        1
 
+#define MAX_JOINTS_PER_VERTEX           4
+
 #ifdef __SLANG__
 #  define CONCAT_(A, B) A##B
 #  define CONCAT(A, B) CONCAT_(A, B)

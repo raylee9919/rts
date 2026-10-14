@@ -29,6 +29,7 @@ struct R_Pass;
 struct R_Mesh
 {
   Guid          id;
+  Guid          skeleton;
   AABB          aabb;
   Array<Guid>   materials;
   Array<u32>    offsets;
@@ -189,6 +190,7 @@ r_pass_destroy();
 void 
 r_pipeline_create(Guid            id,
                   String          shader_filepath, 
+                  String          vertex_shader_entry,
                   String          material_filepath,
                   R_Shading_Model shading_model);
 void 

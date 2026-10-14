@@ -399,10 +399,11 @@ ASSET_LOAD_PROC(material_load_proc)
 
   // @Temporary: Single template for every material.
   // @Todo: There are more than material file that determined the uniqueness of a pipeline...
-  //        e.g., entry point, alpha mode, ...
+  //        e.g., entry point, macro defines, alpha mode, ..
   b32 is_skeletal = user_data ? *(b32*)user_data : false;
-  String surface_shader_path = is_skeletal ? S("shaders/pass/surface_skeletal.slang") : S("shaders/pass/surface.slang");
-  r_pipeline_create(id, surface_shader_path, shader, SHADING_MODEL_OPAQUE);
+  String surface_shader_path = S("shaders/pass/surface.slang");
+  String vertex_shader_entry = is_skeletal ? S("main_vs_skeletal") : S("main_vs_static");
+  r_pipeline_create(id, surface_shader_path, vertex_shader_entry, shader, SHADING_MODEL_OPAQUE);
 
 
   // @Todo: Handle static/dynamic material variation.

@@ -8,11 +8,18 @@
 
 struct R_Pass_Geometry : R_Pass
 {
-    #include "shaders/pass/surface.h"
+  #include "shaders/pass/surface.h"
 
-    RHI_Buffer           arguments_buffer;
-    RHI_Buffer_View      arguments_view;
-    void                *arguments_ptr;
+  // @Fix: Multiple frames on flight...
+  RHI_Buffer           arguments_buffer;
+  RHI_Buffer_View      arguments_view;
+  void                *arguments_ptr;
+
+  // @Fix: Multiple frames on flight...
+  RHI_Buffer           skinning_buffer;
+  RHI_Buffer_View      skinning_view;
+  void                *skinning_ptr;
+  u32                  skinning_used; // Reset every frame please.
 };
 
 R_PASS_DECLARE_PROCS( Geometry );

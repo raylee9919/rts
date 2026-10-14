@@ -30,8 +30,8 @@ enum Vertex_Attribute_Type : s16
 
 struct Vertex_Attribute
 {
-  // semantically binds with the engine.
-  // List: 
+  // semantically binds with the engine. 
+  // Probably one of the following:
   // "position", "uv", "normal", "tangent", "joint", "weight"
   String                name; 
 
@@ -50,6 +50,8 @@ struct Mesh_Part
   String material_path;
 };
 
+// Think of `Triangle_Mesh` as a single mesh,
+// typically the one displayed in the content browser.
 struct Triangle_Mesh 
 {
   String                  name;
@@ -59,6 +61,8 @@ struct Triangle_Mesh
   s64                     num_vertices;
   u8                     *vertices;
   s64                     vertex_size;
+
+  Guid                    skeleton;
 
   s64                     num_indices;
   u32                    *indices;
@@ -105,13 +109,14 @@ struct Joint
 
 struct Skeleton 
 {
+  Guid   id;
   Joint *joints;
   s64    num_joints;
 };
 
 ASSET_LOAD_PROC(skeleton_load_proc);
 
-Pair<Skeleton, b32>
+Skeleton *
 skeleton_from_guid(Guid id);
 
 

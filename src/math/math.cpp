@@ -926,54 +926,6 @@ normalize01(vec2 range, f32 val)
     return result;
 }
 
-b32
-intersects(AABB2 box, vec2 point)
-{
-    b32 result = false;
-    // TODO: Define boundary.
-    if (point.x >= box.min.x && point.x < box.max.x &&
-        point.y >= box.min.y && point.y < box.max.y) 
-    { result = true; }
-    return result;
-}
-
-b32
-intersects(AABB2 a, AABB2 b)
-{
-    b32 result = false;
-    vec2 half_dim = (a.max - a.min) * 0.5f;
-    vec2 point = (a.min + a.max) * 0.5f;
-    b.min -= half_dim;
-    b.max += half_dim;
-    result = intersects(b, point);
-    return result;
-}
-
-AABB2
-intersection(AABB2 a, AABB2 b)
-{
-    AABB2 result = {};
-    if (intersects(a, b))
-    {
-        result.min.x = (a.min.x >= b.min.x) ? a.min.x : b.min.x; 
-        result.max.x = (a.max.x >= b.max.x) ? b.max.x : a.max.x;
-        result.min.y = (a.min.y >= b.min.y) ? a.min.y : b.min.y; 
-        result.max.y = (a.max.y >= b.max.y) ? b.max.y : a.max.y;
-    }
-    return result;
-}
-
-AABB2
-aabb2_infinite(void)
-{
-    AABB2 result = {};
-    result.min = vec2{-F32_MAX, -F32_MAX};
-    result.max = vec2{ F32_MAX,  F32_MAX};
-    return result;
-}
-
-
-
 vec2 to_ndc(vec2 p, f32 w, f32 h) {
     f32 x = 2.f*( p.x / w) - 1.f;
     f32 y = 2.f*(-p.y / h) + 1.f;

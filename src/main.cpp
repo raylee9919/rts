@@ -12,7 +12,6 @@
 #include "renderer/renderer.h"
 #include "game.h"
 #include "asset/asset.h"
-#include "asset/lexer.h"
 #include "renderer/immediate.h"
 #include "audio/audio.h"
 #include "material/material.h"
@@ -144,146 +143,180 @@ void input_process()
     }
 }
 
-int main_entry(int argc, char **argv)
+int 
+main_entry(int    argc, 
+           char **argv)
 {
-    shared_init();
+  shared_init();
 
-    // Init timers
-    f64 time_old        = time_seconds();
-    f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
-    f64 accumulator     = 0.f;
+  // Init timers
+  f64 time_old        = time_seconds();
+  f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
+  f64 accumulator     = 0.f;
 
-    // Init asset system.
-    // Register asset types and init catalog.
-    asset_system_init();
+  // Init asset system.
+  // Register asset types and init catalog.
+  asset_system_init();
 
-    // Init Game
-    game_init(time_old);
+  // Init Game
+  game_init(time_old);
 
-    // Open window
-    shared->window = window_create(1920, 1080, S("RTS"), true);
+  // Open window
+  shared->window = window_create(1920, 1080, S("RTS"), true);
 
-    // Launch render thread
-    Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
+  // Launch render thread
+  Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
 
-    // Launch audio thread
-    Thread audio_thread = thread_launch(audio_entry, NULL);
+  // Launch audio thread
+  Thread audio_thread = thread_launch(audio_entry, NULL);
 
-    // Spin-lock until renderer is initted.
-    while (!renderer || !renderer->initted) {}
+  // Spin-lock until renderer is initted.
+  while (!renderer || !renderer->initted) {}
 
-    // Init material system.
-    // Reflect and construct material type table.
-    String material_shader_path = tprint(S("%S/%S"), shared->data_path, S("shaders/material/"));
-    material_system_init(material_shader_path, shared->shader_compiler);
+  // Init material system.
+  // Reflect and construct material type table.
+  String material_shader_path = tprint(S("%S/%S"), shared->data_path, S("shaders/material/"));
+  material_system_init(material_shader_path, shared->shader_compiler);
 
-    // Init camera
-    game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
+  // Init camera
+  game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
 
 
 
-    // @Temporary
-    // @Temporary
-    // @Temporary
+  // @Temporary
+  // @Temporary
+  // @Temporary
 #if 1
-    FBX_Import_Options options = {};
-    options.generate_normals_with_mesh_optimizer = true;
-    options.overwrite_existing_file = true;
-    R_ASSERT( fbx_import(S("C:/Arts/Goblin/Files/Goblin_FBX.fbx"), S(""), options) );
+  FBX_Import_Options options = {};
+  options.generate_normals_with_mesh_optimizer = true;
+  options.overwrite_existing_file = true;
+  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Files/Goblin_FBX.fbx"), S(""), options) );
 #endif
-    Guid mesh_id = guid_from_string(S("goblin/Goblin_FBX.triangle_mesh"));
-    Entity *my_entity = entity_alloc(game_state);
-    my_entity->mesh = mesh_id;
-    asset_request(mesh_id, NULL_GUID, NULL);
-
-    String s = S("Goblin_FBX_2.skeleton");
-    asset_request(guid_from_string(s), NULL_GUID, NULL);
-    auto [sk, ok] = skeleton_from_guid(guid_from_string(s));
-    R_ASSERT(ok);
-    // @Temporary
-    // @Temporary
-    // @Temporary
+  Guid mesh_id = guid_from_string(S("goblin/Goblin_FBX.triangle_mesh"));
+  Entity *my_entity = entity_alloc(game_state);
+  my_entity->mesh = mesh_id;
+  asset_request(mesh_id, NULL_GUID, NULL);
+  // @Temporary
+  // @Temporary
+  // @Temporary
 
 
-    // Game loop
-    while (!shared->should_close) 
-    {
-        ProfileFrameMark;
+  // Game loop
+  while (!shared->should_close) 
+  {
+    ProfileFrameMark;
 
-        // Gaming experience in its finesse
-        if (!gfx_wait_for_frame_waitable_object()) {
-            log_warning(S("Waiting on frame latency waitable object failed."));
-        }
-
-
-        // For better latency, placing this block here
-        { ProfileScopeN("WaitForRenderQueueSpace");
-            auto *ring = &renderer->ring;
-
-            mutex_lock(&ring->mutex);
-
-            while (ring->is_full()) {
-                condvar_sleep(&ring->condvar, &ring->mutex, -1);
-            }
-
-            condvar_wake_all(&ring->condvar);
-            mutex_unlock(&ring->mutex);
-        }
-
-
-        // Time
-        f64 time_new        = time_seconds();
-        f64 time_elapsed    = time_new - time_old;
-        time_old            = time_new;
-        accumulator        += time_elapsed;
-
-
-        // Input processing
-        input_process();
-
-
-        // Tick with fixed timestep
-        for (u32 counter = 0; accumulator >= dt && counter < 10; counter += 1) {
-            ProfileScopeN("TickGame");
-            accumulator -= dt;
-            game_tick(game_state, dt);
-        }
-
-
-
-        { // Push state to render thread
-            auto *ring = &renderer->ring;
-
-            R_ASSERT(!ring->is_full());
-            auto* entry = &ring->entries[ring->write_idx];
-
-            mutex_lock(&entry->mutex);
-
-            game_copy(entry->game_state, game_state);
-
-            // Copy immediate quads and the counter
-            memcpy( entry->quads, immediate_quads, num_immediate_quads * sizeof(immediate_quads[0]) );
-            entry->num_quads = num_immediate_quads;
-            num_immediate_quads = 0;
-
-            ring->write_idx = (ring->write_idx + 1) % array_count(ring->entries);
-
-            mutex_unlock(&entry->mutex);
-        }
-
-        clear_thread_temporary_storage();
+    // Gaming experience in its finesse
+    if (!gfx_wait_for_frame_waitable_object()) {
+      log_warning(S("Waiting on frame latency waitable object failed."));
     }
 
 
-    /* Join Threads */
-    thread_join(audio_thread,  -1);
-    thread_join(render_thread, -1);
+    // For better latency, placing this block here
+    { ProfileScopeN("WaitForRenderQueueSpace");
+      auto *ring = &renderer->ring;
+
+      mutex_lock(&ring->mutex);
+
+      while (ring->is_full()) {
+        condvar_sleep(&ring->condvar, &ring->mutex, -1);
+      }
+
+      condvar_wake_all(&ring->condvar);
+      mutex_unlock(&ring->mutex);
+    }
 
 
-    /* Shutdown Systems */
-    game_shutdown();
-    material_system_shutdown();
-    asset_system_shutdown();
+    // Time
+    f64 time_new        = time_seconds();
+    f64 time_elapsed    = time_new - time_old;
+    time_old            = time_new;
+    accumulator        += time_elapsed;
 
-    return 0;
+
+    // Input processing
+    input_process();
+
+
+    // Tick with fixed timestep
+    for (u32 counter = 0; accumulator >= dt && counter < 10; counter += 1) {
+      ProfileScopeN("TickGame");
+      accumulator -= dt;
+      game_tick(game_state, dt);
+    }
+
+
+    // @Temporary: Visualize skeleton
+#if 1
+    { 
+      GPU_Camera cam = gpu_camera_from_game(&game_state->camera);
+      m4x4 transform = m4x4_translate(my_entity->position) *
+        m4x4_scale(my_entity->scale.x, my_entity->scale.y, my_entity->scale.z);
+      m4x4 mvp = cam.view_proj * transform;
+
+      Skeleton sk = *skeleton_from_guid(guid_from_string(S("goblin/Goblin_FBX_0.skeleton")));
+
+      m4x4 *world = (m4x4*)alloc(sizeof(m4x4) * sk.num_joints, tctx.temp);
+      vec2 *px    = (vec2*)alloc(sizeof(vec2) * sk.num_joints, tctx.temp);
+      b32  *vis   = (b32*) alloc(sizeof(b32)  * sk.num_joints, tctx.temp);
+
+      for (s64 i = 0; i < sk.num_joints; ++i)
+      {
+        Joint *j = &sk.joints[i];
+        world[i] = (j->parent < 0) ? j->local_transform
+          : world[j->parent] * j->local_transform;
+
+        vec4 clip = mvp * vec4(world[i]._14, world[i]._24, world[i]._34, 1.f);
+        vis[i]    = clip.w > 0.f;
+        vec2 ndc  = clip.xy * (1.f/clip.w);
+        px[i]     = vec2(( ndc.x*0.5f + 0.5f) * (f32)RESOLUTION_X,
+                         (-ndc.y*0.5f + 0.5f) * (f32)RESOLUTION_Y);
+
+        if (vis[i])
+          draw_quad(px[i].x - 2.f, px[i].y - 2.f, 4.f, 4.f,
+                    {0,0}, {0,1}, {1,0}, {1,1},
+                    vec4(0,1,0,1), vec4(0,1,0,1), vec4(0,1,0,1), vec4(0,1,0,1), NULL_GUID);
+
+        if (j->parent >= 0 && vis[i] && vis[j->parent])
+          draw_line(px[j->parent], px[i], vec4(1,1,0,1), 2.f);
+      }
+    }
+#endif
+
+
+    { // Push state to render thread
+      auto *ring = &renderer->ring;
+
+      R_ASSERT(!ring->is_full());
+      auto* entry = &ring->entries[ring->write_idx];
+
+      mutex_lock(&entry->mutex);
+
+      game_copy(entry->game_state, game_state);
+
+      // Copy immediate quads and the counter
+      memcpy( entry->quads, immediate_quads, num_immediate_quads * sizeof(immediate_quads[0]) );
+      entry->num_quads = num_immediate_quads;
+      num_immediate_quads = 0;
+
+      ring->write_idx = (ring->write_idx + 1) % array_count(ring->entries);
+
+      mutex_unlock(&entry->mutex);
+    }
+
+    clear_thread_temporary_storage();
+  }
+
+
+  /* Join Threads */
+  thread_join(audio_thread,  -1);
+  thread_join(render_thread, -1);
+
+
+  /* Shutdown Systems */
+  game_shutdown();
+  material_system_shutdown();
+  asset_system_shutdown();
+
+  return 0;
 }

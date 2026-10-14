@@ -115,14 +115,20 @@ struct Xform {
     Xform();
 };
 
-struct AABB {
-  vec3 min;
-  vec3 max;
+union Rect {
+  struct {
+    vec2 min;
+    vec2 max;
+  };
+  struct { f32 x1, y1, x2, y2; };
 };
 
-struct AABB2 {
-  vec2 min;
-  vec2 max;
+union AABB {
+  struct {
+    vec3 min;
+    vec3 max;
+  };
+  struct { f32 x1, y1, z1, x2, y2, z2; };
 };
 
 struct Ray3 {
@@ -260,10 +266,6 @@ vec3           project(vec3 p, m4x4 view_proj);
 f32            radian_from_degree(f32 d);
 
 f32            normalize01(vec2 range, f32 val);
-b32            intersects(AABB2 box, vec2 point);
-b32            intersects(AABB2 a, AABB2 b);
-AABB2          intersection(AABB2 a, AABB2 b);
-AABB2          aabb2_infinite(void);
 
 vec2           to_ndc(vec2 p, f32 w, f32 h);
 vec3           unproject(vec3 position, m4x4 viewproj);

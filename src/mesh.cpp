@@ -114,6 +114,14 @@ string_from_mesh(Triangle_Mesh *mesh, Allocator allocator)
     append(&b, S("\n"));
   }
 
+  if (mesh_is_skeletal(mesh))
+  {
+    append(&b, S("\n// Skeleton\n"));
+    String skeleton_asset = asset_name_from_guid(mesh->skeleton);
+    R_ASSERT(skeleton_asset, "Mesh is skeletal but asset string is empty.");
+    append(&b, tprint(S("@\"%S\"\n"), skeleton_asset));
+  }
+
   append(&b, S("\n// Indices\n"));
   append(&b, tprint(S("%d\n"), mesh->num_indices));
   for (s64 i = 0; i < mesh->num_indices; ++i)
@@ -342,6 +350,13 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
       }
     }
 
+    // Skeleton
+    if (mesh_is_skeletal(&tm))
+    {
+      tm.skeleton = eat_reference(lexer);
+      asset_request(tm.skeleton, lexer->id, NULL); // @Temporary
+    }
+
     // Indices
     tm.num_indices = eat_unsigned_int(lexer);
     tm.indices = (u32*)alloc(sizeof(u32)*tm.num_indices, allocator);
@@ -397,6 +412,8 @@ parse_and_eval_skeleton_asset(Asset_Lexer *lexer, Allocator allocator)
 {
   Skeleton result = {};
 
+  result.id = lexer->id;
+
   s64 version = eat_unsigned_int(lexer);
   R_ASSERT(version == 1);
 
@@ -433,10 +450,8 @@ ASSET_LOAD_PROC(skeleton_load_proc)
   table_add(&skeleton_table, id, skeleton);
 }
 
-Pair<Skeleton, b32>
+Skeleton *
 skeleton_from_guid(Guid id)
 {
-  Skeleton *sk = table_find_pointer(&skeleton_table, id);
-  if (!sk) return { {}, false };
-  return { *sk, true };
+  return table_find_pointer(&skeleton_table, id);
 }

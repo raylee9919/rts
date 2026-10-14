@@ -19,10 +19,13 @@
 
    - There are common parts in writing procedures. Might be collapsible.
   
+   - Semantic name ("position") is a promise between assets and the engine. 
+     So, should I need to bake offset/size information in the asset?
+
    - More optimizations
-  
+
    - Meshlet asset? (Low priority)
-   
+
    - Revise the long arse comment right below.
 */
 
@@ -93,40 +96,34 @@
   Bone influences are defined in clusters (ufbx_skin_cluster).
   ufbx_skin_cluster.vertices[] and weights[] contain per-vertex weight, and
   weights are sorted in descending order :)
-
-
-                               Finding Skeletons
-
-  I want skeletons. Starting from scene->skin_deformers isn't the way.
-  Skin deformer represents relationship between a mesh and *some* bones.
-  That is, even though a skeleton consists of bone A, B and C, a mesh might
-  be referencing only A, so if you want a unique hierarchy of bones, it's
-  better off to start from root node and find for node with bone attribute and
-  regard it as a root bone.
-
-  Or, as ufbx_bone has 'is_root' field, which means the node is a root *bone* 
-  if the field is true, iterating over 'scene->bones' to find root bones is 
-  feasible.
-
-                      mesh
-                        \
-                    skin_deformers
-                    : binding between a set of bones and a mesh
-                            \
-                       skin_clusters
-                       : vertices bound to a single bone
 */
 
+
+static u32
+_hash_node(ufbx_node *ptr)
+{
+  u64 u = (uintptr_t)ptr;
+  return knuth_hash(u);
+}
+
+struct Joint_Ref
+{
+  s32 skeleton_index_in_array;
+  s32 joint_index;
+};
 
 struct Import_State 
 {
   ufbx_scene *scene;
   String      directory; // Relative directory where output files will be written.
   String      basename;  // Base name used to name output files, derived from the input file.
+
+  Table<ufbx_node *, Joint_Ref, _hash_node> node_to_joint;
+  Array<Skeleton> skeletons;
 };
 
 static m4x4
-_to_m4x4(ufbx_matrix& m)
+to_m4x4(ufbx_matrix& m)
 {
   m4x4 result;
   result._11 = m.m00;
@@ -153,13 +150,13 @@ _to_m4x4(ufbx_matrix& m)
 }
 
 static vec2
-_to_vec2(ufbx_vec2 v)
+to_vec2(ufbx_vec2 v)
 {
   return vec2((f32)v.x, (f32)v.y);
 }
 
 static vec3
-_to_vec3(ufbx_vec3 v)
+to_vec3(ufbx_vec3 v)
 {
   return vec3((f32)v.x, (f32)v.y, (f32)v.z);
 }
@@ -172,7 +169,7 @@ _hash_ptr(ufbx_material *ptr)
 }
 
 static String
-_to_string(ufbx_string c)
+to_string(ufbx_string c)
 {
   String s = { (u8*)c.data, (s64)c.length };
   return s;
@@ -216,7 +213,7 @@ fbx_import_materials(ufbx_scene *scene)
         ufbx_texture *texture = material->pbr.maps[type_strings[i].type].texture;
         if (texture && texture->type == UFBX_TEXTURE_FILE) 
         {
-          String texture_file = _to_string(texture->filename);
+          String texture_file = to_string(texture->filename);
           String path_to_write = texture_file;
           if (!file_exists(texture_file))
           {
@@ -270,6 +267,7 @@ is_visible(ufbx_node *node)
 
 static void
 fbx_import_mesh_internal(ufbx_node*                               node, 
+                         Import_State                            *state,
                          FBX_Import_Options                       options, 
                          Array<Triangle_Mesh>*                    out_meshes,
                          Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
@@ -289,6 +287,10 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
     // Find skin
     ufbx_skin_deformer *skin = mesh->skin_deformers.count ? mesh->skin_deformers[0] : NULL;
+    if (skin)
+    {
+      R_ASSERT(mesh->skin_deformers.count == 1); // @Todo: PLEASE!!!
+    }
 
 
     // Number of triangles if the mesh is fully triangulated.
@@ -304,13 +306,13 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
 
     // Reserve only if skinned
-    struct int32x4 {
+    struct s32x4 {
       s32 e[4];
     };
-    Array<int32x4> joints;
+    Array<s32x4> joints;
     Array<vec4> weights;
     if (skin) {
-      joints  = Array<int32x4>(tctx.temp, num_indices);
+      joints  = Array<s32x4>(tctx.temp, num_indices);
       weights = Array<vec4>(tctx.temp, num_indices);
     }
 
@@ -356,21 +358,68 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
           // Position
           ufbx_vec3 geomtry_space_position = ufbx_get_vertex_vec3(&mesh->vertex_position, index);
-          vec3 world_space_position = _to_vec3(ufbx_transform_position(&node->geometry_to_world, geomtry_space_position));
+          vec3 world_space_position = to_vec3(ufbx_transform_position(&node->geometry_to_world, geomtry_space_position));
           append(&positions, world_space_position);
 
           // Unlike from normals and tangents, UV isn't 
           // generated even if it doesn't exist. 
           // @Todo: use xatlas or something and generate uv
-          vec2 uv = has_uv ? _to_vec2(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
+          vec2 uv = has_uv ? to_vec2(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
           append(&uvs, uv);
 
           // Normal
           if (has_normal)
           {
             ufbx_vec3 geometry_space_normal = ufbx_get_vertex_vec3(&mesh->vertex_normal, index);
-            vec3 world_space_normal = _to_vec3(ufbx_transform_direction(&node->geometry_to_world, geometry_space_normal));
+            vec3 world_space_normal = to_vec3(ufbx_transform_direction(&node->geometry_to_world, geometry_space_normal));
             append(&normals, world_space_normal);
+          }
+
+          // Skin
+          if (skin)
+          {
+            u32 vertex = mesh->vertex_indices[index];
+            ufbx_skin_vertex skin_vertex = skin->vertices[vertex];
+            s64 num_weights = skin_vertex.num_weights;
+            if (num_weights > 4)
+              num_weights = 4;
+
+            s32 _joints[4]   = {-1,-1,-1,-1};
+            f32 _weights[4]  = {0,0,0,0};
+            f32 total_weight = 0.f;
+
+            s64 n = 0;
+            for (s64 i = 0; i < skin_vertex.num_weights; ++i)
+            {
+              if (n >= 4)
+                break;
+
+              ufbx_skin_weight skin_weight = skin->weights[skin_vertex.weight_begin + i];
+              ufbx_skin_cluster *cluster = skin->clusters[skin_weight.cluster_index];
+
+              Joint_Ref *joint_ref = table_find_pointer(&state->node_to_joint, cluster->bone_node);
+              if (!joint_ref)
+                continue;
+
+              m.skeleton = state->skeletons[joint_ref->skeleton_index_in_array].id;
+
+              _joints[n]    = joint_ref->joint_index;
+              _weights[n]   = skin_weight.weight;
+              total_weight += skin_weight.weight;
+              n += 1;
+            }
+
+            if (total_weight > 1e-5f)
+            {
+              f32 rcp = 1.f / total_weight;
+              for (s64 i = 0; i < 4; ++i)
+              {
+                _weights[i] *= rcp;
+              }
+            }
+
+            append(&joints, s32x4{_joints[0], _joints[1], _joints[2], _joints[3]});
+            append(&weights, vec4(_weights[0], _weights[1], _weights[2], _weights[3]));
           }
         }
       }
@@ -504,12 +553,13 @@ fbx_import_mesh_internal(ufbx_node*                               node,
   ufbx_node_list children = node->children;
   for (int i = 0; i < children.count; ++i) 
   {
-    fbx_import_mesh_internal(children.data[i], options, out_meshes, material_pointer_to_path, allocator);
+    fbx_import_mesh_internal(children.data[i], state, options, out_meshes, material_pointer_to_path, allocator);
   }
 }
 
 static Array<Triangle_Mesh>
 fbx_import_mesh(ufbx_node*                               node, 
+                Import_State                            *state,
                 FBX_Import_Options                       options, 
                 Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
                 Allocator                                allocator)
@@ -517,7 +567,7 @@ fbx_import_mesh(ufbx_node*                               node,
   Array<Triangle_Mesh> meshes;
   meshes.allocator = allocator;
 
-  fbx_import_mesh_internal(node, options, &meshes, material_pointer_to_path, allocator);
+  fbx_import_mesh_internal(node, state, options, &meshes, material_pointer_to_path, allocator);
 
   return meshes;
 }
@@ -649,26 +699,18 @@ fbx_import_skeleton(Import_State *state, Allocator allocator)
 
       // Fill in the joint
       Joint *joint = &skel.joints[i];
-      joint->name                = copy_string(_to_string(node->name), allocator);
+      joint->name                = copy_string(to_string(node->name), allocator);
       joint->parent              = parent;
-      joint->local_transform     = _to_m4x4(local);
-      joint->inverse_bind_matrix = _to_m4x4(inv_bind_world[i]);
+      joint->local_transform     = to_m4x4(local);
+      joint->inverse_bind_matrix = to_m4x4(inv_bind_world[i]);
+
+
+      table_add(&state->node_to_joint, node, Joint_Ref{ (s32)skeletons.count, (s32)i });
     }
 
     append(&skeletons, skel);
   }
 
-  return skeletons;
-}
-
-/*
-  Write out skeleton files.
-  If there are multiple skeletons, filenames are prefixed 
-  by numbers starting from `0`.
-*/
-static void
-write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
-{
   for (u32 i = 0; i < skeletons.count; ++i)
   {
     String filename;
@@ -685,8 +727,28 @@ write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
       state->directory, filename
     };
     String path = path_join(strings, 2, '/', tctx.temp);
+    Guid id = guid_from_string(path);
+    skeletons[i].id = id;
 
+    // @Todo: File watcher will replace this shit.
+    table_add(&asset_system->guid_to_path, id, path);
+  }
 
+  return skeletons;
+}
+
+/*
+  Write out skeleton files.
+  If there are multiple skeletons, filenames are prefixed 
+  by numbers starting from `0`.
+*/
+static void
+write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
+{
+  for (u32 i = 0; i < skeletons.count; ++i)
+  {
+    String path = asset_name_from_guid(skeletons[i].id);
+    
     File file = file_open(path, true);
     if (file_is_valid(file))
     {
@@ -782,6 +844,7 @@ fbx_import(String             filepath,
   state.scene     = scene;
   state.directory = out_directory;
   state.basename  = path_basename(filepath);
+  state.node_to_joint.allocator = tctx.temp;
 
 
   // 
@@ -790,6 +853,7 @@ fbx_import(String             filepath,
 
   // Import skeletons
   Array<Skeleton> skeletons = fbx_import_skeleton(&state, allocator);
+  state.skeletons = skeletons;
   write_skeleton_files(&state, skeletons); // @Todo: Prune unreferenced skeletons first
 
 
@@ -798,7 +862,7 @@ fbx_import(String             filepath,
 
 
   // Import meshes
-  Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, options, material_pointer_to_path, allocator);
+  Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, &state, options, material_pointer_to_path, allocator);
   write_mesh_files(&state, meshes);
 
   ufbx_free_scene(scene);

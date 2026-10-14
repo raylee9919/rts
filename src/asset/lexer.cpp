@@ -335,6 +335,11 @@ push_string(Asset_Lexer *lexer)
   return t;
 }
 
+/*
+  Pushes a `reference` token with a `GUID` value.
+  Resolves the referrer and referent to a unique asset name, 
+  then hashes it into a GUID.
+*/
 static Asset_Token *
 push_reference(Asset_Lexer *lexer)
 {

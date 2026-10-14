@@ -1,10 +1,11 @@
-// Copyright Seong Woo Lee. All Rights Reserved.
+// Copyright Seong Woo Lee. All Rights Reserved.geometry.cpp
 
 #include "./geometry.h"
 #include "gfx/gfx.h"
 #include "game.h"
 #include "material/material.h"
 #include "animation/animation.h"
+#include "mesh.h"
 #include "math/math.h"
 
 #define R_MAX_SKINNING_MATRICES 65536 // @Temporary
@@ -42,6 +43,30 @@ R_PASS_INIT( RenderPassInit_Geometry )
     result->arguments_ptr = rhi_buffer_map(&result->arguments_buffer);
   }
 
+  { // Create skinning buffer and view
+    u64 stride = sizeof(m3x4);
+    u64 sz     = stride * R_MAX_SKINNING_MATRICES;
+
+    RHI_Buffer_Desc desc = {};
+    desc.memory_type = RHI_MEMORY_UPLOAD;
+    desc.size        = sz;
+
+    R_ASSERT(rhi_buffer_init(gfx->device, &result->skinning_buffer, &desc, NULL));
+
+    RHI_Buffer_View_Desc view_desc = {};
+    {
+      view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
+      view_desc.writable = false;
+      view_desc.stride   = stride;
+      view_desc.offset   = 0;
+      view_desc.size     = sz;
+    }
+
+    rhi_buffer_view_init(gfx->device, &result->skinning_view, &result->skinning_buffer, &view_desc);
+
+    result->skinning_ptr = rhi_buffer_map(&result->skinning_buffer);
+  }
+
   return result;
 }
 
@@ -53,6 +78,7 @@ R_PASS_DEINIT( RenderPassDeinit_Geometry )
 R_PASS_EXECUTE( RenderPassExecute_Geometry )
 {
   auto *pass = (R_Pass_Geometry *)inPass;
+  pass->skinning_used = 0;
 
   u32 res_x = inInfo.resolution_x;
   u32 res_y = inInfo.resolution_y;
@@ -85,6 +111,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
   {
     entity_dfs(g, g->root, &data_, [](Game_State *g, Entity *E, u64 counter, void *data_) {
       Data *data = (Data*)data_;
+      R_Pass_Geometry *pass = data->pass;
 
       // One mesh asset may contain multiple meshes.
       Array<R_Mesh> *meshes = table_find_pointer(&renderer->mesh_table, E->mesh);
@@ -109,13 +136,6 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               M_Entry *material = material_from_guid(material_id);
               gfx_set_pipeline(material->pipeline);
 
-              // Upload arguments
-              R_Pass_Geometry *pass = data->pass;
-              auto *args = (R_Pass_Geometry::Arguments*)pass->arguments_ptr + data->num_draws;
-              m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
-              memcpy(&args->transform, &transform, sizeof(args->transform));
-              args->material_index = material->offset;
-
               // Push constants
               R_Pass_Geometry::Push_Constants c = {};
               c.vertex_buffer_id    = gfx_mesh->vertex_buffer_view.bindless;
@@ -124,9 +144,52 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               c.argument_buffer_id  = pass->arguments_view.bindless;
               c.argument_base_index = data->num_draws;
               c.material_buffer_id  = renderer->material_buffer.view.bindless;
+              c.skinning_buffer_id  = pass->skinning_view.bindless;
               gfx_push_constants(&c, sizeof(c));
 
+              // Upload arguments
+              auto *args = (R_Pass_Geometry::Arguments*)pass->arguments_ptr + data->num_draws;
+              memset(args, 0, sizeof(*args));
+              m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
+              memcpy(&args->transform, &transform, sizeof(args->transform));
+              args->material_index    = material->offset;
+              if (mesh.skeleton != NULL_GUID)
+              {
+                Skeleton *skel = skeleton_from_guid(mesh.skeleton);
+                R_ASSERT(skel);
+
+                args->num_matrices      = skel->num_joints;
+                args->skinning_matrices = pass->skinning_used;
+
+                m4x4 *model    = (m4x4*)alloc(sizeof(m4x4)*skel->num_joints, tctx.temp);
+                m4x4 *matrices = (m4x4*)alloc(sizeof(m4x4)*skel->num_joints, tctx.temp);
+
+                for (s64 i = 0; i < skel->num_joints; ++i)
+                {
+                  Joint *joint = skel->joints + i;
+                  if (joint->parent >= 0) {
+                    R_ASSERT(joint->parent < i);
+                    model[i] = model[joint->parent] * joint->local_transform;
+                  } else {
+                    model[i] = joint->local_transform;
+                  }
+                }
+
+                for (s64 i = 0; i < skel->num_joints; ++i)
+                {
+                  matrices[i] = model[i] * skel->joints[i].inverse_bind_matrix;
+                }
+
+                for (s64 i = 0; i < skel->num_joints; i += 1)
+                {
+                  memcpy((m3x4*)pass->skinning_ptr + pass->skinning_used + i, &matrices[i], sizeof(m3x4));
+                }
+                pass->skinning_used += skel->num_joints;
+              }
+
+
               // @Temporary: Draw AABB
+              if (1) 
               {
                 m4x4 mvp = data->camera->view_proj * transform;
                 vec3 lo = mesh.aabb.min;
@@ -169,4 +232,5 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     });
   }
   gfx_pass_end();
+
 }
