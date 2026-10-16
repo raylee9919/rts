@@ -43,6 +43,8 @@ struct Entity {
     vec3            scale;
 
     Guid            mesh;
+
+    Guid            animation_id; // @Temporary
 };
 
 struct Camera {

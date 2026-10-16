@@ -6,6 +6,7 @@
 #include "shared.h"
 #include "material/material.h"
 #include "mesh.h"
+#include "animation.h"
 
 Asset_System *asset_system;
 
@@ -95,11 +96,12 @@ asset_system_init()
   asset_system->guid_to_path.allocator = heap;
   asset_system->type_infos.allocator   = heap;
 
-  asset_type_register({S("material"),         material_load_proc});
-  asset_type_register({S("png"),              image_load_proc});
-  asset_type_register({S("triangle_mesh"),    mesh_load_proc});
-  asset_type_register({S("skeleton"),         skeleton_load_proc});
-  asset_type_register({S("slang"),            NULL});
+  asset_type_register({S("material"),           material_load_proc});
+  asset_type_register({S("png"),                image_load_proc});
+  asset_type_register({S("triangle_mesh"),      mesh_load_proc});
+  asset_type_register({S("skeleton"),           skeleton_load_proc});
+  asset_type_register({S("sampled_animation"),  animation_load_proc});
+  asset_type_register({S("slang"),              NULL});
 
   asset_system_init_catalog();
 }

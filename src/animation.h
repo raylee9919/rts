@@ -32,8 +32,16 @@ struct Sampled_Animation
   Array<Animation_Sample> samples;
 };
 
+ASSET_LOAD_PROC(animation_load_proc);
+
 String 
 asset_string_from_animation(Sampled_Animation *anim, 
                             Allocator          allocator);
+
+Sampled_Animation *
+animation_from_guid(Guid id);
+
+m4x4 
+m4x4_from_xform(Xform *xform);
 
 #endif // RTS_ANIMATION_H

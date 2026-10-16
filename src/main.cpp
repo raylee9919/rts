@@ -189,12 +189,15 @@ main_entry(int argc, char **argv)
   FBX_Import_Options options = {};
   options.generate_normals_with_mesh_optimizer = true;
   options.overwrite_existing_file = true;
-  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Export/Goblin.fbx"), S(""), options) );
+  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Mixamo/BreakdanceEnding2.fbx"), S(""), options) );
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
   Entity *my_entity = entity_alloc(game_state);
   my_entity->mesh = mesh_id;
   asset_request(mesh_id, NULL_GUID, NULL);
+
+  my_entity->animation_id = guid_from_string(S("goblin/BreakdanceEnding2.sampled_animation"));
+  asset_request(my_entity->animation_id, NULL_GUID, NULL);
   // @Temporary
   // @Temporary
   // @Temporary
@@ -244,43 +247,6 @@ main_entry(int argc, char **argv)
       game_tick(game_state, dt);
     }
 
-
-    // @Temporary: Visualize skeleton
-#if 1
-    { 
-      GPU_Camera cam = gpu_camera_from_game(&game_state->camera);
-      m4x4 transform = m4x4_translate(my_entity->position) *
-        m4x4_scale(my_entity->scale.x, my_entity->scale.y, my_entity->scale.z);
-      m4x4 mvp = cam.view_proj * transform;
-
-      Skeleton sk = *skeleton_from_guid(guid_from_string(S("goblin/Goblin.skeleton")));
-
-      m4x4 *world = (m4x4*)alloc(sizeof(m4x4) * sk.num_joints, tctx.temp);
-      vec2 *px    = (vec2*)alloc(sizeof(vec2) * sk.num_joints, tctx.temp);
-      b32  *vis   = (b32*) alloc(sizeof(b32)  * sk.num_joints, tctx.temp);
-
-      for (s32 i = 0; i < sk.num_joints; ++i)
-      {
-        Joint *j = &sk.joints[i];
-        world[i] = (j->parent < 0) ? j->local_transform
-          : world[j->parent] * j->local_transform;
-
-        vec4 clip = mvp * vec4(world[i]._14, world[i]._24, world[i]._34, 1.f);
-        vis[i]    = clip.w > 0.f;
-        vec2 ndc  = clip.xy * (1.f/clip.w);
-        px[i]     = vec2(( ndc.x*0.5f + 0.5f) * (f32)RESOLUTION_X,
-                         (-ndc.y*0.5f + 0.5f) * (f32)RESOLUTION_Y);
-
-        if (vis[i])
-          draw_quad(px[i].x - 2.f, px[i].y - 2.f, 4.f, 4.f,
-                    {0,0}, {0,1}, {1,0}, {1,1},
-                    vec4(0,1,0,1), vec4(0,1,0,1), vec4(0,1,0,1), vec4(0,1,0,1), NULL_GUID);
-
-        if (j->parent >= 0 && vis[i] && vis[j->parent])
-          draw_line(px[j->parent], px[i], vec4(1,1,0,1), 2.f);
-      }
-    }
-#endif
 
 
     { // Push state to render thread

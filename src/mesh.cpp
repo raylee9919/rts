@@ -9,8 +9,8 @@
 
 #include "renderer/renderer.h"
 
-Table<Guid, Skeleton, hash_guid> skeleton_table;
-b32 skeleton_table_initted;
+static Table<Guid, Skeleton, hash_guid> skeleton_table;
+static b32 skeleton_table_initted;
 
 
 s64

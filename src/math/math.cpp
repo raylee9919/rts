@@ -3,14 +3,6 @@
 #include "math/math.h"
 
 
-// Sloppy
-//
-f32 safe_ratio(f32 l, f32 r) {
-    if (r > -1e-5f && r < 1e-5f) return 0.0f;
-    return l / r;
-}
-
-
 // Trigonometry
 //
 f32 m_sin(f32 f) {
@@ -166,14 +158,14 @@ f32 triarea2(vec2 a, vec2 b, vec2 c) {
 
 f64 fmod_cycling(f64 x, f64 y) 
 {
-    R_ASSERT( y != 0 );
-    f64 remainder = x - (floor(x/y) * y);
-    return remainder;
+  R_ASSERT( y != 0 );
+  f64 remainder = x - (floor(x/y) * y);
+  return remainder;
 }
 
 f32 fmod_cycling(f32 x, f32 y) 
 {
-    return (f32)fmod_cycling((f64)x, (f64)y);
+  return (f32)fmod_cycling((f64)x, (f64)y);
 }
 
 f32 sqlen(vec2 v) {

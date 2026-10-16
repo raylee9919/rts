@@ -1383,7 +1383,7 @@ fbx_import(String             filepath,
     log_error(S("Failed to load fbx scene from '%S'. Description from ufbx: %s"), filepath, error.description.data);
     return false;
   }
-  _print(scene->root_node, 0);
+  // _print(scene->root_node, 0);
 
 
   // Make import state

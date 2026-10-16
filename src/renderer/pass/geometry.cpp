@@ -153,6 +153,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
               memcpy(&args->transform, &transform, sizeof(args->transform));
               args->material_index    = material->offset;
+
+
               if (mesh.skeleton != NULL_GUID)
               {
                 Skeleton *skel = skeleton_from_guid(mesh.skeleton);
@@ -161,30 +163,88 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                 args->num_matrices      = skel->num_joints;
                 args->skinning_matrices = pass->skinning_used;
 
-                m4x4 *model    = (m4x4*)alloc(sizeof(m4x4)*skel->num_joints, tctx.temp);
-                m4x4 *matrices = (m4x4*)alloc(sizeof(m4x4)*skel->num_joints, tctx.temp);
-
-                for (s64 i = 0; i < skel->num_joints; ++i)
+                if (E->animation_id != NULL_GUID)
                 {
-                  Joint *joint = skel->joints + i;
-                  if (joint->parent >= 0) {
-                    R_ASSERT(joint->parent < i);
-                    model[i] = model[joint->parent] * joint->local_transform;
-                  } else {
-                    model[i] = joint->local_transform;
+                  Sampled_Animation *anim = animation_from_guid(E->animation_id);
+                  R_ASSERT(anim);
+
+                  f64 t = fmod(g->time, (f64)anim->duration);
+                  if (t < 0) t += anim->duration;
+
+                  f64 f = t * anim->frame_rate;
+                  s64 i0 = (s64)f;
+                  if (i0 > (s64)anim->samples.count - 1) 
+                    i0 = anim->samples.count - 1;
+                  s64 i1 = (i0 + 1 < (s64)anim->samples.count) ? i0 + 1 : i0;
+                  f32 a = (f32)(f - (f64)i0);
+
+                  Animation_Sample *sample0 = anim->samples.data + i0;
+                  Animation_Sample *sample1 = anim->samples.data + i1;
+
+                  m4x4 *local     = (m4x4*)alloc(sizeof(m4x4)*skel->num_joints, tctx.temp);
+                  m4x4 *composite = (m4x4*)alloc(sizeof(m4x4)*skel->num_joints, tctx.temp);
+
+                  for (s64 j = 0; j < skel->num_joints; ++j) 
+                  {
+                    Joint *joint = skel->joints + j;
+
+                    Xform *xform0 = sample0->xforms.data + j;
+                    Xform *xform1 = sample1->xforms.data + j;
+
+                    vec3 t = lerp(xform0->translation, xform1->translation, a);
+                    Quaternion r;
+                    if (dot(xform0->rotation, xform1->rotation) < 0) {
+                      r = nlerp(xform0->rotation, -xform1->rotation, a);
+                    } else {
+                      r = nlerp(xform0->rotation, xform1->rotation, a);
+                    }
+                    vec3 s = lerp(xform0->scale, xform1->scale, a);
+                    Xform xform(t, r, s);
+
+                    m4x4 m = m4x4_from_xform(&xform);
+
+                    if (joint->parent < 0) {
+                      local[j] = m;
+                    } else {
+                      local[j] = local[joint->parent] * m;
+                    }
                   }
-                }
 
-                for (s64 i = 0; i < skel->num_joints; ++i)
-                {
-                  matrices[i] = model[i] * skel->joints[i].inverse_bind_matrix;
-                }
+                  for (s64 j = 0; j < skel->num_joints; ++j) 
+                  {
+                    Joint *joint = skel->joints + j;
+                    composite[j] = local[j] * joint->inverse_bind_matrix;
+                    memcpy((m3x4*)pass->skinning_ptr + pass->skinning_used + j, composite + j, sizeof(m3x4));
+                  }
 
-                for (s64 i = 0; i < skel->num_joints; i += 1)
-                {
-                  memcpy((m3x4*)pass->skinning_ptr + pass->skinning_used + i, &matrices[i], sizeof(m3x4));
+                  pass->skinning_used += skel->num_joints;
+
+
+#if 1
+                  // @Temporary: Visualize skeleton
+                  { 
+                    GPU_Camera cam = gpu_camera_from_game(&game_state->camera);
+                    m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
+                    m4x4 mvp = cam.view_proj * transform;
+
+                    vec2 *px    = (vec2*)alloc(sizeof(vec2) * skel->num_joints, tctx.temp);
+                    b32  *vis   = (b32*) alloc(sizeof(b32)  * skel->num_joints, tctx.temp);
+
+                    for (s32 i = 0; i < skel->num_joints; ++i)
+                    {
+                      m4x4 m = local[i];
+                      vec4 clip = mvp * vec4(m._14, m._24, m._34, 1.f);
+                      vis[i]    = clip.w > 0.f;
+                      vec2 ndc  = clip.xy * (1.f/clip.w);
+                      px[i]     = vec2(( ndc.x*0.5f + 0.5f) * (f32)RESOLUTION_X,
+                                       (-ndc.y*0.5f + 0.5f) * (f32)RESOLUTION_Y);
+
+                      if (skel->joints[i].parent >= 0 && vis[i] && vis[skel->joints[i].parent])
+                        draw_line(px[skel->joints[i].parent], px[i], vec4(1,1,0,1), 1.5f);
+                    }
+                  }
+#endif
                 }
-                pass->skinning_used += skel->num_joints;
               }
 
 

@@ -2,6 +2,12 @@
 
 #include "./animation.h"
 #include "basic/string_builder.h"
+#include "asset/lexer.h"
+
+
+static Table<Guid, Sampled_Animation, hash_guid> animation_table;
+static b32 animation_table_initted;
+
 
 String 
 asset_string_from_animation(Sampled_Animation *anim, 
@@ -44,15 +50,75 @@ asset_string_from_animation(Sampled_Animation *anim,
   return s;
 }
 
+ASSET_LOAD_PROC(animation_load_proc)
+{
+  Asset_Lexer lexer = {};
+  asset_tokenize(&lexer, id, tctx.temp);
+
+  Allocator allocator = asset_system->heap;
+
+  Sampled_Animation animation = {};
+
+  u32 version = eat_unsigned_int(&lexer);
+  R_ASSERT(version == 1);
+
+  animation.skeleton = eat_reference(&lexer);
+  asset_request(animation.skeleton, id, NULL); // @Temporary
+  animation.num_joints = (s32)eat_unsigned_int(&lexer);
+  animation.frame_rate = (s32)eat_unsigned_int(&lexer);
+  animation.duration   = (f32)eat_unsigned_float(&lexer);
+
+  s64 num_samples = (s64)eat_unsigned_int(&lexer);
+  animation.samples.allocator = allocator;
+  for (s64 s = 0; s < num_samples; ++s)
+  {
+    Animation_Sample sample = {};
+    sample.xforms.allocator = allocator;
+    for (s32 j = 0; j < animation.num_joints; ++j)
+    {
+      vec3 t;
+      t.x = eat_signed_float(&lexer);
+      t.y = eat_signed_float(&lexer);
+      t.z = eat_signed_float(&lexer);
+
+      Quaternion r;
+      r.w = eat_signed_float(&lexer);
+      r.x = eat_signed_float(&lexer);
+      r.y = eat_signed_float(&lexer);
+      r.z = eat_signed_float(&lexer);
+
+      vec3 s;
+      s.x = eat_signed_float(&lexer);
+      s.y = eat_signed_float(&lexer);
+      s.z = eat_signed_float(&lexer);
+
+      append(&sample.xforms, Xform(t, r, s));
+    }
+    append(&animation.samples, sample);
+  }
+
+  if (!animation_table_initted)
+  {
+    animation_table.allocator = allocator;
+  }
+  table_add(&animation_table, id, animation);
+}
+
+Sampled_Animation *
+animation_from_guid(Guid id)
+{
+  return table_find_pointer(&animation_table, id);
+}
+
 // @Correctness
-static m4x4 
-m4x4_from_xform(Xform xform)
+m4x4 
+m4x4_from_xform(Xform *xform)
 {
   m4x4 m;
 
-  vec3 t       = xform.translation;
-  Quaternion r = xform.rotation;
-  vec3 s       = xform.scale;
+  vec3 t       = xform->translation;
+  Quaternion r = xform->rotation;
+  vec3 s       = xform->scale;
 
   __m128 scale = _mm_setr_ps(s.x, s.y, s.z, 1.f);
 

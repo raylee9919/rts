@@ -128,9 +128,6 @@ struct Ray3 {
   vec3 direction;
 };
 
-// Sloppy
-f32        safe_ratio(f32 l, f32 r);
-
 // Trigonometry
 f32        m_sin(f32 f);
 f32        m_cos(f32 f);
