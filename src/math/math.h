@@ -107,14 +107,6 @@ union Quaternion {
     Quaternion(f32 w_, f32 x_, f32 y_, f32 z_);
 };
 
-struct Xform {
-    vec3         translation;
-    Quaternion rotation;
-    vec3         scale;
-
-    Xform();
-};
-
 union Rect {
   struct {
     vec2 min;
@@ -255,7 +247,6 @@ m4x4           scale(m4x4 transform, vec3 factor);
 m4x4           scale(m4x4 transform, f32 factor);
 m4x4           scale(f32 s);
 m4x4           m4x4_scale(f32 x, f32 y, f32 z);
-m4x4           to_m4x4(Xform xform);
 m4x4           to_m4x4(vec3 translation, Quaternion rotation, vec3 scale);
 Quaternion     build_quaternion(vec3 axis, f32 radian);
 Quaternion     rotate(Quaternion q0, vec3 axis, f32 radian);
@@ -317,6 +308,5 @@ f32           triarea2(vec2 a, vec2 b, vec2 c);
 vec4          operator + (vec4 a, vec4 b);
 m4x4&         operator += (m4x4& l, m4x4 r);
 bool          ray_plane_intersect(Ray3 ray, vec3 plane_normal, f32 plane_height, vec3* out);
-Xform         to_xform(m4x4 m);
 
 #endif // RTS_MATH_H

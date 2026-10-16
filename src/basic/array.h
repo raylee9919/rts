@@ -108,11 +108,11 @@ array_pop_back(Array<T> *arr)
 
 // Returns index of the first occurence of `item` in the array.
 // Returns -1 if the item doesn't exist.
-template <typename T> 
+template <typename T, typename Cmp> 
 s64
-array_find(Array<T> *arr, T item, b32 (*cmp)(T x, T y))
+array_find(Array<T> *arr, T item, Cmp cmp)
 {
-  for (s64 i = 0; i < arr->count; ++i)
+  for (u32 i = 0; i < arr->count; ++i)
   {
     if (cmp(arr->data[i], item))
     {

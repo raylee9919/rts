@@ -4,8 +4,8 @@
 #include "gfx/gfx.h"
 #include "game.h"
 #include "material/material.h"
-#include "animation/animation.h"
 #include "mesh.h"
+#include "animation.h"
 #include "math/math.h"
 
 #define R_MAX_SKINNING_MATRICES 65536 // @Temporary

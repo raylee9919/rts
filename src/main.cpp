@@ -144,8 +144,7 @@ void input_process()
 }
 
 int 
-main_entry(int    argc, 
-           char **argv)
+main_entry(int argc, char **argv)
 {
   shared_init();
 
@@ -190,9 +189,9 @@ main_entry(int    argc,
   FBX_Import_Options options = {};
   options.generate_normals_with_mesh_optimizer = true;
   options.overwrite_existing_file = true;
-  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Files/Goblin_FBX.fbx"), S(""), options) );
+  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Export/Goblin.fbx"), S(""), options) );
 #endif
-  Guid mesh_id = guid_from_string(S("goblin/Goblin_FBX.triangle_mesh"));
+  Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
   Entity *my_entity = entity_alloc(game_state);
   my_entity->mesh = mesh_id;
   asset_request(mesh_id, NULL_GUID, NULL);
@@ -254,13 +253,13 @@ main_entry(int    argc,
         m4x4_scale(my_entity->scale.x, my_entity->scale.y, my_entity->scale.z);
       m4x4 mvp = cam.view_proj * transform;
 
-      Skeleton sk = *skeleton_from_guid(guid_from_string(S("goblin/Goblin_FBX_0.skeleton")));
+      Skeleton sk = *skeleton_from_guid(guid_from_string(S("goblin/Goblin.skeleton")));
 
       m4x4 *world = (m4x4*)alloc(sizeof(m4x4) * sk.num_joints, tctx.temp);
       vec2 *px    = (vec2*)alloc(sizeof(vec2) * sk.num_joints, tctx.temp);
       b32  *vis   = (b32*) alloc(sizeof(b32)  * sk.num_joints, tctx.temp);
 
-      for (s64 i = 0; i < sk.num_joints; ++i)
+      for (s32 i = 0; i < sk.num_joints; ++i)
       {
         Joint *j = &sk.joints[i];
         world[i] = (j->parent < 0) ? j->local_transform

@@ -9,6 +9,7 @@
 #include "math/math.h"
 #include "asset/asset.h"
 
+
 struct Skeleton;
 struct Asset_Lexer;
 
@@ -111,7 +112,7 @@ struct Skeleton
 {
   Guid   id;
   Joint *joints;
-  s64    num_joints;
+  s32    num_joints;
 };
 
 ASSET_LOAD_PROC(skeleton_load_proc);

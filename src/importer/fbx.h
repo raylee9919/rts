@@ -10,6 +10,8 @@ struct FBX_Import_Options
   // If false, use ufbx as default
   b8 generate_normals_with_mesh_optimizer;
   b8 overwrite_existing_file;
+
+  s32 animation_frame_rate = 30; // frames per second
 };
 
 b32

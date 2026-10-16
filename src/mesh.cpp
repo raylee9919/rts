@@ -169,7 +169,7 @@ asset_string_from_skeleton(Skeleton *sk, Allocator allocator)
   append(&b, S("1 // version\n\n"));
 
   append(&b, tprint(S("%d\n\n"), sk->num_joints));
-  for (s64 i = 0; i < sk->num_joints; ++i)
+  for (s32 i = 0; i < sk->num_joints; ++i)
   {
     Joint *j = &sk->joints[i];
     append(&b, tprint(S("\"%S\"\n"), j->name));
@@ -420,7 +420,7 @@ parse_and_eval_skeleton_asset(Asset_Lexer *lexer, Allocator allocator)
   result.num_joints = eat_unsigned_int(lexer);
   result.joints = (Joint*)alloc(sizeof(Joint) * result.num_joints, allocator);
 
-  for (s64 i = 0; i < result.num_joints; i += 1)
+  for (s32 i = 0; i < result.num_joints; i += 1)
   {
     Joint *j = result.joints + i;
     j->name                = copy_string(eat_string(lexer), allocator);

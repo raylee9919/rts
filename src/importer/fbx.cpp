@@ -7,6 +7,7 @@
 #include "basic/string_builder.h"
 #include "math/math.h"
 #include "mesh.h"
+#include "animation.h"
 #include "material/material.h"
 #include "third_party/ufbx/ufbx.h"
 #include "third_party/meshoptimizer/meshoptimizer.h"
@@ -16,87 +17,114 @@
 
    - Cleanup filename creation. I've added an option whether I'll 
      overwrite the existing file or not.
+   
+   - Proper null-skin weights and indices.
 
-   - There are common parts in writing procedures. Might be collapsible.
+   - Sanitize names
+
+   - Duplicate bone names
+
+   - There are common parts in file-writing procedures. Might be collapsible.
   
    - Semantic name ("position") is a promise between assets and the engine. 
      So, should I need to bake offset/size information in the asset?
 
    - More optimizations
 
-   - Meshlet asset? (Low priority)
+   - Find way for LoD generation
 
-   - Revise the long arse comment right below.
+   - Meshlet asset for mesh shader? Sounds fun, but low priority.
 */
 
 /*
+  There are basically 2 options for how to import skeletal meshes:
 
-                      ufbx_node  ufbx_mesh  ufbx_material
+  1. geometry space vertices + per-mesh matrix that converts vertices to 'root bone node'  space
+  2. geometry space vertices +                    ..                     'scene root node' space
 
-  .. have 'ufbx_element' as a header. Users can access it, so they kind of
-  "inherit". 'ufbx_element' is equivalent to what FBX calls as 'object' which
-  is an overloaded term.
-
-  FBX's 'Property' is key:value relationship exposed as ufbx_element.props
-  You don't typically access properties directly.
+  The core part of mesh skinning is, vertices and bones must be in same space at some point for mesh skinning to work.
 
 
-                                    Node
+  1.
 
-  Like any other scenes, 'ufbx_scene' consists of 'ufbx_node's.
-  Talking about hierarchy, it has 'local_transform', 'parent', 'children',
-  'node_to_parent', and 'node_to_world'.
+         composite_matrix[n] = global_matrix * global_transform[n] * node_from_root * mesh.root_from_geometry * vertex_in_geometry_space
+                                     |                                     |                    |
+                                     |                                     |                    |
+                         additional multiplication (1)                     |        additional multiplication (2)
+                                                                   inverse rest pose 
+                                                                   against root bone
+     
 
-  Nodes are specialized by 'attributes'. As a matter of fact, ufbx_mesh is
-  an attribute.
+  2.
 
-  Nodes and attributes can reference in either way. For example, ufbx_mesh has
-  array of nodes that use it.
-
-
-                                    Mesh
-                                   / | \
-                             Vertex Index Face
-                                         / | \
-                                     tri quad N-gons
-
-  ufbx_mesh contains ufbx_vertex_attrib. List of attributes follow:
-
-    position  <--  only this isn't optional
-    normal
-    tangent
-    bitangent
-    uv
-    color
-    crease
-
-  As you know, attributes may have multiple values within a single vertex.
-  So a "proper" way to identify attribute is by using index.
-  It is well-documented in the header file, above the ufbx_mesh struct.
-
-  As mesh can be instanced with different material in the scene,
-  you want to look into ufbx_node instead of ufbx_material to extract materials.
+         composite_matrix[n] = global_matrix * global_transform[n] * node_from_global * mesh.global_from_geometry * vertex_in_geometry_space
+                                                                            |
+                                                                    inverse rest pose 
+                                                                 against scene root node
+     
+     Two additional matrix multiplcations stay the same.
 
 
-                                  Animation
 
-  'ufbx_anim_stack' is equivalent to animation clip and contains list of
-  'ufbx_anim_layer'.
+  
+  First, we'll deal with (2):
 
-  Whatever. 'ufbx_bake_anim' transforms animation into simple linearly
-  interpolated tracks. Iterate over stacks (clips) in the scene.
+      In order to remove (2), vertices should be baked from 'geometry' to (   ) space, where (   ) could be either 'global' or 'root bone'.
+
+      (a) bake as `global` space vertices:
+
+          geometry_to_global = cluster.bind_to_world * cluster.geometry_to_bone
+          node_from_global   = inverse(bone_node.node_to_world)
+
+      (b) bake as `root bone` space vertices:
+
+          geometry_to_root_bone = inverse(root_bone.node_to_world) * cluster.bind_to_world * cluster.geometry_to_bone
+          node_from_root_bone   = inverse(node.node_to_world) * root_bone_node.node_to_world
+
+      Both are fine. The difference in complexity is negligible.
+      Good to know that vertex baking is flexible! We have some room to adjust this part once we've looked at the other parts.
 
 
-                                   Deformer
-                                   /  |  \
-                               skin blend cache
+      or
 
-  We'll just focus on skin deformers.
-  Skeleton = hierarchy of ufbx_nodes with ufbx_bone attribute.
-  Bone influences are defined in clusters (ufbx_skin_cluster).
-  ufbx_skin_cluster.vertices[] and weights[] contain per-vertex weight, and
-  weights are sorted in descending order :)
+
+      (c) leave vertices in geometry space, and just pass `mesh.(   )_from_geometry` to shader.
+          One additional matrix multiplication on GPU is nothing.
+
+          So, this part:
+
+              mesh.(   )_from_geometry * vertex_in_geometry_space
+
+          is done on GPU.
+
+      I'd prefer (a) or (b). I don't see a good reason not to bake it into vertices.
+
+  
+  Now, (1):
+
+      composite_matrix[n] = global_matrix * global_transform[n]
+                          = (global from root bone) * (root bone from root + 1) * ... * (parent_of(n) from node n)
+
+      What if we collapse   |-------------------------------------------------| part?
+                                                  T H I S
+
+      That is, make root bone node incorporate all the transforms coming from its ancestors.
+
+      Neat, but here's the problem:
+
+          `ufbx_evaluate_transform(t)` gives nodes local transform, relative to parent, at time t.
+          And for every evaluated samples in the animation, the following must be done:
+
+              (global from (root - 1)) * (evaluated root bone transform)
+                          
+                          
+      I don't know whether this part should be evaluated or not. If it doesn't have to be, 
+      all I have to do is multiply by 'root_bone.parent ? root_bone.parent.node_to_world : identity()'
+
+      If that's not the case, I should traverse from the root bone node to the scene root node an concatenate the evaluated transforms.
+      As I'm not sure about my assumption, I'll just take the latter path.
 */
+
 
 
 static u32
@@ -118,8 +146,15 @@ struct Import_State
   String      directory; // Relative directory where output files will be written.
   String      basename;  // Base name used to name output files, derived from the input file.
 
+  FBX_Import_Options options;
+
+  //
+  // Helper data structures
+  //
+  b8 *is_joint;
   Table<ufbx_node *, Joint_Ref, _hash_node> node_to_joint;
   Array<Skeleton> skeletons;
+  Array<Array<ufbx_node*>> nodes_in_skeleton;
 };
 
 static m4x4
@@ -161,6 +196,12 @@ to_vec3(ufbx_vec3 v)
   return vec3((f32)v.x, (f32)v.y, (f32)v.z);
 }
 
+static Quaternion
+to_quaternion(ufbx_quat q)
+{
+  return Quaternion(q.w, q.x, q.y, q.z);
+}
+
 static u32
 _hash_ptr(ufbx_material *ptr)
 {
@@ -169,10 +210,10 @@ _hash_ptr(ufbx_material *ptr)
 }
 
 static String
-to_string(ufbx_string c)
+to_string(ufbx_string c, Allocator allocator)
 {
   String s = { (u8*)c.data, (s64)c.length };
-  return s;
+  return copy_string(s, allocator);
 }
 
 // @Incomplete:
@@ -213,7 +254,7 @@ fbx_import_materials(ufbx_scene *scene)
         ufbx_texture *texture = material->pbr.maps[type_strings[i].type].texture;
         if (texture && texture->type == UFBX_TEXTURE_FILE) 
         {
-          String texture_file = to_string(texture->filename);
+          String texture_file = to_string(texture->filename, tctx.temp);
           String path_to_write = texture_file;
           if (!file_exists(texture_file))
           {
@@ -266,12 +307,11 @@ is_visible(ufbx_node *node)
 }
 
 static void
-fbx_import_mesh_internal(ufbx_node*                               node, 
-                         Import_State                            *state,
-                         FBX_Import_Options                       options, 
-                         Array<Triangle_Mesh>*                    out_meshes,
-                         Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
-                         Allocator                                allocator)
+import_mesh_internal(ufbx_node*                               node, 
+                     Import_State                            *state,
+                     Array<Triangle_Mesh>*                    out_meshes,
+                     Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
+                     Allocator                                allocator)
 {
   ufbx_mesh *mesh = node->mesh;
   if (mesh && 
@@ -286,10 +326,16 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
 
     // Find skin
-    ufbx_skin_deformer *skin = mesh->skin_deformers.count ? mesh->skin_deformers[0] : NULL;
-    if (skin)
+    ufbx_skin_deformer *skin = NULL;
+    if (mesh->skin_deformers.count &&
+        mesh->skin_deformers[0]->clusters.count && 
+        mesh->skin_deformers[0]->weights.count)
     {
-      R_ASSERT(mesh->skin_deformers.count == 1); // @Todo: PLEASE!!!
+      skin = mesh->skin_deformers[0];
+    }
+
+    if (skin) {
+      R_ASSERT(mesh->skin_deformers.count == 1); // @Robustness: PLEASE!!!
     }
 
 
@@ -341,8 +387,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     u32 *indices_in_face    = (u32*)alloc(sizeof(u32) * num_indices_in_face, tctx.temp);
 
 
-    // Matrix to transform vertices in `geometry(geomtric) space` to 
-    // `world(global) space`.
+    // Matrix to transform vertices in 'geometry(geomtric) space' to 'world(global) space'.
     ufbx_matrix geometry_to_world;
     if (skin)
     {
@@ -353,6 +398,9 @@ fbx_import_mesh_internal(ufbx_node*                               node,
     {
       geometry_to_world = node->geometry_to_world;
     }
+
+    // Matrix to transform normals
+    ufbx_matrix normal_matrix = ufbx_matrix_for_normals(&geometry_to_world);
 
 
     Array<Mesh_Part> parts(tctx.temp, mesh->material_parts.count);
@@ -385,7 +433,6 @@ fbx_import_mesh_internal(ufbx_node*                               node,
           // Normal
           if (has_normal)
           {
-            ufbx_matrix normal_matrix = ufbx_matrix_for_normals(&geometry_to_world);
             ufbx_vec3 geometry_space_normal = ufbx_get_vertex_vec3(&mesh->vertex_normal, index);
             vec3 world_space_normal = to_vec3(ufbx_vec3_normalize(ufbx_transform_direction(&normal_matrix, geometry_space_normal)));
             append(&normals, world_space_normal);
@@ -412,7 +459,9 @@ fbx_import_mesh_internal(ufbx_node*                               node,
               Joint_Ref *joint_ref = table_find_pointer(&state->node_to_joint, cluster->bone_node);
               if (!joint_ref) continue;
 
-              m.skeleton = state->skeletons[joint_ref->skeleton_index_in_array].id;
+              Guid skel_id = state->skeletons[joint_ref->skeleton_index_in_array].id;
+              R_ASSERT(m.skeleton == NULL_GUID || m.skeleton == skel_id);
+              m.skeleton = skel_id;
 
               _joints[n]    = joint_ref->joint_index;
               _weights[n]   = skin_weight.weight;
@@ -435,14 +484,15 @@ fbx_import_mesh_internal(ufbx_node*                               node,
         }
       }
 
-
-      ufbx_material *material = node->materials[part.index];
-      String *material_path = table_find_pointer(&material_pointer_to_path, material);
-      if (material_path)
+      if (part.index < node->materials.count)
       {
-        p.material_path = *material_path;
+        ufbx_material *material = node->materials[part.index];
+        String *material_path = table_find_pointer(&material_pointer_to_path, material);
+        if (material_path)
+        {
+          p.material_path = *material_path;
+        }
       }
-
 
       p.count = positions.count - p.offset;
       append(&parts, p);
@@ -451,7 +501,7 @@ fbx_import_mesh_internal(ufbx_node*                               node,
 
 
     // Generate normals and tangents
-    if (!has_normal && options.generate_normals_with_mesh_optimizer)
+    if (!has_normal && state->options.generate_normals_with_mesh_optimizer)
     {
       float crease_angle = radian_from_degree(60.f);
       float smoothing    = 3.f;
@@ -565,30 +615,228 @@ fbx_import_mesh_internal(ufbx_node*                               node,
   ufbx_node_list children = node->children;
   for (int i = 0; i < children.count; ++i) 
   {
-    fbx_import_mesh_internal(children.data[i], state, options, out_meshes, material_pointer_to_path, allocator);
+    import_mesh_internal(children.data[i], state, out_meshes, material_pointer_to_path, allocator);
   }
 }
 
-static Array<Triangle_Mesh>
-fbx_import_mesh(ufbx_node*                               node, 
-                Import_State                            *state,
-                FBX_Import_Options                       options, 
-                Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
-                Allocator                                allocator)
+static Array<Triangle_Mesh> import_meshes(ufbx_node*                               node, 
+                                          Import_State                            *state,
+                                          Table<ufbx_material*, String, _hash_ptr> material_pointer_to_path,
+                                          Allocator                                allocator)
 {
   Array<Triangle_Mesh> meshes;
   meshes.allocator = allocator;
 
-  fbx_import_mesh_internal(node, state, options, &meshes, material_pointer_to_path, allocator);
+  import_mesh_internal(node, state, &meshes, material_pointer_to_path, allocator);
+
+  log_info(S("Imported '%d' %S."), meshes.count, meshes.count==1 ? S("mesh") : S("meshes"));
 
   return meshes;
 }
 
-// Breadth-First Search the scene and return
-// an array with root bone nodes. I'm doing this 
-// because I don't trust `bone.is_root`.
+static void
+lift_multirooted_skins(ufbx_scene *scene, b8 *is_joint)
+{
+  for (ufbx_skin_deformer *skin : scene->skin_deformers)
+  {
+    if (skin->clusters.count == 0 || skin->weights.count == 0)
+      continue;
+
+    //
+    // 1. Collect top-most nodes in the deformer.
+    //
+    Array<ufbx_node*> roots(tctx.temp);
+    for (ufbx_skin_cluster *c : skin->clusters)
+    {
+      if (!c->bone_node || !is_joint[c->bone_node->typed_id])
+        continue;
+
+      ufbx_node *r = c->bone_node;
+      while (r->parent && is_joint[r->parent->typed_id])
+        r = r->parent;
+
+      if (array_find(&roots, r, [](ufbx_node *a, ufbx_node *b) { return a==b; }) < 0) {
+        append(&roots, r);
+      }
+    }
+
+    if (roots.count <= 1) continue; // no other chains to lift up.
+
+    //
+    // 2. Mark nodes from each root up to the shallowest root's depth
+    //    and update roots accordingly.
+    //
+    u32 min_depth = INT32_MAX;
+    for (u32 i = 0; i < roots.count; ++i) {
+      min_depth = min(min_depth, roots[i]->node_depth);
+    }
+
+    for (u32 i = 0; i < roots.count; ++i) {
+      while (roots[i]->node_depth > min_depth) {
+        roots[i] = roots[i]->parent;
+        is_joint[roots[i]->typed_id] = 1;
+      }
+    }
+
+    //
+    // 3. Lift roots up until they share the same parent.
+    //
+    while (1)
+    {
+      b32 same = true;
+      for (u32 i = 1; i < roots.count; ++i) 
+      {
+        if (roots[i]->parent != roots[0]->parent)
+        {
+          same = false;
+          break;
+        }
+      }
+      if (same) break;
+
+      for (u32 i = 0; i < roots.count; ++i) 
+      {
+        R_ASSERT(roots[i]->parent);
+        roots[i] = roots[i]->parent;
+        is_joint[roots[i]->typed_id] = 1;
+      }
+    }
+  }
+}
+
+static b8 *
+_mark_joints(ufbx_scene *scene)
+{
+  s64 sz = sizeof(b8) * scene->nodes.count;
+  b8 *is_joint = (b8*)alloc(sz, tctx.temp);
+  memset(is_joint, 0, sz);
+
+  // Mark 'node.bone'
+  for (ufbx_node *node : scene->nodes) {
+    if (node->bone) {
+      is_joint[node->typed_id] = 1;
+    }
+  }
+
+  // Mark nodes referenced by skin clusters
+  for (ufbx_skin_deformer *skin : scene->skin_deformers) 
+  {
+    if (skin->clusters.count == 0 || skin->weights.count == 0) {
+      continue;
+    }
+
+    for (ufbx_skin_cluster *c : skin->clusters) {
+      if (c->bone_node) {
+        is_joint[c->bone_node->typed_id] = 1;
+      }
+    }
+  }
+
+
+  /*
+    [V]: marked as 'is_joint'
+
+                    ...                ...        
+                  /     \            /     \              
+                 [V]   [ ]    -->   [V]   [V]                 
+                 / \   / \          / \   / \                  
+                     [V] [ ]            [V] [ ]                 
+   
+     There can be more than one trees in a skin deformer.
+     In that case, we lift up the lower one until they share 
+     the same parent.
+   */
+  lift_multirooted_skins(scene, is_joint);
+
+
+  /*          
+              [V]
+              / \
+            ..  [ ] <--- mark this as a joint as well,
+                / \      or local transforms might be bogus.
+              ..  [V]
+   */
+  Array<ufbx_node*> marked(tctx.temp);
+  for (ufbx_node *node : scene->nodes) {
+    if (is_joint[node->typed_id]) {
+      append(&marked, node);
+    }
+  }
+
+  for (ufbx_node *node : marked) {
+    ufbx_node *ancestor = node->parent; 
+    while (ancestor && !is_joint[ancestor->typed_id]) {
+      ancestor = ancestor->parent;
+    }
+
+    if (!ancestor) continue;
+
+    for (ufbx_node *p = node->parent; p != ancestor; p = p->parent) {
+      is_joint[p->typed_id] = 1;
+    }
+  }
+
+
+  /*
+    Drop trees that deform nothing.
+          
+                        [V]        [V]           
+                        / \        / \          
+            IK_Heel  [V]        [ ]              
+                     / \        / \               
+            IK_Toe [V]        [ ]               
+  */
+  if (scene->skin_clusters.count > 0)
+  {
+    s64 n = scene->nodes.count;
+
+    // node to its root bone node
+    ufbx_node **root_of = (ufbx_node**)alloc(sizeof(ufbx_node*)*n, tctx.temp);
+    for (ufbx_node *node : scene->nodes)
+    {
+      ufbx_node *r = NULL;
+      if (is_joint[node->typed_id])
+      {
+        r = node;
+        while (r->parent && is_joint[r->parent->typed_id])
+          r = r->parent;
+      }
+      root_of[node->typed_id] = r;
+    }
+
+
+    b8 *deforms = (b8*)alloc(n, tctx.temp);
+    memset(deforms, 0, n);
+
+    for (ufbx_skin_deformer *skin : scene->skin_deformers)
+    {
+      if (skin->clusters.count == 0 || skin->weights.count == 0)
+        continue;
+
+      for (ufbx_skin_cluster *c : skin->clusters)
+      {
+        if (c->bone_node && is_joint[c->bone_node->typed_id])
+          deforms[root_of[c->bone_node->typed_id]->typed_id] = 1;
+      }
+    }
+
+    for (ufbx_node *node : scene->nodes)
+    {
+      ufbx_node *r = root_of[node->typed_id];
+      if (r && !deforms[r->typed_id])
+        is_joint[node->typed_id] = 0;
+    }
+  }
+
+  return is_joint;
+}
+
+// Breadth-First Search the scene and return an array with root bone nodes, 
+// becuase `bone.is_root` isn't enough.
+//
 static Array<ufbx_node *>
-_get_root_bone_nodes(ufbx_scene *scene)
+get_root_bones(const ufbx_scene *scene, 
+               const b8         *is_joint)
 {
   Array<ufbx_node *> result = {};
   result.allocator = tctx.temp;
@@ -600,7 +848,7 @@ _get_root_bone_nodes(ufbx_scene *scene)
   while (q.count != 0)
   {
     ufbx_node *node = queue_pop(&q);
-    if (node->bone)
+    if (is_joint[node->typed_id])
     {
       append(&result, node);
       continue;
@@ -619,19 +867,23 @@ _get_root_bone_nodes(ufbx_scene *scene)
 // bones nodes and it's parent index. Won't 
 // append non-bone nodes. 
 static void
-_collect_bones(ufbx_node *node, 
+_collect_bones(ufbx_node                    *node, 
+               Import_State                 *state,
                Array<Pair<ufbx_node*, s32>> *result, 
-               s32 parent)
+               s32                           parent)
 {
-  if (node->bone)
+  if (state->is_joint[node->typed_id])
   {
+    // Otherwise sampled local transforms don't compose with the joint hierarchy!
+    R_ASSERT(parent < 0 || node->parent == (*result)[parent].x);
+
     append(result, { node, parent });
     parent = (s32)result->count - 1;
   }
 
   for (ufbx_node *child : node->children)
   {
-    _collect_bones(child, result, parent);
+    _collect_bones(child, state, result, parent);
   }
 }
 
@@ -660,21 +912,142 @@ _find_bind_to_world(ufbx_scene *scene, ufbx_node *node, ufbx_matrix *out)
   return false;
 }
 
+static s32
+_find(s32 *head, s32 x)
+{
+  while (head[x] != x) {
+    x = head[x] = head[head[x]];
+  }
+  return x;
+}
+
+static void
+_union(s32 *head, s32 a, s32 b)
+{
+  a = _find(head, a);
+  b = _find(head, b);
+  if (a != b) {
+    head[b] = a;
+  }
+}
+
+static s32
+node_to_index_of_root_bone(ufbx_node *node, Array<ufbx_node*> root_bones)
+{
+  while (node) {
+    // Am I a root bone?
+    s32 idx = (s32)array_find(&root_bones, node, [](ufbx_node *a, ufbx_node *b) {
+      return a == b;
+    });
+
+    if (idx >= 0) return idx; // yes
+
+    node = node->parent; // no, go up
+  }
+  return -1;
+}
+
 static Array<Skeleton>
-fbx_import_skeleton(Import_State *state, Allocator allocator)
+import_skeletons(Import_State *state, Allocator allocator)
 {
   Array<Skeleton> skeletons = {};
   skeletons.allocator = allocator;
 
-  Array<ufbx_node *> root_bones = _get_root_bone_nodes(state->scene);
+  // index by 'node.typed_id'
+  state->is_joint = _mark_joints(state->scene);
 
-  for (ufbx_node *root : root_bones)
+  Array<ufbx_node *> root_bones = get_root_bones(state->scene, state->is_joint);
+
+  //
+  // Determine which subtrees belong to the same skeleton.
+  // N subtree roots do not necessarily imply N skeletons,
+  // which is exactly what we want. We use some wacky heuristics 
+  // to determine how to group them.
+  //
+
+  /*
+     1.
+     Union roots with the same deformer.
+
+         S: same skin deformer
+         .  ..  .
+         / \    / \
+         S   .   S  . 
+         / \ / \ / \ 
+
+     Those will be written to a multi-rooted, single skeleton.
+  */
+  s32 *heads = (s32*)alloc(sizeof(s32)*root_bones.count, tctx.temp);
+  for (u32 i = 0; i < root_bones.count; ++i) {
+    heads[i] = i;
+  }
+
+  for (ufbx_skin_deformer *skin : state->scene->skin_deformers)
   {
-    // Collect bones consisting a skeleton 
-    // starting from the root bone.
-    Array<Pair<ufbx_node*, s32>> bones = {};
-    bones.allocator = tctx.temp;
-    _collect_bones(root, &bones, -1);
+    if (skin->clusters.count == 0 || skin->weights.count == 0)
+      continue;
+
+    s32 first = -1;
+    for (ufbx_skin_cluster *c : skin->clusters)
+    {
+      if (!c->bone_node || !state->is_joint[c->bone_node->typed_id]) 
+        continue;
+
+      s32 root = node_to_index_of_root_bone(c->bone_node, root_bones);
+      if (root < 0) continue;
+
+      if (first < 0)
+        first = root;
+      else
+        _union(heads, first, root);
+    }
+  }
+
+  /* 
+     2.
+     Union roots that share the same parent,
+     unless the parent is the scene root node.
+  */
+  for (u32 i = 0; i < root_bones.count; ++i) {
+    for (u32 j = i + 1; j < root_bones.count; ++j) {
+      ufbx_node *parent1 = root_bones[i]->parent;
+      ufbx_node *parent2 = root_bones[j]->parent;
+      if (parent1 && 
+          parent1 == parent2 && 
+          parent1 != state->scene->root_node) {
+        _union(heads, i, j);
+      }
+    }
+  }
+
+
+  for (u32 h = 0; h < root_bones.count; ++h)
+  {
+    s32 head = _find(heads, h);
+    b32 visited = false;
+    for (u32 k = 0; k < h; ++k) {
+      if (_find(heads, k) == head) 
+        visited = true;
+    }
+    if (visited) continue;
+
+
+    // Collect all the bones forming the skeleton 
+    // by traversing from the root bone(s).
+    Array<Pair<ufbx_node*, s32>> bones(tctx.temp);
+    for (u32 i = 0; i < root_bones.count; ++i) {
+      if (_find(heads, i) == head) {
+        _collect_bones(root_bones[i], state, &bones, -1);
+      }
+    }
+
+    // Collect nodes referenced by the current skeleton.
+    // Used later while importing animations.
+    Array<ufbx_node *> nodes(tctx.temp);
+    for (u32 b = 0; b < bones.count; ++b) {
+      ufbx_node *node = bones.data[b].x;
+      append(&nodes, node);
+    }
 
 
     Skeleton skel = {};
@@ -700,8 +1073,8 @@ fbx_import_skeleton(Import_State *state, Allocator allocator)
         else
         {
           ufbx_matrix parent_world_inv = ufbx_matrix_invert(&bones[parent].x->node_to_world);
-          ufbx_matrix rel              = ufbx_matrix_mul(&parent_world_inv, &node->node_to_world);
-          bind_world[i]                = ufbx_matrix_mul(&bind_world[parent], &rel);
+          ufbx_matrix parent_from_node = ufbx_matrix_mul(&parent_world_inv, &node->node_to_world);
+          bind_world[i]                = ufbx_matrix_mul(&bind_world[parent], &parent_from_node);
         }
       }
 
@@ -711,7 +1084,7 @@ fbx_import_skeleton(Import_State *state, Allocator allocator)
 
       // Fill in the joint
       Joint *joint = &skel.joints[i];
-      joint->name                = copy_string(to_string(node->name), allocator);
+      joint->name                = to_string(node->name, allocator);
       joint->parent              = parent;
       joint->local_transform     = to_m4x4(local);
       joint->inverse_bind_matrix = to_m4x4(inv_bind_world[i]);
@@ -720,6 +1093,7 @@ fbx_import_skeleton(Import_State *state, Allocator allocator)
       table_add(&state->node_to_joint, node, Joint_Ref{ (s32)skeletons.count, (s32)i });
     }
 
+    append(&state->nodes_in_skeleton, nodes);
     append(&skeletons, skel);
   }
 
@@ -745,6 +1119,8 @@ fbx_import_skeleton(Import_State *state, Allocator allocator)
     // @Todo: File watcher will replace this shit.
     table_add(&asset_system->guid_to_path, id, path);
   }
+
+  log_info(S("Imported '%d' %S."), skeletons.count, skeletons.count==1 ? S("skeleton") : S("skeletons"));
 
   return skeletons;
 }
@@ -783,6 +1159,35 @@ write_skeleton_files(Import_State *state, Array<Skeleton> skeletons)
 }
 
 static void
+write_animation_files(Import_State *state, Array<Sampled_Animation> animations)
+{
+  for (u32 i = 0; i < animations.count; ++i)
+  {
+    Sampled_Animation *anim = animations.data + i;
+    String path = S("foo.sampled_animation");
+    
+    File file = file_open(path, true);
+    if (file_is_valid(file))
+    {
+      String s = asset_string_from_animation(anim, tctx.temp);
+      if (file_write(file, s.str, s.len))
+      {
+        log_info(S("Written animation to file: '%S'"), path);
+      }
+      else
+      {
+        log_error(S("Failed to write animation to file: '%S'"), path);
+      }
+    }
+    else
+    {
+      log_error(S("Failed to open file: '%S' while trying to write animation file"), path);
+    }
+    file_close(&file);
+  }
+}
+
+static void
 write_mesh_files(Import_State *state, Array<Triangle_Mesh> meshes)
 {
   String filename;
@@ -812,6 +1217,137 @@ write_mesh_files(Import_State *state, Array<Triangle_Mesh> meshes)
     log_error(S("Failed to open file: '%S' during importing meshes."), path);
   }
   file_close(&file);
+}
+
+static s32
+_find_animated_skeleton(Import_State *state, ufbx_anim_stack *stack)
+{
+  s32 n = (s32)state->skeletons.count;
+  s32 *hits = (s32*)alloc(sizeof(s32)*n, tctx.temp);
+  memset(hits, 0, sizeof(s32)*n);
+
+  for (ufbx_anim_layer *layer : stack->layers)
+  {
+    for (ufbx_anim_prop& prop : layer->anim_props)
+    {
+      ufbx_node *node = ufbx_as_node(prop.element);
+      if (!node) continue;
+
+      Joint_Ref *ref = table_find_pointer(&state->node_to_joint, node);
+      if (ref) hits[ref->skeleton_index_in_array] += 1;
+    }
+  }
+
+  s32 count = 0;
+  for (s32 i = 0; i < n; ++i) {
+    if (hits[i] > 0) count++;
+  }
+  if (count > 1) {
+    R_ASSERT(!"More than one skeleton was touched by the animation stack."); // @Todo: Handle this... but how?
+  }
+
+  for (s32 i = 0; i < n; ++i) {
+    if (hits[i] > 0) return i;
+  }
+  return -1;
+}
+
+static ufbx_matrix
+_evaluate_global_matrix(ufbx_node *node, ufbx_anim *anim, f64 time)
+{
+  if (node == NULL) return ufbx_identity_matrix;
+
+  ufbx_transform     transform = ufbx_evaluate_transform(anim, node, time);
+  ufbx_matrix parent_from_self = ufbx_transform_to_matrix(&transform);
+
+  ufbx_matrix world_from_parent = _evaluate_global_matrix(node->parent, anim, time);
+  return ufbx_matrix_mul(&world_from_parent, &parent_from_self);
+}
+
+static Array<Sampled_Animation>
+import_animations(Import_State *state, Allocator allocator)
+{
+  Array<Sampled_Animation> result(allocator);
+
+  for (ufbx_anim_stack *stack : state->scene->anim_stacks)
+  {
+    f64 duration = stack->time_end - stack->time_begin;
+    if (duration < 1e-6f) {
+      log_warning(S("Animation: `%s` has near-zero duration: `%.12fs`, so skipped import."), stack->name.data, duration);
+      continue;
+    }
+
+    // Find the skeleton to use for this animation.
+    s64 skel_i = _find_animated_skeleton(state, stack);
+    if (skel_i == -1) {
+      log_warning(S("Animation: `%s` didn't touch any skeleton, so skipped import."), stack->name.data);
+      continue;
+    }
+    Skeleton *skel = state->skeletons.data + skel_i;
+
+
+    // All nodes referenced by the selected skeleton.
+    // Ordered to match the skeleton's joint order.
+    Array<ufbx_node*> nodes = state->nodes_in_skeleton[skel_i];
+
+
+    Array<Animation_Sample> samples(allocator);
+
+    f64 frame_rate = state->options.animation_frame_rate;
+    s32 num_frames = (s32)ceil(duration * frame_rate - 1e-6) + 1;
+    for (s32 f = 0; f < num_frames; ++f)
+    {
+      f64 t = min(stack->time_begin + (f64)f / frame_rate, stack->time_end);
+
+      Animation_Sample sample = {};
+      sample.xforms.allocator = allocator;
+
+      for (u32 i = 0; i < nodes.count; ++i)
+      {
+        ufbx_node *node = nodes[i];
+        ufbx_transform transform = ufbx_evaluate_transform(stack->anim, node, t);
+
+        // Concatenate transforms coming from the scene root.
+        if (skel->joints[i].parent < 0)
+        {
+          ufbx_matrix local_matrix  = ufbx_transform_to_matrix(&transform);
+          ufbx_matrix concat_matrix = _evaluate_global_matrix(node->parent, stack->anim, t);
+          ufbx_matrix final_matrix  = ufbx_matrix_mul(&concat_matrix, &local_matrix);
+          transform = ufbx_matrix_to_transform(&final_matrix);
+        }
+
+        Xform xform(to_vec3(transform.translation), to_quaternion(transform.rotation), to_vec3(transform.scale));
+        append(&sample.xforms, xform);
+      }
+
+      append(&samples, sample);
+    }
+
+    // Append
+    Sampled_Animation anim = {};
+    anim.skeleton   = skel->id;
+    anim.num_joints = skel->num_joints;
+    anim.frame_rate = (s32)frame_rate;
+    anim.duration   = duration;
+    anim.samples    = samples;
+    append(&result, anim);
+  }
+
+  log_info(S("Imported '%d' %S."), result.count, result.count==1 ? S("animation") : S("animations"));
+
+  return result;
+}
+
+static void
+_print(ufbx_node *node, int depth)
+{
+  printf("                                  ");
+  for (int i = 0; i < depth; ++i) printf("| ");
+  printf("%s\n", node->name.data);
+
+  for (ufbx_node *child : node->children) {
+    _print(child, depth+1);
+  }
 }
 
 b32
@@ -847,6 +1383,7 @@ fbx_import(String             filepath,
     log_error(S("Failed to load fbx scene from '%S'. Description from ufbx: %s"), filepath, error.description.data);
     return false;
   }
+  _print(scene->root_node, 0);
 
 
   // Make import state
@@ -854,25 +1391,31 @@ fbx_import(String             filepath,
   state.scene     = scene;
   state.directory = out_directory;
   state.basename  = path_basename(filepath);
+  state.options   = options;
   state.node_to_joint.allocator = tctx.temp;
+  state.nodes_in_skeleton.allocator = tctx.temp;
 
 
-  // 
+  // @Temporary
   Allocator allocator = tctx.temp;
 
 
   // Import skeletons
-  Array<Skeleton> skeletons = fbx_import_skeleton(&state, allocator);
+  Array<Skeleton> skeletons = import_skeletons(&state, allocator);
   state.skeletons = skeletons;
-  write_skeleton_files(&state, skeletons); // @Todo: Prune unreferenced skeletons first
+  write_skeleton_files(&state, skeletons);
 
+
+  // Import animations
+  Array<Sampled_Animation> animations = import_animations(&state, allocator);
+  write_animation_files(&state, animations);
 
   // Import materials
   auto material_pointer_to_path = fbx_import_materials(scene);
 
 
   // Import meshes
-  Array<Triangle_Mesh> meshes = fbx_import_mesh(scene->root_node, &state, options, material_pointer_to_path, allocator);
+  Array<Triangle_Mesh> meshes = import_meshes(scene->root_node, &state, material_pointer_to_path, allocator);
   write_mesh_files(&state, meshes);
 
   ufbx_free_scene(scene);

@@ -128,6 +128,7 @@ add_library(rts_engine STATIC
     src/development/console.cpp
 
     src/mesh.cpp
+    src/animation.cpp
 
 
 
