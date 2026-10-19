@@ -20,6 +20,11 @@ struct R_Pass_Geometry : R_Pass
   RHI_Buffer_View      skinning_view;
   void                *skinning_ptr;
   u32                  skinning_used; // Reset every frame please.
+
+  #include "shaders/pass/terrain.h"
+  b32                  terrain_initted;
+  Guid                 terrain_mesh_id;
+  Guid                 terrain_pipeline;
 };
 
 R_PASS_DECLARE_PROCS( Geometry );

@@ -247,6 +247,8 @@ gfx_mesh_create(Guid guid,
                 void *vertices, u32 num_vertices, u32 vertex_size, 
                 void *indices, u32 num_indices, u32 index_size);
 
+
+
 void 
 gfx_mesh_destroy(Guid guid);
 

@@ -120,7 +120,6 @@ add_library(rts_engine STATIC
     src/game.cpp
     src/shared.cpp
     src/material/material.cpp
-    src/level.cpp
 
     src/font/harfbuzz/harfbuzz.cpp
     src/font/harfbuzz/font.cpp
@@ -129,6 +128,7 @@ add_library(rts_engine STATIC
 
     src/mesh.cpp
     src/animation.cpp
+    src/terrain.cpp
 
 
 

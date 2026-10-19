@@ -146,16 +146,6 @@ vec2 operator * (vec2 l, vec2 r) {
     return v;
 }
 
-
-
-
-
-f32 triarea2(vec2 a, vec2 b, vec2 c) {
-    vec2 p = c - b;
-    vec2 q = a - b;
-    return p.x*q.y - p.y*q.x;
-}
-
 f64 fmod_cycling(f64 x, f64 y) 
 {
   R_ASSERT( y != 0 );
@@ -511,47 +501,61 @@ f32 dot(Quaternion a, Quaternion b)
 
 Quaternion nlerp(Quaternion a, Quaternion b, f32 t) 
 {
-    __m128 ax4 = a.sse;
-    __m128 bx4 = b.sse;
-    __m128 tx4 = _mm_set1_ps(t);
-    __m128 dx4 = _mm_sub_ps(bx4, ax4);
-    Quaternion q;
-    q.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
-    return q;
+  __m128 ax4 = a.sse;
+  __m128 bx4 = b.sse;
+  __m128 tx4 = _mm_set1_ps(t);
+  __m128 dx4 = _mm_sub_ps(bx4, ax4);
+  Quaternion q;
+  q.sse = _mm_add_ps(ax4, _mm_mul_ps(tx4, dx4));
+  return q;
 }
 
 Quaternion slerp(Quaternion q1, Quaternion q2, f32 t) 
 {
-    f32 cosom = q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
-    Quaternion q3 = q2;
-    if (cosom < 0.0f) {
-        cosom = -cosom;
-        q3.w = -q3.w;
-        q3.x = -q3.x;
-        q3.y = -q3.y;
-        q3.z = -q3.z;
-    }
+  f32 cosom = q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
+  Quaternion q3 = q2;
+  if (cosom < 0.0f) {
+    cosom = -cosom;
+    q3.w = -q3.w;
+    q3.x = -q3.x;
+    q3.y = -q3.y;
+    q3.z = -q3.z;
+  }
 
-    f32 sclp, sclq;
-    f32 threshold = 1e-8f;
+  f32 sclp, sclq;
+  f32 threshold = 1e-8f;
 
-    if (1.0f - cosom > threshold) {
-        f32 omega, sinom;
-        omega = acosf(cosom);
-        sinom = m_sin(omega);
-        sclp  = m_sin((1.0f - t) * omega) / sinom;
-        sclq  = m_sin(t * omega) / sinom;
-    } else {
-        sclp = 1.0f - t;
-        sclq = t;
-    }
+  if (1.0f - cosom > threshold) {
+    f32 omega, sinom;
+    omega = acosf(cosom);
+    sinom = m_sin(omega);
+    sclp  = m_sin((1.0f - t) * omega) / sinom;
+    sclq  = m_sin(t * omega) / sinom;
+  } else {
+    sclp = 1.0f - t;
+    sclq = t;
+  }
 
-    Quaternion q;
-    q.w = sclp * q1.w + sclq * q3.w;
-    q.x = sclp * q1.x + sclq * q3.x;
-    q.y = sclp * q1.y + sclq * q3.y;
-    q.z = sclp * q1.z + sclq * q3.z;
-    return q;
+  Quaternion q;
+  q.w = sclp * q1.w + sclq * q3.w;
+  q.x = sclp * q1.x + sclq * q3.x;
+  q.y = sclp * q1.y + sclq * q3.y;
+  q.z = sclp * q1.z + sclq * q3.z;
+  return q;
+}
+
+Quaternion 
+nlerp_shortest(Quaternion a, Quaternion b, f32 t)
+{
+  if (dot(a, b) < 0)  b = -b;
+  return nlerp(a, b, t);
+}
+
+Quaternion
+slerp_shortest(Quaternion a, Quaternion b, f32 t)
+{
+  if (dot(a, b) < 0)  b = -b;
+  return slerp(a, b, t);
 }
 
 // m4x4

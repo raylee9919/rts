@@ -34,16 +34,24 @@ void game_state_deinit(Game_State *g) {
     os_release(g->storage.base, g->storage.reserved);
 }
 
-void game_init(f64 time_init) {
-    // Initialize game state
-    game_state_init(&game_state);
-    game_state->time = time_init;
+void 
+game_init(f64 time_init) 
+{
+  // Initialize game state
+  game_state_init(&game_state);
+  game_state->time = time_init;
 
-    // Allocate root entity
-    Entity *root = entity_alloc(game_state);
-    game_state->root = handle_from_entity(game_state, root);
+  // Allocate root entity
+  Entity *root = entity_alloc(game_state);
+  game_state->root = handle_from_entity(game_state, root);
 
-    log_info(S("Initialized game state."));
+  // Init terrain
+  terrain_init(game_state,
+               &game_state->terrain,
+               NULL_GUID, 12.f,
+               256, 256, 1.f);
+
+  log_info(S("Initialized game state."));
 }
 
 void game_shutdown() {
@@ -116,31 +124,51 @@ Entity *entity_alloc(Game_State *g) {
 }
 
 void entity_dealloc(Game_State *g, Entity *entity) {
-    // @Todo: Must remove from the tree, decommit page?
-    g->num_entities -= 1;
+  // @Todo: Must remove from the tree, decommit page?
+  g->num_entities -= 1;
 }
 
 void entity_dealloc(Game_State *g, Handle handle) { 
-    Entity *entity = entity_from_handle(g, handle);
-    if (entity) {
-        entity_dealloc(g, entity);
-    }
+  Entity *entity = entity_from_handle(g, handle);
+  if (entity) {
+    entity_dealloc(g, entity);
+  }
 }
 
-Entity *entity_from_handle(Game_State *g, Handle handle) {
-    if (handle.is_null()) return NULL;
-    Entity *entity = (Entity *)(g->storage.base + handle.offset);
-    if (entity->generational_id == handle.generational_id) {
-        return entity;
-    }
-    return NULL;
+Handle 
+handle_from_pointer(Game_State *g, void *ptr) 
+{
+  Handle h = {};
+  h.offset = (u8*)ptr - g->storage.base;
+  return h;
 }
 
-Handle handle_from_entity(Game_State *g, Entity *entity) {
-    Handle h;
-    h.offset = (u8*)entity - g->storage.base;
-    h.generational_id = entity->generational_id;
-    return h;
+u8 *
+pointer_from_handle(Game_State *g, Handle handle) 
+{
+  if (handle.is_null()) return NULL;
+  u8 *ptr = (u8 *)(g->storage.base + handle.offset);
+  return ptr;
+}
+
+Handle 
+handle_from_entity(Game_State *g, Entity *entity) 
+{
+  Handle h;
+  h.offset = (u8*)entity - g->storage.base;
+  h.generational_id = entity->generational_id;
+  return h;
+}
+
+Entity *
+entity_from_handle(Game_State *g, Handle handle) 
+{
+  if (handle.is_null()) return NULL;
+  Entity *entity = (Entity *)(g->storage.base + handle.offset);
+  if (entity->generational_id == handle.generational_id) {
+    return entity;
+  }
+  return NULL;
 }
 
 void entity_add_child(Game_State *g, Handle parent, Handle child) {

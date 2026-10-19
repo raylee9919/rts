@@ -119,7 +119,7 @@ VS_Output main_vs_skeletal(uint vertex_id : SV_VertexID, uint instance_id : SV_I
 }
 
 // @Temporary: single directional light
-static const float3 TO_LIGHT        = normalize(float3(0.5, 1.0, 0.8));
+static const float3 TO_LIGHT        = normalize(float3(0.5, -0.5, 1.0));
 static const float3 LIGHT_RADIANCE  = float3(1.0, 1.0, 1.0) * 4.0;
 
 [shader("pixel")]

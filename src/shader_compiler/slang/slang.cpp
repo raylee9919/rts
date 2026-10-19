@@ -173,6 +173,10 @@ create_session(Shader_Compiler  *compiler,
       e->name            = CompilerOptionName::Optimization;
       e->value.kind      = CompilerOptionValueKind::Int;
       e->value.intValue0 = SLANG_OPTIMIZATION_LEVEL_NONE;
+
+      e->name            = CompilerOptionName::LineDirectiveMode;
+      e->value.kind      = CompilerOptionValueKind::Int;
+      e->value.intValue0 = SLANG_LINE_DIRECTIVE_MODE_STANDARD;
     } else {
       e = &option_entries[num_option_entries++];
       e->name            = CompilerOptionName::Optimization;

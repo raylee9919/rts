@@ -319,48 +319,49 @@ static void gfx_decode_key(u64 key, u64 *out_subkeys) {
     }
 }
 
-void gfx_mesh_create(Guid guid, 
-                     void *vertices, u32 num_vertices, u32 vertex_size, 
-                     void *indices, u32 num_indices, u32 index_size)
+void 
+gfx_mesh_create(Guid guid, 
+                void *vertices, u32 num_vertices, u32 vertex_size, 
+                void *indices,  u32 num_indices,  u32 index_size)
 {
-    RHI_Buffer vb        = {};
-    RHI_Buffer ib        = {};
-    RHI_Buffer_View view = {};
+  RHI_Buffer vb        = {};
+  RHI_Buffer ib        = {};
+  RHI_Buffer_View view = {};
 
-    gfx_create_gpu_buffer(&vb, num_vertices * vertex_size);
-    gfx_create_gpu_buffer(&ib, num_indices * index_size);
-    gfx_create_structured_view(&view, &vb, num_vertices, vertex_size);
+  gfx_create_gpu_buffer(&vb, num_vertices * vertex_size);
+  gfx_create_gpu_buffer(&ib, num_indices * index_size);
+  gfx_create_structured_view(&view, &vb, num_vertices, vertex_size);
 
-    GFX_Mesh entry = {};
-    entry.vertex_buffer      = vb;
-    entry.vertex_buffer_view = view;
-    entry.index_buffer       = ib;
-    entry.index_size         = index_size;
-    entry.num_indices        = num_indices;
+  GFX_Mesh entry = {};
+  entry.vertex_buffer      = vb;
+  entry.vertex_buffer_view = view;
+  entry.index_buffer       = ib;
+  entry.index_size         = index_size;
+  entry.num_indices        = num_indices;
 
-    table_add(&gfx->mesh_table, guid, entry);
+  table_add(&gfx->mesh_table, guid, entry);
 
-    { // Upload vertex buffer and index buffer.
-        u64 vb_sz = num_vertices * vertex_size;
-        u64 ib_sz = num_indices * index_size;
-        u64 total = vb_sz + ib_sz;
+  { // Upload vertex buffer and index buffer.
+    u64 vb_sz = num_vertices * vertex_size;
+    u64 ib_sz = num_indices * index_size;
+    u64 total = vb_sz + ib_sz;
 
-        u64 offset = gfx_upload_reserve(total, 16);
-        u8 *dst = gfx->upload_buffer_mapped + offset;
+    u64 offset = gfx_upload_reserve(total, 16);
+    u8 *dst = gfx->upload_buffer_mapped + offset;
 
-        memcpy(dst,         vertices, vb_sz);
-        memcpy(dst + vb_sz, indices,  ib_sz);
+    memcpy(dst,         vertices, vb_sz);
+    memcpy(dst + vb_sz, indices,  ib_sz);
 
-        rhi_command_buffer_begin(&gfx->copy_buffer);
-        {
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &vb, &gfx->upload_buffer, 0, offset,         vb_sz);
-            rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &ib, &gfx->upload_buffer, 0, offset + vb_sz, ib_sz);
-        }
-        rhi_command_buffer_end(&gfx->copy_buffer);
-        RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-        rhi_submit(gfx->device, 1, buffers);
-        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
+    rhi_command_buffer_begin(&gfx->copy_buffer);
+    {
+      rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &vb, &gfx->upload_buffer, 0, offset,         vb_sz);
+      rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &ib, &gfx->upload_buffer, 0, offset + vb_sz, ib_sz);
     }
+    rhi_command_buffer_end(&gfx->copy_buffer);
+    RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
+    rhi_submit(gfx->device, 1, buffers);
+    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
+  }
 }
 
 static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
@@ -376,61 +377,67 @@ static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
     }
 }
 
-void gfx_mesh_destroy(Guid guid) {
-    // Destruction is deferred until the current workload on the GPU is done.
-    // @Todo: This isn't settled yet.. Async asset loading, sorting pass, after-frame 
-    // callbacks,...
-    GFX_Callback_Entry entry = {};
-    entry.semaphore_value_to_execute = gfx->current_frame;
-    entry.proc    = gfx_mesh_destroy_callback;
-    entry.mesh_id = guid;
+void 
+gfx_mesh_destroy(Guid guid) 
+{
+  // Destruction is deferred until the current workload on the GPU is done.
+  // @Todo: This isn't settled yet.. Async asset loading, sorting pass, after-frame 
+  // callbacks,...
+  GFX_Callback_Entry entry = {};
+  entry.semaphore_value_to_execute = gfx->current_frame;
+  entry.proc    = gfx_mesh_destroy_callback;
+  entry.mesh_id = guid;
 
-    gfx_add_callback(entry);
+  gfx_add_callback(entry);
 }
 
-void gfx_texture_create(Guid guid, RHI_Texture_Desc desc) {
-    GFX_Texture_Entry entry = {};
+void 
+gfx_texture_create(Guid guid, RHI_Texture_Desc desc) 
+{
+  GFX_Texture_Entry entry = {};
 
-    R_ASSERT( rhi_texture_init(gfx->device, &entry.texture, &desc, NULL) );
+  R_ASSERT( rhi_texture_init(gfx->device, &entry.texture, &desc, NULL) );
 
-    auto CreateView = [&](RHI_Texture_View *view, RHI_Texture_View_Type type) {
-        RHI_Texture_View_Desc vdesc = {};
-        vdesc.type               = type;
-        vdesc.dimension          = desc.type;
-        vdesc.format             = desc.format;
-        vdesc.base_mip_level     = 0;
-        vdesc.base_array_layer   = 0;
-        vdesc.mip_levels         = desc.mip_levels;
-        vdesc.depth              = desc.depth;
+  auto CreateView = [&](RHI_Texture_View *view, RHI_Texture_View_Type type) {
+    RHI_Texture_View_Desc vdesc = {};
+    vdesc.type               = type;
+    vdesc.dimension          = desc.type;
+    vdesc.format             = desc.format;
+    vdesc.base_mip_level     = 0;
+    vdesc.base_array_layer   = 0;
+    vdesc.mip_levels         = desc.mip_levels;
+    vdesc.depth              = desc.depth;
 
-        rhi_texture_view_init(gfx->device, view, &entry.texture, &vdesc);
-    };
+    rhi_texture_view_init(gfx->device, view, &entry.texture, &vdesc);
+  };
 
-    if (desc.usage & RHI_TEXTURE_USAGE_SAMPLED) {
-        CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
-    }
+  if (desc.usage & RHI_TEXTURE_USAGE_SAMPLED) {
+    CreateView(&entry.srv, RHI_TEXTURE_VIEW_TYPE_SAMPLED);
+  }
 
-    if (desc.usage & RHI_TEXTURE_USAGE_STORAGE) {
-        CreateView(&entry.uav, RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS);
-    }
+  if (desc.usage & RHI_TEXTURE_USAGE_STORAGE) {
+    CreateView(&entry.uav, RHI_TEXTURE_VIEW_TYPE_UNORDERED_ACCESS);
+  }
 
-    table_add(&gfx->texture_table, guid, entry);
+  table_add(&gfx->texture_table, guid, entry);
 }
 
-void gfx_texture_destroy(Guid guid) {
-    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry) {
-        if (entry->srv.kind != RHI_KIND_INVALID) {
-            rhi_texture_view_deinit(&entry->srv);
-        }
-
-        if (entry->srv.kind != RHI_KIND_INVALID) {
-            rhi_texture_view_deinit(&entry->uav);
-        }
-
-        rhi_texture_deinit(&entry->texture);
-        table_remove(&gfx->texture_table, guid);
+void 
+gfx_texture_destroy(Guid guid) 
+{
+  GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+  if (entry) {
+    if (entry->srv.kind != RHI_KIND_INVALID) {
+      rhi_texture_view_deinit(&entry->srv);
     }
+
+    if (entry->srv.kind != RHI_KIND_INVALID) {
+      rhi_texture_view_deinit(&entry->uav);
+    }
+
+    rhi_texture_deinit(&entry->texture);
+    table_remove(&gfx->texture_table, guid);
+  }
 }
 
 void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height) {
@@ -880,6 +887,7 @@ gfx_end(f64 time,
 
 
           // Draw mesh.
+          // Null pointer checked in 'gfx_draw'
           GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, cmd.mesh_handle);
           if (mesh) 
           {

@@ -222,6 +222,8 @@ Quaternion     operator - (Quaternion in);
 Quaternion     normalize(Quaternion q);
 Quaternion     nlerp(Quaternion a, Quaternion b, f32 t);
 Quaternion     slerp(Quaternion q1, Quaternion q2, f32 t);
+Quaternion     nlerp_shortest(Quaternion a, Quaternion b, f32 t);
+Quaternion     slerp_shortest(Quaternion a, Quaternion b, f32 t);
 m4x4           operator * (m4x4 a, m4x4 b);
 m4x4&          operator *= (m4x4& m, f32 f);
 vec4           operator * (m4x4 m, vec4 p);
@@ -260,37 +262,37 @@ vec3           unproject(vec3 position, m4x4 viewproj);
 Ray3           ray_from_screen_position(vec2 position, f32 screen_width, f32 screen_height, m4x4 viewproj);
 
 
-//
-// Graphics
-//
-// I like to view the process of building look-at matrix as determining the
-// local axes of a camera placed in the world. The axes are the camera's own
-// language, into which the objects' positions, expressed in the world's
-// language are translated.
-//
-// The problem is that axes can be arbitrary. Just imagine three orthogonal
-// axes rotating rotating wildly around the camera. Thus, we must impose some
-// constraints.
-//
-// As most, if not all, graphics APIs' viewport is X-right and Y-up, these will
-// be the premises in the API. Of course, I provide additional functionality to
-// customize them, but IMO, the extra verbosity isn't worth it.
-//
-// Now, all we have to determine is Z. Does it point "foward" or "backward"?
-// In other words, is it left-handed or right-handed? This is only variant exposed by the API.
-//
+/*
+  Graphics
+  
+  I like to view the process of building look-at matrix as determining the
+  local axes of a camera placed in the world. The axes are the camera's own
+  language, into which the objects' positions, expressed in the world's
+  language are translated.
+  
+  The problem is that axes can be arbitrary. Just imagine three orthogonal
+  axes rotating rotating wildly around the camera. Thus, we must impose some
+  constraints.
+  
+  As most, if not all, graphics APIs' viewport is X-right and Y-up, these will
+  be the premises in the API. Of course, I provide additional functionality to
+  customize them, but IMO, the extra verbosity isn't worth it.
+  
+  Now, all we have to determine is Z. Does it point "foward" or "backward"?
+  In other words, is it left-handed or right-handed? This is only variant exposed by the API.
+*/
 m4x4 look_to_lh(vec3 from, vec3 to, vec3 up);
 m4x4 look_to_rh(vec3 from, vec3 to, vec3 up);
 m4x4 look_at_lh(vec3 from, vec3 at, vec3 up);
 m4x4 look_at_rh(vec3 from, vec3 at, vec3 up);
 
-// For perspective projection as well, we impose the following premises: [0,1]
-// for NDC depth, X-right and Y-up. The projection maps 'near_z' to 0 and
-// 'far_z' to 1. 
-// 
-// LH and RH variants specify the handedness of the input space. The 'near_z' and 
-// 'far_z' parameters are distances, and are therefore unsigned.
-//
+/*
+  For perspective projection as well, we impose the following premises: [0,1]
+  for NDC depth, X-right and Y-up. The projection maps 'near_z' to 0 and 'far_z' to 1. 
+  
+  LH and RH variants specify the handedness of the input space. The 'near_z' and 
+  'far_z' parameters are distances, and are therefore unsigned.
+*/
 m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
 m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
 
@@ -301,7 +303,6 @@ vec4 unpack_rgba(u32 rgba);
 f32           m_tan(f32 f);
 f32           m_atan(f32 f);
 f32           m_atan2(f32 a, f32 b);
-f32           triarea2(vec2 a, vec2 b, vec2 c);
 vec4          operator + (vec4 a, vec4 b);
 m4x4&         operator += (m4x4& l, m4x4 r);
 bool          ray_plane_intersect(Ray3 ray, vec3 plane_normal, f32 plane_height, vec3* out);

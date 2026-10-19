@@ -27,6 +27,8 @@
 
 // @Todo
 // - I had no idea asset loading function pointers would be hard to debug...
+// - Shader compiler debug option
+// - Not fond of guid generation...
 
 
 static b8 key_w = 0;
@@ -68,20 +70,21 @@ void game_tick(Game_State *g, f64 dt)
     f32 turn_speed     = 0.25f;
 
 
+#if 1
     if (key_w) {
-        camera->position += dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
+        camera->position += dt * movement_speed * (x_rotation(camera->pitch) * z_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
     }
 
     if (key_a) {
-        camera->position -= dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
+        camera->position -= dt * movement_speed * (z_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
     }
 
     if (key_s) {
-        camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * y_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
+        camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * z_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
     }
 
     if (key_d) {
-        camera->position += dt * movement_speed * (y_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
+        camera->position += dt * movement_speed * (z_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
     }
 
     if (key_q) {
@@ -91,6 +94,7 @@ void game_tick(Game_State *g, f64 dt)
     if (key_e) {
         camera->position += dt * movement_speed * UP_VECTOR.xyz;
     }
+#endif
 
 #if 0
     static v2 p0 = {};
@@ -149,16 +153,13 @@ main_entry(int argc, char **argv)
   shared_init();
 
   // Init timers
-  f64 time_old        = time_seconds();
-  f64 dt              = 1.0 / 60.0; // Update frequency, Tick rate
-  f64 accumulator     = 0.f;
+  f64 time_old    = time_seconds();
+  f64 dt          = 1.0 / 60.0; // Update frequency, Tick rate
+  f64 accumulator = 0.f;
 
   // Init asset system.
   // Register asset types and init catalog.
   asset_system_init();
-
-  // Init Game
-  game_init(time_old);
 
   // Open window
   shared->window = window_create(1920, 1080, S("RTS"), true);
@@ -170,15 +171,22 @@ main_entry(int argc, char **argv)
   Thread audio_thread = thread_launch(audio_entry, NULL);
 
   // Spin-lock until renderer is initted.
-  while (!renderer || !renderer->initted) {}
+  while (1) {
+    auto *r = (volatile Renderer *)renderer;
+    if (r && r->initted) break;
+    _mm_pause();
+  }
 
   // Init material system.
   // Reflect and construct material type table.
   String material_shader_path = tprint(S("%S/%S"), shared->data_path, S("shaders/material/"));
   material_system_init(material_shader_path, shared->shader_compiler);
 
+  // Init Game
+  game_init(time_old);
+
   // Init camera
-  game_state->camera.position = vec3(0.f, 0.7f, 1.6f); // Framed on the knight.
+  game_state->camera.position = vec3(0.f, -1.6f, 0.7f); // Framed on the knight.
 
 
 
@@ -189,14 +197,14 @@ main_entry(int argc, char **argv)
   FBX_Import_Options options = {};
   options.generate_normals_with_mesh_optimizer = true;
   options.overwrite_existing_file = true;
-  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Mixamo/BreakdanceEnding2.fbx"), S(""), options) );
+  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Mixamo/OrcWalk.fbx"), S(""), options) );
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
   Entity *my_entity = entity_alloc(game_state);
   my_entity->mesh = mesh_id;
   asset_request(mesh_id, NULL_GUID, NULL);
 
-  my_entity->animation_id = guid_from_string(S("goblin/BreakdanceEnding2.sampled_animation"));
+  my_entity->animation_id = guid_from_string(S("goblin/OrcWalk.sampled_animation"));
   asset_request(my_entity->animation_id, NULL_GUID, NULL);
   // @Temporary
   // @Temporary

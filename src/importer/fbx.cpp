@@ -524,7 +524,7 @@ import_mesh_internal(ufbx_node*                               node,
     }
     else
     {
-      log_warning(S("Mesh %s doesn't have UVs, so tangent generation will be skipped."), mesh->name.data);
+      log_warning(S("Mesh '%s' doesn't have UVs. Skipping tangent generation."), mesh->name.data);
     }
 
 
@@ -1363,9 +1363,9 @@ fbx_import(String             filepath,
 
   ufbx_load_opts opts = {};
   opts.target_unit_meters          = 1.0f;
-  opts.target_axes                 = ufbx_axes_right_handed_y_up;
-  opts.target_camera_axes          = ufbx_axes_right_handed_y_up;
-  opts.target_light_axes           = ufbx_axes_right_handed_y_up;
+  opts.target_axes                 = ufbx_axes_right_handed_z_up;
+  opts.target_camera_axes          = ufbx_axes_right_handed_z_up;
+  opts.target_light_axes           = ufbx_axes_right_handed_z_up;
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY; // bakes it into node
   opts.inherit_mode_handling       = UFBX_INHERIT_MODE_HANDLING_IGNORE;
   opts.clean_skin_weights          = true;

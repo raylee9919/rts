@@ -90,7 +90,7 @@ struct Render_Entry
   u32             num_quads;
 };
 
-struct Render_SPSC_Queue 
+struct Render_Ring 
 {
   Mutex           mutex      = {};
   Condvar         condvar    = {};
@@ -140,7 +140,7 @@ struct Renderer
   volatile b32 initted;
 
   // Ring buffer shared with game thread.
-  Render_SPSC_Queue ring;
+  Render_Ring ring;
 
   // Textures
   Guid scene_depth[RHI_MAX_BUFFER_COUNT];

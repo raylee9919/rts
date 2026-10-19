@@ -7,6 +7,8 @@
 #include "mesh.h"
 #include "animation.h"
 #include "math/math.h"
+#include "shader_compiler/shader.h"
+#include "shared.h"
 
 #define R_MAX_SKINNING_MATRICES 65536 // @Temporary
 
@@ -41,6 +43,9 @@ R_PASS_INIT( RenderPassInit_Geometry )
     rhi_buffer_view_init(gfx->device, &result->arguments_view, &result->arguments_buffer, &view_desc);
 
     result->arguments_ptr = rhi_buffer_map(&result->arguments_buffer);
+
+
+    
   }
 
   { // Create skinning buffer and view
@@ -66,6 +71,7 @@ R_PASS_INIT( RenderPassInit_Geometry )
 
     result->skinning_ptr = rhi_buffer_map(&result->skinning_buffer);
   }
+
 
   return result;
 }
@@ -98,17 +104,156 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
   GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
   memcpy(renderer->camera_ptr, &gpu_camera, sizeof(gpu_camera));
 
-  struct Data {
-    R_Pass_Geometry *pass;
-    GPU_Camera *camera;
-    s64 num_draws;
-  } data_;
-  data_.pass = pass;
-  data_.num_draws = 0;
-  data_.camera = &gpu_camera;
-
   gfx_pass_begin(R_PASS_GEOMETRY, &gfx_pass);
   {
+    //
+    // Draw terrain
+    //
+    {
+      Terrain *terrain = &g->terrain;
+      R_ASSERT(terrain->initted);
+
+      if (!pass->terrain_initted)
+      {
+        // Create pipeline
+        pass->terrain_pipeline = guid_generate();
+        r_pipeline_create(pass->terrain_pipeline,
+                          S("shaders/pass/terrain.slang"),
+                          S("main_vs"),
+                          S("shaders/material/default.slang"),
+                          SHADING_MODEL_OPAQUE);
+
+
+        // Create mesh
+        pass->terrain_mesh_id = guid_generate();
+        struct Terrain_Vertex {
+          float position[3];
+          float uv[2];
+          float normal[3];
+          float tangent[4];
+        };
+
+        s64 cell_x       = terrain->vertices_x - 1;
+        s64 cell_y       = terrain->vertices_y - 1;
+        f32 cell_size    = terrain->cell_size;
+        s64 num_vertices = terrain->vertices_x * terrain->vertices_y;
+        s64 num_indices  = cell_x*cell_y*6;
+        f32 *heights     = (f32*)pointer_from_handle(g, terrain->heights);
+
+        Terrain_Vertex *vertices = (Terrain_Vertex*)alloc(sizeof(Terrain_Vertex)*num_vertices, tctx.temp);
+        u32 *indices = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
+
+        // Make vertices
+        for (s64 y = 0; y < terrain->vertices_y; ++y)
+        {
+          for (s64 x = 0; x < terrain->vertices_x; ++x)
+          {
+            s64 index = y*terrain->vertices_x + x;
+            f32 height = heights[index];
+
+            Terrain_Vertex *vert = vertices + index;
+
+            vert->position[0] = terrain->corner_x + x*cell_size;
+            vert->position[1] = terrain->corner_y + y*cell_size;
+            vert->position[2] = height;
+            
+            vert->uv[0] = (f32)x / (f32)terrain->vertices_x;
+            vert->uv[1] = (f32)y / (f32)terrain->vertices_y;
+
+            s64 xl = max(x - 1, (s64)0);
+            s64 xr = min(x + 1, terrain->vertices_x - 1);
+            s64 yd = max(y - 1, (s64)0);
+            s64 yu = min(y + 1, terrain->vertices_y - 1);
+
+            f32 dhdx = (heights[y*terrain->vertices_x + xr] - heights[y*terrain->vertices_x + xl]) / ((f32)(xr - xl) * cell_size);
+            f32 dhdy = (heights[yu*terrain->vertices_x + x] - heights[yd*terrain->vertices_x + x]) / ((f32)(yu - yd) * cell_size);
+
+            vec3 n = normalize(vec3(-dhdx, -dhdy, 1.f));
+            vert->normal[0] = n.x;
+            vert->normal[1] = n.y;
+            vert->normal[2] = n.z;
+
+            vec3 t = normalize(vec3(1.f, 0.f, dhdx));
+            vert->tangent[0] = t.x;
+            vert->tangent[1] = t.y;
+            vert->tangent[2] = t.z;
+            vert->tangent[3] = 1.f;
+          }
+        }
+
+        // Make indices
+        u32 *dst = indices;
+        for (s64 y = 0; y < cell_y; ++y)
+        {
+          for (s64 x = 0; x < cell_x; ++x)
+          {
+            u32 i00 = (u32)(y*terrain->vertices_x + x);
+            u32 i10 = i00 + 1;
+            u32 i01 = i00 + terrain->vertices_x;
+            u32 i11 = i01 + 1;
+
+            if (fabsf(heights[i11] - heights[i00]) <= fabsf(heights[i10] - heights[i01])) {
+              // Diagonal is '00-11'
+              *dst++ = i00;
+              *dst++ = i11;
+              *dst++ = i01;
+              *dst++ = i00;
+              *dst++ = i10;
+              *dst++ = i11;
+            } else {
+              // Diagonal is '10-01'
+              *dst++ = i00;
+              *dst++ = i10;
+              *dst++ = i01;
+              *dst++ = i10;
+              *dst++ = i11;
+              *dst++ = i01;
+            }
+          }
+        }
+
+        // Make normals
+
+        gfx_mesh_create(pass->terrain_mesh_id,
+                        vertices, num_vertices, sizeof(Terrain_Vertex), 
+                        indices, num_indices, sizeof(u32));
+
+
+        pass->terrain_initted = true;
+      }
+
+      gfx_set_pipeline(pass->terrain_pipeline);
+
+      GFX_Mesh *terrain_mesh = table_find_pointer(&gfx->mesh_table, pass->terrain_mesh_id);
+      R_ASSERT(terrain_mesh);
+
+      R_Pass_Geometry::Terrain_Push_Constants c = {};
+      c.vertex_buffer_id   = terrain_mesh->vertex_buffer_view.bindless;
+      c.linear_sampler_id  = gfx->linear_sampler.bindless;
+      c.camera_buffer_id   = renderer->camera_view.bindless;
+      c.material_buffer_id = renderer->material_buffer.view.bindless;
+      c.heightmap_id       = gfx_srv_bindless_from_texture(terrain->height_map_id);
+      c.material_offset    = material_from_guid(terrain->material_id)->offset;
+      gfx_push_constants(&c, sizeof(c));
+
+
+      u32 num_indices = 6*(terrain->vertices_x-1)*(terrain->vertices_y-1);
+      gfx_draw(pass->terrain_mesh_id, 1, 0, num_indices);
+    }
+
+
+    //
+    // Draw entities
+    //
+    struct Data {
+      R_Pass_Geometry *pass;
+      GPU_Camera *camera;
+      s64 num_draws;
+    } data_;
+    data_.pass = pass;
+    data_.num_draws = 0;
+    data_.camera = &gpu_camera;
+
     entity_dfs(g, g->root, &data_, [](Game_State *g, Entity *E, u64 counter, void *data_) {
       Data *data = (Data*)data_;
       R_Pass_Geometry *pass = data->pass;
@@ -192,12 +337,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                     Xform *xform1 = sample1->xforms.data + j;
 
                     vec3 t = lerp(xform0->translation, xform1->translation, a);
-                    Quaternion r;
-                    if (dot(xform0->rotation, xform1->rotation) < 0) {
-                      r = nlerp(xform0->rotation, -xform1->rotation, a);
-                    } else {
-                      r = nlerp(xform0->rotation, xform1->rotation, a);
-                    }
+                    Quaternion r = nlerp_shortest(xform0->rotation, xform1->rotation, a);
                     vec3 s = lerp(xform0->scale, xform1->scale, a);
                     Xform xform(t, r, s);
 
@@ -218,69 +358,9 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                   }
 
                   pass->skinning_used += skel->num_joints;
-
-
-#if 1
-                  // @Temporary: Visualize skeleton
-                  { 
-                    GPU_Camera cam = gpu_camera_from_game(&game_state->camera);
-                    m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
-                    m4x4 mvp = cam.view_proj * transform;
-
-                    vec2 *px    = (vec2*)alloc(sizeof(vec2) * skel->num_joints, tctx.temp);
-                    b32  *vis   = (b32*) alloc(sizeof(b32)  * skel->num_joints, tctx.temp);
-
-                    for (s32 i = 0; i < skel->num_joints; ++i)
-                    {
-                      m4x4 m = local[i];
-                      vec4 clip = mvp * vec4(m._14, m._24, m._34, 1.f);
-                      vis[i]    = clip.w > 0.f;
-                      vec2 ndc  = clip.xy * (1.f/clip.w);
-                      px[i]     = vec2(( ndc.x*0.5f + 0.5f) * (f32)RESOLUTION_X,
-                                       (-ndc.y*0.5f + 0.5f) * (f32)RESOLUTION_Y);
-
-                      if (skel->joints[i].parent >= 0 && vis[i] && vis[skel->joints[i].parent])
-                        draw_line(px[skel->joints[i].parent], px[i], vec4(1,1,0,1), 1.5f);
-                    }
-                  }
-#endif
                 }
               }
 
-
-              // @Temporary: Draw AABB
-              if (1) 
-              {
-                m4x4 mvp = data->camera->view_proj * transform;
-                vec3 lo = mesh.aabb.min;
-                vec3 hi = mesh.aabb.max;
-
-                // Corner i: bit 0 -> x, bit 1 -> y, bit 2 -> z (0 = min, 1 = max)
-                vec2 px[8];
-                b32  visible[8];
-                for (int i = 0; i < 8; ++i)
-                {
-                  vec3 c = vec3((i & 1) ? hi.x : lo.x,
-                                (i & 2) ? hi.y : lo.y,
-                                (i & 4) ? hi.z : lo.z);
-                  vec4 clip = mvp * vec4(c, 1.f);
-                  visible[i] = clip.w > 0.f;
-                  vec2 ndc = clip.xy * (1.f/clip.w);
-                  px[i] = vec2((ndc.x*0.5f + 0.5f) * 2560, (0.5f - ndc.y*0.5f) * 1440);
-                }
-
-                // 12 edges: connect corners whose indices differ in exactly one bit
-                for (int i = 0; i < 8; ++i)
-                {
-                  for (int bit = 1; bit < 8; bit <<= 1)
-                  {
-                    if (i & bit) continue;
-                    int j = i | bit;
-                    if (visible[i] && visible[j])
-                      draw_line(px[i], px[j], vec4(1, 0, 1, 1), 2.f);
-                  }
-                }
-              }
 
               // Draw
               gfx_draw(mesh.id, 1, index_offset, index_count);
@@ -292,5 +372,4 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     });
   }
   gfx_pass_end();
-
 }

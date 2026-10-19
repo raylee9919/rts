@@ -1,0 +1,8 @@
+1 // Version
+
+@"shaders/material/default.slang"
+
+albedo_id : @"./wispy-grass-meadow_albedo.png"
+roughness_id : @"./wispy-grass-meadow_roughness.png"
+metallic_id : @"./wispy-grass-meadow_metallic.png"
+normal_id : @"./wispy-grass-meadow_normal.png"

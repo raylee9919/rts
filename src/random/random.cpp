@@ -5,22 +5,26 @@
 per_thread u64 xorshift_state_64 = 0xCafeBabe;
 per_thread u32 xorshift_state_32 = 0xDeadBeef;
 
-u64 xorshift64() {
-    u64 x = xorshift_state_64;
+u64 
+xorshift64() 
+{
+  u64 x = xorshift_state_64;
 
-    x ^= x << 13;
-    x ^= x >> 7;
-    x ^= x << 17;
+  x ^= x << 13;
+  x ^= x >> 7;
+  x ^= x << 17;
 
-    xorshift_state_64 = x;
-    return x;
+  xorshift_state_64 = x;
+  return x;
 }
 
-u32 xorshift32() {
-    u32 x = xorshift_state_32;
-    x ^= x << 13;
-    x ^= x >> 17;
-    x ^= x << 5;
-    xorshift_state_32 = x;
-    return x;
+u32 
+xorshift32() 
+{
+  u32 x = xorshift_state_32;
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  xorshift_state_32 = x;
+  return x;
 }

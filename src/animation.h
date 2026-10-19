@@ -32,6 +32,10 @@ struct Sampled_Animation
   Array<Animation_Sample> samples;
 };
 
+struct Animation_Player
+{
+};
+
 ASSET_LOAD_PROC(animation_load_proc);
 
 String 
