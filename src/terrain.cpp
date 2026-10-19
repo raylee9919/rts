@@ -1,7 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "./terrain.h"
-#include "basic/allocator.h"
 #include "gfx/gfx.h"
 #include "game.h"
 #include "asset/asset.h"
@@ -69,4 +68,44 @@ terrain_deinit(Terrain *terrain)
 {
   gfx_texture_destroy(terrain->height_map_id);
   memset(terrain, 0, sizeof(Terrain));
+}
+
+f32
+terrain_height(Game_State *g, f32 x, f32 y)
+{
+  Terrain *terrain = &g->terrain;
+
+  f32 *heights = (f32*)pointer_from_handle(g, terrain->heights);
+  if (!heights) return 0.f;
+
+  s64 Xv = terrain->vertices_x;
+  s64 Yv = terrain->vertices_y;
+
+  f32 Xf = clamp((x - terrain->corner_x) / terrain->cell_size, 0.f, (f32)(Xv - 1));
+  f32 Yf = clamp((y - terrain->corner_y) / terrain->cell_size, 0.f, (f32)(Yv - 1));
+
+  s64 Xi = min((s64)Xf, Xv - 2);
+  s64 Yi = min((s64)Yf, Yv - 2);
+
+  f32 u = Xf - (f32)Xi;
+  f32 v = Yf - (f32)Yi;
+
+  f32 h00 = heights[Yi*Xv + Xi];
+  f32 h10 = heights[Yi*Xv + Xi + 1];
+  f32 h01 = heights[(Yi+1)*Xv + Xi];
+  f32 h11 = heights[(Yi+1)*Xv + Xi + 1];
+
+  if (m_abs(h00 - h11) <= m_abs(h10 - h01)) {
+    if (v >= u) {
+      return h00 + u*(h11-h01) + v*(h01-h00);
+    } else {
+      return h00 + u*(h10-h00) + v*(h11-h10);
+    }
+  } else {
+    if (u + v <= 1.f) {
+      return h00 + u*(h10-h00) + v*(h01-h00);
+    } else {
+      return h11 + (1.f-u)*(h01-h11) + (1.f-v)*(h10 - h11);
+    }
+  }
 }

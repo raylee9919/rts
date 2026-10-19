@@ -4,7 +4,6 @@
 #define RTS_TERRAIN_H
 
 #include "os/os.h"
-#include "math/math.h"
 #include "handle.h"
 
 struct Game_State;
@@ -38,6 +37,12 @@ terrain_init(Game_State *game_state,
              s64         cell_count_x, 
              s64         cell_count_y,
              f32         cell_size);
+
+void 
+terrain_deinit(Terrain *terrain);
+
+f32
+terrain_height(Game_State *g, f32 x, f32 y);
 
 
 #endif // RTS_TERRAIN_H

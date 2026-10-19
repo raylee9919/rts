@@ -11,312 +11,342 @@
 GFX_State *gfx;
 u64        gfx_key_offsets[GFX_KEY_COUNT] = { 0 };
 
-static RHI_Texture *rhi_texture_from_guid(Guid guid) {
-    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry)  return &entry->texture;
+static RHI_Texture *
+rhi_texture_from_guid(Guid guid) 
+{
+  GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+  if (entry)  return &entry->texture;
 
-    return nullptr;
+  return nullptr;
 }
 
-static void gfx_init_samplers() {
-    {
-        RHI_Sampler_Desc desc = {};
-        desc.filter             = RHI_FILTER_LINEAR;
-        desc.address_u          = RHI_ADDRESS_REPEAT;
-        desc.address_v          = RHI_ADDRESS_REPEAT;
-        desc.address_w          = RHI_ADDRESS_REPEAT;
-        desc.compare_op         = RHI_COMPARE_ALWAYS;
-        desc.mip_lod_bias       = 0.f;
-        desc.min_lod            = 0.f;
-        desc.max_lod            = 1e10f;
-        rhi_sampler_init(gfx->device, &gfx->linear_sampler, &desc);
-    }
-    {
-        RHI_Sampler_Desc desc = {};
-        desc.filter             = RHI_FILTER_NEAREST;
-        desc.address_u          = RHI_ADDRESS_REPEAT;
-        desc.address_v          = RHI_ADDRESS_REPEAT;
-        desc.address_w          = RHI_ADDRESS_REPEAT;
-        desc.compare_op         = RHI_COMPARE_ALWAYS;
-        desc.mip_lod_bias       = 0.f;
-        desc.min_lod            = 0.f;
-        desc.max_lod            = 1e10f;
-        rhi_sampler_init(gfx->device, &gfx->dot_sampler, &desc);
-    }
+static void 
+gfx_init_samplers() 
+{
+  {
+    RHI_Sampler_Desc desc = {};
+    desc.filter             = RHI_FILTER_LINEAR;
+    desc.address_u          = RHI_ADDRESS_REPEAT;
+    desc.address_v          = RHI_ADDRESS_REPEAT;
+    desc.address_w          = RHI_ADDRESS_REPEAT;
+    desc.compare_op         = RHI_COMPARE_ALWAYS;
+    desc.mip_lod_bias       = 0.f;
+    desc.min_lod            = 0.f;
+    desc.max_lod            = 1e10f;
+    rhi_sampler_init(gfx->device, &gfx->linear_sampler, &desc);
+  }
+  {
+    RHI_Sampler_Desc desc = {};
+    desc.filter             = RHI_FILTER_NEAREST;
+    desc.address_u          = RHI_ADDRESS_REPEAT;
+    desc.address_v          = RHI_ADDRESS_REPEAT;
+    desc.address_w          = RHI_ADDRESS_REPEAT;
+    desc.compare_op         = RHI_COMPARE_ALWAYS;
+    desc.mip_lod_bias       = 0.f;
+    desc.min_lod            = 0.f;
+    desc.max_lod            = 1e10f;
+    rhi_sampler_init(gfx->device, &gfx->dot_sampler, &desc);
+  }
 }
 
-static void gfx_deinit_samplers() {
-    rhi_sampler_deinit(&gfx->dot_sampler);
-    rhi_sampler_deinit(&gfx->linear_sampler);
+static void 
+gfx_deinit_samplers() 
+{
+  rhi_sampler_deinit(&gfx->dot_sampler);
+  rhi_sampler_deinit(&gfx->linear_sampler);
 }
 
-static void gfx_swapchain_init(GFX_Info info, 
-                               u32 num_back_buffers, 
-                               RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]) {
-    RHI_Surface_Desc desc = {};
-    desc.native_window_handle   = info.native_window_handle;
-    desc.width                  = info.width;
-    desc.height                 = info.height;
-    desc.num_back_buffers       = num_back_buffers;
-    desc.frame_latency_waitable = info.frame_latency_waitable;
+static void 
+gfx_swapchain_init(GFX_Info info, 
+                   u32 num_back_buffers, 
+                   RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]) 
+{
+  RHI_Surface_Desc desc = {};
+  desc.native_window_handle   = info.native_window_handle;
+  desc.width                  = info.width;
+  desc.height                 = info.height;
+  desc.num_back_buffers       = num_back_buffers;
+  desc.frame_latency_waitable = info.frame_latency_waitable;
 
-    R_ASSERT(rhi_surface_init(gfx->device, gfx->surface, &desc, out_textures));
+  R_ASSERT(rhi_surface_init(gfx->device, gfx->surface, &desc, out_textures));
 }
 
-static void gfx_swapchain_deinit() {
-    // rhi_surface_deinit(gfx->surface);
+static void 
+gfx_swapchain_deinit() 
+{
+  // rhi_surface_deinit(gfx->surface);
 }
 
-static void gfx_swapchain_resize(u32 width, u32 height) {
-    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
+static void 
+gfx_swapchain_resize(u32 width, u32 height) 
+{
+  rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
 
-    RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT] = {};
-    u32 ptr = 0;
+  RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT] = {};
+  u32 ptr = 0;
 
-    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
-        in_out_textures[ptr++] = rhi_texture_from_guid(gfx->surface_guids[i]);
-    }
+  for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
+    in_out_textures[ptr++] = rhi_texture_from_guid(gfx->surface_guids[i]);
+  }
 
-    rhi_surface_resize(gfx->surface, width, height, in_out_textures);
+  rhi_surface_resize(gfx->surface, width, height, in_out_textures);
 }
 
-static void gfx_init_uploader(u64 buffer_size) {
-    // @Todo: Shutdown
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_UPLOAD;
-    desc.size        = buffer_size;
+static void 
+gfx_init_uploader(u64 buffer_size) 
+{
+  // @Todo: Shutdown
+  RHI_Buffer_Desc desc = {};
+  desc.memory_type = RHI_MEMORY_UPLOAD;
+  desc.size        = buffer_size;
 
-    R_ASSERT(rhi_buffer_init(gfx->device, &gfx->upload_buffer, &desc, NULL));
-    R_ASSERT(rhi_semaphore_init(gfx->device, &gfx->upload_semaphore));
-    gfx->upload_semaphore_value = 1;
+  R_ASSERT(rhi_buffer_init(gfx->device, &gfx->upload_buffer, &desc, NULL));
+  R_ASSERT(rhi_semaphore_init(gfx->device, &gfx->upload_semaphore));
+  gfx->upload_semaphore_value = 1;
 
-    gfx->upload_buffer_mapped = (u8*)rhi_buffer_map(&gfx->upload_buffer);
-    gfx->upload_buffer_used   = 0;
+  gfx->upload_buffer_mapped = (u8*)rhi_buffer_map(&gfx->upload_buffer);
+  gfx->upload_buffer_used   = 0;
 }
 
-u64 gfx_upload_reserve(u64 size, u64 alignment) {
-    // @Cleanup: wtf?
-    u64 capacity = gfx->upload_buffer.desc.size;
-    R_ASSERT(size <= capacity);
+u64 
+gfx_upload_reserve(u64 size, u64 alignment) 
+{
+  // @Cleanup: wtf?
+  u64 capacity = gfx->upload_buffer.desc.size;
+  R_ASSERT(size <= capacity);
 
-    u64 offset = align_up(gfx->upload_buffer_used, alignment);
+  u64 offset = align_up(gfx->upload_buffer_used, alignment);
 
-    // Out of room. Wait until every copy issued so far is done, then start over.
-    if (offset + size > capacity) {
-        rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value - 1, -1);
-        offset = 0;
-    }
+  // Out of room. Wait until every copy issued so far is done, then start over.
+  if (offset + size > capacity) {
+    rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value - 1, -1);
+    offset = 0;
+  }
 
-    gfx->upload_buffer_used = offset + size;
-    return offset;
+  gfx->upload_buffer_used = offset + size;
+  return offset;
 }
 
-static void gfx_reset_per_frame_data() {
-    // Reset per-frame data.
-    gfx->context_pass = GFX_INVALID;
+static void 
+gfx_reset_per_frame_data() 
+{
+  // Reset per-frame data.
+  gfx->context_pass = GFX_INVALID;
 
-    // Pipeline
-    gfx->context_pipeline = GFX_INVALID;
-    gfx->next_pipeline    = 0;
-    array_reset_keeping_memory(&gfx->pipelines);
-    table_reset_keeping_memory(&gfx->pipeline_to_index_this_frame);
+  // Pipeline
+  gfx->context_pipeline = GFX_INVALID;
+  gfx->next_pipeline    = 0;
+  array_reset_keeping_memory(&gfx->pipelines);
+  table_reset_keeping_memory(&gfx->pipeline_to_index_this_frame);
 
-    // Push constants
-    gfx->context_push_constants = GFX_INVALID;
-    gfx->next_push_constants    = 0;
-    array_reset_keeping_memory(&gfx->push_constants);
-    table_reset_keeping_memory(&gfx->push_constants_to_index_this_frame);
+  // Push constants
+  gfx->context_push_constants = GFX_INVALID;
+  gfx->next_push_constants    = 0;
+  array_reset_keeping_memory(&gfx->push_constants);
+  table_reset_keeping_memory(&gfx->push_constants_to_index_this_frame);
 
-    // Sort key and commands
+  // Sort key and commands
+  for (u32 i = 0; i < array_count(gfx->sort_keys); ++i) {
+    array_reset_keeping_memory(&gfx->sort_keys[i]);
+    array_reset_keeping_memory(&gfx->commands[i]);
+  }
+
+  // Frame graph
+  for (int i = 0; i < array_count(gfx->out_edges); ++i) {
+    array_reset_keeping_memory(&gfx->out_edges[i]);
+  }
+
+  // Pass states
+  memset(&gfx->pass_states[0], 0, sizeof(gfx->pass_states));
+}
+
+static void 
+gfx_add_callback(GFX_Callback_Entry entry)
+{
+  queue_push(&gfx->callbacks, entry);
+}
+
+static void 
+gfx_execute_callbacks(u64 completed_value)
+{
+  // The values MUST be in the ascending order in the queue.
+
+  while (gfx->callbacks.count > 0)
+  {
+    GFX_Callback_Entry entry = queue_front(&gfx->callbacks);
+    if (entry.semaphore_value_to_execute > completed_value)  break;
+
+    entry.proc(entry);
+    queue_pop(&gfx->callbacks);
+  }
+}
+
+void 
+gfx_init(GFX_Info info, u32 num_backbuffers) 
+{
+  { // Alloc, Construct
+    Allocator arena = arena_allocator_alloc();
+    gfx = (GFX_State *)alloc(sizeof(GFX_State), arena);
+
+    Construct(gfx);
+
+    gfx->arena = arena; 
+    gfx->heap  = { crt_proc, nullptr };
+  }
+
+  gfx->info = info;
+
+  R_ASSERT(num_backbuffers >= RHI_MIN_BUFFER_COUNT && 
+           num_backbuffers <= RHI_MAX_BUFFER_COUNT);
+
+  // Allocate memory and initialize RHI
+  gfx->device = (RHI_Device *)alloc(sizeof(RHI_Device), gfx->arena);
+  R_ASSERT(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning, gfx->heap));
+
+
+  { // Assign allocators
+    gfx->callbacks.array.allocator = gfx->heap;
+
+    gfx->pipelines.allocator = gfx->heap;
+    gfx->pipeline_to_index_this_frame.allocator = gfx->heap;
+
+    gfx->push_constants.allocator = gfx->heap;
+    gfx->push_constants_to_index_this_frame.allocator = gfx->heap;
+
     for (u32 i = 0; i < array_count(gfx->sort_keys); ++i) {
-        array_reset_keeping_memory(&gfx->sort_keys[i]);
-        array_reset_keeping_memory(&gfx->commands[i]);
+      gfx->sort_keys[i].allocator = gfx->heap;
+      gfx->commands[i].allocator  = gfx->heap;
     }
 
-    // Frame graph
-    for (int i = 0; i < array_count(gfx->out_edges); ++i) {
-        array_reset_keeping_memory(&gfx->out_edges[i]);
+    gfx->mesh_table.allocator     = gfx->heap;
+    gfx->texture_table.allocator  = gfx->heap;
+    gfx->pipeline_table.allocator = gfx->heap;
+
+    for (u32 i = 0; i < array_count(gfx->out_edges); ++i) {
+      gfx->out_edges[i].allocator = gfx->heap;
+    }
+  }
+
+
+  // Create swapchain
+  {
+    RHI_Texture *out_swapchain_textures[RHI_MAX_BUFFER_COUNT] = {};
+
+    // Register entries to the table and fill in the pointers to the RHI_Texture to be filled.
+    for (u32 i = 0; i < num_backbuffers; ++i) {
+      Guid guid = guid_generate();
+      gfx->surface_guids[i] = guid;
+      GFX_Texture_Entry *entry = table_add(&gfx->texture_table, guid, {});
+      out_swapchain_textures[i] = &entry->texture;
     }
 
-    // Pass states
-    memset(&gfx->pass_states[0], 0, sizeof(gfx->pass_states));
+    // Init swapchain and get textures
+    gfx->surface = (RHI_Surface *)alloc(sizeof(RHI_Surface), gfx->arena);
+    gfx_swapchain_init(info, num_backbuffers, out_swapchain_textures);
+  }
+
+
+  // Initialize frame semaphore
+  rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
+
+
+  // Initialize samplers
+  gfx_init_samplers();
+
+
+  // Fill in each bitfield's offset in sortkey
+  for (u16 i = 0; i < GFX_KEY_COUNT - 1; i += 1) {
+    gfx_key_offsets[i + 1] = gfx_key_offsets[i] + gfx_key_lengths[i];
+  }
+
+
+  // @Temporary: These will go to encoding threads.
+  for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
+    R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
+    R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
+  }
+
+  R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->copy_buffer, RHI_COMMAND_TYPE_TRANSFER));
+
+
+  gfx_init_uploader(Megabytes(128)); // @Temporary
 }
 
-static void gfx_add_callback(GFX_Callback_Entry entry)
+void 
+gfx_shutdown() 
 {
-    queue_push(&gfx->callbacks, entry);
+  // Wait until all pending frames are finished.
+  rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
+
+  // @Temporary: These will go to encoding threads.
+  for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
+    rhi_command_buffer_deinit(&gfx->command_buffers[i]);
+    rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
+  }
+
+  rhi_command_buffer_deinit(&gfx->copy_buffer);
+
+  // @Todo: release resources safely..
+
+  gfx_deinit_samplers();
+  rhi_semaphore_deinit(&gfx->frame_semaphore);
+  gfx_swapchain_deinit();
+  rhi_device_deinit(gfx->device);
+
+  destroy(gfx->heap);
+  destroy(gfx->arena);
 }
 
-static void gfx_execute_callbacks(u64 completed_value)
+static void 
+gfx_create_gpu_buffer(RHI_Buffer *buffer, u32 size)
 {
-    // The values MUST be in the ascending order in the queue.
+  RHI_Buffer_Desc desc = {};
+  desc.memory_type = RHI_MEMORY_GPU_ONLY;
+  desc.size        = size;
 
-    while (gfx->callbacks.count > 0)
-    {
-        GFX_Callback_Entry entry = queue_front(&gfx->callbacks);
-        if (entry.semaphore_value_to_execute > completed_value)  break;
-
-        entry.proc(entry);
-        queue_pop(&gfx->callbacks);
-    }
+  R_ASSERT(rhi_buffer_init(gfx->device, buffer, &desc, NULL));
 }
 
-void gfx_init(GFX_Info info, u32 num_backbuffers) {
-    { // Alloc, Construct
-        Allocator arena = arena_allocator_alloc();
-        gfx = (GFX_State *)alloc(sizeof(GFX_State), arena);
-
-        Construct(gfx);
-
-        gfx->arena = arena; 
-        gfx->heap  = { crt_proc, nullptr };
-    }
-
-    gfx->info = info;
-
-    R_ASSERT(num_backbuffers >= RHI_MIN_BUFFER_COUNT && 
-             num_backbuffers <= RHI_MAX_BUFFER_COUNT);
-
-    // Allocate memory and initialize RHI
-    gfx->device = (RHI_Device *)alloc(sizeof(RHI_Device), gfx->arena);
-    R_ASSERT(rhi_device_init(gfx->device, info.kind, info.debug, info.break_on_warning, gfx->heap));
-
-
-    { // Assign allocators
-        gfx->callbacks.array.allocator = gfx->heap;
-
-        gfx->pipelines.allocator = gfx->heap;
-        gfx->pipeline_to_index_this_frame.allocator = gfx->heap;
-
-        gfx->push_constants.allocator = gfx->heap;
-        gfx->push_constants_to_index_this_frame.allocator = gfx->heap;
-
-        for (u32 i = 0; i < array_count(gfx->sort_keys); ++i) {
-            gfx->sort_keys[i].allocator = gfx->heap;
-            gfx->commands[i].allocator  = gfx->heap;
-        }
-
-        gfx->mesh_table.allocator     = gfx->heap;
-        gfx->texture_table.allocator  = gfx->heap;
-        gfx->pipeline_table.allocator = gfx->heap;
-
-        for (u32 i = 0; i < array_count(gfx->out_edges); ++i) {
-            gfx->out_edges[i].allocator = gfx->heap;
-        }
-    }
-
-
-    // Create swapchain
-    {
-        RHI_Texture *out_swapchain_textures[RHI_MAX_BUFFER_COUNT] = {};
-
-        // Register entries to the table and fill in the pointers to the RHI_Texture to be filled.
-        for (u32 i = 0; i < num_backbuffers; ++i) {
-            Guid guid = guid_generate();
-            gfx->surface_guids[i] = guid;
-            GFX_Texture_Entry *entry = table_add(&gfx->texture_table, guid, {});
-            out_swapchain_textures[i] = &entry->texture;
-        }
-
-        // Init swapchain and get textures
-        gfx->surface = (RHI_Surface *)alloc(sizeof(RHI_Surface), gfx->arena);
-        gfx_swapchain_init(info, num_backbuffers, out_swapchain_textures);
-    }
-
-
-    // Initialize frame semaphore
-    rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
-
-
-    // Initialize samplers
-    gfx_init_samplers();
-
-
-    // Fill in each bitfield's offset in sortkey
-    for (u16 i = 0; i < GFX_KEY_COUNT - 1; i += 1) {
-        gfx_key_offsets[i + 1] = gfx_key_offsets[i] + gfx_key_lengths[i];
-    }
-
-
-    // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
-        R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
-        R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
-    }
-
-    R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->copy_buffer, RHI_COMMAND_TYPE_TRANSFER));
-
-
-    gfx_init_uploader(Megabytes(128)); // @Temporary
-}
-
-void gfx_shutdown() {
-    // Wait until all pending frames are finished.
-    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->current_frame - 1, -1);
-
-    // @Temporary: These will go to encoding threads.
-    for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
-        rhi_command_buffer_deinit(&gfx->command_buffers[i]);
-        rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
-    }
-
-    rhi_command_buffer_deinit(&gfx->copy_buffer);
-
-    // @Todo: release resources safely..
-
-    gfx_deinit_samplers();
-    rhi_semaphore_deinit(&gfx->frame_semaphore);
-    gfx_swapchain_deinit();
-    rhi_device_deinit(gfx->device);
-
-    destroy(gfx->heap);
-    destroy(gfx->arena);
-}
-
-static void gfx_create_gpu_buffer(RHI_Buffer *buffer, u32 size)
+static void 
+gfx_create_structured_view(RHI_Buffer_View *view, RHI_Buffer *buffer, u32 count, u32 stride)
 {
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_GPU_ONLY;
-    desc.size        = size;
+  RHI_Buffer_View_Desc desc = {};
+  {
+    desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
+    desc.writable = false;
+    desc.stride   = stride;
+    desc.offset   = 0;
+    desc.size     = stride * count;
+  }
 
-    R_ASSERT(rhi_buffer_init(gfx->device, buffer, &desc, NULL));
+  rhi_buffer_view_init(gfx->device, view, buffer, &desc);
 }
 
-static void gfx_create_structured_view(RHI_Buffer_View *view, RHI_Buffer *buffer, u32 count, u32 stride)
+static u64 
+gfx_encode_key(const u64 *subkeys) 
 {
-    RHI_Buffer_View_Desc desc = {};
-    {
-        desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-        desc.writable = false;
-        desc.stride   = stride;
-        desc.offset   = 0;
-        desc.size     = stride * count;
-    }
+  u64 key = 0;
 
-    rhi_buffer_view_init(gfx->device, view, buffer, &desc);
+  for (u16 i = 0; i < GFX_KEY_COUNT; ++i) {
+    u64 subkey = subkeys[i];
+    R_ASSERT(subkey < (1ull << gfx_key_lengths[i]));
+    key |= (subkey << gfx_key_offsets[i]);
+  }
+
+  return key;
 }
 
-static u64 gfx_encode_key(const u64 *subkeys) {
-    u64 key = 0;
+static void 
+gfx_decode_key(u64 key, u64 *out_subkeys) 
+{
+  for (u16 i = 0; i < GFX_KEY_COUNT; ++i) {
+    u64 offset = gfx_key_offsets[i];
+    u64 length = gfx_key_lengths[i];
 
-    for (u16 i = 0; i < GFX_KEY_COUNT; ++i) {
-        u64 subkey = subkeys[i];
-        R_ASSERT(subkey < (1ull << gfx_key_lengths[i]));
-        key |= (subkey << gfx_key_offsets[i]);
-    }
-
-    return key;
-}
-
-static void gfx_decode_key(u64 key, u64 *out_subkeys) {
-    for (u16 i = 0; i < GFX_KEY_COUNT; ++i) {
-        u64 offset = gfx_key_offsets[i];
-        u64 length = gfx_key_lengths[i];
-
-        u64 mask   = ((1ull << length) - 1) << offset;
-        u64 subkey = (key & mask) >> offset;
-        out_subkeys[i] = subkey;
-    }
+    u64 mask   = ((1ull << length) - 1) << offset;
+    u64 subkey = (key & mask) >> offset;
+    out_subkeys[i] = subkey;
+  }
 }
 
 void 
@@ -364,17 +394,18 @@ gfx_mesh_create(Guid guid,
   }
 }
 
-static void gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
+static void 
+gfx_mesh_destroy_callback(GFX_Callback_Entry entry)
 {
-    GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, entry.mesh_id);
-    if (mesh)
-    {
-        rhi_buffer_view_deinit(&mesh->vertex_buffer_view);
-        rhi_buffer_deinit(&mesh->vertex_buffer);
-        rhi_buffer_deinit(&mesh->index_buffer);
+  GFX_Mesh *mesh = table_find_pointer(&gfx->mesh_table, entry.mesh_id);
+  if (mesh)
+  {
+    rhi_buffer_view_deinit(&mesh->vertex_buffer_view);
+    rhi_buffer_deinit(&mesh->vertex_buffer);
+    rhi_buffer_deinit(&mesh->index_buffer);
 
-        table_remove(&gfx->mesh_table, entry.mesh_id);
-    }
+    table_remove(&gfx->mesh_table, entry.mesh_id);
+  }
 }
 
 void 
@@ -440,124 +471,152 @@ gfx_texture_destroy(Guid guid)
   }
 }
 
-void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height) {
-    GFX_Texture_Entry *tex = table_find_pointer(&gfx->texture_table, guid);
+void 
+gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height) 
+{
+  GFX_Texture_Entry *tex = table_find_pointer(&gfx->texture_table, guid);
 
-    if (tex) {
-        // @Todo: I know, I know. Correct alignment for BC and other formats and
-        // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
-        u32 pitch = size / height;
-        u32 aligned_pitch = align_up(pitch, 256);
-        u64 total = height * aligned_pitch;
+  if (tex) {
+    // @Todo: I know, I know. Correct alignment for BC and other formats and
+    // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
+    u32 pitch = size / height;
+    u32 aligned_pitch = align_up(pitch, 256);
+    u64 total = height * aligned_pitch;
 
-        u64 offset = gfx_upload_reserve(total, 512); // @Temporary: FUCKING HATE ALIGNMENT
-        u8 *dst = gfx->upload_buffer_mapped + offset;
-        u8 *src = (u8 *)data;
+    u64 offset = gfx_upload_reserve(total, 512); // @Temporary: FUCKING HATE ALIGNMENT
+    u8 *dst = gfx->upload_buffer_mapped + offset;
+    u8 *src = (u8 *)data;
 
-        for (u32 r = 0; r < height; ++r) {
-            memcpy(dst, src, pitch);
-            dst += aligned_pitch;
-            src += pitch;
-        }
-
-        RHI_Box box = {};
-        box.width  = width;
-        box.height = height;
-        box.depth  = 1;
-
-        rhi_command_buffer_begin(&gfx->copy_buffer);
-        {
-            rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, offset, aligned_pitch, &tex->texture, &box, 0, 0);
-        }
-        rhi_command_buffer_end(&gfx->copy_buffer);
-        RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-        rhi_submit(gfx->device, 1, buffers);
-        rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
+    for (u32 r = 0; r < height; ++r) {
+      memcpy(dst, src, pitch);
+      dst += aligned_pitch;
+      src += pitch;
     }
+
+    RHI_Box box = {};
+    box.width  = width;
+    box.height = height;
+    box.depth  = 1;
+
+    rhi_command_buffer_begin(&gfx->copy_buffer);
+    {
+      rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, offset, aligned_pitch, &tex->texture, &box, 0, 0);
+    }
+    rhi_command_buffer_end(&gfx->copy_buffer);
+    RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
+    rhi_submit(gfx->device, 1, buffers);
+    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
+  }
 }
 
-RHI_Texture_View *gfx_srv_from_texture(Guid guid) {
-    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry && entry->srv.kind != RHI_KIND_INVALID)  return &entry->srv;
-    return nullptr;
+RHI_Texture_View *
+gfx_srv_from_texture(Guid guid) 
+{
+  GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+  if (entry && entry->srv.kind != RHI_KIND_INVALID)  return &entry->srv;
+  return nullptr;
 }
 
-RHI_Texture_View *gfx_uav_from_texture(Guid guid) {
-    GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
-    if (entry && entry->uav.kind != RHI_KIND_INVALID)  return &entry->uav;
-    return nullptr;
+RHI_Texture_View *
+gfx_uav_from_texture(Guid guid) 
+{
+  GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
+  if (entry && entry->uav.kind != RHI_KIND_INVALID)  return &entry->uav;
+  return nullptr;
 }
 
-u32 gfx_srv_bindless_from_texture(Guid guid) {
-    if (auto *view = gfx_srv_from_texture(guid))  return view->bindless;
-    return GFX_INVALID_BINDLESS;
+u32 
+gfx_srv_bindless_from_texture(Guid guid) 
+{
+  if (auto *view = gfx_srv_from_texture(guid))  return view->bindless;
+  return GFX_INVALID_BINDLESS;
 }
 
-u32 gfx_uav_bindless_from_texture(Guid guid) {
-    if (auto *view = gfx_uav_from_texture(guid))  return view->bindless;
-    return GFX_INVALID_BINDLESS;
+u32 
+gfx_uav_bindless_from_texture(Guid guid) 
+{
+  if (auto *view = gfx_uav_from_texture(guid))  return view->bindless;
+  return GFX_INVALID_BINDLESS;
 }
 
-void gfx_pass_begin(u32 pass_index, GFX_Pass *pass) {
-    R_ASSERT(pass_index < GFX_MAX_PASS);
-    gfx->context_pass = pass_index;
+void 
+gfx_pass_begin(u32 pass_index, GFX_Pass *pass) 
+{
+  R_ASSERT(pass_index < GFX_MAX_PASS);
+  gfx->context_pass = pass_index;
 
-    memcpy(&gfx->pass_states[pass_index], pass, sizeof(GFX_Pass));
+  memcpy(&gfx->pass_states[pass_index], pass, sizeof(GFX_Pass));
 }
 
-void gfx_pass_end() {
+void 
+gfx_pass_end() 
+{
     gfx->context_pass = GFX_INVALID;
 }
 
-void gfx_pass_connect(Guid resource,
-                      u32 src_pass, 
-                      u32 dst_pass, 
-                      RHI_Resource_State dst_state) {
-    R_ASSERT(resource != NULL_GUID);
-    R_ASSERT( (src_pass == -1) || (src_pass < GFX_MAX_PASS && dst_pass < GFX_MAX_PASS) );
+void 
+gfx_pass_connect(Guid resource,
+                 u32 src_pass, 
+                 u32 dst_pass, 
+                 RHI_Resource_State dst_state) 
+{
+  R_ASSERT(resource != NULL_GUID);
+  R_ASSERT( (src_pass == -1) || (src_pass < GFX_MAX_PASS && dst_pass < GFX_MAX_PASS) );
 
-    GFX_Edge edge = {};
-    edge.resource  = resource;
-    edge.dst_pass  = dst_pass;
-    edge.dst_state = dst_state;
+  GFX_Edge edge = {};
+  edge.resource  = resource;
+  edge.dst_pass  = dst_pass;
+  edge.dst_state = dst_state;
 
-    if (src_pass == -1)  src_pass = GFX_MAX_PASS; // nil
+  if (src_pass == -1)  src_pass = GFX_MAX_PASS; // nil
 
-    append(&gfx->out_edges[src_pass], edge);
+  append(&gfx->out_edges[src_pass], edge);
 }
 
-u32 gfx_backbuffer_index() {
-    return gfx->surface->current_frame_index;
+u32 
+gfx_backbuffer_index() 
+{
+  return gfx->surface->current_frame_index;
 }
 
-Guid gfx_surface_texture() {
-    return gfx->surface_guids[gfx_backbuffer_index()];
+Guid 
+gfx_surface_texture() 
+{
+  return gfx->surface_guids[gfx_backbuffer_index()];
 }
 
-u32 gfx_backbuffer_count(){
-    return gfx->surface->desc.num_back_buffers;
+u32 
+gfx_backbuffer_count()
+{
+  return gfx->surface->desc.num_back_buffers;
 }
 
-RHI_Format gfx_surface_format() {
-    return rhi_texture_from_guid(gfx->surface_guids[0])->desc.format;
+RHI_Format 
+gfx_surface_format() 
+{
+  return rhi_texture_from_guid(gfx->surface_guids[0])->desc.format;
 }
 
-void gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) {
-    R_ASSERT(guid != NULL_GUID);
-    R_ASSERT(gfx->pipeline_table.count <= GFX_MAX_PIPELINES);
+void 
+gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) 
+{
+  R_ASSERT(guid != NULL_GUID);
+  R_ASSERT(gfx->pipeline_table.count <= GFX_MAX_PIPELINES);
 
-    GFX_Pipeline_Entry entry = {};
-    R_ASSERT(rhi_pipeline_init(gfx->device, &entry.rhi_pipeline, &desc));
+  GFX_Pipeline_Entry entry = {};
+  R_ASSERT(rhi_pipeline_init(gfx->device, &entry.rhi_pipeline, &desc));
 
-    table_add(&gfx->pipeline_table, guid, entry);
+  table_add(&gfx->pipeline_table, guid, entry);
 }
 
-void gfx_pipeline_destroy(Guid guid) {
-    auto *entry = table_find_pointer(&gfx->pipeline_table, guid);
-    if (entry) {
-        rhi_pipeline_deinit(&entry->rhi_pipeline);
-        table_remove(&gfx->pipeline_table, guid);
-    }
+void 
+gfx_pipeline_destroy(Guid guid) 
+{
+  auto *entry = table_find_pointer(&gfx->pipeline_table, guid);
+  if (entry) {
+    rhi_pipeline_deinit(&entry->rhi_pipeline);
+    table_remove(&gfx->pipeline_table, guid);
+  }
 }
 
 void 
@@ -946,13 +1005,17 @@ gfx_end(f64 time,
   gfx->current_frame += 1;
 }
 
-bool gfx_wait_for_frame_waitable_object() {
-    ProfileScope;
-    return rhi_surface_wait_for_waitable_object(gfx->surface);
+b32 
+gfx_wait_for_frame_waitable_object() 
+{
+  ProfileScope;
+  return rhi_surface_wait_for_waitable_object(gfx->surface);
 }
 
-void gfx_request_swapchain_resize(u32 width, u32 height) {
-    gfx->resize_requested = true;
-    gfx->resize_width     = width;
-    gfx->resize_height    = height;
+void 
+gfx_request_swapchain_resize(u32 width, u32 height) 
+{
+  gfx->resize_requested = true;
+  gfx->resize_width     = width;
+  gfx->resize_height    = height;
 }

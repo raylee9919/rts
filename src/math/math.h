@@ -136,6 +136,10 @@ f32        m_cos(f32 f);
 f32        m_abs(f32 f);
 f64        m_abs(f64 d);
 
+// Exponent
+f32        m_exp(f32 f);
+
+
 // Square roots
 f32        m_sqrt(f32 f);
 f32        m_rsqrt(f32 f);

@@ -51,84 +51,99 @@ game_init(f64 time_init)
                NULL_GUID, 12.f,
                256, 256, 1.f);
 
+  // Init camera
+  camera_init(game_state, &game_state->camera, vec3(0.f, 0.f, 0.f), 0.f, 32.f);
+
   log_info(S("Initialized game state."));
 }
 
-void game_shutdown() {
-    Game_State *g = game_state;
+void 
+game_shutdown() 
+{
+  Game_State *g = game_state;
 
-    os_release(g->storage.base, g->storage.reserved);
+  os_release(g->storage.base, g->storage.reserved);
 
-    log_info(S("Shutdown game states."));
+  log_info(S("Shutdown game states."));
 }
 
-void game_copy(Game_State *dst, Game_State *src) {
-    ProfileScope;
+void 
+game_copy(Game_State *dst, Game_State *src) 
+{
+  ProfileScope;
 
-    if (dst->storage.used < src->storage.used) {
-        game_alloc(dst, src->storage.used - dst->storage.used, 1);
-    }
+  if (dst->storage.used < src->storage.used) {
+    game_alloc(dst, src->storage.used - dst->storage.used, 1);
+  }
 
-    Game_Storage tmp = dst->storage;
+  Game_Storage tmp = dst->storage;
 
-    memcpy(dst->storage.base, src->storage.base, src->storage.used);
-    dst->storage = tmp;
-    dst->storage.used = src->storage.used;
+  memcpy(dst->storage.base, src->storage.base, src->storage.used);
+  dst->storage = tmp;
+  dst->storage.used = src->storage.used;
 }
 
-void *game_alloc(Game_State *g, u64 size, u64 alignment) {
-    Game_Storage *s = &g->storage;
+void *
+game_alloc(Game_State *g, u64 size, u64 alignment) 
+{
+  Game_Storage *s = &g->storage;
 
-    u8 *ptr = (u8*)align_up((void*)(s->base + s->used), alignment);
-    u8 *opl = ptr + size;
-    s->used = opl - s->base;
+  u8 *ptr = (u8*)align_up((void*)(s->base + s->used), alignment);
+  u8 *opl = ptr + size;
+  s->used = opl - s->base;
 
-    if (s->used > s->committed) {
-        u64 commit_size = align_up(s->used - s->committed, s->page_size);
-        R_ASSERT( os_commit(s->base + s->committed, commit_size) );
-        s->committed += commit_size;
-    }
+  if (s->used > s->committed) {
+    u64 commit_size = align_up(s->used - s->committed, s->page_size);
+    R_ASSERT( os_commit(s->base + s->committed, commit_size) );
+    s->committed += commit_size;
+  }
 
-    return ptr;
+  return ptr;
 }
 
-Entity *entity_alloc(Game_State *g) {
-    Entity *entity = entity_from_handle(g, g->first_free_entity);
+Entity *
+entity_alloc(Game_State *g) 
+{
+  Entity *entity = entity_from_handle(g, g->first_free_entity);
 
-    if (entity) {
-        if (g->first_free_entity == g->last_free_entity) {
-            g->first_free_entity = {};
-            g->last_free_entity  = {};
-        } else {
-            g->first_free_entity = entity->next;
-        }
+  if (entity) {
+    if (g->first_free_entity == g->last_free_entity) {
+      g->first_free_entity = {};
+      g->last_free_entity  = {};
     } else {
-        entity = (Entity *)game_alloc(g, sizeof(Entity), align_of(Entity));
+      g->first_free_entity = entity->next;
     }
+  } else {
+    entity = (Entity *)game_alloc(g, sizeof(Entity), align_of(Entity));
+  }
 
-    R_ASSERT(entity);
+  R_ASSERT(entity);
 
-    memset(entity, 0, sizeof(Entity));
+  memset(entity, 0, sizeof(Entity));
 
-    entity->scale = vec3(1.f);
+  entity->scale = vec3(1.f);
 
-    // Assign generational ID
-    entity->generational_id = g->next_generational_id++;
+  // Assign generational ID
+  entity->generational_id = g->next_generational_id++;
 
-    // Attach to root
-    entity_add_child(g, g->root, handle_from_entity(g, entity));
+  // Attach to root
+  entity_add_child(g, g->root, handle_from_entity(g, entity));
 
-    g->num_entities += 1;
+  g->num_entities += 1;
 
-    return entity;
+  return entity;
 }
 
-void entity_dealloc(Game_State *g, Entity *entity) {
+void 
+entity_dealloc(Game_State *g, Entity *entity) 
+{
   // @Todo: Must remove from the tree, decommit page?
   g->num_entities -= 1;
 }
 
-void entity_dealloc(Game_State *g, Handle handle) { 
+void 
+entity_dealloc(Game_State *g, Handle handle) 
+{
   Entity *entity = entity_from_handle(g, handle);
   if (entity) {
     entity_dealloc(g, entity);

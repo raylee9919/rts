@@ -43,7 +43,7 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
 
     result.sv_position = mul(view_proj, world_position);
     result.position    = world_position.xyz;
-    result.uv          = vert.uv * 4.0;
+    result.uv          = vert.uv * 16.0; // @Temporary
     result.normal      = vert.normal;
     result.tangent     = vert.tangent;
 

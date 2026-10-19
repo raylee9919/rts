@@ -129,6 +129,7 @@ add_library(rts_engine STATIC
     src/mesh.cpp
     src/animation.cpp
     src/terrain.cpp
+    src/camera.cpp
 
 
 

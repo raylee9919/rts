@@ -32,18 +32,17 @@ static void r_ring_deinit();
 GPU_Camera 
 gpu_camera_from_game(Camera *camera)
 {
-    GPU_Camera result = {};
+  GPU_Camera result = {};
 
-    f32 fov = PI * 0.5f;
-    f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
-    vec3 dir = (z_rotation(camera->yaw) * x_rotation(camera->pitch) * FORWARD_VECTOR).xyz;
+  f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
+  vec3 fwd = camera_forward(camera);
 
-    result.position  = vec4(camera->position, 1.f);
-    result.view      = look_to_rh(camera->position, dir, WORLD_UP);
-    result.proj      = persp_fov_rh(fov, aspect_ratio, NEAR_Z, FAR_Z);
-    result.view_proj = result.proj * result.view;
+  result.position  = vec4(camera->position, 1.f);
+  result.view      = look_to_rh(camera->position, fwd, WORLD_UP);
+  result.proj      = persp_fov_rh(camera->fov, aspect_ratio, NEAR_Z, FAR_Z);
+  result.view_proj = result.proj * result.view;
 
-    return result;
+  return result;
 }
 
 void 

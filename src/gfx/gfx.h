@@ -324,9 +324,11 @@ gfx_draw(Guid mesh_id,
 void gfx_begin();
 void gfx_end(f64 dt, u32 sync_interval);
 
-bool gfx_wait_for_frame_waitable_object();
+b32 
+gfx_wait_for_frame_waitable_object();
 
-void gfx_request_swapchain_resize(u32 width, u32 height);
+void 
+gfx_request_swapchain_resize(u32 width, u32 height);
 
 
 #endif // RTS_GFX_H

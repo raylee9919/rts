@@ -192,7 +192,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
             u32 i01 = i00 + terrain->vertices_x;
             u32 i11 = i01 + 1;
 
-            if (fabsf(heights[i11] - heights[i00]) <= fabsf(heights[i10] - heights[i01])) {
+            if (m_abs(heights[i11] - heights[i00]) <= m_abs(heights[i10] - heights[i01])) {
               // Diagonal is '00-11'
               *dst++ = i00;
               *dst++ = i11;

@@ -45,75 +45,7 @@ void game_tick(Game_State *g, f64 dt)
 
     g->time += dt;
 
-    {
-#if 0
-        static bool initted = false;
-        String name = S("CameraMoveForward");
-
-        if (!initted) {
-            Input_Action action = {};
-            table_add(&input_system.action_table, name, action);
-            initted = true;
-        }
-
-        Input_Value val;
-        if (input_action(name, &val)) {
-
-        }
-#endif
-    }
-
-
-    Camera *camera = &g->camera;
-
-    f32 movement_speed = 10.f;
-    f32 turn_speed     = 0.25f;
-
-
-#if 1
-    if (key_w) {
-        camera->position += dt * movement_speed * (x_rotation(camera->pitch) * z_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
-    }
-
-    if (key_a) {
-        camera->position -= dt * movement_speed * (z_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
-    }
-
-    if (key_s) {
-        camera->position -= dt * movement_speed * (x_rotation(camera->pitch) * z_rotation(camera->yaw) * FORWARD_VECTOR).xyz;
-    }
-
-    if (key_d) {
-        camera->position += dt * movement_speed * (z_rotation(camera->yaw) * RIGHT_VECTOR).xyz;
-    }
-
-    if (key_q) {
-        camera->position -= dt * movement_speed * UP_VECTOR.xyz;
-    }
-
-    if (key_e) {
-        camera->position += dt * movement_speed * UP_VECTOR.xyz;
-    }
-#endif
-
-#if 0
-    static v2 p0 = {};
-    if (event->kind == OS_EVENT_PRESS && event->key == KEY_MOUSE_LEFT && event->window == window) {
-        os_remove_event(event);
-        p0 = event->position;
-    }
-
-    if (g->input_state.key_is_down[KEY_MOUSE_LEFT]) {
-        v2 p1 = os_get_mouse_position(window);
-        v2 dp = p1 - p0;
-
-        camera->yaw   -= dt * turn_speed * dp.x;
-        camera->pitch -= dt * turn_speed * dp.y;
-        camera->pitch = clamp(camera->pitch,  -pi32 * 0.25f, pi32 * 0.25f);
-
-        p0 = p1;
-    }
-#endif
+    camera_update(&g->camera, dt);
 }
 
 void input_process()
@@ -185,9 +117,6 @@ main_entry(int argc, char **argv)
   // Init Game
   game_init(time_old);
 
-  // Init camera
-  game_state->camera.position = vec3(0.f, -1.6f, 0.7f); // Framed on the knight.
-
 
 
   // @Temporary
@@ -206,6 +135,8 @@ main_entry(int argc, char **argv)
 
   my_entity->animation_id = guid_from_string(S("goblin/OrcWalk.sampled_animation"));
   asset_request(my_entity->animation_id, NULL_GUID, NULL);
+
+  my_entity->position.z = terrain_height(game_state, 0, 0);
   // @Temporary
   // @Temporary
   // @Temporary

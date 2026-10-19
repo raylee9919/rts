@@ -25,6 +25,14 @@ f32 m_atan2(f32 a, f32 b) {
     return atan2(a, b);
 }
 
+// Exponent
+//
+f32 
+m_exp(f32 f)
+{
+  return expf(f);
+}
+
 
 // Absolute
 //
