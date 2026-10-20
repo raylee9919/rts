@@ -12,6 +12,7 @@ public struct Material_Input {
     public float4   tangent; // w: bitangent sign
     public float2   uv;
     public uint32_t linear_sampler_id;
+    public uint32_t anisotropic_sampler_id;
 };
 
 public interface IMaterial 

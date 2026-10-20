@@ -18,7 +18,7 @@ struct M_Default : IMaterial
     /* Evaluation Implementation */
     float4 eval( Material_Input input, float3 radiance, float3 wi, float3 wo )
     {
-        SamplerState linear_sampler = SamplerDescriptorHeap[input.linear_sampler_id];
+        SamplerState anisotropic_sampler = SamplerDescriptorHeap[input.anisotropic_sampler_id];
 
         float3 albedo    = 1.0;
         float  roughness = 1.0;
@@ -27,22 +27,22 @@ struct M_Default : IMaterial
 
         if ( albedo_id != GFX_INVALID_BINDLESS ) {
             Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(albedo_id)];
-            albedo = linear_from_sRGB( t.Sample(linear_sampler, input.uv).rgb );
+            albedo = linear_from_sRGB( t.Sample(anisotropic_sampler, input.uv).rgb );
         }
         
         if ( roughness_id != GFX_INVALID_BINDLESS ) {
             Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(roughness_id)];
-            roughness = t.Sample(linear_sampler, input.uv).r;
+            roughness = t.Sample(anisotropic_sampler, input.uv).r;
         }
 
         if ( metallic_id != GFX_INVALID_BINDLESS ) {
             Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(metallic_id)];
-            metallic = t.Sample(linear_sampler, input.uv).r;
+            metallic = t.Sample(anisotropic_sampler, input.uv).r;
         }
 
         if ( normal_id != GFX_INVALID_BINDLESS ) {
             Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(normal_id)];
-            n = t.Sample(linear_sampler, input.uv).rgb * 2.0 - 1.0;
+            n = t.Sample(anisotropic_sampler, input.uv).rgb * 2.0 - 1.0;
         }
 
         // Tangent space to world

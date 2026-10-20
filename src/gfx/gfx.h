@@ -171,6 +171,7 @@ struct GFX_State {
 
     RHI_Sampler                             linear_sampler;
     RHI_Sampler                             dot_sampler;
+    RHI_Sampler                             anisotropic_sampler;
 
     // @Fix
     // At the moment, queues are waiting for the upload semaphore 

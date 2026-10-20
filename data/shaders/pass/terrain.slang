@@ -43,7 +43,7 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
 
     result.sv_position = mul(view_proj, world_position);
     result.position    = world_position.xyz;
-    result.uv          = vert.uv * 16.0; // @Temporary
+    result.uv          = vert.uv * 8.0; // @Temporary
     result.normal      = vert.normal;
     result.tangent     = vert.tangent;
 
@@ -53,6 +53,7 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
 // @Temporary: single directional light
 static const float3 TO_LIGHT        = normalize(float3(0.5, -0.5, 1.0));
 static const float3 LIGHT_RADIANCE  = float3(1.0, 1.0, 1.0) * 4.0;
+static const float3 SKY_LIGHT       = float3(0.55, 0.62, 0.75) * 0.6;
 
 [shader("pixel")]
 float4 main_ps(VS_Output input) : SV_TARGET 
@@ -64,15 +65,20 @@ float4 main_ps(VS_Output input) : SV_TARGET
     GPU_Camera camera = camera_buffer[0];
 
     Material_Input mtl;
-    mtl.position          = input.position;
-    mtl.normal            = input.normal;
-    mtl.tangent           = input.tangent;
-    mtl.uv                = input.uv;
-    mtl.linear_sampler_id = push.linear_sampler_id;
+    mtl.position               = input.position;
+    mtl.normal                 = input.normal;
+    mtl.tangent                = input.tangent;
+    mtl.uv                     = input.uv;
+    mtl.linear_sampler_id      = push.linear_sampler_id;
+    mtl.anisotropic_sampler_id = push.anisotropic_sampler_id;
 
     float3 wi = TO_LIGHT;
     float3 wo = normalize(camera.position.xyz - input.position);
 
     float4 result = material.eval(mtl, LIGHT_RADIANCE, wi, wo);
+    
+    float4 AMBIENT = material.eval(mtl, SKY_LIGHT, wi, wo);
+    result.xyz += AMBIENT.xyz;
+
     return result;
 }

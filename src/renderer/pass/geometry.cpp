@@ -228,12 +228,12 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
       R_ASSERT(terrain_mesh);
 
       R_Pass_Geometry::Terrain_Push_Constants c = {};
-      c.vertex_buffer_id   = terrain_mesh->vertex_buffer_view.bindless;
-      c.linear_sampler_id  = gfx->linear_sampler.bindless;
-      c.camera_buffer_id   = renderer->camera_view.bindless;
-      c.material_buffer_id = renderer->material_buffer.view.bindless;
-      c.heightmap_id       = gfx_srv_bindless_from_texture(terrain->height_map_id);
-      c.material_offset    = material_from_guid(terrain->material_id)->offset;
+      c.vertex_buffer_id       = terrain_mesh->vertex_buffer_view.bindless;
+      c.linear_sampler_id      = gfx->linear_sampler.bindless;
+      c.anisotropic_sampler_id = gfx->anisotropic_sampler.bindless;
+      c.camera_buffer_id       = renderer->camera_view.bindless;
+      c.material_buffer_id     = renderer->material_buffer.view.bindless;
+      c.material_offset        = material_from_guid(terrain->material_id)->offset;
       gfx_push_constants(&c, sizeof(c));
 
 
@@ -283,13 +283,14 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
               // Push constants
               R_Pass_Geometry::Push_Constants c = {};
-              c.vertex_buffer_id    = gfx_mesh->vertex_buffer_view.bindless;
-              c.linear_sampler_id   = gfx->linear_sampler.bindless;
-              c.camera_buffer_id    = renderer->camera_view.bindless;
-              c.argument_buffer_id  = pass->arguments_view.bindless;
-              c.argument_base_index = data->num_draws;
-              c.material_buffer_id  = renderer->material_buffer.view.bindless;
-              c.skinning_buffer_id  = pass->skinning_view.bindless;
+              c.vertex_buffer_id       = gfx_mesh->vertex_buffer_view.bindless;
+              c.linear_sampler_id      = gfx->linear_sampler.bindless;
+              c.anisotropic_sampler_id = gfx->anisotropic_sampler.bindless;
+              c.camera_buffer_id       = renderer->camera_view.bindless;
+              c.argument_buffer_id     = pass->arguments_view.bindless;
+              c.argument_base_index    = data->num_draws;
+              c.material_buffer_id     = renderer->material_buffer.view.bindless;
+              c.skinning_buffer_id     = pass->skinning_view.bindless;
               gfx_push_constants(&c, sizeof(c));
 
               // Upload arguments

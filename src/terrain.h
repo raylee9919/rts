@@ -10,14 +10,19 @@ struct Game_State;
 
 struct Terrain
 {
+  s64     offset_in_game_state; // @Cleanup: Not fan of this.
+
   b32     initted;
 
-  Guid    height_map_id;
   Handle  heights;
+  Handle  passables;  // Array of booleans representing passability of each cell
+  Handle  levels;     // Array of discrete level for each cell
 
   s64     vertices_x;
   s64     vertices_y;
 
+  s64     cells_x;
+  s64     cells_y;
   f32     cell_size;
 
   // @Temporary
@@ -43,6 +48,12 @@ terrain_deinit(Terrain *terrain);
 
 f32
 terrain_height(Game_State *g, f32 x, f32 y);
+
+b32
+terrain_contains(Terrain *terrain, f32 x, f32 y);
+
+b8
+terrain_passable(Terrain *terrain, s32 cell_x, s32 cell_y);
 
 
 #endif // RTS_TERRAIN_H

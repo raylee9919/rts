@@ -97,6 +97,8 @@ void
 camera_update(Camera *camera, f32 dt)
 {
   clamp_focus(camera, &camera->focus_target);
+
+  camera->distance_target = clamp(camera->distance_target, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE);
   camera->distance = clamp(camera->distance, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE);
 
   // Smooth in

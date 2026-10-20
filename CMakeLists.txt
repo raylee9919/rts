@@ -130,6 +130,7 @@ add_library(rts_engine STATIC
     src/animation.cpp
     src/terrain.cpp
     src/camera.cpp
+    src/input.cpp
 
 
 

@@ -47,6 +47,19 @@ gfx_init_samplers()
     desc.max_lod            = 1e10f;
     rhi_sampler_init(gfx->device, &gfx->dot_sampler, &desc);
   }
+  {
+    RHI_Sampler_Desc desc = {};
+    desc.filter             = RHI_FILTER_ANISOTROPIC;
+    desc.address_u          = RHI_ADDRESS_REPEAT;
+    desc.address_v          = RHI_ADDRESS_REPEAT;
+    desc.address_w          = RHI_ADDRESS_REPEAT;
+    desc.max_anisotropy     = 10;
+    desc.compare_op         = RHI_COMPARE_ALWAYS;
+    desc.mip_lod_bias       = 0.f;
+    desc.min_lod            = 0.f;
+    desc.max_lod            = 1e10f;
+    rhi_sampler_init(gfx->device, &gfx->anisotropic_sampler, &desc);
+  }
 }
 
 static void 

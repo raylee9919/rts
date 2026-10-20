@@ -189,6 +189,7 @@ struct RHI_Texture_View {
 enum RHI_Filter {
     RHI_FILTER_LINEAR,
     RHI_FILTER_NEAREST,
+    RHI_FILTER_ANISOTROPIC
 };
 
 enum RHI_Address {

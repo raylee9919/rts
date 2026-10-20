@@ -111,244 +111,122 @@ struct OS_Window {
     OS_Handle  handle;
 };
 
-
-// Events
-//
-// @Cleanup
-#if 0
-#define KEY_GOOD_CAP 256
-enum OS_Key : u16 {
-    KEY_NULL,
-
-    KEY_ESC,
-    KEY_TILDE,
-    KEY_MINUS,
-    KEY_EQUAL,
-    KEY_BACKSPACE,
-    KEY_TAB,
-    KEY_SPACE,
-    KEY_RETURN,
-    KEY_CTRL,
-    KEY_SHIFT,
-    KEY_ALT,
-    KEY_UP,
-    KEY_LEFT,
-    KEY_DOWN,
-    KEY_RIGHT,
-    KEY_DELETE,
-    KEY_PAGE_UP,
-    KEY_PAGE_DOWN,
-    KEY_HOME,
-    KEY_END,
-    KEY_SLASH,
-    KEY_BACK_SLASH,
-    KEY_PERIOD,
-    KEY_COMMA,
-    KEY_QUOTE,
-    KEY_LEFT_BRACKET,
-    KEY_RIGHT_BRACKET,
-    KEY_INSERT,
-    KEY_SEMICOLON,
-    KEY_PAUSE,
-    KEY_CAPS_LOCK,
-    KEY_NUMS_LOCK,
-    KEY_SCROLL_LOCK,
-    KEY_MENU,
-
-    // Numpad
-    KEY_NUM_DIVIDE,
-    KEY_NUM_MULTIPLY,
-    KEY_NUM_SUBTRACT,
-    KEY_NUM_ADD,
-    KEY_NUM_DECIMAL,
-
-    // Equivalent to '0'~'9'.
-    KEY_0 = 48,
-    KEY_1 = 49,
-    KEY_2 = 50,
-    KEY_3 = 51,
-    KEY_4 = 52,
-    KEY_5 = 53,
-    KEY_6 = 54,
-    KEY_7 = 55,
-    KEY_8 = 56,
-    KEY_9 = 57,
-
-    // Equivalent to 'A'~'Z'.
-    KEY_A = 65,
-    KEY_B = 66,
-    KEY_C = 67,
-    KEY_D = 68,
-    KEY_E = 69,
-    KEY_F = 70,
-    KEY_G = 71,
-    KEY_H = 72,
-    KEY_I = 73,
-    KEY_J = 74,
-    KEY_K = 75,
-    KEY_L = 76,
-    KEY_M = 77,
-    KEY_N = 78,
-    KEY_O = 79,
-    KEY_P = 80,
-    KEY_Q = 81,
-    KEY_R = 82,
-    KEY_S = 83,
-    KEY_T = 84,
-    KEY_U = 85,
-    KEY_V = 86,
-    KEY_W = 87,
-    KEY_X = 88,
-    KEY_Y = 89,
-    KEY_Z = 90,
-
-    KEY_F1,
-    KEY_F2,
-    KEY_F3,
-    KEY_F4,
-    KEY_F5,
-    KEY_F6,
-    KEY_F7,
-    KEY_F8,
-    KEY_F9,
-    KEY_F10,
-    KEY_F11,
-    KEY_F12,
-    KEY_F13,
-    KEY_F14,
-    KEY_F15,
-    KEY_F16,
-    KEY_F17,
-    KEY_F18,
-    KEY_F19,
-    KEY_F20,
-    KEY_F21,
-    KEY_F22,
-    KEY_F23,
-    KEY_F24,
-
-    // Mouse
-    KEY_MOUSE_LEFT,
-    KEY_MOUSE_RIGHT,
-    KEY_MOUSE_MIDDLE,
-};
-#endif
-
 enum Event_Type : u32 {
-    EVENT_UNINITIALIZED       = 0,
-    EVENT_KEYBOARD            = 1,
-    EVENT_TEXT_INPUT          = 2,
-    EVENT_WINDOW              = 3,
-    EVENT_MOUSE_WHEEL         = 4,
-    EVENT_QUIT                = 5,
-    EVENT_DRAG_AND_DROP_FILES = 6,
+  EVENT_UNINITIALIZED       = 0,
+  EVENT_KEYBOARD            = 1,
+  EVENT_TEXT_INPUT          = 2,
+  EVENT_WINDOW              = 3,
+  EVENT_MOUSE_WHEEL         = 4,
+  EVENT_QUIT                = 5,
+  EVENT_DRAG_AND_DROP_FILES = 6,
 };
 
 typedef u32 Key_State;
 enum {
-    KEY_STATE_NONE  = 0x0,
-    KEY_STATE_DOWN  = 0x1,
-    KEY_STATE_START = 0x4,
-    KEY_STATE_END   = 0x8,
+  KEY_STATE_NONE  = 0x0,
+  KEY_STATE_DOWN  = 0x1,
+  KEY_STATE_START = 0x4,
+  KEY_STATE_END   = 0x8,
 };
 
 // We reserve 32 buttons for each gamepad.
 #define GAMEPAD_BUTTON_COUNT 32
 
-enum Key_Code : u32 {
-    KEY_UNKNOWN     = 0,
+typedef u32 Key_Code;
+enum {
+  KEY_UNKNOWN     = 0,
 
-    // Non-tectual keys that have placements in the ASCII table
-    // (and thus in Unicode):
-    
-    KEY_BACKSPACE   = 8,
-    KEY_TAB         = 9,
-    KEY_LINEFEED    = 10,
-    KEY_ENTER       = 13,
-    KEY_ESCAPE      = 27,
-    KEY_SPACEBAR    = 32,
+  // Non-tectual keys that have placements in the ASCII table
+  // (and thus in Unicode):
 
-    // The letters A-Z live in here as well and may be returned
-    // by keyboard events.
+  KEY_BACKSPACE   = 8,
+  KEY_TAB         = 9,
+  KEY_LINEFEED    = 10,
+  KEY_ENTER       = 13,
+  KEY_ESCAPE      = 27,
+  KEY_SPACEBAR    = 32,
 
-    KEY_DELETE      = 127,
+  // The letters A-Z live in here as well and may be returned
+  // by keyboard events.
 
-    KEY_ARROW_UP    = 128,
-    KEY_ARROW_DOWN  = 129,
-    KEY_ARROW_LEFT  = 130,
-    KEY_ARROW_RIGHT = 131,
+  KEY_DELETE      = 127,
 
-    KEY_PAGE_UP     = 132,
-    KEY_PAGE_DOWN   = 133,
+  KEY_ARROW_UP    = 128,
+  KEY_ARROW_DOWN  = 129,
+  KEY_ARROW_LEFT  = 130,
+  KEY_ARROW_RIGHT = 131,
 
-    KEY_HOME        = 134,
-    KEY_END         = 135,
+  KEY_PAGE_UP     = 132,
+  KEY_PAGE_DOWN   = 133,
 
-    KEY_INSERT      = 136,
+  KEY_HOME        = 134,
+  KEY_END         = 135,
 
-    KEY_PAUSE       = 137,
-    KEY_SCROLL_LOCK = 138,
+  KEY_INSERT      = 136,
 
-    KEY_ALT,
-    KEY_CTRL,
-    KEY_SHIFT,
-    KEY_CMD,
+  KEY_PAUSE       = 137,
+  KEY_SCROLL_LOCK = 138,
 
-    KEY_F1,
-    KEY_F2,
-    KEY_F3,
-    KEY_F4,
-    KEY_F5,
-    KEY_F6,
-    KEY_F7,
-    KEY_F8,
-    KEY_F9,
-    KEY_F10,
-    KEY_F11,
-    KEY_F12,
-    KEY_F13,
-    KEY_F14,
-    KEY_F15,
-    KEY_F16,
-    KEY_F17,
-    KEY_F18,
-    KEY_F19,
-    KEY_F20,
-    KEY_F21,
-    KEY_F22,
-    KEY_F23,
-    KEY_F24,
+  KEY_ALT,
+  KEY_CTRL,
+  KEY_SHIFT,
+  KEY_CMD,
 
-    KEY_PRINT_SCREEN,
+  KEY_F1,
+  KEY_F2,
+  KEY_F3,
+  KEY_F4,
+  KEY_F5,
+  KEY_F6,
+  KEY_F7,
+  KEY_F8,
+  KEY_F9,
+  KEY_F10,
+  KEY_F11,
+  KEY_F12,
+  KEY_F13,
+  KEY_F14,
+  KEY_F15,
+  KEY_F16,
+  KEY_F17,
+  KEY_F18,
+  KEY_F19,
+  KEY_F20,
+  KEY_F21,
+  KEY_F22,
+  KEY_F23,
+  KEY_F24,
 
-    MOUSE_BUTTON_LEFT,
-    MOUSE_BUTTON_MIDDLE,
-    MOUSE_BUTTON_RIGHT,
+  KEY_PRINT_SCREEN,
 
-    MOUSE_WHEEL_UP,
-    MOUSE_WHEEL_DOWN,
+  MOUSE_BUTTON_LEFT,
+  MOUSE_BUTTON_MIDDLE,
+  MOUSE_BUTTON_RIGHT,
 
-    MOUSE_BUTTON_EXTRA_1,
-    MOUSE_BUTTON_EXTRA_2,
+  MOUSE_WHEEL_UP,
+  MOUSE_WHEEL_DOWN,
 
-    // We reserve button codes for up to 4 gamepads.
-    GAMEPAD_0_BEGIN,
-    GAMEPAD_0_END = GAMEPAD_0_BEGIN + GAMEPAD_BUTTON_COUNT,
-    GAMEPAD_1_BEGIN,
-    GAMEPAD_1_END = GAMEPAD_1_BEGIN + GAMEPAD_BUTTON_COUNT,
-    GAMEPAD_2_BEGIN,
-    GAMEPAD_2_END = GAMEPAD_2_BEGIN + GAMEPAD_BUTTON_COUNT,
-    GAMEPAD_3_BEGIN,
-    GAMEPAD_3_END = GAMEPAD_3_BEGIN + GAMEPAD_BUTTON_COUNT,
+  MOUSE_BUTTON_EXTRA_1,
+  MOUSE_BUTTON_EXTRA_2,
 
-    // WARNING(swL)
-    //
-    // We make an array whose size is controlled 
-    // by the last enum value in this array, so if you make 
-    // really big values to match Unicode code points, our 
-    // memmory usage will become quite sorry.
+  // We reserve button codes for up to 4 gamepads.
+  GAMEPAD_0_BEGIN,
+  GAMEPAD_0_END = GAMEPAD_0_BEGIN + GAMEPAD_BUTTON_COUNT,
+  GAMEPAD_1_BEGIN,
+  GAMEPAD_1_END = GAMEPAD_1_BEGIN + GAMEPAD_BUTTON_COUNT,
+  GAMEPAD_2_BEGIN,
+  GAMEPAD_2_END = GAMEPAD_2_BEGIN + GAMEPAD_BUTTON_COUNT,
+  GAMEPAD_3_BEGIN,
+  GAMEPAD_3_END = GAMEPAD_3_BEGIN + GAMEPAD_BUTTON_COUNT,
 
-    KEY_CODE_MAX
+  // @Warning
+  //
+  // We make an array whose size is controlled 
+  // by the last enum value in this array, so if you make 
+  // really big values to match Unicode code points, our 
+  // memmory usage will become quite sorry.
+
+  KEY_CODE_MAX
 };
 
 struct Event {
@@ -436,32 +314,33 @@ force_inline u32 hash_guid(Guid guid) {
 //
 // OS State
 //
-struct OS_State {
-    Allocator arena;
-    Allocator event_arena;
+struct OS_State 
+{
+  Allocator arena;
+  Allocator event_arena;
 
-    // Platform-specific
-    void *native;
-
-    
-    //
-    // Input
-    //
-    Array<Event> events; // Events this frame
-    Key_State input_button_states[KEY_CODE_MAX];
-    b32 input_application_has_focus;
+  // Platform-specific
+  void *native;
 
 
-    //
-    // Thing
-    //
-    // Free list
-    OS_Thing *first_free_thing;
-    OS_Thing *last_free_thing;
+  //
+  // Input
+  //
+  Array<Event>  events; // Events this frame
+  Key_State     input_button_states[KEY_CODE_MAX];
+  b32           input_application_has_focus;
 
-    // Active list
-    OS_Thing *first_thing[OS_THING_KIND_COUNT];
-    OS_Thing *last_thing[OS_THING_KIND_COUNT];
+
+  //
+  // Thing
+  //
+  // Free list
+  OS_Thing *first_free_thing;
+  OS_Thing *last_free_thing;
+
+  // Active list
+  OS_Thing *first_thing[OS_THING_KIND_COUNT];
+  OS_Thing *last_thing[OS_THING_KIND_COUNT];
 };
 extern OS_State *os;
 extern f32 mouse_delta_z;

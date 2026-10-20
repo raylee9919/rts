@@ -7,31 +7,35 @@
 
 Game_State *game_state;
 
-void game_state_init(Game_State **game_state_pptr) {
-    // Reserve gigantic memory space and allocate game state in there.
-    u64 page_size = os_query_page_size();
-    u64 rsv = align_up(Gigabytes(128), page_size);
-    u8 *ptr = (u8*)os_reserve(rsv);
+void 
+game_state_init(Game_State **game_state_pptr) 
+{
+  // Reserve gigantic memory space and allocate game state in there.
+  u64 page_size = os_query_page_size();
+  u64 rsv = align_up(Gigabytes(128), page_size);
+  u8 *ptr = (u8*)os_reserve(rsv);
 
-    // First commit
-    u64 sz = sizeof(Game_State);
-    u64 cmt = align_up(sz, page_size);
-    R_ASSERT( os_commit(ptr, cmt) );
+  // First commit
+  u64 sz = sizeof(Game_State);
+  u64 cmt = align_up(sz, page_size);
+  R_ASSERT( os_commit(ptr, cmt) );
 
-    Game_State *g = (Game_State *)ptr;
-    Construct(g);
+  Game_State *g = (Game_State *)ptr;
+  Construct(g);
 
-    g->storage.base      = ptr;
-    g->storage.reserved  = rsv;
-    g->storage.committed = cmt;
-    g->storage.used     += sz;
-    g->storage.page_size = page_size;
+  g->storage.base      = ptr;
+  g->storage.reserved  = rsv;
+  g->storage.committed = cmt;
+  g->storage.used     += sz;
+  g->storage.page_size = page_size;
 
-    *game_state_pptr = g;
+  *game_state_pptr = g;
 }
 
-void game_state_deinit(Game_State *g) {
-    os_release(g->storage.base, g->storage.reserved);
+void 
+game_state_deinit(Game_State *g) 
+{
+  os_release(g->storage.base, g->storage.reserved);
 }
 
 void 

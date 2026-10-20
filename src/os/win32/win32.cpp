@@ -850,12 +850,18 @@ LRESULT RtsWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         case WM_RBUTTONUP:
         {
             maybe_send_vkey_event(VK_RBUTTON, msg == WM_RBUTTONDOWN);
+
+            if (msg == WM_RBUTTONDOWN) SetCapture(hwnd);
+            else ReleaseCapture();
         } break;
 
         case WM_MBUTTONDOWN:
         case WM_MBUTTONUP:
         {
             maybe_send_vkey_event(VK_MBUTTON, msg == WM_MBUTTONDOWN);
+
+            if (msg == WM_MBUTTONDOWN) SetCapture(hwnd);
+            else ReleaseCapture();
         } break;
 
 

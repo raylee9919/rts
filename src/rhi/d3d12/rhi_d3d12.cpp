@@ -123,6 +123,13 @@ static D3D12_FILTER d3d12_filter_from_rhi(RHI_Filter filter, bool is_compare_op)
             result = D3D12_FILTER_MIN_MAG_MIP_POINT;
         } break;
 
+        case RHI_FILTER_ANISOTROPIC: {
+            if (is_compare_op) {
+                result = D3D12_FILTER_COMPARISON_ANISOTROPIC;
+            }
+            result = D3D12_FILTER_ANISOTROPIC;
+        } break;
+
         default: R_ASSERT(!"Undefined filter mode.");
     }
 

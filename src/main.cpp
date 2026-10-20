@@ -25,58 +25,43 @@
 /* Third Party */
 #include "third_party/xxhash3/xxhash.h"
 
-// @Todo
-// - I had no idea asset loading function pointers would be hard to debug...
-// - Shader compiler debug option
-// - Not fond of guid generation...
+/*
+  @Todo
+  - I had no idea asset loading function pointers would be hard to debug...
+  - Shader compiler debug option
+  - Not fond of guid generation...
+  - Cull terrain by "chunk" granularity.
+*/
 
 
-static b8 key_w = 0;
-static b8 key_a = 0;
-static b8 key_s = 0;
-static b8 key_d = 0;
-static b8 key_q = 0;
-static b8 key_e = 0;
-
-
-void game_tick(Game_State *g, f64 dt) 
+void 
+game_tick(Game_State *g, f64 dt) 
 {
-    ProfileScope;
+  ProfileScope;
+  g->time += dt;
 
-    g->time += dt;
+  Input_State *inputs = &g->inputs;
 
-    camera_update(&g->camera, dt);
-}
+  {
+    Camera *camera = &g->camera;
+    f32 c = m_cos(camera->yaw_target);
+    f32 s = m_sin(camera->yaw_target);
+    vec3 right = vec3( c, s, 0.f);
+    vec3 fwd   = vec3(-s, c, 0.f);
+    f32 speed  = camera->distance;
 
-void input_process()
-{
-    ProfileScope;
+    if (key_down(inputs, 'W'))  camera->focus_target +=   fwd * speed * dt;
+    if (key_down(inputs, 'S'))  camera->focus_target -=   fwd * speed * dt;
+    if (key_down(inputs, 'D'))  camera->focus_target += right * speed * dt;
+    if (key_down(inputs, 'A'))  camera->focus_target -= right * speed * dt;
 
-    update_window_events();
+    if (key_down(inputs, 'Q'))  camera->yaw_target -= 1.8f * dt;
+    if (key_down(inputs, 'E'))  camera->yaw_target += 1.8f * dt;
 
-    for (Event& event : os->events) {
+    camera->distance_target *= powf(0.85f, inputs->wheel_notches);
 
-        if (event.type == EVENT_KEYBOARD) {
-            if (event.key_code == KEY_ENTER && event.modifier_flags.alt_pressed && event.key_pressed) {
-                toggle_fullscreen(shared->window);
-            }
-
-            if (event.key_code == KEY_F4 && event.modifier_flags.alt_pressed) {
-                shared->should_close = true;
-            }
-
-            if (event.key_code == 'W')  key_w = event.key_pressed;
-            if (event.key_code == 'A')  key_a = event.key_pressed;
-            if (event.key_code == 'S')  key_s = event.key_pressed;
-            if (event.key_code == 'D')  key_d = event.key_pressed;
-            if (event.key_code == 'Q')  key_q = event.key_pressed;
-            if (event.key_code == 'E')  key_e = event.key_pressed;
-
-        } else if (event.type == EVENT_DRAG_AND_DROP_FILES) {
-
-        }
-
-    }
+    camera_update(camera, dt);
+  }
 }
 
 int 
@@ -122,7 +107,7 @@ main_entry(int argc, char **argv)
   // @Temporary
   // @Temporary
   // @Temporary
-#if 1
+#if 0
   FBX_Import_Options options = {};
   options.generate_normals_with_mesh_optimizer = true;
   options.overwrite_existing_file = true;
@@ -176,7 +161,8 @@ main_entry(int argc, char **argv)
 
 
     // Input processing
-    input_process();
+    update_window_events();
+    input_process(&game_state->inputs);
 
 
     // Tick with fixed timestep

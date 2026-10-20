@@ -9,6 +9,7 @@
 #include "handle.h"
 #include "terrain.h"
 #include "camera.h"
+#include "input.h"
 
 #define MAX_ENTITIES        16384
 #define WORLD_UP            vec3{ 0.f,  0.f,  1.f}
@@ -63,6 +64,8 @@ struct Game_State
   // Singly-linked entity free list
   Handle          first_free_entity;
   Handle          last_free_entity;
+
+  Input_State     inputs;
 
   Camera          camera;
 

@@ -16,32 +16,6 @@ public float4 unpack_rgba8(uint packed)
 
 
 //
-// Tone mapping functions
-//
-public float3 tone_mapping_reinhard(float3 c)
-{
-    return c / (c + 1.0);
-}
-
-public float3 tone_mapping_jodie_reinhard(float3 c) 
-{
-    // https://www.shadertoy.com/view/tdSXzD
-    float luma = dot(c, float3(0.2126, 0.7152, 0.0722));
-    float3 tc = c / (c + 1.0);
-    return lerp(c / (luma + 1.0), tc, tc);
-}
-
-public float3 tone_mapping_aces(float3 x) 
-{
-    float a = 2.51;
-    float b = 0.03;
-    float c = 2.43;
-    float d = 0.59;
-    float e = 0.14;
-    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
-}
-
-//
 // Linear/sRGB conversion
 //
 public float3 sRGB_from_linear(float3 c) 
