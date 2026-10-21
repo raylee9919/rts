@@ -52,8 +52,10 @@ game_init(f64 time_init)
   // Init terrain
   terrain_init(game_state,
                &game_state->terrain,
-               NULL_GUID, 12.f,
-               256, 256, 1.f);
+               NULL_GUID, 12.f, 1.f);
+
+  // Init navmesh
+  navmesh_init(&game_state->navmesh);
 
   // Init camera
   camera_init(game_state, &game_state->camera, vec3(0.f, 0.f, 0.f), 0.f, 32.f);
@@ -66,6 +68,7 @@ game_shutdown()
 {
   Game_State *g = game_state;
 
+  navmesh_deinit(&g->navmesh);
   os_release(g->storage.base, g->storage.reserved);
 
   log_info(S("Shutdown game states."));
@@ -142,6 +145,7 @@ void
 entity_dealloc(Game_State *g, Entity *entity) 
 {
   // @Todo: Must remove from the tree, decommit page?
+  entity->generational_id = 0;
   g->num_entities -= 1;
 }
 
@@ -221,43 +225,76 @@ void entity_remove_child(Game_State *g, Handle parent, Handle child) {
     // @Todo
 }
 
-static u64 _entity_dfs_internal(Game_State *g, 
-                                Handle root, 
-                                u64 index, 
-                                void *user_data, 
-                                void (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data) )
+static u64 
+_entity_dfs_internal(Game_State *g, 
+                     Handle      root, 
+                     u64         index, 
+                     void       *user_data, 
+                     void        (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data) )
 {
-    Entity *entity = entity_from_handle(g, root);
-    if (!entity)  return index;
+  Entity *entity = entity_from_handle(g, root);
+  if (!entity)  return index;
 
-    if (root != g->root) {
-        proc(g, entity, index, user_data);
-        index += 1;
-    }
+  // Let's skip the dummy root entity.
+  if (root != g->root) {
+    proc(g, entity, index, user_data);
+    index += 1;
+  }
 
-    Handle first = entity->first;
-    if (first.is_null())  return index;
+  Handle first = entity->first;
+  if (first.is_null())  return index;
 
-    Handle child = first;
+  Handle child = first;
 
-    for (;;) {
-        index = _entity_dfs_internal(g, child, index, user_data, proc);
+  for (;;) {
+    index = _entity_dfs_internal(g, child, index, user_data, proc);
 
-        Entity *child_entity = entity_from_handle(g, child);
+    Entity *child_entity = entity_from_handle(g, child);
 
-        R_ASSERT(child_entity);  // Deallocated entity must have been removed
+    R_ASSERT(child_entity);  // Deallocated entity must have been removed
 
-        child = child_entity->next;
-        if (child == first)  break;
-    }
+    child = child_entity->next;
+    if (child == first)  break;
+  }
 
-    return index;
+  return index;
 }
 
 void entity_dfs(Game_State *g, 
-                Handle root, 
-                void *user_data, 
-                void (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data)) 
+                Handle      root, 
+                void       *user_data, 
+                void        (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data)) 
 {
-    _entity_dfs_internal(g, root, 0, user_data, proc);
+  _entity_dfs_internal(g, root, 0, user_data, proc);
+}
+
+vec3 
+ray_from_playfield(Camera *camera, vec2 p)
+{
+  return {};
+}
+
+void
+selected_clear(Game_State* g, s32 player)
+{
+  R_ASSERT(player < MAX_PLAYERS);
+  g->num_selected[player] = 0;
+}
+
+void
+selected_sanitize(Game_State* g, s32 player)
+{
+  for (s32 i = 0; i < g->num_selected[player]; )
+  {
+    Entity *e = entity_from_handle(g, g->selected[player][i]);
+    if (!e)
+    {
+      g->num_selected[player] -= 1;
+      g->selected[player][i] = g->selected[player][g->num_selected[player]];
+    }
+    else
+    {
+      i += 1;
+    }
+  }
 }

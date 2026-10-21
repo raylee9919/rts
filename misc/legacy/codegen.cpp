@@ -193,7 +193,7 @@ void init_material_type_table();
                     if (field.attribute == S("Texture")) {
                         type = S("MATERIAL_FIELD_ASSET");
                     }
-                    append(&impl, tprint(S("  info.fields[%d] = { %S, S(\"%S\"), sizeof(%S::%S), offset_of(%S, %S) };\n"),
+                    append(&impl, tprint(S("  info.fields[%d] = { %S, S(\"%S\"), sizeof(%S::%S), offsetof(%S, %S) };\n"),
                                          i, type, field.name, mtl.name, field.name, mtl.name, field.name));
                 }
                 append(&impl, tprint(S("  table_add(&material_type_table, guid_from_string(S(\"%S\")), info);\n"), asset_path));

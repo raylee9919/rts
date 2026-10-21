@@ -113,6 +113,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
       Terrain *terrain = &g->terrain;
       R_ASSERT(terrain->initted);
 
+      // @Fix: This won't work in loaded game state...
       if (!pass->terrain_initted)
       {
         // Create pipeline

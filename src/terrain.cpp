@@ -35,13 +35,15 @@ terrain_init(Game_State *g,
              Terrain    *terrain, 
              Guid        height_map,
              f32         height_scale,
-             s64         cell_count_x, 
-             s64         cell_count_y,
              f32         cell_size)
 {
   f64 t0 = time_seconds();
 
-  terrain->offset_in_game_state = offset_of(Game_State, terrain);
+  // @Temporary
+  s64 cell_count_x = 256;
+  s64 cell_count_y = 256;
+
+  terrain->offset_in_game_state = offsetof(Game_State, terrain);
 
   terrain->vertices_x = cell_count_x + 1;
   terrain->vertices_y = cell_count_y + 1;
@@ -108,6 +110,10 @@ terrain_init(Game_State *g,
   }
 
 
+  //
+  // Compute array of discrete levels of the cells 
+  // from the given heights.
+  //
   u16 *levels = (u16*)game_alloc(g, sizeof(u16)*cell_x*cell_y, align_of(u16));
   terrain->levels = handle_from_pointer(g, levels);
   for (s64 y = 0; y < cell_y; ++y) {
@@ -130,8 +136,7 @@ terrain_init(Game_State *g,
   terrain->initted = true;
 
   // Log
-  f64 t1 = time_seconds();
-  f64 elapsed = t1 - t0;
+  f64 elapsed = time_seconds() - t0;
   log_info(S("%dx%d terrain generated in %.2f seconds."), (int)cell_x, (int)cell_y, (f32)elapsed);
 }
 
@@ -199,4 +204,11 @@ terrain_passable(Terrain *terrain, s32 cell_x, s32 cell_y)
 
   b8 *passables = get_passables(terrain);
   return passables[terrain->cells_x*cell_y + cell_x];
+}
+
+vec2
+terrain_vertex(Terrain *terrain, s32 vertex_x, s32 vertex_y)
+{
+  return vec2(terrain->corner_x + vertex_x*terrain->cell_size,
+              terrain->corner_y + vertex_y*terrain->cell_size);
 }

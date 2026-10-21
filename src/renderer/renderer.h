@@ -198,7 +198,7 @@ r_pipeline_destroy(Guid id);
 
 
 vec2 
-playfield_from_window(f32 x, f32 y);
+playfield_from_window(s64 x, s64 y);
 
 
 void

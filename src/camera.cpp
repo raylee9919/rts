@@ -2,10 +2,12 @@
 
 #include "./camera.h"
 #include "game.h"
+#include "renderer/renderer.h"
 
 #define CAMERA_FOV           0.70f
 #define CAMERA_MIN_DISTANCE    7.f
-#define CAMERA_MAX_DISTANCE   70.f
+// #define CAMERA_MAX_DISTANCE   70.f
+#define CAMERA_MAX_DISTANCE  300.f
 #define CAMERA_PITCH_NEAR   -0.60f
 #define CAMERA_PITCH_FAR    -0.98f
 #define CAMERA_SMOOTHING      12.f
@@ -75,7 +77,7 @@ camera_init(Game_State *g,
             f32         yaw, 
             f32         distance)
 {
-  camera->offset_in_game_state = offset_of(Game_State, camera);
+  camera->offset_in_game_state = offsetof(Game_State, camera);
 
   camera->fov             = CAMERA_FOV;
 
@@ -94,7 +96,7 @@ camera_init(Game_State *g,
 }
 
 void
-camera_update(Camera *camera, f32 dt)
+camera_tick(Camera *camera, f32 dt)
 {
   clamp_focus(camera, &camera->focus_target);
 
@@ -108,6 +110,13 @@ camera_update(Camera *camera, f32 dt)
   camera->yaw      = lerp(camera->yaw, camera->yaw_target, a);
 
   update_pose(camera);
+
+  f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
+  vec3 fwd = camera_forward(camera);
+
+  camera->view      = look_to_rh(camera->position, fwd, WORLD_UP);
+  camera->proj      = persp_fov_rh(camera->fov, aspect_ratio, NEAR_Z, FAR_Z);
+  camera->view_proj = camera->proj * camera->view;
 }
 
 vec3 
@@ -121,4 +130,11 @@ camera_look_at(Camera *camera, vec3 focus)
 {
   camera->focus_target = focus;
   clamp_focus(camera, &camera->focus_target);
+}
+
+vec4 
+camera_project(Camera *camera, vec3 p)
+{
+  vec4 q = camera->view_proj * vec4(p, 1.f);
+  return q;
 }

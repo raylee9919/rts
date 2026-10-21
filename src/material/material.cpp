@@ -19,11 +19,6 @@
 
 
 
-static RHI_Format bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit);
-static Bitmap bitmap_import(void *loaded_data, u64 size);
-static void bitmap_free(Bitmap *bitmap);
-
-
 //
 // Material System
 //
@@ -410,28 +405,6 @@ ASSET_LOAD_PROC(material_load_proc)
   upload_material(id);
 }
 
-ASSET_LOAD_PROC(image_load_proc)
-{
-  String path = asset_name_from_guid(id);
-  String contents = read_entire_file(path, tctx.temp);
-  Bitmap bitmap   = bitmap_import(contents.str, contents.len);
-
-  RHI_Texture_Desc desc = {};
-  {
-    desc.type           = RHI_TEXTURE_TYPE_2D;
-    desc.format         = bitmap.format;
-    desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
-    desc.width          = bitmap.width;
-    desc.height         = bitmap.height;
-    desc.mip_levels     = 1;
-    desc.depth          = 1;
-  }
-  gfx_texture_create(id, desc);
-  gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
-
-  bitmap_free(&bitmap);
-}
-
 static RHI_Format 
 bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit) 
 {
@@ -496,3 +469,26 @@ bitmap_free(Bitmap *bitmap)
 {
   stbi_image_free(bitmap->data);
 }
+
+ASSET_LOAD_PROC(image_load_proc)
+{
+  String path     = asset_name_from_guid(id);
+  String contents = read_entire_file(path, tctx.temp);
+  Bitmap bitmap   = bitmap_import(contents.str, contents.len);
+
+  RHI_Texture_Desc desc = {};
+  {
+    desc.type           = RHI_TEXTURE_TYPE_2D;
+    desc.format         = bitmap.format;
+    desc.usage          = RHI_TEXTURE_USAGE_SAMPLED;
+    desc.width          = bitmap.width;
+    desc.height         = bitmap.height;
+    desc.mip_levels     = 1;
+    desc.depth          = 1;
+  }
+  gfx_texture_create(id, desc);
+  gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
+
+  bitmap_free(&bitmap);
+}
+

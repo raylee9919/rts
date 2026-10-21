@@ -8,6 +8,12 @@
 
 #define R_MAX_QUADS 2048
 
+/*
+  Left-handed (y-down)
+  Provides simple primitive drawings in 'playfield' coordinate system, 
+  which is dependent to the selected game resolution.
+*/
+
 struct R_Quad 
 {
   vec2 vertices[4];
@@ -30,6 +36,7 @@ draw_quad(f32 x, f32 y, f32 w, f32 h,
 
 void 
 draw_line(vec2 p0, vec2 p1, vec4 c, f32 thickness);
+
 
 extern per_thread R_Quad immediate_quads[R_MAX_QUADS];
 extern per_thread u32    num_immediate_quads;

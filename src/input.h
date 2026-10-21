@@ -8,7 +8,8 @@
 
 struct Input_State
 {
-  b8  ended_down[KEY_CODE_MAX];
+  u8  index;
+  b8  ended_down[2][KEY_CODE_MAX];
   s32 num_transitions[KEY_CODE_MAX];
 
   f32 wheel_notches;
@@ -22,6 +23,12 @@ key_down(Input_State *state, Key_Code key);
 
 b8
 key_up(Input_State *state, Key_Code key);
+
+b8
+key_transitioned_down(Input_State *state, Key_Code key);
+
+b8
+key_transitioned_up(Input_State *state, Key_Code key);
 
 s32
 key_presses(Input_State *state, Key_Code key);

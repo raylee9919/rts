@@ -38,9 +38,9 @@ gpu_camera_from_game(Camera *camera)
   vec3 fwd = camera_forward(camera);
 
   result.position  = vec4(camera->position, 1.f);
-  result.view      = look_to_rh(camera->position, fwd, WORLD_UP);
-  result.proj      = persp_fov_rh(camera->fov, aspect_ratio, NEAR_Z, FAR_Z);
-  result.view_proj = result.proj * result.view;
+  result.view      = camera->view;
+  result.proj      = camera->proj;
+  result.view_proj = camera->view_proj;
 
   return result;
 }
@@ -240,8 +240,9 @@ r_shutdown()
   destroy(renderer->heap);
 }
 
+// Rect in window-space coordinate system
 static R_Rect 
-get_playfield_rect() 
+playfield_rect() 
 {
   R_Rect r;
 
@@ -267,11 +268,11 @@ get_playfield_rect()
   Converts window coordinate to playfield coordinate.
 */
 vec2 
-playfield_from_window(f32 x, f32 y) 
+playfield_from_window(s64 x, s64 y) 
 {
-  R_Rect r = get_playfield_rect();
-  return vec2((x - r.x) * (f32)RESOLUTION_X / r.w,
-              (y - r.y) * (f32)RESOLUTION_Y / r.h);
+  R_Rect r = playfield_rect();
+  return vec2(((f32)x - r.x) * (f32)RESOLUTION_X / r.w,
+              ((f32)y - r.y) * (f32)RESOLUTION_Y / r.h);
 }
 
 static void 
@@ -327,7 +328,7 @@ r_end(Render_Entry *data, f64 refresh_dt)
 
 
   // Calculate playground rect
-  R_Rect playfield = get_playfield_rect();
+  R_Rect playfield = playfield_rect();
 
   // Append received immediate quads to render thread's local storage.
   u32 n = min(data->num_quads, (u32)R_MAX_QUADS - num_immediate_quads);

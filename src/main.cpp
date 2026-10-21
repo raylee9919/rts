@@ -31,16 +31,23 @@
   - Shader compiler debug option
   - Not fond of guid generation...
   - Cull terrain by "chunk" granularity.
+  - Color
 */
 
-
 void 
-game_tick(Game_State *g, f64 dt) 
+fixed_tick(Game_State *g, f64 dt) 
 {
   ProfileScope;
+  g->tick += 1;
   g->time += dt;
 
   Input_State *inputs = &g->inputs;
+
+  quadtree_build(g, &g->quadtree, 
+                 vec2(g->terrain.corner_x, g->terrain.corner_y),
+                 vec2(g->terrain.corner_x + g->terrain.cell_size * g->terrain.cells_x, 
+                      g->terrain.corner_y + g->terrain.cell_size * g->terrain.cells_y));
+
 
   {
     Camera *camera = &g->camera;
@@ -60,7 +67,69 @@ game_tick(Game_State *g, f64 dt)
 
     camera->distance_target *= powf(0.85f, inputs->wheel_notches);
 
-    camera_update(camera, dt);
+    camera_tick(camera, dt);
+  }
+}
+
+void 
+per_frame_tick(Game_State *g, f64 dt)
+{
+  quadtree_visualize(&g->quadtree, &g->camera);
+}
+
+void 
+game_input_process(Game_State *g) 
+{
+  //
+  // Entity selection
+  //
+  if (key_transitioned_down(&g->inputs, MOUSE_BUTTON_LEFT))
+  {
+    auto [x,y,success] = get_mouse_pointer_position(shared->window);
+    if (success)
+    {
+      g->game_input.mouse_clicked_postion = playfield_from_window(x, y);
+    }
+  }
+
+  if (key_transitioned_up(&g->inputs, MOUSE_BUTTON_LEFT))
+  {
+    auto [x,y,success] = get_mouse_pointer_position(shared->window);
+    if (success)
+    {
+#if 0
+      vec2 _00 = g->game_input.mouse_clicked_postion;
+      vec2 _11 = playfield_from_window(x, y);
+      vec2 _01 = vec2(_11.x, _00.y);
+      vec2 _10 = vec2(_00.x, _11.y);
+      Ray ray00 = ray_from_playfield(&g->camera, _00);
+      Ray ray01 = ray_from_playfield(&g->camera, _01);
+      Ray ray10 = ray_from_playfield(&g->camera, _10);
+      Ray ray11 = ray_from_playfield(&g->camera, _11);
+      vec3 p00 = terrain_raycast(&g->terrain, ray00);
+      vec3 p01 = terrain_raycast(&g->terrain, ray01);
+      vec3 p10 = terrain_raycast(&g->terrain, ray10);
+      vec3 p11 = terrain_raycast(&g->terrain, ray11);
+#endif
+    }
+  }
+
+  if (key_down(&g->inputs, MOUSE_BUTTON_LEFT))
+  {
+    auto [x,y,success] = get_mouse_pointer_position(shared->window);
+    if (success)
+    {
+      vec4 color    = vec4(0.3f, 1.f, 0.4f, 0.9f);
+      f32 thickness = 1.5f;
+      vec2 _00 = g->game_input.mouse_clicked_postion;
+      vec2 _11 = playfield_from_window(x, y);
+      vec2 _01 = vec2(_11.x, _00.y);
+      vec2 _10 = vec2(_00.x, _11.y);
+      draw_line(_00, _01, color, thickness);
+      draw_line(_01, _11, color, thickness);
+      draw_line(_11, _10, color, thickness);
+      draw_line(_10, _00, color, thickness);
+    }
   }
 }
 
@@ -114,17 +183,24 @@ main_entry(int argc, char **argv)
   R_ASSERT( fbx_import(S("C:/Arts/Goblin/Mixamo/OrcWalk.fbx"), S(""), options) );
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
-  Entity *my_entity = entity_alloc(game_state);
-  my_entity->mesh = mesh_id;
-  asset_request(mesh_id, NULL_GUID, NULL);
 
-  my_entity->animation_id = guid_from_string(S("goblin/OrcWalk.sampled_animation"));
-  asset_request(my_entity->animation_id, NULL_GUID, NULL);
+  for (s32 i = 0; i < 16; ++i) 
+  {
+    Entity *my_entity = entity_alloc(game_state);
+    my_entity->mesh = mesh_id;
+    asset_request(mesh_id, NULL_GUID, NULL);
 
-  my_entity->position.z = terrain_height(game_state, 0, 0);
-  // @Temporary
-  // @Temporary
-  // @Temporary
+    my_entity->animation_id = guid_from_string(S("goblin/OrcWalk.sampled_animation"));
+    asset_request(my_entity->animation_id, NULL_GUID, NULL);
+
+    my_entity->position.y = (f32)(i / 4) * 1.f;
+    my_entity->position.x = (f32)(i % 4) * 1.f;
+    my_entity->position.z = terrain_height(game_state, my_entity->position.x, my_entity->position.y); // @Temporary
+    my_entity->radius = 16.f;
+  }
+  // @temporary
+  // @temporary
+  // @temporary
 
 
   // Game loop
@@ -154,24 +230,25 @@ main_entry(int argc, char **argv)
 
 
     // Time
-    f64 time_new        = time_seconds();
-    f64 time_elapsed    = time_new - time_old;
-    time_old            = time_new;
-    accumulator        += time_elapsed;
+    f64 time_new      = time_seconds();
+    f64 time_elapsed  = time_new - time_old;
+    time_old          = time_new;
+    accumulator      += time_elapsed;
 
 
     // Input processing
     update_window_events();
     input_process(&game_state->inputs);
+    game_input_process(game_state);
 
 
     // Tick with fixed timestep
     for (u32 counter = 0; accumulator >= dt && counter < 10; counter += 1) {
       ProfileScopeN("TickGame");
       accumulator -= dt;
-      game_tick(game_state, dt);
+      fixed_tick(game_state, dt);
     }
-
+    per_frame_tick(game_state, time_elapsed);
 
 
     { // Push state to render thread

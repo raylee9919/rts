@@ -39,8 +39,6 @@ terrain_init(Game_State *game_state,
              Terrain    *terrain, 
              Guid        height_map,
              f32         height_scale,
-             s64         cell_count_x, 
-             s64         cell_count_y,
              f32         cell_size);
 
 void 
@@ -54,6 +52,9 @@ terrain_contains(Terrain *terrain, f32 x, f32 y);
 
 b8
 terrain_passable(Terrain *terrain, s32 cell_x, s32 cell_y);
+
+vec2
+terrain_vertex(Terrain *terrain, s32 vertex_x, s32 vertex_y);
 
 
 #endif // RTS_TERRAIN_H

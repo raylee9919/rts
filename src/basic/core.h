@@ -460,4 +460,12 @@ struct Triplet {
     T3 z;
 };
 
+template<typename T>
+void swap(T *a, T *b) 
+{
+  T tmp = *a;
+  *a = *b;
+  *b = tmp;
+}
+
 #endif // RTS_BASIC_CORE_H

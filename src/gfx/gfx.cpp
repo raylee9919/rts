@@ -895,7 +895,7 @@ gfx_end(f64 time,
     radix_sort_u64(gfx->sort_keys[i].data,
                    gfx->sort_keys[i].count, 
                    sizeof(GFX_Sort_Key),
-                   offset_of(GFX_Sort_Key, bits));
+                   offsetof(GFX_Sort_Key, bits));
   }
 
   // @Temporary

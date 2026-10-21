@@ -34,15 +34,25 @@ struct Camera
 
   vec3 position;
   f32  pitch;
+
+  m4x4 view;
+  m4x4 proj;
+  m4x4 view_proj;
 };
 
 void 
 camera_init(Game_State *g, Camera *camera, vec3 focus, f32 yaw, f32 distance);
 
 void
-camera_update(Camera *camera, f32 dt);
+camera_tick(Camera *camera, f32 dt);
 
+// Returns normalized forward vector of the camera.
 vec3 
 camera_forward(Camera *camera);
+
+// returns clip-space coordinates.
+vec4 
+camera_project(Camera *camera, vec3 p);
+
 
 #endif // RTS_CAMERA_H
