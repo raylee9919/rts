@@ -1,7 +1,0 @@
-1 // Version
-
-@"shaders/material/default.slang"
-
-albedo_id : @"./Armor_BaseColor.png"
-roughness_id : @"./Armor_Roughness.png"
-metallic_id : @"./Armor_Metalness.png"

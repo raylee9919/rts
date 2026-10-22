@@ -1,7 +1,0 @@
-1 // Version
-
-@"shaders/material/default.slang"
-
-albedo_id : @"./Sword_Shield_BaseColor.png"
-roughness_id : @"./Sword_Shield_Roughness.png"
-metallic_id : @"./Sword_Shield_Metalness.png"

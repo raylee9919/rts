@@ -322,6 +322,9 @@ unpack_rgba(u32 rgba);
 Rect
 rect_union(Rect a, Rect b);
 
+vec2
+rect_center(Rect r);
+
 
 
 

@@ -5,3 +5,4 @@
 albedo_id : @"./Armor_BaseColor.png"
 roughness_id : @"./Armor_Roughness.png"
 metallic_id : @"./Armor_Metalness.png"
+normal_id : @"./Armor_Normal.png"

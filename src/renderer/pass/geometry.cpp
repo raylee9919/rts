@@ -363,6 +363,40 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                 }
               }
 
+              // @Temporary: Draw AABB
+              if (1) 
+              {
+                m4x4 mvp = data->camera->view_proj * transform;
+                vec3 lo = mesh.aabb.min;
+                vec3 hi = mesh.aabb.max;
+
+                // Corner i: bit 0 -> x, bit 1 -> y, bit 2 -> z (0 = min, 1 = max)
+                vec2 px[8];
+                b32  visible[8];
+                for (int i = 0; i < 8; ++i)
+                {
+                  vec3 c = vec3((i & 1) ? hi.x : lo.x,
+                                (i & 2) ? hi.y : lo.y,
+                                (i & 4) ? hi.z : lo.z);
+                  vec4 clip = mvp * vec4(c, 1.f);
+                  visible[i] = clip.w > 0.f;
+                  vec2 ndc = clip.xy * (1.f/clip.w);
+                  px[i] = vec2((ndc.x*0.5f + 0.5f) * 2560, (0.5f - ndc.y*0.5f) * 1440);
+                }
+
+                // 12 edges: connect corners whose indices differ in exactly one bit
+                for (int i = 0; i < 8; ++i)
+                {
+                  for (int bit = 1; bit < 8; bit <<= 1)
+                  {
+                    if (i & bit) continue;
+                    int j = i | bit;
+                    if (visible[i] && visible[j])
+                      draw_line(px[i], px[j], vec4(1, 0, 1, 1), 2.f);
+                  }
+                }
+              }
+
 
               // Draw
               gfx_draw(mesh.id, 1, index_offset, index_count);

@@ -11,7 +11,6 @@
 #include "camera.h"
 #include "input.h"
 #include "navigation.h"
-#include "quadtree.h"
 
 #define MAX_ENTITIES        16384
 #define WORLD_UP            vec3{ 0.f,  0.f,  1.f}
@@ -83,7 +82,6 @@ struct Game_State
   Handle          first_free_entity;
   Handle          last_free_entity;
 
-  Quadtree        quadtree;
 
   Input_State     inputs;
   Game_Input      game_input;

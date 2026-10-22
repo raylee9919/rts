@@ -4,3 +4,4 @@
 
 albedo_id : @"./Goblins_body_BaseColor.png"
 roughness_id : @"./Goblins_body_Roughness.png"
+normal_id : @"./Goblins_body_Normal.png"

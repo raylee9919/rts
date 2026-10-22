@@ -26,12 +26,12 @@
 #include "third_party/xxhash3/xxhash.h"
 
 /*
-  @Todo
-  - I had no idea asset loading function pointers would be hard to debug...
-  - Shader compiler debug option
-  - Not fond of guid generation...
-  - Cull terrain by "chunk" granularity.
-  - Color
+ @Todo
+ - I had no idea asset loading function pointers would be hard to debug...
+ - Shader compiler debug option
+ - Not fond of guid generation...
+ - Cull terrain by "chunk" granularity.
+ - Color
 */
 
 void 
@@ -42,11 +42,6 @@ fixed_tick(Game_State *g, f64 dt)
   g->time += dt;
 
   Input_State *inputs = &g->inputs;
-
-  quadtree_build(g, &g->quadtree, 
-                 vec2(g->terrain.corner_x, g->terrain.corner_y),
-                 vec2(g->terrain.corner_x + g->terrain.cell_size * g->terrain.cells_x, 
-                      g->terrain.corner_y + g->terrain.cell_size * g->terrain.cells_y));
 
 
   {
@@ -74,7 +69,6 @@ fixed_tick(Game_State *g, f64 dt)
 void 
 per_frame_tick(Game_State *g, f64 dt)
 {
-  quadtree_visualize(&g->quadtree, &g->camera);
 }
 
 void 
@@ -193,8 +187,8 @@ main_entry(int argc, char **argv)
     my_entity->animation_id = guid_from_string(S("goblin/OrcWalk.sampled_animation"));
     asset_request(my_entity->animation_id, NULL_GUID, NULL);
 
-    my_entity->position.y = (f32)(i / 4) * 1.f;
-    my_entity->position.x = (f32)(i % 4) * 1.f;
+    my_entity->position.y = (f32)(i / 4) * 2.f;
+    my_entity->position.x = (f32)(i % 4) * 2.f;
     my_entity->position.z = terrain_height(game_state, my_entity->position.x, my_entity->position.y); // @Temporary
     my_entity->radius = 16.f;
   }

@@ -975,7 +975,7 @@ m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
 u32 
 pack_rgba(vec4 rgba) 
 {
-  //// SSE2
+  // SSE2
   __m128 f = _mm_loadu_ps(&rgba.x);
   f = _mm_mul_ps(f, _mm_set1_ps(255.f));
   __m128i i = _mm_cvtps_epi32(f);
@@ -987,7 +987,7 @@ pack_rgba(vec4 rgba)
 vec4 
 unpack_rgba(u32 rgba) 
 {
-  //// SSE2
+  // SSE2
   __m128i zero = _mm_setzero_si128();
   __m128i u = _mm_cvtsi32_si128((int)rgba);
   u = _mm_unpacklo_epi8(u, zero);
@@ -1000,7 +1000,7 @@ unpack_rgba(u32 rgba)
 Rect
 rect_union(Rect a, Rect b)
 {
-  //// SSE
+  // SSE
   Rect R = {};
   __m128 p = _mm_loadu_ps(&a.min.x);
   __m128 q = _mm_loadu_ps(&b.min.x);
@@ -1009,4 +1009,11 @@ rect_union(Rect a, Rect b)
   __m128 t = _mm_shuffle_ps(r, s, _MM_SHUFFLE(3, 2, 1, 0));
   _mm_storeu_ps(&R.min.x, t);
   return R;
+}
+
+vec2
+rect_center(Rect r)
+{
+  return 0.5f * vec2((r.min.x + r.max.x), 
+                     (r.min.y + r.max.y));
 }

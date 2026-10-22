@@ -97,7 +97,7 @@ add_library(rts_engine STATIC
 
     src/random/random.cpp
 
-    src/geometry/cdt.cpp
+    src/math/cdt.cpp
     src/geometry/geogen.cpp
 
     src/rect_pack/rect_pack.cpp
@@ -126,12 +126,12 @@ add_library(rts_engine STATIC
 
     src/development/console.cpp
 
+    src/input.cpp
     src/mesh.cpp
     src/animation.cpp
     src/terrain.cpp
     src/camera.cpp
-    src/input.cpp
-
+    src/navigation.cpp
 
 
     src/renderer/pass/geometry.cpp
