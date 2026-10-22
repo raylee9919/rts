@@ -199,7 +199,7 @@ to_vec3(ufbx_vec3 v)
 static Quaternion
 to_quaternion(ufbx_quat q)
 {
-  return Quaternion(q.w, q.x, q.y, q.z);
+  return make_quaternion(q.w, q.x, q.y, q.z);
 }
 
 static u32

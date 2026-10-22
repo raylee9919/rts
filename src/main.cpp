@@ -32,6 +32,7 @@
  - Not fond of guid generation...
  - Cull terrain by "chunk" granularity.
  - Color
+ - SIMD CPUID and bind corresponding functions.
 */
 
 void 

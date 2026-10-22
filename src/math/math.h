@@ -77,9 +77,6 @@ union vec4
     f32 w;
   };
   f32 e[4];
-#if SSE_ENABLED
-  __m128 sse;
-#endif
 
   vec4() = default;
   vec4(f32 f1, f32 f2, f32 f3, f32 f4) : x(f1), y(f2), z(f3), w(f4) {};
@@ -113,10 +110,7 @@ union m3x4
 union Quaternion 
 {
   struct { f32 w, x, y, z; };
-  __m128 sse;
-
-  Quaternion();
-  Quaternion(f32 w_, f32 x_, f32 y_, f32 z_);
+  f32 f[4];
 };
 
 union Rect {
@@ -165,7 +159,9 @@ f32
 smoothstep(f32 min, f32 max, f32 x);
 
 
-//// Vector2
+//
+// Vector2
+//
 vec2       operator  - (vec2& in);
 vec2       operator  * (f32 f,  vec2 v);
 vec2       operator  * (vec2  v, f32 f);
@@ -182,18 +178,13 @@ vec2       operator  * (vec2  l,  vec2 r); // Hadamard product. I'm just followi
 // @Todo: Cleanup below.
 //
 
-#if SSE_ENABLED
-f32            dot(__m128 a, __m128 b);
-#endif
 f32            dot(vec2 a, vec2 b);
 f32            dot(vec3 a, vec3 b);
-f32            dot(vec4 a, vec4 b);
 f32            dot(Quaternion a, Quaternion b);
 
 vec3           cross(vec3 a, vec3 b);
 
 vec3           hadamard(vec3 a, vec3 b);
-vec4           hadamard(vec4 a, vec4 b);
 
 f64            fmod_cycling(f64 x, f64 y);
 f32            fmod_cycling(f32 x, f32 y);
@@ -225,16 +216,61 @@ vec3           normalize(vec3 a);
 vec3           lerp(vec3 a, vec3 b, f32 t);
 f32            distance(vec3 a, vec3 b);
 f32            distance(vec2 a, vec2 b);
-vec4           V4(vec2 rg, f32 b, f32 a);
-vec4           operator * (vec4 v, f32 f);
-vec4           operator * (f32 a, vec4 v);
-vec4           lerp(vec4 a, vec4 b, f32 t);
-Quaternion     operator + (Quaternion a, Quaternion b);
-Quaternion     operator - (Quaternion l, Quaternion r);
-Quaternion     operator * (Quaternion a, Quaternion b);
-Quaternion     operator * (Quaternion a, f32 b);
-Quaternion     operator * (f32 b, Quaternion a);
-Quaternion     operator - (Quaternion in);
+
+
+
+//
+// Vector4
+//
+vec4           
+operator + (vec4 a, vec4 b);
+
+vec4           
+operator - (vec4 a, vec4 b);
+
+vec4           
+operator * (vec4 v, f32 f);
+
+vec4           
+operator * (f32 a, vec4 v);
+
+vec4           
+operator / (vec4 v, f32 f);
+
+f32            
+dot(vec4 a, vec4 b);
+
+vec4           
+operator * (vec4 a, vec4 b); // Hadamard
+
+vec4           
+lerp(vec4 a, vec4 b, f32 t);
+
+
+// 
+// Quaternion
+//
+Quaternion 
+make_quaternion(f32 w, f32 x, f32 y, f32 z);
+
+Quaternion     
+operator + (Quaternion l, Quaternion r);
+
+Quaternion     
+operator - (Quaternion l, Quaternion r);
+
+Quaternion     
+operator * (Quaternion l, Quaternion r);
+
+Quaternion     
+operator * (Quaternion q, f32 f);
+
+Quaternion     
+operator * (f32 f, Quaternion q);
+
+Quaternion     
+operator - (Quaternion q);
+
 Quaternion     normalize(Quaternion q);
 Quaternion     nlerp(Quaternion a, Quaternion b, f32 t);
 Quaternion     slerp(Quaternion q1, Quaternion q2, f32 t);
@@ -252,9 +288,12 @@ m4x4           z_rotation(f32 a);
 m4x4           transpose(m4x4 m);
 m4x4           inverse(m4x4 m);
 
-m4x4           m4x4_translate(f32 x, f32 y, f32 z);
-m4x4           m4x4_translate(vec3 t);
-m4x4           m4x4_translate(m4x4 m, vec3 t);
+m4x4           
+m4x4_translate(f32 x, f32 y, f32 z);
+
+m4x4           
+m4x4_translate(vec3 t);
+
 
 m4x4           to_m4x4(Quaternion q);
 Quaternion     euler_to_quaternion(f32 roll, f32 pitch, f32 yaw);
@@ -269,7 +308,8 @@ vec3           project(vec3 p, m4x4 view_proj);
 
 
 
-f32            radian_from_degree(f32 d);
+f32            
+radian_from_degree(f32 d);
 
 
 /*
@@ -291,10 +331,18 @@ f32            radian_from_degree(f32 d);
  Now, all we have to determine is Z. Does it point "foward" or "backward"?
  In other words, is it left-handed or right-handed? This is only variant exposed by the API.
 */
-m4x4 look_to_lh(vec3 from, vec3 to, vec3 up);
-m4x4 look_to_rh(vec3 from, vec3 to, vec3 up);
-m4x4 look_at_lh(vec3 from, vec3 at, vec3 up);
-m4x4 look_at_rh(vec3 from, vec3 at, vec3 up);
+m4x4 
+look_to_lh(vec3 from, vec3 to, vec3 up);
+
+m4x4 
+look_to_rh(vec3 from, vec3 to, vec3 up);
+
+m4x4 
+look_at_lh(vec3 from, vec3 at, vec3 up);
+
+m4x4 
+look_at_rh(vec3 from, vec3 at, vec3 up);
+
 
 /*
  For perspective projection as well, we impose the following premises: [0,1]
@@ -303,14 +351,16 @@ m4x4 look_at_rh(vec3 from, vec3 at, vec3 up);
  LH and RH variants specify the handedness of the input space. The 'near_z' and 
  'far_z' parameters are distances, and are therefore unsigned.
 */
-m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
-m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
+m4x4 
+persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
+
+m4x4 
+persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
 
 
 f32           m_tan(f32 f);
 f32           m_atan(f32 f);
 f32           m_atan2(f32 a, f32 b);
-vec4          operator + (vec4 a, vec4 b);
 m4x4&         operator += (m4x4& l, m4x4 r);
 
 u32  

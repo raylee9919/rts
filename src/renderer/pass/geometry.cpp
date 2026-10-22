@@ -7,8 +7,7 @@
 #include "mesh.h"
 #include "animation.h"
 #include "math/math.h"
-#include "shader_compiler/shader.h"
-#include "shared.h"
+#include "camera.h"
 
 #define R_MAX_SKINNING_MATRICES 65536 // @Temporary
 
@@ -43,9 +42,6 @@ R_PASS_INIT( RenderPassInit_Geometry )
     rhi_buffer_view_init(gfx->device, &result->arguments_view, &result->arguments_buffer, &view_desc);
 
     result->arguments_ptr = rhi_buffer_map(&result->arguments_buffer);
-
-
-    
   }
 
   { // Create skinning buffer and view

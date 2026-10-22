@@ -126,21 +126,21 @@ m4x4_from_xform(Xform *xform)
   m._12 = 2.0f * (r.x * r.y - r.z * r.w);
   m._13 = 2.0f * (r.x * r.z + r.y * r.w);
   m._14 = t.x;
-  m.rows[0].sse = _mm_mul_ps(m.rows[0].sse, scale);
+  _mm_storeu_ps(&m.rows[0].x, _mm_mul_ps(_mm_loadu_ps(&m.rows[0].x), scale));
 
   m._21 = 2.0f * (r.x * r.y + r.z * r.w);
   m._22 = 1.0f - 2.0f * (r.x * r.x + r.z * r.z);
   m._23 = 2.0f * (r.y * r.z - r.x * r.w);
   m._24 = t.y;
-  m.rows[1].sse = _mm_mul_ps(m.rows[1].sse, scale);
+  _mm_storeu_ps(&m.rows[1].x, _mm_mul_ps(_mm_loadu_ps(&m.rows[1].x), scale));
 
   m._31 = 2.0f * (r.x * r.z - r.y * r.w);
   m._32 = 2.0f * (r.y * r.z + r.x * r.w);
   m._33 = 1.0f - 2.0f * (r.x * r.x + r.y * r.y);
   m._34 = t.z;
-  m.rows[2].sse = _mm_mul_ps(m.rows[2].sse, scale);
+  _mm_storeu_ps(&m.rows[2].x, _mm_mul_ps(_mm_loadu_ps(&m.rows[2].x), scale));
 
-  m.rows[3].sse = _mm_setr_ps(0, 0, 0, 1);
+  _mm_storeu_ps(&m.rows[3].x, _mm_setr_ps(0, 0, 0, 1));
 
   return m;
 }
