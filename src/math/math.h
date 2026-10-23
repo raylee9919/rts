@@ -128,6 +128,12 @@ union AABB {
   struct { f32 x1, y1, z1, x2, y2, z2; };
 };
 
+struct AABBV {
+  __m128 lo; // minX, minY, minZ, dummy
+  __m128 hi; // maxX, maxY, maxZ, dummy
+};
+
+
 struct Ray {
   vec2 o; // origin
   vec3 d; // direction
@@ -271,22 +277,57 @@ operator * (f32 f, Quaternion q);
 Quaternion     
 operator - (Quaternion q);
 
-Quaternion     normalize(Quaternion q);
-Quaternion     nlerp(Quaternion a, Quaternion b, f32 t);
-Quaternion     slerp(Quaternion q1, Quaternion q2, f32 t);
-Quaternion     nlerp_shortest(Quaternion a, Quaternion b, f32 t);
-Quaternion     slerp_shortest(Quaternion a, Quaternion b, f32 t);
-m4x4           operator * (m4x4 a, m4x4 b);
-m4x4&          operator *= (m4x4& m, f32 f);
-vec4           operator * (m4x4 m, vec4 p);
-m4x4           operator * (m4x4 m, f32 f);
-m4x4           operator * (f32 f, m4x4 m);
-m4x4           identity();
-m4x4           x_rotation(f32 a);
-m4x4           y_rotation(f32 a);
-m4x4           z_rotation(f32 a);
-m4x4           transpose(m4x4 m);
-m4x4           inverse(m4x4 m);
+Quaternion     
+normalize(Quaternion q);
+
+Quaternion     
+nlerp(Quaternion a, Quaternion b, f32 t);
+
+Quaternion     
+slerp(Quaternion q1, Quaternion q2, f32 t);
+
+force_inline Quaternion     
+nlerp_shortest(Quaternion a, Quaternion b, f32 t)
+{
+  if (dot(a, b) < 0)  b = -b;
+  return nlerp(a, b, t);
+}
+
+force_inline Quaternion     
+slerp_shortest(Quaternion a, Quaternion b, f32 t)
+{
+  if (dot(a, b) < 0)  b = -b;
+  return slerp(a, b, t);
+}
+
+
+//
+// Matrix4x4
+//   The math library follows *row-major*, *column-vector*.
+//
+m4x4           
+operator * (m4x4 l, m4x4 r);
+
+vec4           
+operator * (m4x4 m, vec4 p);
+
+m4x4 
+identity();
+
+m4x4 
+x_rotation(f32 a);
+
+m4x4 
+y_rotation(f32 a);
+
+m4x4 
+z_rotation(f32 a);
+
+m4x4 
+transpose(m4x4 m);
+
+m4x4 
+inverse(m4x4 m);
 
 m4x4           
 m4x4_translate(f32 x, f32 y, f32 z);
@@ -297,9 +338,6 @@ m4x4_translate(vec3 t);
 
 m4x4           to_m4x4(Quaternion q);
 Quaternion     euler_to_quaternion(f32 roll, f32 pitch, f32 yaw);
-m4x4           scale(m4x4 transform, vec3 factor);
-m4x4           scale(m4x4 transform, f32 factor);
-m4x4           scale(f32 s);
 m4x4           m4x4_scale(f32 x, f32 y, f32 z);
 m4x4           to_m4x4(vec3 translation, Quaternion rotation, vec3 scale);
 Quaternion     build_quaternion(vec3 axis, f32 radian);
@@ -374,6 +412,34 @@ rect_union(Rect a, Rect b);
 
 vec2
 rect_center(Rect r);
+
+
+//
+// AABBV (SIMD version of AABB)
+//
+AABBV
+aabbv_make(vec3 lo, vec3 hi);
+
+AABBV
+aabbv_make(f32 lo_x, f32 lo_y, f32 lo_z, f32 hi_x, f32 hi_y, f32 hi_z);
+
+AABBV
+aabbv_from_aabb(AABB box);
+
+AABB
+aabb_from_aabbv(AABBV box);
+
+AABBV
+aabbv_union(AABBV a, AABBV b);
+
+void
+aabbv_expand(AABBV *box, f32 extent);
+
+AABBV
+aabbv_translate(AABBV box, vec3 t);
+
+f32
+aabbv_surface(AABBV box);
 
 
 

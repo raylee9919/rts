@@ -132,6 +132,7 @@ add_library(rts_engine STATIC
     src/terrain.cpp
     src/camera.cpp
     src/navigation.cpp
+    src/aabb_tree.cpp
 
 
     src/renderer/pass/geometry.cpp

@@ -65,3 +65,36 @@ draw_line(vec2 p0, vec2 p1, vec4 c, f32 thickness)
             c, c, c, c, 
             NULL_GUID);
 }
+
+void 
+draw_box(AABB box, m4x4 view_proj, vec4 color, f32 thickness)
+{
+  vec3 lo = box.min;
+  vec3 hi = box.max;
+
+  // Corner i: bit 0 -> x, bit 1 -> y, bit 2 -> z (0 = min, 1 = max)
+  vec2 px[8];
+  b32  visible[8];
+  for (int i = 0; i < 8; ++i)
+  {
+    vec3 c = vec3((i & 1) ? hi.x : lo.x,
+                  (i & 2) ? hi.y : lo.y,
+                  (i & 4) ? hi.z : lo.z);
+    vec4 clip = view_proj * vec4(c, 1.f);
+    visible[i] = clip.w > 0.f;
+    vec2 ndc = clip.xy * (1.f/clip.w);
+    px[i] = vec2((ndc.x*0.5f + 0.5f) * 2560, (0.5f - ndc.y*0.5f) * 1440);
+  }
+
+  // 12 edges: connect corners whose indices differ in exactly one bit
+  for (int i = 0; i < 8; ++i)
+  {
+    for (int bit = 1; bit < 8; bit <<= 1)
+    {
+      if (i & bit) continue;
+      int j = i | bit;
+      if (visible[i] && visible[j])
+        draw_line(px[i], px[j], color, thickness);
+    }
+  }
+}

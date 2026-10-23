@@ -11,6 +11,7 @@
 #include "camera.h"
 #include "input.h"
 #include "navigation.h"
+#include "aabb_tree.h"
 
 #define MAX_ENTITIES        16384
 #define WORLD_UP            vec3{ 0.f,  0.f,  1.f}
@@ -47,6 +48,11 @@ struct Entity
   f32             radius; // Circle really simplifies stuffs...
   vec3            goal;
   vec3            waypoints[MAX_WAYPOINTS];
+
+  // AABB
+  AABBV           tight_aabb; // For something like selection
+  AABBV           loose_aabb; // For broad phase collision
+  s32             aabb_tree_proxy;
 };
 
 struct Game_Storage 
@@ -66,6 +72,11 @@ struct Game_Input
 // Make sure you're not adding things that make state memcpy difficult. Entity
 // is represented as an offset in the storage. So it's kind of a pointer, but
 // memcpyable.
+//
+// It makes my life difficult with this storage and handle thing.
+// I need pointers in my hand as well. If something involved pointer, 
+// build it again at game load or something.
+//                                                     2026-10-23 swl
 //
 struct Game_State 
 {
@@ -92,6 +103,9 @@ struct Game_State
 
   Navmesh         navmesh;
 
+  Arena          *arena; // My life is hard. Ditch storage or do something about it.
+  Box_Tree        aabb_tree;
+
   // Selected entities by each player
   Handle          selected[MAX_PLAYERS][MAX_SELECTED_ENTITES];
   s32             num_selected[MAX_PLAYERS];
@@ -108,7 +122,7 @@ game_state_deinit(Game_State *g);
 
 
 void       
-game_init(f64 time_init);
+game_init();
 
 void       
 game_shutdown();

@@ -39,11 +39,10 @@ game_state_deinit(Game_State *g)
 }
 
 void 
-game_init(f64 time_init) 
+game_init() 
 {
   // Initialize game state
   game_state_init(&game_state);
-  game_state->time = time_init;
 
   // Allocate root entity
   Entity *root = entity_alloc(game_state);
@@ -56,6 +55,10 @@ game_init(f64 time_init)
 
   // Init navmesh
   navmesh_init(&game_state->navmesh);
+
+  // Init aabb tree
+  game_state->arena = arena_alloc();
+  aabb_tree_init(&game_state->aabb_tree, game_state->arena);
 
   // Init camera
   camera_init(game_state, &game_state->camera, vec3(0.f, 0.f, 0.f), 0.f, 32.f);

@@ -17,6 +17,7 @@
 #include "material/material.h"
 #include "font/font.h"
 #include "mesh.h"
+#include "random/random.h"
 
 /* Development */
 #include "development/console.h"
@@ -33,6 +34,8 @@
  - Cull terrain by "chunk" granularity.
  - Color
  - SIMD CPUID and bind corresponding functions.
+ - Trigonometry
+ - pointer, game storage, and saving games...
 */
 
 void 
@@ -43,7 +46,6 @@ fixed_tick(Game_State *g, f64 dt)
   g->time += dt;
 
   Input_State *inputs = &g->inputs;
-
 
   {
     Camera *camera = &g->camera;
@@ -58,18 +60,28 @@ fixed_tick(Game_State *g, f64 dt)
     if (key_down(inputs, 'D'))  camera->focus_target += right * speed * dt;
     if (key_down(inputs, 'A'))  camera->focus_target -= right * speed * dt;
 
-    if (key_down(inputs, 'Q'))  camera->yaw_target -= 1.8f * dt;
-    if (key_down(inputs, 'E'))  camera->yaw_target += 1.8f * dt;
+    if (key_down(inputs, 'Q'))  camera->yaw_target += 1.8f * dt;
+    if (key_down(inputs, 'E'))  camera->yaw_target -= 1.8f * dt;
 
     camera->distance_target *= powf(0.85f, inputs->wheel_notches);
 
     camera_tick(camera, dt);
   }
+
+  entity_dfs(g, g->root, NULL, [](Game_State *g, Entity *e, u64 index, void *data){
+    // e->position.x += ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f);
+    // e->position.y += ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f);
+    e->position.z  = terrain_height(game_state, e->position.x, e->position.y);
+
+    AABBV box = aabbv_translate(e->loose_aabb, e->position);
+    aabb_tree_move(&g->aabb_tree, e->aabb_tree_proxy, box);
+  });
 }
 
 void 
 per_frame_tick(Game_State *g, f64 dt)
 {
+  aabb_tree_visualize(&g->aabb_tree);
 }
 
 void 
@@ -133,11 +145,6 @@ main_entry(int argc, char **argv)
 {
   shared_init();
 
-  // Init timers
-  f64 time_old    = time_seconds();
-  f64 dt          = 1.0 / 60.0; // Update frequency, Tick rate
-  f64 accumulator = 0.f;
-
   // Init asset system.
   // Register asset types and init catalog.
   asset_system_init();
@@ -155,7 +162,7 @@ main_entry(int argc, char **argv)
   while (1) {
     auto *r = (volatile Renderer *)renderer;
     if (r && r->initted) break;
-    _mm_pause();
+    _mm_pause(); // @Temporary
   }
 
   // Init material system.
@@ -164,7 +171,7 @@ main_entry(int argc, char **argv)
   material_system_init(material_shader_path, shared->shader_compiler);
 
   // Init Game
-  game_init(time_old);
+  game_init();
 
 
 
@@ -179,7 +186,7 @@ main_entry(int argc, char **argv)
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
 
-  for (s32 i = 0; i < 16; ++i) 
+  for (s32 i = 0; i < 64; ++i) 
   {
     Entity *my_entity = entity_alloc(game_state);
     my_entity->mesh = mesh_id;
@@ -188,15 +195,30 @@ main_entry(int argc, char **argv)
     my_entity->animation_id = guid_from_string(S("goblin/OrcWalk.sampled_animation"));
     asset_request(my_entity->animation_id, NULL_GUID, NULL);
 
-    my_entity->position.y = (f32)(i / 4) * 2.f;
-    my_entity->position.x = (f32)(i % 4) * 2.f;
+    my_entity->position.y = ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f) * 64.f;
+    my_entity->position.x = ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f) * 64.f;
     my_entity->position.z = terrain_height(game_state, my_entity->position.x, my_entity->position.y); // @Temporary
     my_entity->radius = 16.f;
+    my_entity->tight_aabb = aabbv_make(-0.525789f, -0.253311f, -0.011222f,
+                                       0.525789f, 0.282407f, 1.622115f);
+    my_entity->loose_aabb = my_entity->tight_aabb;
+    aabbv_expand(&my_entity->loose_aabb, 0.25f);
+
+
+
+    // @Todo: Scale too?
+    AABBV box = aabbv_translate(my_entity->loose_aabb, my_entity->position);
+    my_entity->aabb_tree_proxy = aabb_tree_insert(&game_state->aabb_tree, handle_from_entity(game_state, my_entity), box);
   }
   // @temporary
   // @temporary
   // @temporary
 
+
+  // Timers
+  f64 time_old    = time_seconds();
+  f64 dt          = 1.0 / 60.0; // Update frequency, Tick rate
+  f64 accumulator = 0.f;
 
   // Game loop
   while (!shared->should_close) 

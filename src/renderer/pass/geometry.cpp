@@ -359,12 +359,12 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                 }
               }
 
-              // @Temporary: Draw AABB
-              if (1) 
+              // @Temporary
+              if (0) 
               {
                 m4x4 mvp = data->camera->view_proj * transform;
-                vec3 lo = mesh.aabb.min;
-                vec3 hi = mesh.aabb.max;
+                vec3 lo = *((vec3*)&E->tight_aabb.lo);
+                vec3 hi = *((vec3*)&E->tight_aabb.hi);
 
                 // Corner i: bit 0 -> x, bit 1 -> y, bit 2 -> z (0 = min, 1 = max)
                 vec2 px[8];
@@ -388,7 +388,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                     if (i & bit) continue;
                     int j = i | bit;
                     if (visible[i] && visible[j])
-                      draw_line(px[i], px[j], vec4(1, 0, 1, 1), 2.f);
+                      draw_line(px[i], px[j], vec4(0.2f, 0.2f, 0.2f, 1.f), 1.f);
                   }
                 }
               }

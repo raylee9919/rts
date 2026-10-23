@@ -21,6 +21,19 @@ dotv(f32 *a, f32 *b)
   return f;
 }
 
+static f32
+dotv(__m128 av, __m128 bv)
+{
+  f32 f;
+  __m128 p = _mm_mul_ps(av, bv);
+  __m128 q = _mm_shuffle_ps(p, p, _MM_SHUFFLE(2, 3, 0, 1));
+  p = _mm_add_ps(p, q);
+  q = _mm_shuffle_ps(p, p, _MM_SHUFFLE(0, 1, 2, 3));
+  p = _mm_add_ps(p, q);
+  _mm_store_ss(&f, p);
+  return f;
+}
+
 // Trigonometry
 //
 f32 m_sin(f32 f) {
@@ -515,6 +528,7 @@ operator - (Quaternion q)
 Quaternion 
 normalize(Quaternion q) 
 {
+  // @Todo: Better?
   f32 rcp = m_rsqrt(dotv(q.f, q.f));
   __m128 rcp_v = _mm_set1_ps(rcp);
   Quaternion q_;
@@ -531,6 +545,7 @@ dot(Quaternion a, Quaternion b)
 Quaternion 
 nlerp(Quaternion a, Quaternion b, f32 t) 
 {
+  // @Todo: Should I return normalized result?
   __m128 av = _mm_loadu_ps(a.f);
   __m128 bv = _mm_loadu_ps(b.f);
   __m128 tv = _mm_set1_ps(t);
@@ -576,21 +591,8 @@ slerp(Quaternion q1, Quaternion q2, f32 t)
   return q;
 }
 
-Quaternion 
-nlerp_shortest(Quaternion a, Quaternion b, f32 t)
-{
-  if (dot(a, b) < 0)  b = -b;
-  return nlerp(a, b, t);
-}
-
-Quaternion
-slerp_shortest(Quaternion a, Quaternion b, f32 t)
-{
-  if (dot(a, b) < 0)  b = -b;
-  return slerp(a, b, t);
-}
-
-// m4x4
+//
+// Matrix4x4
 //
 static __m128 
 lincomb(__m128 a, m4x4 b)
@@ -604,13 +606,13 @@ lincomb(__m128 a, m4x4 b)
 }
 
 m4x4 
-operator * (m4x4 a, m4x4 b) 
+operator * (m4x4 l, m4x4 r) 
 {
   m4x4 m;
-  __m128 out1x = lincomb(_mm_loadu_ps(&a.rows[0].x), b);
-  __m128 out2x = lincomb(_mm_loadu_ps(&a.rows[1].x), b);
-  __m128 out3x = lincomb(_mm_loadu_ps(&a.rows[2].x), b);
-  __m128 out4x = lincomb(_mm_loadu_ps(&a.rows[3].x), b);
+  __m128 out1x = lincomb(_mm_loadu_ps(&l.rows[0].x), r);
+  __m128 out2x = lincomb(_mm_loadu_ps(&l.rows[1].x), r);
+  __m128 out3x = lincomb(_mm_loadu_ps(&l.rows[2].x), r);
+  __m128 out4x = lincomb(_mm_loadu_ps(&l.rows[3].x), r);
 
   _mm_storeu_ps(&m.rows[0].x, out1x);
   _mm_storeu_ps(&m.rows[1].x, out2x);
@@ -620,33 +622,15 @@ operator * (m4x4 a, m4x4 b)
   return m;
 }
 
-m4x4& operator *= (m4x4& m, f32 f) 
+vec4 
+operator * (m4x4 m, vec4 v) 
 {
-  m = m * f;
-  return m;
-}
-
-m4x4 operator * (m4x4 m, f32 f) 
-{
-  m.rows[0] = f * m.rows[0];
-  m.rows[1] = f * m.rows[1];
-  m.rows[2] = f * m.rows[2];
-  m.rows[3] = f * m.rows[3];
-  return m;
-}
-
-m4x4 operator * (f32 f, m4x4 m) {
-  return m * f;
-}
-
-vec4 operator * (m4x4 m, vec4 p) {
-  vec4 res = vec4{};
-  for (int i = 0 ; i < 4; ++i) {
-    for (int j = 0 ; j < 4; ++j) { 
-      res.e[i] += (m.e[i][j] * p.e[j]);
-    }
-  }
-  return res;
+  vec4 v_;
+  _mm_storeu_ps(v_.e, _mm_setr_ps(dotv(m.rows[0].e, v.e), 
+                                  dotv(m.rows[1].e, v.e), 
+                                  dotv(m.rows[2].e, v.e), 
+                                  dotv(m.rows[3].e, v.e)));
+  return v_;
 }
 
 m4x4& operator += (m4x4& l, m4x4 r) 
@@ -724,6 +708,7 @@ transpose(m4x4 m)
 m4x4 
 inverse(m4x4 m) 
 {
+  // @Cleanup
   f32 A2323 = m.e[2][2] * m.e[3][3] - m.e[2][3] * m.e[3][2];
   f32 A1323 = m.e[2][1] * m.e[3][3] - m.e[2][3] * m.e[3][1];
   f32 A1223 = m.e[2][1] * m.e[3][2] - m.e[2][2] * m.e[3][1];
@@ -774,6 +759,7 @@ inverse(m4x4 m)
 m4x4 
 m4x4_translate(f32 x, f32 y, f32 z) 
 {
+  // SSE
   m4x4 m;
   _mm_storeu_ps(&m.rows[0].x, _mm_setr_ps(1.f, 0.f, 0.f,   x));
   _mm_storeu_ps(&m.rows[1].x, _mm_setr_ps(0.f, 1.f, 0.f,   y));
@@ -785,6 +771,7 @@ m4x4_translate(f32 x, f32 y, f32 z)
 m4x4 
 m4x4_translate(vec3 t) 
 {
+  // SSE
   m4x4 m;
   _mm_storeu_ps(&m.rows[0].x, _mm_setr_ps(1.f, 0.f, 0.f, t.x));
   _mm_storeu_ps(&m.rows[1].x, _mm_setr_ps(0.f, 1.f, 0.f, t.y));
@@ -817,8 +804,10 @@ to_m4x4(Quaternion q)
   return result;
 }
 
-// @Todo: I think it's wrong
-Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
+// @Fix: I think it's wrong
+Quaternion 
+euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) 
+{
   f32 cr = m_cos(roll * 0.5f);
   f32 sr = m_sin(roll * 0.5f);
   f32 cp = m_cos(pitch * 0.5f);
@@ -835,38 +824,10 @@ Quaternion euler_to_quaternion(f32 roll, f32 pitch, f32 yaw) {
   return q;
 }
 
-m4x4
-scale(m4x4 transform, vec3 factor) 
-{
-  m4x4 result = transform;
-  for (int i = 0; i < 3; ++i) {
-    result.e[i][i] *= factor.e[i];
-  }
-  return result;
-}
-
-m4x4
-scale(m4x4 transform, f32 factor) 
-{
-  m4x4 result = transform;
-  for (int i = 0; i < 3; ++i) {
-    result.e[i][i] *= factor;
-  }
-  return result;
-}
-
-m4x4 scale(f32 f) {
-  m4x4 m = {};
-  m._11 = f;
-  m._22 = f;
-  m._33 = f;
-  m._44 = 1.f;
-  return m;
-}
-
 m4x4 
 m4x4_scale(f32 x, f32 y, f32 z) 
 {
+  // SSE
   m4x4 m;
   _mm_storeu_ps(m.rows[0].e, _mm_setr_ps(x, 0, 0, 0));
   _mm_storeu_ps(m.rows[1].e, _mm_setr_ps(0, y, 0, 0));
@@ -881,7 +842,7 @@ build_quaternion(vec3 axis, f32 radian)
   f32 c = m_cos(radian*0.5f);
   f32 s = m_sin(radian*0.5f);
   vec3 n = s * normalize(axis);
-  Quaternion result = Quaternion{c, n.x, n.y, n.z};
+  Quaternion result = make_quaternion(c, n.x, n.y, n.z);
   return result;
 }
 
@@ -902,13 +863,18 @@ project(vec3 p, m4x4 view_proj)
   return res.xyz;
 }
 
-f32 radian_from_degree(f32 d) {
-  return d * PI * 0.005556f; // = d * PI / 180
+f32 
+radian_from_degree(f32 d) 
+{
+  return d * 0.01745329251f; // d * PI / 180
 }
 
+//
 // Graphics
 //
-m4x4 look_to_lh(vec3 from, vec3 to, vec3 up) {
+m4x4 
+look_to_lh(vec3 from, vec3 to, vec3 up) 
+{
   R_ASSERT(!is_zero(to));
   R_ASSERT(!is_inf(to));
   R_ASSERT(!is_zero(up));
@@ -945,23 +911,31 @@ m4x4 look_to_lh(vec3 from, vec3 to, vec3 up) {
   return M;
 }
 
-m4x4 look_to_rh(vec3 from, vec3 to, vec3 up) {
+m4x4 
+look_to_rh(vec3 from, vec3 to, vec3 up) 
+{
   return look_to_lh(from, -to, up);
 }
 
-m4x4 look_at_lh(vec3 from, vec3 at, vec3 up) {
+m4x4 
+look_at_lh(vec3 from, vec3 at, vec3 up) 
+{
   vec3 to = at - from;
-  m4x4 M = look_to_lh(from, to, up);
-  return M;
+  m4x4 m = look_to_lh(from, to, up);
+  return m;
 }
 
-m4x4 look_at_rh(vec3 from, vec3 at, vec3 up) {
+m4x4 
+look_at_rh(vec3 from, vec3 at, vec3 up) 
+{
   vec3 neg_to = from - at;
-  m4x4 M = look_to_lh(from, neg_to, up);
-  return M;
+  m4x4 m = look_to_lh(from, neg_to, up);
+  return m;
 }
 
-m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
+m4x4 
+persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) 
+{
   f32 h = m_tan(0.5f * fov);
   f32 w = h / aspect_ratio;
 
@@ -990,7 +964,9 @@ m4x4 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
   return M;
 }
 
-m4x4 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) {
+m4x4 
+persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) 
+{
   f32 h = 1.f / m_tan(0.5f * fov);
   f32 w = h / aspect_ratio;
 
@@ -1063,4 +1039,80 @@ rect_center(Rect r)
 {
   return 0.5f * vec2((r.min.x + r.max.x), 
                      (r.min.y + r.max.y));
+}
+
+//
+// AABBV
+//
+AABBV
+aabbv_make(vec3 lo, vec3 hi)
+{
+  AABBV box;
+  box.lo = _mm_setr_ps(lo.x, lo.y, lo.z, 0.f);
+  box.hi = _mm_setr_ps(hi.x, hi.y, hi.z, 0.f);
+  return box;
+}
+
+AABBV
+aabbv_make(f32 lo_x, f32 lo_y, f32 lo_z, f32 hi_x, f32 hi_y, f32 hi_z)
+{
+  AABBV box;
+  box.lo = _mm_setr_ps(lo_x, lo_y, lo_z, 0.f);
+  box.hi = _mm_setr_ps(hi_x, hi_y, hi_z, 0.f);
+  return box;
+}
+
+AABBV
+aabbv_from_aabb(AABB box)
+{
+  AABBV b;
+  b.lo = _mm_setr_ps(box.min.x, box.min.y, box.min.z, 0.f);
+  b.hi = _mm_setr_ps(box.max.x, box.max.y, box.max.z, 0.f);
+  return b;
+}
+
+AABB
+aabb_from_aabbv(AABBV box)
+{
+  struct {
+    AABB b;
+    f32 _;
+  } s;
+  _mm_storeu_ps(&s.b.min.x, box.lo);
+  _mm_storeu_ps(&s.b.max.x, box.hi);
+  return s.b;
+}
+
+AABBV
+aabbv_union(AABBV a, AABBV b)
+{
+  AABBV c;
+  c.lo = _mm_min_ps(a.lo, b.lo);
+  c.hi = _mm_max_ps(a.hi, b.hi);
+  return c;
+}
+
+void
+aabbv_expand(AABBV *box, f32 extent)
+{
+  __m128 extentv = _mm_setr_ps(extent, extent, extent, 0.f);
+  box->lo = _mm_sub_ps(box->lo, extentv);
+  box->hi = _mm_add_ps(box->hi, extentv);
+}
+
+AABBV
+aabbv_translate(AABBV box, vec3 t)
+{
+  AABBV b;
+  b.lo = _mm_add_ps(box.lo, _mm_setr_ps(t.x, t.y, t.z, 0.f));
+  b.hi = _mm_add_ps(box.hi, _mm_setr_ps(t.x, t.y, t.z, 0.f));
+  return b;
+}
+
+f32
+aabbv_surface(AABBV box)
+{
+  __m128 a = _mm_sub_ps(box.hi, box.lo);
+  __m128 b = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
+  return 2.f * dotv(a, b);
 }
