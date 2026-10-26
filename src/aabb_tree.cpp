@@ -11,12 +11,37 @@
 
 #define AABB_TREE_INITIAL_NODE_COUNT  64
 #define AABB_TREE_INITIAL_PROXY_COUNT 64
-#define AABB_TREE_STACK_SIZE          512
+#define AABB_TREE_STACK_SIZE          512 // @Robustness
 
 force_inline b32 
 is_leaf_(Box_Node *node)
 {
   return node->left == -1 && node->right == -1;
+}
+
+static void 
+swap_nodes_(Box_Tree *tree, s32 index1, s32 index2) 
+{
+  Box_Node *nodes = tree->nodes;
+  s32 parent1_i = nodes[index1].parent;
+  s32 parent2_i = nodes[index2].parent;
+  Box_Node *parent1 = &nodes[parent1_i];
+  Box_Node *parent2 = &nodes[parent2_i];
+
+  nodes[index1].parent = parent2_i;
+  nodes[index2].parent = parent1_i;
+
+  if (parent1->left == index1) {
+    parent1->left = index2;
+  } else {
+    parent1->right = index2;
+  }
+
+  if (parent2->left == index2) {
+    parent2->left = index1;
+  } else {
+    parent2->right = index1;
+  }
 }
 
 void 
@@ -165,6 +190,7 @@ find_best_sibling_(Box_Tree *tree, AABBV box)
     f32 lower_bound = aabbv_surface(box) + inherited + (direct - aabbv_surface(node->box));
     if (lower_bound < best)
     {
+      R_ASSERT(top + 2 < AABB_TREE_STACK_SIZE);
       if (node->left != -1)
       {
         stack[++top] = node->left;
@@ -194,6 +220,108 @@ refit_from_(Box_Tree *tree, Box_Node *start)
     node = &tree->nodes[node->parent];
     node->box = aabbv_union(tree->nodes[node->left].box, 
                             tree->nodes[node->right].box);
+  }
+}
+
+
+/* 
+         A
+       /   \
+      B     C
+     / \   / \
+    D   E F   G  
+*/ 
+static void
+rotate_(Box_Tree *tree, s32 index)
+{
+  R_ASSERT(index != -1);
+  Box_Node *A = &tree->nodes[index];
+  s32 iB = A->left;
+  s32 iC = A->right;
+  R_ASSERT(iB != -1);
+  R_ASSERT(iC != -1);
+  Box_Node *B = &tree->nodes[iB];
+  Box_Node *C = &tree->nodes[iC];
+
+  b32 leafB = is_leaf_(B);
+  b32 leafC = is_leaf_(C);
+
+  if (leafB && leafC)
+  {
+    return;
+  }
+
+  f32 surfaceB = aabbv_surface(tree->nodes[iB].box);
+  f32 surfaceC = aabbv_surface(tree->nodes[iC].box);
+
+  f32 best  = 0.f;
+  s32 iUp   = -1;
+  s32 iDown = -1;
+
+  /* 
+               A            A     
+             /   \        /   \            
+           [B]    C     (F)    C 
+                 / \          / \            
+               (F)  G       [B]  G    ? DeltaC
+  */ 
+  if (!leafC)
+  {
+    s32 iF = tree->nodes[iC].left;
+    s32 iG = tree->nodes[iC].right;
+
+    f32 deltaBF = aabbv_surface(aabbv_union(tree->nodes[iB].box, tree->nodes[iG].box)) - surfaceC;
+    if (deltaBF < best)
+    {
+      best  = deltaBF;
+      iUp   = iB;
+      iDown = iF;
+    }
+
+    f32 deltaBG = aabbv_surface(aabbv_union(tree->nodes[iB].box, tree->nodes[iF].box)) - surfaceC;
+    if (deltaBG < best)
+    {
+      best  = deltaBG;
+      iUp   = iB;
+      iDown = iG;
+    }
+  }
+
+  /* 
+               A            A     
+             /   \        /   \            
+            B    [C]     B    (F)
+           / \          / \                    
+         (F)  G       [C]  G          ? DeltaB
+  */ 
+  if (!leafB)
+  {
+    s32 iF = tree->nodes[iB].left;
+    s32 iG = tree->nodes[iB].right;
+
+    f32 deltaCF = aabbv_surface(aabbv_union(tree->nodes[iC].box, tree->nodes[iG].box)) - surfaceB;
+    if (deltaCF < best)
+    {
+      best  = deltaCF;
+      iUp   = iC;
+      iDown = iF;
+    }
+
+    f32 deltaCG = aabbv_surface(aabbv_union(tree->nodes[iC].box, tree->nodes[iF].box)) - surfaceB;
+    if (deltaCG < best)
+    {
+      best  = deltaCG;
+      iUp   = iC;
+      iDown = iG;
+    }
+  }
+
+  if (iUp != -1)
+  {
+    swap_nodes_(tree, iUp, iDown);
+    s32 iMid = tree->nodes[iUp].parent;
+    tree->nodes[iMid].box = aabbv_union(tree->nodes[tree->nodes[iMid].left].box, 
+                                        tree->nodes[tree->nodes[iMid].right].box);
   }
 }
 
@@ -254,9 +382,16 @@ aabb_tree_insert(Box_Tree *tree, Handle item, AABBV box)
   tree->nodes[sibling].parent = internal_node_index;
   tree->nodes[leaf].parent = internal_node_index;
 
-  refit_from_(tree, internal_node);
-
-  // @Todo: Balancing
+  // Rotate and refit.
+  s32 index = internal_node_index;
+  while (index != -1)
+  {
+    rotate_(tree, index);
+    Box_Node *node = &tree->nodes[index];
+    tree->nodes[index].box = aabbv_union(tree->nodes[node->left].box, 
+                                         tree->nodes[node->right].box);
+    index = tree->nodes[index].parent;
+  }
 
   return proxy_index;
 }
@@ -344,6 +479,7 @@ aabb_tree_visualize(Box_Tree *tree)
   {
     s32 index = stack[top--];
     Box_Node *node = &tree->nodes[index];
+    R_ASSERT(top + 2 < AABB_TREE_STACK_SIZE);
     if (node->left  != -1) stack[++top] = node->left;
     if (node->right != -1) stack[++top] = node->right;
 

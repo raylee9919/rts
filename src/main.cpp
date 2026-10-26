@@ -69,12 +69,18 @@ fixed_tick(Game_State *g, f64 dt)
   }
 
   entity_dfs(g, g->root, NULL, [](Game_State *g, Entity *e, u64 index, void *data){
-    // e->position.x += ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f);
-    // e->position.y += ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f);
+    Handle h = handle_from_entity(g, e);
+    f32 u = (f32)h.generational_id;
+    e->position.x = m_cos(g->time*m_sin(u))*1.f*u;
+    e->position.y = m_sin(g->time*m_sin(u))*1.f*u; 
     e->position.z  = terrain_height(game_state, e->position.x, e->position.y);
 
-    AABBV box = aabbv_translate(e->loose_aabb, e->position);
-    aabb_tree_move(&g->aabb_tree, e->aabb_tree_proxy, box);
+    AABBV tight_box = aabbv_translate(e->tight_box, e->position);
+    if (!aabbv_contains(e->loose_box_world, tight_box))
+    {
+      e->loose_box_world = aabbv_translate(e->loose_box_local, e->position);
+      aabb_tree_move(&g->aabb_tree, e->aabb_tree_proxy, e->loose_box_world);
+    }
   });
 }
 
@@ -186,7 +192,7 @@ main_entry(int argc, char **argv)
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
 
-  for (s32 i = 0; i < 64; ++i) 
+  for (s32 i = 0; i < 128; ++i) 
   {
     Entity *my_entity = entity_alloc(game_state);
     my_entity->mesh = mesh_id;
@@ -199,16 +205,14 @@ main_entry(int argc, char **argv)
     my_entity->position.x = ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f) * 64.f;
     my_entity->position.z = terrain_height(game_state, my_entity->position.x, my_entity->position.y); // @Temporary
     my_entity->radius = 16.f;
-    my_entity->tight_aabb = aabbv_make(-0.525789f, -0.253311f, -0.011222f,
-                                       0.525789f, 0.282407f, 1.622115f);
-    my_entity->loose_aabb = my_entity->tight_aabb;
-    aabbv_expand(&my_entity->loose_aabb, 0.25f);
-
-
+    my_entity->tight_box = aabbv_make(-0.525789f, -0.253311f, -0.011222f,
+                                      0.525789f, 0.282407f, 1.622115f);
+    my_entity->loose_box_local = my_entity->tight_box;
+    aabbv_expand(&my_entity->loose_box_local, 0.50f);
 
     // @Todo: Scale too?
-    AABBV box = aabbv_translate(my_entity->loose_aabb, my_entity->position);
-    my_entity->aabb_tree_proxy = aabb_tree_insert(&game_state->aabb_tree, handle_from_entity(game_state, my_entity), box);
+    my_entity->loose_box_world = aabbv_translate(my_entity->loose_box_local, my_entity->position);
+    my_entity->aabb_tree_proxy = aabb_tree_insert(&game_state->aabb_tree, handle_from_entity(game_state, my_entity), my_entity->loose_box_world);
   }
   // @temporary
   // @temporary

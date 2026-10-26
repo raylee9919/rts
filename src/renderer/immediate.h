@@ -6,7 +6,7 @@
 #include "math/math.h"
 #include "os/os.h"
 
-#define R_MAX_QUADS 4096
+#define R_MAX_QUADS 8192 // @Todo: Overkill?
 
 /*
  Left-handed (y-down)

@@ -441,6 +441,9 @@ aabbv_translate(AABBV box, vec3 t);
 f32
 aabbv_surface(AABBV box);
 
+b32 
+aabbv_contains(AABBV out, AABBV in);
+
 
 
 

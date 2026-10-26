@@ -1116,3 +1116,12 @@ aabbv_surface(AABBV box)
   __m128 b = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
   return 2.f * dotv(a, b);
 }
+
+b32 
+aabbv_contains(AABBV out, AABBV in)
+{
+  __m128 mask1 = _mm_cmple_ps(out.lo, in.lo);
+  __m128 mask2 = _mm_cmpge_ps(out.hi, in.hi);
+  __m128 mask  = _mm_and_ps(mask1, mask2);
+  return (_mm_movemask_ps(mask) & 0x7) == 0x7;
+}

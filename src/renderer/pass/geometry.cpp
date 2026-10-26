@@ -360,11 +360,11 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               }
 
               // @Temporary
-              if (0) 
+              if (1) 
               {
                 m4x4 mvp = data->camera->view_proj * transform;
-                vec3 lo = *((vec3*)&E->tight_aabb.lo);
-                vec3 hi = *((vec3*)&E->tight_aabb.hi);
+                vec3 lo = *((vec3*)&E->tight_box.lo);
+                vec3 hi = *((vec3*)&E->tight_box.hi);
 
                 // Corner i: bit 0 -> x, bit 1 -> y, bit 2 -> z (0 = min, 1 = max)
                 vec2 px[8];

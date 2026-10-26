@@ -10,7 +10,7 @@
 
 struct Box_Node
 {
-  // [size, align] 
+  // [size, align]
   AABBV box;     // [32,16] 
   s32   left;    // [ 4, 4]  index of the left  child node. -1 if none.
   s32   right;   // [ 4, 4]  index of the right child node. -1 if none.

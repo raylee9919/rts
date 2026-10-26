@@ -45,13 +45,18 @@ struct Entity
   Guid            animation_id; // @Temporary
 
   // Movement
-  f32             radius; // Circle really simplifies stuffs...
+  f32             radius;
   vec3            goal;
   vec3            waypoints[MAX_WAYPOINTS];
 
-  // AABB
-  AABBV           tight_aabb; // For something like selection
-  AABBV           loose_aabb; // For broad phase collision
+  // 'tight_aabb' is in model (local? whatever) space.
+  // 'loose_aabb_world' is in world space coordinates, because 
+  // we must check if the tight box goes out of the loose one.
+  AABBV           tight_box;
+  AABBV           loose_box_local;
+  AABBV           loose_box_world;
+
+  // Index into the proxy in the AABB tree.
   s32             aabb_tree_proxy;
 };
 
@@ -175,7 +180,6 @@ selected_clear(Game_State* g, s32 player);
 
 void
 selected_sanitize(Game_State* g, s32 player);
-
 
 
 
