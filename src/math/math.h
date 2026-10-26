@@ -135,8 +135,8 @@ struct AABBV {
 
 
 struct Ray {
-  vec2 o; // origin
-  vec3 d; // direction
+  vec3 origin;
+  vec3 direction;
 };
 
 
@@ -421,7 +421,8 @@ AABBV
 aabbv_make(vec3 lo, vec3 hi);
 
 AABBV
-aabbv_make(f32 lo_x, f32 lo_y, f32 lo_z, f32 hi_x, f32 hi_y, f32 hi_z);
+aabbv_make(f32 lo_x, f32 lo_y, f32 lo_z, 
+           f32 hi_x, f32 hi_y, f32 hi_z);
 
 AABBV
 aabbv_from_aabb(AABB box);
@@ -442,7 +443,24 @@ f32
 aabbv_surface(AABBV box);
 
 b32 
-aabbv_contains(AABBV out, AABBV in);
+aabbv_contains(AABBV *out, AABBV *in);
+
+//
+// Ray
+//
+force_inline Ray 
+make_ray(vec3 origin, vec3 direction)
+{
+  Ray r = { origin, direction };
+  return r;
+}
+
+
+//
+// Collision, Intersection
+//
+b32 
+ray_aabb_intersect(Ray *ray, f32 *tmin_out, AABB *box);
 
 
 

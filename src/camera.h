@@ -38,6 +38,9 @@ struct Camera
   m4x4 view;
   m4x4 proj;
   m4x4 view_proj;
+  m4x4 inv_view;
+  m4x4 inv_proj;
+  m4x4 inv_view_proj;
 };
 
 void 

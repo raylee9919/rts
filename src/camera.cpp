@@ -114,9 +114,12 @@ camera_tick(Camera *camera, f32 dt)
   f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
   vec3 fwd = camera_forward(camera);
 
-  camera->view      = look_to_rh(camera->position, fwd, WORLD_UP);
-  camera->proj      = persp_fov_rh(camera->fov, aspect_ratio, NEAR_Z, FAR_Z);
-  camera->view_proj = camera->proj * camera->view;
+  camera->view          = look_to_rh(camera->position, fwd, WORLD_UP);
+  camera->proj          = persp_fov_rh(camera->fov, aspect_ratio, NEAR_Z, FAR_Z);
+  camera->view_proj     = camera->proj * camera->view;
+  camera->inv_view      = inverse(camera->view);
+  camera->inv_proj      = inverse(camera->proj);
+  camera->inv_view_proj = inverse(camera->view_proj);
 }
 
 vec3 

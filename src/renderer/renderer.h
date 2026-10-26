@@ -92,10 +92,10 @@ struct Render_Entry
 
 struct Render_Ring 
 {
-  Mutex           mutex      = {};
-  Condvar         condvar    = {};
+  Mutex           mutex;
+  Condvar         condvar;
 
-  Render_Entry    entries[3] = {}; // cap = 2
+  Render_Entry    entries[3]; // cap = 2
   s32             read_idx   = 0;
   s32             write_idx  = 0;
 

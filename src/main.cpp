@@ -71,12 +71,12 @@ fixed_tick(Game_State *g, f64 dt)
   entity_dfs(g, g->root, NULL, [](Game_State *g, Entity *e, u64 index, void *data){
     Handle h = handle_from_entity(g, e);
     f32 u = (f32)h.generational_id;
-    e->position.x = m_cos(g->time*m_sin(u))*1.f*u;
-    e->position.y = m_sin(g->time*m_sin(u))*1.f*u; 
+    e->position.x = m_cos(123123.f*m_sin(u))*0.25f*u;
+    e->position.y = m_sin(123123.f*m_sin(u))*0.25f*u; 
     e->position.z  = terrain_height(game_state, e->position.x, e->position.y);
 
     AABBV tight_box = aabbv_translate(e->tight_box, e->position);
-    if (!aabbv_contains(e->loose_box_world, tight_box))
+    if (!aabbv_contains(&e->loose_box_world, &tight_box))
     {
       e->loose_box_world = aabbv_translate(e->loose_box_local, e->position);
       aabb_tree_move(&g->aabb_tree, e->aabb_tree_proxy, e->loose_box_world);
@@ -93,9 +93,11 @@ per_frame_tick(Game_State *g, f64 dt)
 void 
 game_input_process(Game_State *g) 
 {
-  //
-  // Entity selection
-  //
+  /*
+    Entity selection
+      If I am clicking, first hit entity must be returned from the ray intersection test.
+      If I am dragging, entities overlapping with the viwe frustum must be returned.
+  */
   if (key_transitioned_down(&g->inputs, MOUSE_BUTTON_LEFT))
   {
     auto [x,y,success] = get_mouse_pointer_position(shared->window);
@@ -110,20 +112,45 @@ game_input_process(Game_State *g)
     auto [x,y,success] = get_mouse_pointer_position(shared->window);
     if (success)
     {
-#if 0
-      vec2 _00 = g->game_input.mouse_clicked_postion;
-      vec2 _11 = playfield_from_window(x, y);
-      vec2 _01 = vec2(_11.x, _00.y);
-      vec2 _10 = vec2(_00.x, _11.y);
-      Ray ray00 = ray_from_playfield(&g->camera, _00);
-      Ray ray01 = ray_from_playfield(&g->camera, _01);
-      Ray ray10 = ray_from_playfield(&g->camera, _10);
-      Ray ray11 = ray_from_playfield(&g->camera, _11);
-      vec3 p00 = terrain_raycast(&g->terrain, ray00);
-      vec3 p01 = terrain_raycast(&g->terrain, ray01);
-      vec3 p10 = terrain_raycast(&g->terrain, ray10);
-      vec3 p11 = terrain_raycast(&g->terrain, ray11);
-#endif
+      vec2 p = g->game_input.mouse_clicked_postion;
+      p = p * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
+      vec4 H = g->camera.inv_view_proj * vec4(p, 0.f, 1.f);
+      vec3 P = H.xyz / H.w;
+      vec3 O = g->camera.position;
+      vec3 D = normalize(P - O);
+
+      Ray ray = make_ray(O, D);
+
+      Array<Handle> handles = aabb_tree_query(&g->aabb_tree, &ray, tctx.temp);
+      if (handles.count > 0)
+      {
+        f32 tmin = INFINITY;
+        Handle handle = {};
+
+        for (u32 i = 0; i < handles.count; ++i)
+        {
+          Entity *e = entity_from_handle(g, handles[i]);
+          if (e)
+          {
+            AABB box = aabb_from_aabbv(aabbv_translate(e->tight_box, e->position));
+            f32 t = INFINITY;
+            if (ray_aabb_intersect(&ray, &t, &box))
+            {
+              if (tmin > t)
+              {
+                tmin = t;
+                handle = handles[i];
+              }
+            }
+          }
+        }
+
+        if (!handle.is_null())
+        {
+          selection_clear(g, 0);
+          selection_append(g, 0, handle);
+        }
+      }
     }
   }
 
@@ -192,7 +219,7 @@ main_entry(int argc, char **argv)
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
 
-  for (s32 i = 0; i < 128; ++i) 
+  for (s32 i = 0; i < 256; ++i) 
   {
     Entity *my_entity = entity_alloc(game_state);
     my_entity->mesh = mesh_id;

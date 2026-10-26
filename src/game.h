@@ -58,6 +58,9 @@ struct Entity
 
   // Index into the proxy in the AABB tree.
   s32             aabb_tree_proxy;
+
+  // Whether I am selected or not
+  b32             selected;
 };
 
 struct Game_Storage 
@@ -171,15 +174,21 @@ handle_from_pointer(Game_State *g, void *ptr);
 u8 *
 pointer_from_handle(Game_State *g, Handle handle);
 
-vec3 
-ray_from_playfield(Camera *camera, vec2 p);
 
+// 
+// Selection
+//
+void
+selection_clear(Game_State* g, 
+                s32         player);
 
 void
-selected_clear(Game_State* g, s32 player);
-
-void
-selected_sanitize(Game_State* g, s32 player);
+selection_sanitize(Game_State* g, 
+                   s32         player);
+void 
+selection_append(Game_State* g, 
+                 s32         player, 
+                 Handle      handle);
 
 
 

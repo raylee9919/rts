@@ -28,19 +28,19 @@ struct Box_Proxy
 
 struct Box_Tree
 {
-  Arena *arena;
+  Arena     *arena;
 
-  Box_Node *nodes;
-  s32 num_nodes;
-  s32 cap_nodes;
-  s32 free_node;
+  Box_Node  *nodes;
+  s32        num_nodes;
+  s32        cap_nodes;
+  s32        free_node;
 
   Box_Proxy *proxies;
-  s32 num_proxies;
-  s32 cap_proxies;
-  s32 free_proxy;
+  s32        num_proxies;
+  s32        cap_proxies;
+  s32        free_proxy;
 
-  s32 root; // index of the root node. -1 if empty.
+  s32        root; // index of the root node. -1 if empty.
 };
 
 
@@ -57,7 +57,9 @@ void
 aabb_tree_move(Box_Tree *tree, s32 proxy_index, AABBV box);
 
 Array<Handle>
-aabb_tree_query(Box_Tree *tree, m4x4 view_frustum, Allocator allocator);
+aabb_tree_query(Box_Tree *tree, 
+                Ray      *ray, 
+                Allocator allocator);
 
 void 
 aabb_tree_visualize(Box_Tree *tree);

@@ -6,7 +6,9 @@
 #include "math/math.h"
 #include "os/os.h"
 
-#define R_MAX_QUADS 8192 // @Todo: Overkill?
+// @Todo: Overkill. Drawing debug boxes with this is bad. 
+// It takes up about 20MB.
+#define R_MAX_QUADS 65536 
 
 /*
  Left-handed (y-down)

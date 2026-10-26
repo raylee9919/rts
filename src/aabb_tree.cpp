@@ -457,9 +457,35 @@ aabb_tree_move(Box_Tree *tree, s32 proxy_index, AABBV box)
 }
 
 Array<Handle>
-aabb_tree_query(Box_Tree *tree, m4x4 view_frustum, Allocator allocator)
+aabb_tree_query(Box_Tree *tree, 
+                Ray      *ray, 
+                Allocator allocator)
 {
   Array<Handle> result(allocator);
+
+  s32 stack[AABB_TREE_STACK_SIZE];
+  s32 top = 0;
+  stack[0] = tree->root;
+
+  while (top >= 0)
+  {
+    s32 index = stack[top--];
+    Box_Node *node = &tree->nodes[index];
+    R_ASSERT(top + 2 < AABB_TREE_STACK_SIZE);
+
+    AABB box = aabb_from_aabbv(node->box);
+    f32 t = INFINITY;
+    if (ray_aabb_intersect(ray, &t, &box))
+    {
+      if (is_leaf_(node))
+      {
+        append(&result, tree->proxies[node->proxy].item);
+      }
+      if (node->left  != -1) stack[++top] = node->left;
+      if (node->right != -1) stack[++top] = node->right;
+    }
+  }
+
   return result;
 }
 

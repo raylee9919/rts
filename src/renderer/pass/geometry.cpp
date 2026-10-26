@@ -388,7 +388,16 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                     if (i & bit) continue;
                     int j = i | bit;
                     if (visible[i] && visible[j])
-                      draw_line(px[i], px[j], vec4(0.2f, 0.2f, 0.2f, 1.f), 1.f);
+                    {
+                      if (E->selected)
+                      {
+                        draw_line(px[i], px[j], vec4(1.0f, 1.0f, 0.0f, 1.f), 1.f);
+                      }
+                      else
+                      {
+                        draw_line(px[i], px[j], vec4(0.2f, 0.2f, 0.2f, 1.f), 1.f);
+                      }
+                    }
                   }
                 }
               }

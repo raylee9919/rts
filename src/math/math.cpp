@@ -1054,7 +1054,8 @@ aabbv_make(vec3 lo, vec3 hi)
 }
 
 AABBV
-aabbv_make(f32 lo_x, f32 lo_y, f32 lo_z, f32 hi_x, f32 hi_y, f32 hi_z)
+aabbv_make(f32 lo_x, f32 lo_y, f32 lo_z, 
+           f32 hi_x, f32 hi_y, f32 hi_z)
 {
   AABBV box;
   box.lo = _mm_setr_ps(lo_x, lo_y, lo_z, 0.f);
@@ -1118,10 +1119,41 @@ aabbv_surface(AABBV box)
 }
 
 b32 
-aabbv_contains(AABBV out, AABBV in)
+aabbv_contains(AABBV *out, AABBV *in)
 {
-  __m128 mask1 = _mm_cmple_ps(out.lo, in.lo);
-  __m128 mask2 = _mm_cmpge_ps(out.hi, in.hi);
+  __m128 mask1 = _mm_cmple_ps(out->lo, in->lo);
+  __m128 mask2 = _mm_cmpge_ps(out->hi, in->hi);
   __m128 mask  = _mm_and_ps(mask1, mask2);
   return (_mm_movemask_ps(mask) & 0x7) == 0x7;
+}
+
+//
+// Collision, Intersection
+//
+b32 
+ray_aabb_intersect(Ray *ray, f32 *tmin_out, AABB *box)
+{
+  f32 tmin = 0.f;
+  f32 tmax = INFINITY;
+
+  f32 rcp[3];
+  rcp[0] = 1.f / ray->direction.e[0];
+  rcp[1] = 1.f / ray->direction.e[1];
+  rcp[2] = 1.f / ray->direction.e[2];
+
+  for (s32 i = 0; i < 3; ++i)
+  {
+    f32 t1  = (box->min.e[i] - ray->origin.e[i]) * rcp[i];
+    f32 t2  = (box->max.e[i] - ray->origin.e[i]) * rcp[i];
+
+    tmin = min(max(t1, tmin), max(t2, tmin));
+    tmax = max(min(t1, tmax), min(t2, tmax));
+  }
+
+  if (tmin < tmax) {
+    *tmin_out = tmin;
+    return true;
+  } else {
+    return false;
+  }
 }

@@ -271,21 +271,30 @@ void entity_dfs(Game_State *g,
   _entity_dfs_internal(g, root, 0, user_data, proc);
 }
 
-vec3 
-ray_from_playfield(Camera *camera, vec2 p)
-{
-  return {};
-}
-
+//
+// Selection
+//
 void
-selected_clear(Game_State* g, s32 player)
+selection_clear(Game_State* g, 
+                s32         player)
 {
   R_ASSERT(player < MAX_PLAYERS);
+
+  for (s32 i = 0; i < g->num_selected[player]; ++i)
+  {
+    Entity *e = entity_from_handle(g, g->selected[player][i]);
+    if (e)
+    {
+      e->selected = false;
+    }
+  }
+
   g->num_selected[player] = 0;
 }
 
 void
-selected_sanitize(Game_State* g, s32 player)
+selection_sanitize(Game_State* g, 
+                   s32         player)
 {
   for (s32 i = 0; i < g->num_selected[player]; )
   {
@@ -299,5 +308,26 @@ selected_sanitize(Game_State* g, s32 player)
     {
       i += 1;
     }
+  }
+}
+
+void 
+selection_append(Game_State* g, 
+                 s32         player, 
+                 Handle      handle)
+{
+  R_ASSERT(player < MAX_PLAYERS);
+  if (g->num_selected[player] >= MAX_SELECTED_ENTITES)
+  {
+    return;
+  }
+
+  Entity *e = entity_from_handle(g, handle);
+  if (e)
+  {
+    e->selected = true;
+
+    g->selected[player][g->num_selected[player]] = handle;
+    g->num_selected[player] += 1;
   }
 }
