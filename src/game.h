@@ -22,11 +22,9 @@
 #define FAR_Z               3000.0f
 
 #define MAX_WAYPOINTS          16
-#define MAX_PLAYERS             4
 #define MAX_SELECTED_ENTITES   12
 
 
-// Be meticulous whenever you add or remove a field from the entitiy struct!
 struct Entity 
 {
   u64             generational_id;
@@ -49,17 +47,20 @@ struct Entity
   vec3            goal;
   vec3            waypoints[MAX_WAYPOINTS];
 
-  // 'tight_aabb' is in model (local? whatever) space.
-  // 'loose_aabb_world' is in world space coordinates, because 
-  // we must check if the tight box goes out of the loose one.
+  // Used for unit selection after broad phase.
+  // Should I use capsule for units? I dunno.
+  //                                  2026-10-26 swL
   AABBV           tight_box;
+
+  // Loose boxees are used for broad-phase.
+  // Tree is built on top of those.
   AABBV           loose_box_local;
   AABBV           loose_box_world;
 
   // Index into the proxy in the AABB tree.
   s32             aabb_tree_proxy;
 
-  // Whether I am selected or not
+  // Whether the entity is selected or not.
   b32             selected;
 };
 
@@ -77,15 +78,26 @@ struct Game_Input
   vec2  mouse_clicked_postion;
 };
 
-// Make sure you're not adding things that make state memcpy difficult. Entity
-// is represented as an offset in the storage. So it's kind of a pointer, but
-// memcpyable.
-//
-// It makes my life difficult with this storage and handle thing.
-// I need pointers in my hand as well. If something involved pointer, 
-// build it again at game load or something.
-//                                                     2026-10-23 swl
-//
+enum Player_Index : s16
+{
+  PLAYER_0,
+  PLAYER_1,
+  PLAYER_2,
+  PLAYER_3,
+  PLAYER_4,
+  PLAYER_MAX
+};
+
+/*
+  Make sure you're not adding things that make state memcpy difficult. Entity
+  is represented as an offset in the storage. So it's kind of a pointer, but
+  memcpyable.
+ 
+  It makes my life difficult with this storage and handle thing.
+  I need pointers in my hand as well. If something involved pointer, 
+  build it again at game load or something.
+                                                      2026-10-23 swL
+*/
 struct Game_State 
 {
   Game_Storage    storage;
@@ -115,8 +127,8 @@ struct Game_State
   Box_Tree        aabb_tree;
 
   // Selected entities by each player
-  Handle          selected[MAX_PLAYERS][MAX_SELECTED_ENTITES];
-  s32             num_selected[MAX_PLAYERS];
+  Handle          selected[PLAYER_MAX][MAX_SELECTED_ENTITES];
+  s32             num_selected[PLAYER_MAX];
 };
 
 extern Game_State *game_state;
@@ -165,7 +177,10 @@ void
 entity_remove_child(Game_State *g, Handle parent, Handle child);
 
 void 
-entity_dfs(Game_State *g, Handle root, void *user_data, void (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data));
+entity_dfs(Game_State *g, 
+           Handle     root, 
+           void       *user_data, 
+           void       (*proc)(Game_State *g, Entity *entity, u64 index, void *user_data));
 
 
 Handle 
@@ -175,20 +190,27 @@ u8 *
 pointer_from_handle(Game_State *g, Handle handle);
 
 
+//
+// Game Input
+//
+void 
+game_input_process(Game_State *g);
+
+
 // 
 // Selection
 //
 void
-selection_clear(Game_State* g, 
-                s32         player);
+selection_clear(Game_State  *g, 
+                Player_Index player);
 
 void
-selection_sanitize(Game_State* g, 
-                   s32         player);
+selection_sanitize(Game_State  *g, 
+                   Player_Index player);
 void 
-selection_append(Game_State* g, 
-                 s32         player, 
-                 Handle      handle);
+selection_append(Game_State  *g, 
+                 Player_Index player,
+                 Handle       handle);
 
 
 

@@ -87,90 +87,7 @@ fixed_tick(Game_State *g, f64 dt)
 void 
 per_frame_tick(Game_State *g, f64 dt)
 {
-  aabb_tree_visualize(&g->aabb_tree);
-}
-
-void 
-game_input_process(Game_State *g) 
-{
-  /*
-    Entity selection
-      If I am clicking, first hit entity must be returned from the ray intersection test.
-      If I am dragging, entities overlapping with the viwe frustum must be returned.
-  */
-  if (key_transitioned_down(&g->inputs, MOUSE_BUTTON_LEFT))
-  {
-    auto [x,y,success] = get_mouse_pointer_position(shared->window);
-    if (success)
-    {
-      g->game_input.mouse_clicked_postion = playfield_from_window(x, y);
-    }
-  }
-
-  if (key_transitioned_up(&g->inputs, MOUSE_BUTTON_LEFT))
-  {
-    auto [x,y,success] = get_mouse_pointer_position(shared->window);
-    if (success)
-    {
-      vec2 p = g->game_input.mouse_clicked_postion;
-      p = p * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
-      vec4 H = g->camera.inv_view_proj * vec4(p, 0.f, 1.f);
-      vec3 P = H.xyz / H.w;
-      vec3 O = g->camera.position;
-      vec3 D = normalize(P - O);
-
-      Ray ray = make_ray(O, D);
-
-      Array<Handle> handles = aabb_tree_query(&g->aabb_tree, &ray, tctx.temp);
-      if (handles.count > 0)
-      {
-        f32 tmin = INFINITY;
-        Handle handle = {};
-
-        for (u32 i = 0; i < handles.count; ++i)
-        {
-          Entity *e = entity_from_handle(g, handles[i]);
-          if (e)
-          {
-            AABB box = aabb_from_aabbv(aabbv_translate(e->tight_box, e->position));
-            f32 t = INFINITY;
-            if (ray_aabb_intersect(&ray, &t, &box))
-            {
-              if (tmin > t)
-              {
-                tmin = t;
-                handle = handles[i];
-              }
-            }
-          }
-        }
-
-        if (!handle.is_null())
-        {
-          selection_clear(g, 0);
-          selection_append(g, 0, handle);
-        }
-      }
-    }
-  }
-
-  if (key_down(&g->inputs, MOUSE_BUTTON_LEFT))
-  {
-    auto [x,y,success] = get_mouse_pointer_position(shared->window);
-    if (success)
-    {
-      vec4 color    = vec4(0.3f, 1.f, 0.4f, 0.9f);
-      f32 thickness = 1.5f;
-      vec2 _00 = g->game_input.mouse_clicked_postion;
-      vec2 _11 = playfield_from_window(x, y);
-      vec2 _01 = vec2(_11.x, _00.y);
-      vec2 _10 = vec2(_00.x, _11.y);
-      draw_line(_00, _01, color, thickness);
-      draw_line(_01, _11, color, thickness);
-      draw_line(_11, _10, color, thickness);
-      draw_line(_10, _00, color, thickness);
-    }
-  }
+  // aabb_tree_visualize(&g->aabb_tree);
 }
 
 int 
@@ -183,7 +100,7 @@ main_entry(int argc, char **argv)
   asset_system_init();
 
   // Open window
-  shared->window = window_create(1920, 1080, S("RTS"), true);
+  shared->window = window_create(1280, 720, S("RTS"), true);
 
   // Launch render thread
   Thread render_thread = thread_launch(r_entry, get_native_window_handle(shared->window));
@@ -232,8 +149,7 @@ main_entry(int argc, char **argv)
     my_entity->position.x = ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f) * 64.f;
     my_entity->position.z = terrain_height(game_state, my_entity->position.x, my_entity->position.y); // @Temporary
     my_entity->radius = 16.f;
-    my_entity->tight_box = aabbv_make(-0.525789f, -0.253311f, -0.011222f,
-                                      0.525789f, 0.282407f, 1.622115f);
+    my_entity->tight_box = aabbv_make(-0.52f, -0.25f, -0.01f, 0.52f, 0.28f, 1.6f);
     my_entity->loose_box_local = my_entity->tight_box;
     aabbv_expand(&my_entity->loose_box_local, 0.50f);
 
@@ -241,9 +157,9 @@ main_entry(int argc, char **argv)
     my_entity->loose_box_world = aabbv_translate(my_entity->loose_box_local, my_entity->position);
     my_entity->aabb_tree_proxy = aabb_tree_insert(&game_state->aabb_tree, handle_from_entity(game_state, my_entity), my_entity->loose_box_world);
   }
-  // @temporary
-  // @temporary
-  // @temporary
+  // @Temporary
+  // @Temporary
+  // @Temporary
 
 
   // Timers
@@ -291,7 +207,7 @@ main_entry(int argc, char **argv)
 
 
     // Tick with fixed timestep
-    for (u32 counter = 0; accumulator >= dt && counter < 10; counter += 1) {
+    while (accumulator >= dt) {
       ProfileScopeN("TickGame");
       accumulator -= dt;
       fixed_tick(game_state, dt);

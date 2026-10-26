@@ -4,6 +4,9 @@
 #include "basic/log.h"
 #include "os/os.h"
 #include "profiler/profiler.h"
+#include "shared.h"
+#include "renderer/renderer.h"
+#include "renderer/immediate.h"
 
 Game_State *game_state;
 
@@ -275,10 +278,10 @@ void entity_dfs(Game_State *g,
 // Selection
 //
 void
-selection_clear(Game_State* g, 
-                s32         player)
+selection_clear(Game_State  *g, 
+                Player_Index player)
 {
-  R_ASSERT(player < MAX_PLAYERS);
+  R_ASSERT(player < PLAYER_MAX);
 
   for (s32 i = 0; i < g->num_selected[player]; ++i)
   {
@@ -293,8 +296,8 @@ selection_clear(Game_State* g,
 }
 
 void
-selection_sanitize(Game_State* g, 
-                   s32         player)
+selection_sanitize(Game_State  *g, 
+                   Player_Index player)
 {
   for (s32 i = 0; i < g->num_selected[player]; )
   {
@@ -312,11 +315,11 @@ selection_sanitize(Game_State* g,
 }
 
 void 
-selection_append(Game_State* g, 
-                 s32         player, 
-                 Handle      handle)
+selection_append(Game_State  *g, 
+                 Player_Index player,
+                 Handle       handle)
 {
-  R_ASSERT(player < MAX_PLAYERS);
+  R_ASSERT(player < PLAYER_MAX);
   if (g->num_selected[player] >= MAX_SELECTED_ENTITES)
   {
     return;
@@ -329,5 +332,88 @@ selection_append(Game_State* g,
 
     g->selected[player][g->num_selected[player]] = handle;
     g->num_selected[player] += 1;
+  }
+}
+
+void 
+game_input_process(Game_State *g) 
+{
+  /*
+    Entity selection
+      If I am clicking, first hit entity must be returned from the ray intersection test.
+      If I am dragging, entities overlapping with the viwe frustum must be returned.
+  */
+  if (key_transitioned_down(&g->inputs, MOUSE_BUTTON_LEFT))
+  {
+    auto [x,y,success] = get_mouse_pointer_position(shared->window);
+    if (success)
+    {
+      g->game_input.mouse_clicked_postion = playfield_from_window(x, y);
+    }
+  }
+
+  if (key_transitioned_up(&g->inputs, MOUSE_BUTTON_LEFT))
+  {
+    auto [x,y,success] = get_mouse_pointer_position(shared->window);
+    if (success)
+    {
+      vec2 p = g->game_input.mouse_clicked_postion;
+      p = p * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
+      vec4 H = g->camera.inv_view_proj * vec4(p, 0.f, 1.f);
+      vec3 P = H.xyz / H.w;
+      vec3 O = g->camera.position;
+      vec3 D = normalize(P - O);
+
+      Ray ray = make_ray(O, D);
+
+      Array<Handle> handles = aabb_tree_query(&g->aabb_tree, &ray, tctx.temp);
+      if (handles.count > 0)
+      {
+        f32 tmin = INFINITY;
+        Handle handle = {};
+
+        for (u32 i = 0; i < handles.count; ++i)
+        {
+          Entity *e = entity_from_handle(g, handles[i]);
+          if (e)
+          {
+            AABB box = aabb_from_aabbv(aabbv_translate(e->tight_box, e->position));
+            f32 t = INFINITY;
+            if (ray_aabb_intersect(&ray, &t, &box))
+            {
+              if (tmin > t)
+              {
+                tmin = t;
+                handle = handles[i];
+              }
+            }
+          }
+        }
+
+        if (!handle.is_null())
+        {
+          selection_clear(g, PLAYER_0);
+          selection_append(g, PLAYER_0, handle);
+        }
+      }
+    }
+  }
+
+  if (key_down(&g->inputs, MOUSE_BUTTON_LEFT))
+  {
+    auto [x,y,success] = get_mouse_pointer_position(shared->window);
+    if (success)
+    {
+      vec4 color    = vec4(0.3f, 1.f, 0.4f, 0.9f);
+      f32 thickness = 1.5f;
+      vec2 _00 = g->game_input.mouse_clicked_postion;
+      vec2 _11 = playfield_from_window(x, y);
+      vec2 _01 = vec2(_11.x, _00.y);
+      vec2 _10 = vec2(_00.x, _11.y);
+      draw_line(_00, _01, color, thickness);
+      draw_line(_01, _11, color, thickness);
+      draw_line(_11, _10, color, thickness);
+      draw_line(_10, _00, color, thickness);
+    }
   }
 }
