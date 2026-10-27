@@ -340,8 +340,8 @@ game_input_process(Game_State *g)
 {
   /*
     Entity selection
-      If I am clicking, first hit entity must be returned from the ray intersection test.
-      If I am dragging, entities overlapping with the viwe frustum must be returned.
+      On click,    only the first hit entity must be selected from the ray intersection test.
+      On drag end, all the entities overlapping with the view frustum must be selected.
   */
   if (key_transitioned_down(&g->inputs, MOUSE_BUTTON_LEFT))
   {
@@ -357,43 +357,101 @@ game_input_process(Game_State *g)
     auto [x,y,success] = get_mouse_pointer_position(shared->window);
     if (success)
     {
-      vec2 p = g->game_input.mouse_clicked_postion;
-      p = p * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
-      vec4 H = g->camera.inv_view_proj * vec4(p, 0.f, 1.f);
-      vec3 P = H.xyz / H.w;
-      vec3 O = g->camera.position;
-      vec3 D = normalize(P - O);
+      vec2 p1 = g->game_input.mouse_clicked_postion;
+      vec2 p2 = playfield_from_window(x, y);
 
-      Ray ray = make_ray(O, D);
-
-      Array<Handle> handles = aabb_tree_query(&g->aabb_tree, &ray, tctx.temp);
-      if (handles.count > 0)
+      if (distance(p1, p2) > 2.f)
       {
-        f32 tmin = INFINITY;
-        Handle handle = {};
+        // @Todo: Dragged. Better rule other than distance?
+        // Also, make some room in dx and dy?
 
-        for (u32 i = 0; i < handles.count; ++i)
+        // To NDC
+        p1 = p1 * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
+        p2 = p2 * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
+
+        vec4 v1 = g->camera.inv_proj * vec4(p1, 0.f, 1.f);
+        vec4 v2 = g->camera.inv_proj * vec4(p2, 0.f, 1.f);
+
+        v1.xyz /= v1.w;
+        v2.xyz /= v2.w;
+
+        // Make view-projection matrix from the frustum.
+        f32 xmin = min(v1.x, v2.x);
+        f32 xmax = max(v1.x, v2.x);
+        f32 ymin = min(v1.y, v2.y);
+        f32 ymax = max(v1.y, v2.y);
+        m4x4 view = g->camera.view;
+        m4x4 proj = persp_asymmetric_rh(xmin, xmax, ymin, ymax, NEAR_Z, FAR_Z);
+        m4x4 view_proj = proj * view;
+
+        Array<Handle> broadphase_result = aabb_tree_query(&g->aabb_tree, &view_proj, tctx.temp);
+        Array<Handle> result(tctx.temp);
+
+        for (u32 i = 0; i < broadphase_result.count; ++i)
         {
-          Entity *e = entity_from_handle(g, handles[i]);
+          Handle handle = broadphase_result[i];
+          Entity *e = entity_from_handle(g, handle);
           if (e)
           {
             AABB box = aabb_from_aabbv(aabbv_translate(e->tight_box, e->position));
-            f32 t = INFINITY;
-            if (ray_aabb_intersect(&ray, &t, &box))
+            if (view_frustum_aabb_intersect(&view_proj, &box))
             {
-              if (tmin > t)
-              {
-                tmin = t;
-                handle = handles[i];
-              }
+              append(&result, handle);
             }
           }
         }
 
-        if (!handle.is_null())
+        if (result.count > 0)
         {
           selection_clear(g, PLAYER_0);
+        }
+
+        for (u32 i = 0; i < result.count; ++i)
+        {
+          Handle handle = result.data[i];
           selection_append(g, PLAYER_0, handle);
+        }
+      }
+      else
+      {
+        // Clicked
+        p1 = p1 * vec2(1.f/RESOLUTION_X, 1.f/RESOLUTION_Y) * vec2(2.f, -2.f) + vec2(-1.f, 1.f);
+        vec4 H = g->camera.inv_view_proj * vec4(p1, 0.f, 1.f);
+        vec3 P = H.xyz / H.w;
+        vec3 O = g->camera.position;
+        vec3 D = normalize(P - O);
+
+        Ray ray = make_ray(O, D);
+
+        Array<Handle> handles = aabb_tree_query(&g->aabb_tree, &ray, tctx.temp);
+        if (handles.count > 0)
+        {
+          f32 tmin = INFINITY;
+          Handle handle = {};
+
+          for (u32 i = 0; i < handles.count; ++i)
+          {
+            Entity *e = entity_from_handle(g, handles[i]);
+            if (e)
+            {
+              AABB box = aabb_from_aabbv(aabbv_translate(e->tight_box, e->position));
+              f32 t = INFINITY;
+              if (ray_aabb_intersect(&ray, &t, &box))
+              {
+                if (tmin > t)
+                {
+                  tmin = t;
+                  handle = handles[i];
+                }
+              }
+            }
+          }
+
+          if (!handle.is_null())
+          {
+            selection_clear(g, PLAYER_0);
+            selection_append(g, PLAYER_0, handle);
+          }
         }
       }
     }

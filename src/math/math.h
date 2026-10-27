@@ -177,14 +177,19 @@ vec2       operator  - (vec2  l,  vec2 r);
 vec2&      operator += (vec2& l,  vec2 r);
 vec2&      operator -= (vec2& l,  vec2 r);
 vec2&      operator *= (vec2& v, f32 f);
-vec2       operator  * (vec2  l,  vec2 r); // Hadamard product. I'm just following the shader convention.
-
+vec2       operator  * (vec2  l,  vec2 r); // Hadamard product. Shader convention.
+vec2       normalize(vec2 a);
+f32        length(vec2 A);
+f32        distance(vec2 a, vec2 b);
+vec2       lerp(vec2 a, vec2 b, f32 t);
+f32        sqlen(vec2 v);
+f32        invsqlen(vec2 v);
+f32        dot(vec2 a, vec2 b);
 
 //
 // @Todo: Cleanup below.
 //
 
-f32            dot(vec2 a, vec2 b);
 f32            dot(vec3 a, vec3 b);
 f32            dot(Quaternion a, Quaternion b);
 
@@ -195,16 +200,11 @@ vec3           hadamard(vec3 a, vec3 b);
 f64            fmod_cycling(f64 x, f64 y);
 f32            fmod_cycling(f32 x, f32 y);
 
-f32            sqlen(vec2 v);
 f32            sqlen(vec3 v);
 
-f32            invsqlen(vec2 v);
 f32            invsqlen(vec3 v);
 f32            invsqlen(vec4 v);
 
-f32            length(vec2 A);
-vec2           normalize(vec2 a);
-vec2           lerp(vec2 a, vec2 b, f32 t);
 vec3           operator - (const vec3 &in);
 vec3           operator * (f32 A, vec3 B);
 vec3           operator * (vec3 B, f32 A);
@@ -221,7 +221,6 @@ b32            is_inf(vec3 v);
 vec3           normalize(vec3 a);
 vec3           lerp(vec3 a, vec3 b, f32 t);
 f32            distance(vec3 a, vec3 b);
-f32            distance(vec2 a, vec2 b);
 
 
 
@@ -305,11 +304,13 @@ slerp_shortest(Quaternion a, Quaternion b, f32 t)
 // Matrix4x4
 //   The math library follows *row-major*, *column-vector*.
 //
+
+// @Cleanup: Just use pointer...
 m4x4           
-operator * (m4x4 l, m4x4 r);
+operator * (m4x4& l, m4x4& r);
 
 vec4           
-operator * (m4x4 m, vec4 p);
+operator * (m4x4& m, vec4& v);
 
 m4x4 
 identity();
@@ -324,10 +325,10 @@ m4x4
 z_rotation(f32 a);
 
 m4x4 
-transpose(m4x4 m);
+transpose(const m4x4& m);
 
 m4x4 
-inverse(m4x4 m);
+inverse(const m4x4& m);
 
 m4x4           
 m4x4_translate(f32 x, f32 y, f32 z);
@@ -342,7 +343,6 @@ m4x4           m4x4_scale(f32 x, f32 y, f32 z);
 m4x4           to_m4x4(vec3 translation, Quaternion rotation, vec3 scale);
 Quaternion     build_quaternion(vec3 axis, f32 radian);
 Quaternion     rotate(Quaternion q0, vec3 axis, f32 radian);
-vec3           project(vec3 p, m4x4 view_proj);
 
 
 
@@ -394,6 +394,12 @@ persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
 
 m4x4 
 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z);
+
+m4x4 
+persp_asymmetric_lh(f32 xmin, f32 xmax, f32 ymin, f32 ymax, f32 near_z, f32 far_z);
+
+m4x4 
+persp_asymmetric_rh(f32 xmin, f32 xmax, f32 ymin, f32 ymax, f32 near_z, f32 far_z);
 
 
 f32           m_tan(f32 f);
@@ -461,6 +467,10 @@ make_ray(vec3 origin, vec3 direction)
 //
 b32 
 ray_aabb_intersect(Ray *ray, f32 *tmin_out, AABB *box);
+
+b32 
+view_frustum_aabb_intersect(m4x4 *view_proj, AABB *box);
+
 
 
 

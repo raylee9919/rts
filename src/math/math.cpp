@@ -2,7 +2,6 @@
 
 #include "math/math.h"
 
-
 //
 // SIMD
 //
@@ -34,6 +33,7 @@ dotv(__m128 av, __m128 bv)
   return f;
 }
 
+//
 // Trigonometry
 //
 f32 m_sin(f32 f) {
@@ -595,7 +595,7 @@ slerp(Quaternion q1, Quaternion q2, f32 t)
 // Matrix4x4
 //
 static __m128 
-lincomb(__m128 a, m4x4 b)
+lincomb(__m128 a, m4x4& b)
 {
   __m128 m;
   m = _mm_mul_ps(_mm_shuffle_ps(a, a, 0x00), _mm_loadu_ps(&b.rows[0].x));
@@ -606,7 +606,7 @@ lincomb(__m128 a, m4x4 b)
 }
 
 m4x4 
-operator * (m4x4 l, m4x4 r) 
+operator * (m4x4& l, m4x4& r) 
 {
   m4x4 m;
   __m128 out1x = lincomb(_mm_loadu_ps(&l.rows[0].x), r);
@@ -623,7 +623,7 @@ operator * (m4x4 l, m4x4 r)
 }
 
 vec4 
-operator * (m4x4 m, vec4 v) 
+operator * (m4x4& m, vec4& v) 
 {
   vec4 v_;
   _mm_storeu_ps(v_.e, _mm_setr_ps(dotv(m.rows[0].e, v.e), 
@@ -693,7 +693,7 @@ z_rotation(f32 a)
 }
 
 m4x4 
-transpose(m4x4 m) 
+transpose(const m4x4& m) 
 {
   // @Todo: SIMD
   m4x4 n;
@@ -706,7 +706,7 @@ transpose(m4x4 m)
 }
 
 m4x4 
-inverse(m4x4 m) 
+inverse(const m4x4& m) 
 {
   // @Cleanup
   f32 A2323 = m.e[2][2] * m.e[3][3] - m.e[2][3] * m.e[3][2];
@@ -853,16 +853,6 @@ rotate(Quaternion q0, vec3 axis, f32 radian)
   return result;
 }
 
-vec3
-project(vec3 p, m4x4 view_proj)
-{
-  vec4 res = view_proj * vec4{p.x, p.y, p.z, 1};
-  res.x /= res.w;
-  res.y /= res.w;
-  res.z /= res.w;
-  return res.xyz;
-}
-
 f32 
 radian_from_degree(f32 d) 
 {
@@ -936,7 +926,9 @@ look_at_rh(vec3 from, vec3 at, vec3 up)
 m4x4 
 persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) 
 {
-  f32 h = m_tan(0.5f * fov);
+  R_ASSERT(near_z > 0.f && far_z > 0.f);
+
+  f32 h = 1.f / m_tan(0.5f * fov);
   f32 w = h / aspect_ratio;
 
   m4x4 M;
@@ -967,6 +959,8 @@ persp_fov_lh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z)
 m4x4 
 persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z) 
 {
+  R_ASSERT(near_z > 0.f && far_z > 0.f);
+
   f32 h = 1.f / m_tan(0.5f * fov);
   f32 w = h / aspect_ratio;
 
@@ -985,6 +979,74 @@ persp_fov_rh(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z)
   M._31 = 0.f;
   M._32 = 0.f;
   M._33 = far_z / (near_z - far_z);
+  M._34 = (near_z * far_z) / (near_z - far_z);
+
+  M._41 = 0.f;
+  M._42 = 0.f;
+  M._43 = -1.f;
+  M._44 = 0.f;
+
+  return M;
+}
+
+m4x4 
+persp_asymmetric_lh(f32 xmin, f32 xmax, f32 ymin, f32 ymax, f32 near_z, f32 far_z)
+{
+  R_ASSERT(near_z > 0.f && far_z > 0.f);
+
+  f32 two_near_z = near_z + near_z;
+  f32 rcp_width  = 1.f / (xmax - xmin);
+  f32 rcp_height = 1.f / (ymax - ymin);
+
+  m4x4 M;
+
+  M._11 = two_near_z * rcp_width;
+  M._12 = 0.f;
+  M._13 = -(xmin + xmax) * rcp_width;
+  M._14 = 0.f;
+
+  M._21 = 0.f;
+  M._22 = two_near_z * rcp_height;
+  M._23 = -(ymin + ymax) * rcp_height;
+  M._24 = 0.f;
+
+  M._31 = 0.f;
+  M._32 = 0.f;
+  M._33 = (far_z) / (far_z - near_z);
+  M._34 = (near_z * far_z) / (near_z - far_z);
+
+  M._41 = 0.f;
+  M._42 = 0.f;
+  M._43 = 1.f;
+  M._44 = 0.f;
+
+  return M;
+}
+
+m4x4 
+persp_asymmetric_rh(f32 xmin, f32 xmax, f32 ymin, f32 ymax, f32 near_z, f32 far_z)
+{
+  R_ASSERT(near_z > 0.f && far_z > 0.f);
+
+  f32 two_near_z = near_z + near_z;
+  f32 rcp_width  = 1.f / (xmax - xmin);
+  f32 rcp_height = 1.f / (ymax - ymin);
+
+  m4x4 M;
+
+  M._11 = two_near_z * rcp_width;
+  M._12 = 0.f;
+  M._13 = (xmin + xmax) * rcp_width;
+  M._14 = 0.f;
+
+  M._21 = 0.f;
+  M._22 = two_near_z * rcp_height;
+  M._23 = (ymin + ymax) * rcp_height;
+  M._24 = 0.f;
+
+  M._31 = 0.f;
+  M._32 = 0.f;
+  M._33 = (far_z) / (near_z - far_z);
   M._34 = (near_z * far_z) / (near_z - far_z);
 
   M._41 = 0.f;
@@ -1156,4 +1218,52 @@ ray_aabb_intersect(Ray *ray, f32 *tmin_out, AABB *box)
   } else {
     return false;
   }
+}
+
+// @Todo: This test yields `false-positive`, meaning, some might be 
+// marked as visible even though it isn't. It's better than `false-negative`
+// though, which results in flickering mess in the context of rendering.
+// There are some methods to get around this, like additional test which 
+// "inverts" the frustum and the box, or SAT(Separate Axis Theorem).
+// @Speed
+b32 
+view_frustum_aabb_intersect(m4x4 *view_proj, AABB *box)
+{
+  m4x4 m = *view_proj;
+
+  vec3 lo = box->min;
+  vec3 hi = box->max;
+  vec4 points[8] = {
+    {lo.x, lo.y, lo.z, 1.f}, 
+    {lo.x, lo.y, hi.z, 1.f}, 
+    {lo.x, hi.y, lo.z, 1.f}, 
+    {lo.x, hi.y, hi.z, 1.f}, 
+    {hi.x, lo.y, lo.z, 1.f}, 
+    {hi.x, lo.y, hi.z, 1.f}, 
+    {hi.x, hi.y, lo.z, 1.f}, 
+    {hi.x, hi.y, hi.z, 1.f}, 
+  };
+
+  // Transform points into clip-space.
+  for (s32 i = 0; i < 8; ++i) {
+    points[i] = m * points[i];
+  }
+
+  s32 out[6] = {};
+  for (s32 i = 0; i < 8; ++i) {
+    vec4 p = points[i];
+    out[0] += (p.x < -p.w) ? 1 : 0;  
+    out[1] += (p.x >  p.w) ? 1 : 0;  
+    out[2] += (p.y < -p.w) ? 1 : 0;  
+    out[3] += (p.y >  p.w) ? 1 : 0;  
+    out[4] += (p.z <  0.f) ? 1 : 0;  
+    out[5] += (p.z >  p.w) ? 1 : 0;  
+  }
+
+  // Intersects only if all the vertices are outside of the frustum's planes.
+  for (s32 i = 0; i < 6; ++i) {
+    if (out[i] == 8) return false;
+  }
+
+  return true;
 }

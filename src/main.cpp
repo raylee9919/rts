@@ -44,6 +44,9 @@
  - SIMD CPUID and bind corresponding functions.
  - Trigonometry
  - pointer, game storage, and saving games...
+
+ [Low Priority]
+   - force inline criteria?
 */
 
 void 
@@ -79,8 +82,8 @@ fixed_tick(Game_State *g, f64 dt)
   entity_dfs(g, g->root, NULL, [](Game_State *g, Entity *e, u64 index, void *data){
     Handle h = handle_from_entity(g, e);
     f32 u = (f32)h.generational_id;
-    e->position.x = m_cos(123123.f*m_sin(u))*0.25f*u;
-    e->position.y = m_sin(123123.f*m_sin(u))*0.25f*u; 
+    e->position.x = m_cos(g->time*m_sin(u))*0.25f*u;
+    e->position.y = m_sin(g->time*m_sin(u))*0.25f*u; 
     e->position.z  = terrain_height(game_state, e->position.x, e->position.y);
 
     AABBV tight_box = aabbv_translate(e->tight_box, e->position);

@@ -463,6 +463,11 @@ aabb_tree_query(Box_Tree *tree,
 {
   Array<Handle> result(allocator);
 
+  if (tree->root == -1)
+  {
+    return result;
+  }
+
   s32 stack[AABB_TREE_STACK_SIZE];
   s32 top = 0;
   stack[0] = tree->root;
@@ -481,8 +486,51 @@ aabb_tree_query(Box_Tree *tree,
       {
         append(&result, tree->proxies[node->proxy].item);
       }
-      if (node->left  != -1) stack[++top] = node->left;
-      if (node->right != -1) stack[++top] = node->right;
+      else
+      {
+        if (node->left  != -1) stack[++top] = node->left;
+        if (node->right != -1) stack[++top] = node->right;
+      }
+    }
+  }
+
+  return result;
+}
+
+Array<Handle>
+aabb_tree_query(Box_Tree *tree, 
+                m4x4     *view_proj,
+                Allocator allocator)
+{
+  Array<Handle> result(allocator);
+
+  if (tree->root == -1)
+  {
+    return result;
+  }
+
+  s32 stack[AABB_TREE_STACK_SIZE];
+  s32 top = 0;
+  stack[0] = tree->root;
+
+  while (top >= 0)
+  {
+    s32 index = stack[top--];
+    Box_Node *node = &tree->nodes[index];
+    R_ASSERT(top + 2 < AABB_TREE_STACK_SIZE);
+
+    AABB box = aabb_from_aabbv(node->box);
+    if (view_frustum_aabb_intersect(view_proj, &box))
+    {
+      if (is_leaf_(node))
+      {
+        append(&result, tree->proxies[node->proxy].item);
+      }
+      else
+      {
+        if (node->left  != -1) stack[++top] = node->left;
+        if (node->right != -1) stack[++top] = node->right;
+      }
     }
   }
 

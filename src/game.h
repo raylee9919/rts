@@ -22,7 +22,7 @@
 #define FAR_Z               3000.0f
 
 #define MAX_WAYPOINTS          16
-#define MAX_SELECTED_ENTITES   12
+#define MAX_SELECTED_ENTITES   256
 
 
 struct Entity 
