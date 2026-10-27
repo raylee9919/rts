@@ -28,6 +28,14 @@
 
 /*
  @Todo
+
+ [Renderer]
+   - Vertex quantization
+   - Per-frame resource, memory allocation strategy
+   - Resource alloc/release
+   - BC Texture upload/conversion
+   - Deferred pipeline?
+
  - I had no idea asset loading function pointers would be hard to debug...
  - Shader compiler debug option
  - Not fond of guid generation...
