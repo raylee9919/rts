@@ -1954,70 +1954,81 @@ void d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
 
 void d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, 
                                       RHI_Buffer *src, u32 src_offset, u32 src_pitch,  
-                                      RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) {
+                                      RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) 
+{
 
-    R_ASSERT(src_pitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
-    R_ASSERT(src_offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT == 0);
+  R_ASSERT(src_pitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
+  R_ASSERT(src_offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT == 0);
 
-    u32 copy_width  = box->width;
-    u32 copy_height = box->height;
-    u32 copy_depth  = box->depth;
+  u32 copy_width  = box->width;
+  u32 copy_height = box->height;
+  u32 copy_depth  = box->depth;
 
-    if (rhi_is_bc_format(dst->desc.format)) {
-        copy_width  = align_up(copy_width,  4);
-        copy_height = align_up(copy_height, 4);
-    }
+  if (rhi_is_bc_format(dst->desc.format)) {
+    copy_width  = align_up(copy_width,  4);
+    copy_height = align_up(copy_height, 4);
+  }
 
-    // Source
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_desc = {};
+  // Source
+  D3D12_PLACED_SUBRESOURCE_FOOTPRINT placed_desc = {};
+  {
+    D3D12_SUBRESOURCE_FOOTPRINT layout = {};
     {
-        D3D12_SUBRESOURCE_FOOTPRINT layout = {};
-        {
-            layout.Format   = dxgi_format_from_rhi(dst->desc.format);
-            layout.Width    = copy_width;
-            layout.Height   = copy_height;
-            layout.Depth    = copy_depth;
-            layout.RowPitch = src_pitch;
-        }
-        placed_desc.Offset    = src_offset;
-        placed_desc.Footprint = layout; 
+      layout.Format   = dxgi_format_from_rhi(dst->desc.format);
+      layout.Width    = copy_width;
+      layout.Height   = copy_height;
+      layout.Depth    = copy_depth;
+      layout.RowPitch = src_pitch;
     }
+    placed_desc.Offset    = src_offset;
+    placed_desc.Footprint = layout; 
+  }
 
-    D3D12_TEXTURE_COPY_LOCATION src_loc = {};
-    src_loc.pResource        = src->d3d12.resource;
-    src_loc.Type             = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    src_loc.PlacedFootprint  = placed_desc;
+  D3D12_TEXTURE_COPY_LOCATION src_loc = {};
+  src_loc.pResource        = src->d3d12.resource;
+  src_loc.Type             = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+  src_loc.PlacedFootprint  = placed_desc;
 
 
-    // Destination
-    UINT subresource_index = D3D12CalcSubresource(mip, layer, 0/*plane slice*/, 
-                                                  dst->desc.mip_levels, dst->desc.depth);
+  // Destination
+  UINT subresource_index = D3D12CalcSubresource(mip, layer, 0/*plane slice*/, 
+                                                dst->desc.mip_levels, dst->desc.depth);
 
-    D3D12_TEXTURE_COPY_LOCATION dst_loc = {};
-    dst_loc.pResource        = dst->d3d12.resource;
-    dst_loc.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    dst_loc.SubresourceIndex = subresource_index;
+  D3D12_TEXTURE_COPY_LOCATION dst_loc = {};
+  dst_loc.pResource        = dst->d3d12.resource;
+  dst_loc.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+  dst_loc.SubresourceIndex = subresource_index;
 
-    D3D12_BOX b = {};
-    b.right  = copy_width;
-    b.bottom = copy_height;
-    b.back   = copy_depth;
+  D3D12_BOX b = {};
+  b.right  = copy_width;
+  b.bottom = copy_height;
+  b.back   = copy_depth;
 
-    cmd_buffer->d3d12.list_7->CopyTextureRegion(&dst_loc, box->x, box->y, box->z, &src_loc, &b);
+  cmd_buffer->d3d12.list_7->CopyTextureRegion(&dst_loc, box->x, box->y, box->z, &src_loc, &b);
 }
 
 void d3d12_cmd_copy_texture_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Texture *dst, RHI_Texture *src) {
 
 }
 
-void d3d12_queue_signal(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
-    auto *queue = &device->d3d12.queues[queue_type];
-    queue->queue_0->Signal(semaphore->d3d12.fence_0, value);
+void 
+d3d12_queue_signal(RHI_Device       *device, 
+                   RHI_Command_Type  queue_type, 
+                   RHI_Semaphore    *semaphore, 
+                   u64               value) 
+{
+  D3D12_Command_Queue *queue = &device->d3d12.queues[queue_type];
+  queue->queue_0->Signal(semaphore->d3d12.fence_0, value);
 }
 
-void d3d12_queue_wait(RHI_Device *device, RHI_Command_Type queue_type, RHI_Semaphore *semaphore, u64 value) {
-    auto *queue = &device->d3d12.queues[queue_type];
-    queue->queue_0->Wait(semaphore->d3d12.fence_0, value);
+void 
+d3d12_queue_wait(RHI_Device       *device, 
+                 RHI_Command_Type  queue_type, 
+                 RHI_Semaphore    *semaphore, 
+                 u64               value) 
+{
+  D3D12_Command_Queue *queue = &device->d3d12.queues[queue_type];
+  queue->queue_0->Wait(semaphore->d3d12.fence_0, value);
 }
 
 

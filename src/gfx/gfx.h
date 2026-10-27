@@ -53,7 +53,6 @@ struct GFX_Sort_Key {
 
 
 // Initialization info struct
-//
 struct GFX_Info {
     RHI_Kind    kind;
     b32         debug;
@@ -132,104 +131,103 @@ struct GFX_Edge {
 };
 
 
-struct GFX_State {
-    Allocator                               arena;
-    Allocator                               heap;
+struct GFX_State 
+{
+  Allocator                               arena;
+  Allocator                               heap;
 
-    RHI_Device                              *device;
-    GFX_Info                                info;
+  RHI_Device                             *device;
+  GFX_Info                                info;
 
-    // The thread will periodically check the 'frame' semaphore at the end of the 
-    // frames and run callbacks in the queue whose semaphore value is less or equal 
-    // to the semaphore value that is checked to be completed. Releasing resource 
-    // early is a problem, but releasing 1,2 frames late? I won't say that's a concern.
-    // If it turns out to be a bad idea, I'll make a dedicated thread or something.
-    //
-    // @Todo:
-    // Case 1.
-    //      
-    //      API Timeline:
-    //          x = CreateMesh(A) -> Draw(x) -> DestroyMesh(x) -> y = CreateMesh(A) -> Draw(y)
-    //
-    //      Actual Timeline:
-    //          [ x = CreateMesh(A) -> y = CreateMesh(A) ] -> Draw(x) -> Draw(y)
-    //                           Immediately.              -> [ Draw(x) -> Draw(y) ]
-    //                                                              After sort         -> DestroyMesh(x)
-    //                                                                                      Callback
-    //      
-    //      
-    //
-    //
-    Queue<GFX_Callback_Entry>               callbacks;
+  /*
+    The thread will periodically check the 'frame' semaphore at the end of the 
+    frames and run callbacks in the queue whose semaphore value is less or equal 
+    to the semaphore value that is checked to be completed. Releasing resource 
+    early is a problem, but releasing 1,2 frames late? I won't say that's a concern.
+    If it turns out to be a bad idea, I'll make a dedicated thread or something.
 
-    RHI_Semaphore                           frame_semaphore;
-    u64                                     current_frame = 1; // Indefinitely increases
+    @Todo:
+    Case 1.
 
-    // I'll just have a single swapchain.
-    RHI_Surface                            *surface;
-    Guid                                    surface_guids[RHI_MAX_BUFFER_COUNT];
+    API Timeline:
+    x = CreateMesh(A) -> Draw(x) -> DestroyMesh(x) -> y = CreateMesh(A) -> Draw(y)
 
-    RHI_Sampler                             linear_sampler;
-    RHI_Sampler                             dot_sampler;
-    RHI_Sampler                             anisotropic_sampler;
+    Actual Timeline:
+    [ x = CreateMesh(A) -> y = CreateMesh(A) ] -> Draw(x) -> Draw(y)
+    Immediately.              -> [ Draw(x) -> Draw(y) ]
+    After sort         -> DestroyMesh(x)
+    Callback
+  */
+  Queue<GFX_Callback_Entry>               callbacks;
 
-    // @Fix
-    // At the moment, queues are waiting for the upload semaphore 
-    // only once at gfx_end. Proper API and alignment is required.
-    // Seems like command buffer pool is required? Also, this isn't 
-    // thread safe.
-    //         -swl 2026-09-23
-    RHI_Buffer                              upload_buffer;
-    RHI_Semaphore                           upload_semaphore;
-    u64                                     upload_semaphore_value = 1;
-    u8                                     *upload_buffer_mapped;
-    u64                                     upload_buffer_used;
+  RHI_Semaphore                           frame_semaphore;
+  u64                                     current_frame = 1; // Indefinitely increases
 
-    RHI_Command_Buffer                      copy_buffer; // One copy buffer should be enough. Right? Nope.
-    RHI_Command_Buffer                      command_buffers[RHI_MAX_BUFFER_COUNT];
-    RHI_Command_Buffer                      compute_buffers[RHI_MAX_BUFFER_COUNT];
+  // I'll just have a single swapchain.
+  RHI_Surface                            *surface;
+  Guid                                    surface_guids[RHI_MAX_BUFFER_COUNT];
 
-    // gfx's draw calls encode commands into the buffer by the current context.
-    // Later commands get sorted by key and submitted to the GPU.
-    u64                                     context_pass = GFX_INVALID;
+  RHI_Sampler                             linear_sampler;
+  RHI_Sampler                             dot_sampler;
+  RHI_Sampler                             anisotropic_sampler;
 
+  // @Fix
+  // At the moment, queues are waiting for the upload semaphore 
+  // only once at gfx_end. Proper API and alignment is required.
+  // Seems like command buffer pool is required? Also, this isn't 
+  // thread safe.
+  //         -swl 2026-09-23
+  RHI_Buffer                              upload_buffer;
+  RHI_Semaphore                           upload_semaphore;
+  u64                                     upload_semaphore_value = 1;
+  u8                                     *upload_buffer_mapped;
+  u64                                     upload_buffer_used;
 
-    // Transient pipeline frame data
-    u64                                     context_pipeline = GFX_INVALID; // Currently set transient pipeline index. Draw calls incorporates this.
-    u64                                     next_pipeline    = 0;           // Next transient pipeline index to acquire.
-    Array<Guid>                             pipelines;                      // pipelines[transient pipeline index] = guid.
-    Table <Guid, u64, hash_guid>            pipeline_to_index_this_frame;   // increments index if new pipeline was encountered this frame.
+  RHI_Command_Buffer                      copy_buffer; // One copy buffer should be enough. Right? Nope.
+  RHI_Command_Buffer                      command_buffers[RHI_MAX_BUFFER_COUNT];
+  RHI_Command_Buffer                      compute_buffers[RHI_MAX_BUFFER_COUNT];
+
+  // gfx's draw calls encode commands into the buffer by the current context.
+  // Later commands get sorted by key and submitted to the GPU.
+  u64                                     context_pass = GFX_INVALID;
 
 
-    // Transient push constants data
-    u64                                     context_push_constants = GFX_INVALID;
-    u64                                     next_push_constants    = 0;
-    Array<GFX_Push_Constants>               push_constants;
-    Table <u64, u64>                        push_constants_to_index_this_frame;
+  // Transient pipeline frame data
+  u64                                     context_pipeline = GFX_INVALID; // Currently set transient pipeline index. Draw calls incorporates this.
+  u64                                     next_pipeline    = 0;           // Next transient pipeline index to acquire.
+  Array<Guid>                             pipelines;                      // pipelines[transient pipeline index] = guid.
+  Table<Guid, u64, hash_guid>             pipeline_to_index_this_frame;   // increments index if new pipeline was encountered this frame.
 
 
-    // Buckets of sort keys and commands. Index GFX_MAX_PASS is reserved for NIL.
-    Array<GFX_Sort_Key>                     sort_keys[GFX_MAX_PASS + 1];
-    Array<GFX_Command>                      commands[GFX_MAX_PASS + 1];
+  // Transient push constants data
+  u64                                     context_push_constants = GFX_INVALID;
+  u64                                     next_push_constants    = 0;
+  Array<GFX_Push_Constants>               push_constants;
+  Table <u64, u64>                        push_constants_to_index_this_frame;
 
-    // Pass
-    GFX_Pass pass_states[GFX_MAX_PASS + 1];
 
-    // Resource tables
-    Table <Guid,           GFX_Mesh, hash_guid>     mesh_table;
-    Table <Guid,  GFX_Texture_Entry, hash_guid>     texture_table;
-    Table <Guid, GFX_Pipeline_Entry, hash_guid>     pipeline_table;
+  // Buckets of sort keys and commands. Index GFX_MAX_PASS is reserved for NIL.
+  Array<GFX_Sort_Key>                     sort_keys[GFX_MAX_PASS + 1];
+  Array<GFX_Command>                      commands[GFX_MAX_PASS + 1];
 
-    // Shader global data
-    f32 time;
+  // Pass
+  GFX_Pass pass_states[GFX_MAX_PASS + 1];
 
-    // Resize
-    b32 resize_requested = false;
-    u32 resize_width;
-    u32 resize_height;
+  // Resource tables
+  Table <Guid,           GFX_Mesh, hash_guid>     mesh_table;
+  Table <Guid,  GFX_Texture_Entry, hash_guid>     texture_table;
+  Table <Guid, GFX_Pipeline_Entry, hash_guid>     pipeline_table;
 
-    // Frame Graph
-    Array<GFX_Edge> out_edges[GFX_MAX_PASS + 1]; // Index 'GFX_MAX_PASS' is nil
+  // Shader global data
+  f32 time;
+
+  // Resize
+  b32 resize_requested = false;
+  u32 resize_width;
+  u32 resize_height;
+
+  // Frame Graph
+  Array<GFX_Edge> out_edges[GFX_MAX_PASS + 1]; // Index 'GFX_MAX_PASS' is nil
 };
 
 extern GFX_State *gfx;

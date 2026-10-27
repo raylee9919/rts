@@ -34,46 +34,43 @@
 #define RHI_D3D12_SWAP_CHAIN_STEREO     0
 
 struct D3D12_Command_Queue {
-    D3D12_COMMAND_LIST_TYPE type;
-    ID3D12CommandQueue *queue_0;
+  D3D12_COMMAND_LIST_TYPE  type;
+  ID3D12CommandQueue      *queue_0;
 };
 
 struct D3D12_Command_List {
-    D3D12_COMMAND_LIST_TYPE type;
-
-    ID3D12GraphicsCommandList  *list_0;
-    ID3D12GraphicsCommandList7 *list_7;
-    
-    ID3D12CommandAllocator *allocator;
-
-    b32 is_recording;
+  D3D12_COMMAND_LIST_TYPE      type;
+  ID3D12GraphicsCommandList   *list_0;
+  ID3D12GraphicsCommandList7  *list_7;
+  ID3D12CommandAllocator      *allocator;
+  b32                          is_recording;
 };
 
 struct D3D12_Descriptor_Heap {
-    D3D12_DESCRIPTOR_HEAP_TYPE  type;
+  D3D12_DESCRIPTOR_HEAP_TYPE  type;
 
-    ID3D12DescriptorHeap       *heap_0;
+  ID3D12DescriptorHeap       *heap_0;
 
-    Allocator                   allocator;
+  Allocator                   allocator;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE base_cpu_handle;
-    D3D12_GPU_DESCRIPTOR_HANDLE base_gpu_handle; // valid if visible on gpu.
+  D3D12_CPU_DESCRIPTOR_HANDLE base_cpu_handle;
+  D3D12_GPU_DESCRIPTOR_HANDLE base_gpu_handle; // valid if visible on gpu.
 
-    u32                         descriptor_size;
-    
-    u64                        *free_list;  // set bit means it's free.
-    u32                         free_list_node_count;
+  u32                         descriptor_size;
 
-    u32                         allocated;  // number of every slots.
-    u32                         count;      // number of active descriptors.
+  u64                        *free_list;  // set bit means it's free.
+  u32                         free_list_node_count;
+
+  u32                         allocated;  // number of every slots.
+  u32                         count;      // number of active descriptors.
 };
 
 struct D3D12_Descriptor {
-    D3D12_DESCRIPTOR_HEAP_TYPE  type;
-    u32                         index; // index in the free list.
-    D3D12_Descriptor_Heap       *my_heap;
-    D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle;
-    D3D12_GPU_DESCRIPTOR_HANDLE gpu_handle;
+  D3D12_DESCRIPTOR_HEAP_TYPE   type;
+  u32                          index; // index in the free list.
+  D3D12_Descriptor_Heap       *my_heap;
+  D3D12_CPU_DESCRIPTOR_HANDLE  cpu_handle;
+  D3D12_GPU_DESCRIPTOR_HANDLE  gpu_handle;
 };
 
 struct D3D12_Heap {
@@ -81,49 +78,49 @@ struct D3D12_Heap {
 };
 
 struct D3D12_Device {
-    Allocator               allocator;
+  Allocator               allocator;
 
-    IDXGIFactory6          *dxgi_factory_6;
-    ID3D12Device           *device_0;
-    ID3D12Device10         *device_10;
+  IDXGIFactory6          *dxgi_factory_6;
+  ID3D12Device           *device_0;
+  ID3D12Device10         *device_10;
 
-    HMODULE                 dxgi_debug_dll_handle;
-    IDXGIDebug             *dxgi_debug;
+  HMODULE                 dxgi_debug_dll_handle;
+  IDXGIDebug             *dxgi_debug;
 
-    ID3D12InfoQueue1       *info_queue_1;
-    bool                    break_on_warning;
-    DWORD                   callback_cookie;
+  ID3D12InfoQueue1       *info_queue_1;
+  bool                    break_on_warning;
+  DWORD                   callback_cookie;
 
-    D3D12_Command_Queue     queues[RHI_COMMAND_TYPE_COUNT];
+  D3D12_Command_Queue     queues[RHI_COMMAND_TYPE_COUNT];
 
-    D3D12_Descriptor_Heap   rtv_heap;
-    D3D12_Descriptor_Heap   dsv_heap;
-    D3D12_Descriptor_Heap   resource_heap;
-    D3D12_Descriptor_Heap   sampler_heap;
+  D3D12_Descriptor_Heap   rtv_heap;
+  D3D12_Descriptor_Heap   dsv_heap;
+  D3D12_Descriptor_Heap   resource_heap;
+  D3D12_Descriptor_Heap   sampler_heap;
 
-    ID3D12RootSignature    *global_root_signature;
+  ID3D12RootSignature    *global_root_signature;
 };
 
 struct D3D12_Surface {
-    IDXGISwapChain4 *swap_chain_4;
-    HANDLE frame_waitable_object;
+  IDXGISwapChain4 *swap_chain_4;
+  HANDLE frame_waitable_object;
 };
 
 struct D3D12_Buffer {
-    ID3D12Resource *resource;
+  ID3D12Resource *resource;
 };
 
 struct D3D12_Texture {
-    ID3D12Resource *resource;
+  ID3D12Resource *resource;
 };
 
 struct D3D12_Fence {
-    ID3D12Fence *fence_0;
-    HANDLE       event;
+  ID3D12Fence *fence_0;
+  HANDLE       event;
 };
 
 struct D3D12_Pipeline {
-    ID3D12PipelineState *state;
+  ID3D12PipelineState *state;
 };
 
 bool  d3d12_device_init(RHI_Device *device, bool debug, bool break_on_warning, Allocator allocator);

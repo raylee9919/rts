@@ -30,11 +30,13 @@
  @Todo
 
  [Renderer]
-   - Vertex quantization
+   - Vertex quantization (with bindless/vertex pulling?)
+   - Upload buffer (command list/allocator)
    - Per-frame resource, memory allocation strategy
    - Resource alloc/release
    - BC Texture upload/conversion
    - Deferred pipeline?
+   - Transparent material
 
  - I had no idea asset loading function pointers would be hard to debug...
  - Shader compiler debug option
@@ -46,7 +48,7 @@
  - pointer, game storage, and saving games...
 
  [Low Priority]
-   - force inline criteria?
+   - force inline math?
 */
 
 void 
@@ -98,7 +100,16 @@ fixed_tick(Game_State *g, f64 dt)
 void 
 per_frame_tick(Game_State *g, f64 dt)
 {
-  // aabb_tree_visualize(&g->aabb_tree);
+  static b32 t = false;
+  if (t)
+  {
+    aabb_tree_visualize(&g->aabb_tree);
+  }
+
+  if (key_transitioned_down(&g->inputs, KEY_F1))
+  {
+    t = !t;
+  }
 }
 
 int 
@@ -120,7 +131,8 @@ main_entry(int argc, char **argv)
   Thread audio_thread = thread_launch(audio_entry, NULL);
 
   // Spin-lock until renderer is initted.
-  while (1) {
+  for (;;) 
+  {
     auto *r = (volatile Renderer *)renderer;
     if (r && r->initted) break;
     _mm_pause(); // @Temporary
@@ -218,6 +230,7 @@ main_entry(int argc, char **argv)
 
 
     // Tick with fixed timestep
+    // @Todo: Ditch floating point?
     while (accumulator >= dt) {
       ProfileScopeN("TickGame");
       accumulator -= dt;

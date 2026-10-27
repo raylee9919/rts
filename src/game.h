@@ -123,7 +123,7 @@ struct Game_State
 
   Navmesh         navmesh;
 
-  Arena          *arena; // My life is hard. Ditch storage or do something about it.
+  Arena          *arena;
   Box_Tree        aabb_tree;
 
   // Selected entities by each player

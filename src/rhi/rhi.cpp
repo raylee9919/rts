@@ -5,34 +5,46 @@
 #include "basic/log.h"
 #include "profiler/profiler.h"
 
-bool rhi_device_init(RHI_Device *device, RHI_Kind kind, bool debug, bool break_on_warning, Allocator allocator) {
-    memset(device, 0, sizeof(*device));
-    device->kind      = kind;
-    device->allocator = allocator;
+bool  
+rhi_device_init(RHI_Device *device, 
+                RHI_Kind    kind, 
+                bool        debug, 
+                bool        break_on_warning, 
+                Allocator   allocator)
+{
+  memset(device, 0, sizeof(*device));
+  device->kind      = kind;
+  device->allocator = allocator;
 
-    switch (kind) {
-        case RHI_KIND_D3D12:
-            return d3d12_device_init(device, debug, break_on_warning, allocator);
+  switch (kind) {
+    case RHI_KIND_D3D12:
+    return d3d12_device_init(device, debug, break_on_warning, allocator);
 
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 
-    return false;
+  return false;
 }
 
-void rhi_device_deinit(RHI_Device *device) {
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_device_deinit(device);
-            break;
+void
+rhi_device_deinit(RHI_Device *device)
+{
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_device_deinit(device);
+    break;
 
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 }
 
-bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI_Command_Type type) {
+bool 
+rhi_command_buffer_init(RHI_Device         *device, 
+                        RHI_Command_Buffer *buffer, 
+                        RHI_Command_Type    type) 
+{
     memset(buffer, 0, sizeof(*buffer));
     RHI_Kind kind = device->kind;
     buffer->kind = kind;
@@ -49,117 +61,137 @@ bool rhi_command_buffer_init(RHI_Device *device, RHI_Command_Buffer *buffer, RHI
     return false;
 }
 
-void rhi_command_buffer_deinit(RHI_Command_Buffer *cmd_buffer) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_command_list_deinit(cmd_buffer);
-            break;
+void
+rhi_command_buffer_deinit(RHI_Command_Buffer *cmd_buffer)
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_command_list_deinit(cmd_buffer);
+    break;
 
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 }
 
-void rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_command_list_begin(cmd_buffer);
-            break;
+void  
+rhi_command_buffer_begin(RHI_Command_Buffer *cmd_buffer)
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_command_list_begin(cmd_buffer);
+    break;
 
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 }
 
-void rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_command_list_end(&cmd_buffer->d3d12);
-            break;
+void  
+rhi_command_buffer_end(RHI_Command_Buffer *cmd_buffer)
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_command_list_end(&cmd_buffer->d3d12);
+    break;
 
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 }
 
+void 
+rhi_submit(RHI_Device          *device, 
+           u32                  count, 
+           RHI_Command_Buffer **cmd_buffers) 
+{
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_submit(device, count, cmd_buffers);
+    break;
 
-//
-// Submit
-//
-void rhi_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffers) {
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_submit(device, count, cmd_buffers);
-            break;
-
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 }
 
 
 //
 // Surface
 //
-bool rhi_surface_init(RHI_Device *device, RHI_Surface *surface, RHI_Surface_Desc *desc, RHI_Texture *out_textures[RHI_MAX_BUFFER_COUNT]) {
-    memset(surface, 0, sizeof(*surface));
-    RHI_Kind kind = device->kind;
-    surface->kind = kind;
-    surface->desc = *desc;
+bool rhi_surface_init(RHI_Device       *device, 
+                      RHI_Surface      *surface, 
+                      RHI_Surface_Desc *desc, 
+                      RHI_Texture      *out_textures[RHI_MAX_BUFFER_COUNT]) 
+{
+  memset(surface, 0, sizeof(*surface));
+  RHI_Kind kind = device->kind;
+  surface->kind = kind;
+  surface->desc = *desc;
 
-    if (!(desc->num_back_buffers >= RHI_MIN_BUFFER_COUNT && 
-          desc->num_back_buffers <= RHI_MAX_BUFFER_COUNT)) {
-        log(LOG_ERROR, S("Number of backbuffers must be an integer between [%d, %d]."), RHI_MIN_BUFFER_COUNT, RHI_MAX_BUFFER_COUNT);
-        return false;
-    }
-
-    switch (kind) {
-        case RHI_KIND_D3D12:
-            return d3d12_surface_init(device, surface, desc, out_textures);
-
-        default:
-            R_ASSERT(0);
-    }
-
+  if (desc->num_back_buffers < RHI_MIN_BUFFER_COUNT || 
+      desc->num_back_buffers > RHI_MAX_BUFFER_COUNT) 
+  {
+    log(LOG_ERROR, S("Number of backbuffers must be an integer between [%d, %d]."), RHI_MIN_BUFFER_COUNT, RHI_MAX_BUFFER_COUNT);
     return false;
+  }
+
+  switch (kind) {
+    case RHI_KIND_D3D12:
+    return d3d12_surface_init(device, surface, desc, out_textures);
+
+    default:
+    R_ASSERT(0);
+  }
+
+  return false;
 }
 
-void rhi_surface_present(RHI_Surface *surface, u32 sync_interval) {
-    ProfileScope;
+void 
+rhi_surface_present(RHI_Surface *surface, u32 sync_interval) 
+{
+  ProfileScope;
 
-    switch (surface->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_surface_present(surface, sync_interval);
-            break;
+  switch (surface->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_surface_present(surface, sync_interval);
+    break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+    R_ASSERT(0);
+    break;
+  }
 }
 
-void rhi_surface_resize(RHI_Surface *surface, u32 width, u32 height, RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT]) {
-    switch (surface->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_surface_resize(surface, width, height, in_out_textures);
-            break;
+void 
+rhi_surface_resize(RHI_Surface *surface, 
+                   u32          width, 
+                   u32          height, 
+                   RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT]) 
+{
+  switch (surface->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_surface_resize(surface, width, height, in_out_textures);
+    break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+    R_ASSERT(0);
+    break;
+  }
 }
 
-bool rhi_surface_wait_for_waitable_object(RHI_Surface *surface) {
-    switch (surface->kind) {
-        case RHI_KIND_D3D12:
-            return d3d12_surface_wait_for_waitable_object(surface);
+bool 
+rhi_surface_wait_for_waitable_object(RHI_Surface *surface) 
+{
+  switch (surface->kind) {
+    case RHI_KIND_D3D12:
+    return d3d12_surface_wait_for_waitable_object(surface);
 
-        default:
-            R_ASSERT(0);
-    }
+    default:
+    R_ASSERT(0);
+  }
 
-    return false;
+  return false;
 }
 
 
@@ -315,31 +347,37 @@ void rhi_texture_view_deinit(RHI_Texture_View *view) {
 //
 // Sampler
 //
-void rhi_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_Desc *desc) {
-    sampler->kind = device->kind;
-    sampler->desc = *desc;
+void
+rhi_sampler_init(RHI_Device       *device, 
+                 RHI_Sampler      *sampler, 
+                 RHI_Sampler_Desc *desc)
+{
+  sampler->kind = device->kind;
+  sampler->desc = *desc;
 
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_sampler_init(device, sampler, desc);
-            break;
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_sampler_init(device, sampler, desc);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
-void rhi_sampler_deinit(RHI_Sampler *sampler) {
-    switch (sampler->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_sampler_deinit(sampler);
-            break;
+void
+rhi_sampler_deinit(RHI_Sampler *sampler)
+{
+  switch (sampler->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_sampler_deinit(sampler);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
 
@@ -604,19 +642,21 @@ void rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *
 //
 // Helpers
 //
-bool rhi_is_bc_format(RHI_Format format) {
-    switch (format) {
-        case RHI_FORMAT_BC1_UNORM:
-        case RHI_FORMAT_BC1_UNORM_SRGB:
-        case RHI_FORMAT_BC3_UNORM:
-        case RHI_FORMAT_BC3_UNORM_SRGB:
-        case RHI_FORMAT_BC4_UNORM:
-        case RHI_FORMAT_BC5_UNORM:
-        case RHI_FORMAT_BC6H_UFLOAT:
-        case RHI_FORMAT_BC7_UNORM:
-        case RHI_FORMAT_BC7_UNORM_SRGB:
-            return true;
-        default:
-            return false;
-    }
+b32 
+rhi_is_bc_format(RHI_Format format) 
+{
+  switch (format) {
+    case RHI_FORMAT_BC1_UNORM:
+    case RHI_FORMAT_BC1_UNORM_SRGB:
+    case RHI_FORMAT_BC3_UNORM:
+    case RHI_FORMAT_BC3_UNORM_SRGB:
+    case RHI_FORMAT_BC4_UNORM:
+    case RHI_FORMAT_BC5_UNORM:
+    case RHI_FORMAT_BC6H_UFLOAT:
+    case RHI_FORMAT_BC7_UNORM:
+    case RHI_FORMAT_BC7_UNORM_SRGB:
+    return true;
+    default:
+    return false;
+  }
 }
