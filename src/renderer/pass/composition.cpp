@@ -100,12 +100,12 @@ R_PASS_EXECUTE( RenderPassExecute_Composition )
     R_Pass_Composition::Push_Constants c = {};
     c.linear_sampler_id = gfx->linear_sampler.bindless;
 
-    c.texture_id = gfx_srv_bindless_from_texture( renderer->scene_texture[gfx_backbuffer_index()]);
+    c.texture_id = gfx_srv_bindless_from_texture( renderer->scene_texture);
     gfx_push_constants(&c, sizeof(c));
     gfx_draw(renderer->fullscreen_triangle_mesh, 1, 0, 3);
 
     // UI
-    c.texture_id = gfx_srv_bindless_from_texture( renderer->ui_texture[gfx_backbuffer_index()]);
+    c.texture_id = gfx_srv_bindless_from_texture( renderer->ui_texture);
     gfx_push_constants(&c, sizeof(c));
     gfx_draw(renderer->fullscreen_triangle_mesh, 1, 0, 3);
   }

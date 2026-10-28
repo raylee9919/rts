@@ -140,7 +140,7 @@ node_dealloc_(Box_Tree *tree, s32 node_index)
   tree->num_nodes -= 1;
 }
 
-// @Todo: Don't compute every time. pass parent's to the children.
+// @Speed: Don't compute every time. Pass parent's to the children.
 static f32
 compute_inherited_cost(Box_Tree *tree, Box_Node *node, AABBV box)
 {
@@ -357,7 +357,7 @@ aabb_tree_insert(Box_Tree *tree, Handle item, AABBV box)
   {
     internal_node->box    = aabbv_union(tree->nodes[sibling].box, tree->nodes[leaf].box);
     internal_node->left   = sibling;
-    internal_node->right  = leaf; // @Todo: Who goes left/right?
+    internal_node->right  = leaf;
     internal_node->proxy  = -1;
     internal_node->parent = tree->nodes[sibling].parent;
   }

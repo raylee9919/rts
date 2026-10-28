@@ -56,7 +56,7 @@ aabb_tree_remove(Box_Tree *tree, s32 proxy_index);
 void
 aabb_tree_move(Box_Tree *tree, s32 proxy_index, AABBV box);
 
-// @Todo: Collapse tests into a single function.
+// @Todo: Collapse down into a single function.
 Array<Handle>
 aabb_tree_query(Box_Tree *tree, 
                 Ray      *ray, 

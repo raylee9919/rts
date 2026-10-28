@@ -19,11 +19,11 @@
 #include "mesh.h"
 #include "random/random.h"
 
-/* Development */
+// Development
 #include "development/console.h"
 #include "importer/fbx.h"
 
-/* Third Party */
+// Third Party
 #include "third_party/xxhash3/xxhash.h"
 
 /*
@@ -37,6 +37,23 @@
    - BC Texture upload/conversion
    - Deferred pipeline?
    - Transparent material
+
+ [Asset]
+   - As everything is GUID, I think I can do "immediate-mode" asset, where 
+     the user doesn't have to care about the lifetime?
+
+ [Memory]
+   - I need heaps! not a single global heap. `mimalloc`? Roll my own? ;)
+   - Pass allocator when initializing subsystems. Better that way.
+
+ [Build]
+   - Not urgent, but I want to ditch CMake and do my own build system at some point,
+     because CMake is a crime against humanity.
+
+ [Development]
+   - I'm not a fan of separate editor binary, like Unreal.
+     I want developemnt tools to be embedded and be hoisted out cleanly 
+     in shipping build.
 
  - I had no idea asset loading function pointers would be hard to debug...
  - Shader compiler debug option

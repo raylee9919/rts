@@ -73,7 +73,7 @@ struct R_Pass
   R_Pass_Execute_Proc *execute;
 };
 
-enum Render_Pass : u32 
+enum Render_Pass : u16 
 {
   R_PASS_GEOMETRY = 0,
   R_PASS_POSTPROCESS,
@@ -110,17 +110,21 @@ struct Render_Ring
 };
 
 
-// @Todo: Not fan of those...
+// @Cleanup: Not fan of those...
 enum R_Shading_Model {
   SHADING_MODEL_OPAQUE      = 0,
   SHADING_MODEL_TRANSLUCENT = 1,
 };
 
-force_inline bool r_should_enable_depth(R_Shading_Model sm) {
+force_inline bool 
+r_should_enable_depth(R_Shading_Model sm) 
+{
   return sm != SHADING_MODEL_TRANSLUCENT;
 }
 
-force_inline bool r_should_enable_blend(R_Shading_Model sm) {
+force_inline bool 
+r_should_enable_blend(R_Shading_Model sm) 
+{
   return sm == SHADING_MODEL_TRANSLUCENT;
 }
 
@@ -142,11 +146,11 @@ struct Renderer
   // Ring buffer shared with game thread.
   Render_Ring ring;
 
-  // Textures
-  Guid scene_depth[RHI_MAX_BUFFER_COUNT];
-  Guid gbuffer_color[RHI_MAX_BUFFER_COUNT];
-  Guid scene_texture[RHI_MAX_BUFFER_COUNT];
-  Guid ui_texture[RHI_MAX_BUFFER_COUNT];
+  // Render Targets
+  Guid scene_depth;
+  Guid gbuffer_color;
+  Guid scene_texture;
+  Guid ui_texture;
 
   // Full-screen Triangle Mesh
   f32  fullscreen_triangle_vertices[3];
@@ -160,6 +164,7 @@ struct Renderer
   // Registered Passes
   Array<R_Pass*> passes;
 
+  // @Temporary
   Material_Buffer material_buffer;
   u64 material_buffer_used = 0;
 

@@ -81,7 +81,7 @@ R_PASS_EXECUTE( RenderPassExecute_Postprocess )
   gfx_pass.name                 = inPass->name;
   gfx_pass.viewport             = {0.f, 0.f, (f32)res_x, (f32)res_y};
   gfx_pass.scissor              = {0, 0, res_x, res_y};
-  gfx_pass.color_attachments[0] = renderer->scene_texture[gfx_backbuffer_index()];
+  gfx_pass.color_attachments[0] = renderer->scene_texture;
 
   gfx_pass_begin(R_PASS_POSTPROCESS, &gfx_pass);
   {
@@ -91,7 +91,7 @@ R_PASS_EXECUTE( RenderPassExecute_Postprocess )
     // Push constants
     R_Pass_Postprocess::Push_Constants c = {};
     c.dot_sampler_id   = gfx->dot_sampler.bindless;
-    c.scene_texture_id = gfx_srv_bindless_from_texture(renderer->gbuffer_color[gfx_backbuffer_index()]);
+    c.scene_texture_id = gfx_srv_bindless_from_texture(renderer->gbuffer_color);
     gfx_push_constants(&c, sizeof(c));
 
     // Draw

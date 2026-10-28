@@ -91,8 +91,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
   gfx_pass.name                 = inPass->name;
   gfx_pass.viewport             = {0.f, 0.f, (f32)res_x, (f32)res_y};
   gfx_pass.scissor              = {0, 0, res_x, res_y};
-  gfx_pass.color_attachments[0] = renderer->gbuffer_color[gfx_backbuffer_index()];
-  gfx_pass.depth_attachment     = renderer->scene_depth[gfx_backbuffer_index()];
+  gfx_pass.color_attachments[0] = renderer->gbuffer_color;
+  gfx_pass.depth_attachment     = renderer->scene_depth;
   gfx_pass.min_depth            = 0.f;
   gfx_pass.max_depth            = 1.f;
 

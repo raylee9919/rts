@@ -90,31 +90,51 @@ r_init(void *native_window_handle)
   { // Init renderer's resources
 
     // Cleanup
-    for (u32 i = 0; i < gfx_backbuffer_count(); ++i) 
-    {
-      { // SceneDepth
-        r->scene_depth[i]  = guid_generate();
+    { // SceneDepth
+      r->scene_depth = guid_generate();
 
-        RHI_Texture_Desc desc = {}; 
-        desc.name           = S("SceneDepth");
-        desc.type           = RHI_TEXTURE_TYPE_2D;
-        desc.format         = R_DEPTH_FORMAT;
-        desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
-        desc.width          = width;
-        desc.height         = height;
-        desc.mip_levels     = 1;
-        desc.depth          = 1;
-        desc.clear          = true;
-        desc.clear_depth    = 1.f;
+      RHI_Texture_Desc desc = {}; 
+      desc.name           = S("SceneDepth");
+      desc.type           = RHI_TEXTURE_TYPE_2D;
+      desc.format         = R_DEPTH_FORMAT;
+      desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
+      desc.width          = width;
+      desc.height         = height;
+      desc.mip_levels     = 1;
+      desc.depth          = 1;
+      desc.clear          = true;
+      desc.clear_depth    = 1.f;
 
-        gfx_texture_create(r->scene_depth[i], desc);
-      }
+      gfx_texture_create(r->scene_depth, desc);
+    }
 
-      { // GBufferColor
-        r->gbuffer_color[i] = guid_generate();
+    { // GBufferColor
+      r->gbuffer_color = guid_generate();
 
-        RHI_Texture_Desc desc = {};
-        desc.name           = S("GBufferColor");
+      RHI_Texture_Desc desc = {};
+      desc.name           = S("GBufferColor");
+      desc.type           = RHI_TEXTURE_TYPE_2D;
+      desc.format         = R_COLOR_FORMAT;
+      desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
+      desc.width          = width;
+      desc.height         = height;
+      desc.mip_levels     = 1;
+      desc.depth          = 1;
+      desc.clear          = true;
+      desc.clear_color[0] = 0.05f;
+      desc.clear_color[1] = 0.0f;
+      desc.clear_color[2] = 0.0f;
+      desc.clear_color[3] = 1.0f;
+
+      gfx_texture_create(r->gbuffer_color, desc);
+    }
+
+    { // Scene
+      r->scene_texture = guid_generate();
+
+      RHI_Texture_Desc desc = {};
+      {
+        desc.name           = S("Scene");
         desc.type           = RHI_TEXTURE_TYPE_2D;
         desc.format         = R_COLOR_FORMAT;
         desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
@@ -123,49 +143,26 @@ r_init(void *native_window_handle)
         desc.mip_levels     = 1;
         desc.depth          = 1;
         desc.clear          = true;
-        desc.clear_color[0] = 0.05f;
-        desc.clear_color[1] = 0.0f;
-        desc.clear_color[2] = 0.0f;
-        desc.clear_color[3] = 1.0f;
-
-        gfx_texture_create(r->gbuffer_color[i], desc);
       }
+      gfx_texture_create(r->scene_texture, desc);
+    }
 
-      { // Scene
-        r->scene_texture[i] = guid_generate();
+    { // UI
+      r->ui_texture = guid_generate();
 
-        RHI_Texture_Desc desc = {};
-        {
-          desc.name           = S("Scene");
-          desc.type           = RHI_TEXTURE_TYPE_2D;
-          desc.format         = R_COLOR_FORMAT;
-          desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
-          desc.width          = width;
-          desc.height         = height;
-          desc.mip_levels     = 1;
-          desc.depth          = 1;
-          desc.clear          = true;
-        }
-        gfx_texture_create(r->scene_texture[i], desc);
+      RHI_Texture_Desc desc = {};
+      {
+        desc.name           = S("UI");
+        desc.type           = RHI_TEXTURE_TYPE_2D;
+        desc.format         = RHI_FORMAT_RGBA8_UNORM_SRGB;
+        desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_SAMPLED;
+        desc.width          = width;
+        desc.height         = height;
+        desc.mip_levels     = 1;
+        desc.depth          = 1;
+        desc.clear          = true;
       }
-
-      { // UI
-        r->ui_texture[i] = guid_generate();
-
-        RHI_Texture_Desc desc = {};
-        {
-          desc.name           = S("UI");
-          desc.type           = RHI_TEXTURE_TYPE_2D;
-          desc.format         = RHI_FORMAT_RGBA8_UNORM_SRGB;
-          desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_SAMPLED;
-          desc.width          = width;
-          desc.height         = height;
-          desc.mip_levels     = 1;
-          desc.depth          = 1;
-          desc.clear          = true;
-        }
-        gfx_texture_create(r->ui_texture[i], desc);
-      }
+      gfx_texture_create(r->ui_texture, desc);
     }
   }
 
@@ -285,45 +282,46 @@ r_end(Render_Entry *data, f64 refresh_dt)
   Renderer *r = renderer;
 
   { // Build frame graph
-    // @Cleanup: Backbuffer index is hassle. Renderer might want to make a 
+    // @Cleanup: Backbuffer index is a hassle. Renderer might want to make a 
     // frame resource once and be oblivious about it?
-
-    u32 back = gfx_backbuffer_index();
+    //
+    // Actually no. I don't rendertarget per backbuffer. GPU is the only writer 
+    // and consumer. What was I thinking?
 
     // -1 means no previous pass.
-    gfx_pass_connect(r->gbuffer_color[back],
-                     -1, R_PASS_GEOMETRY, 
-                     RHI_RESOURCE_STATE_RENDER_TARGET);
+    gfx_connect(r->gbuffer_color,
+                -1, R_PASS_GEOMETRY, 
+                RHI_RESOURCE_STATE_RENDER_TARGET);
 
-    gfx_pass_connect(r->scene_depth[back], 
-                     -1, R_PASS_GEOMETRY, 
-                     RHI_RESOURCE_STATE_DEPTH_WRITE);
+    gfx_connect(r->scene_depth, 
+                -1, R_PASS_GEOMETRY, 
+                RHI_RESOURCE_STATE_DEPTH_WRITE);
 
-    gfx_pass_connect(r->gbuffer_color[back],
-                     R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
-                     RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    gfx_connect(r->gbuffer_color,
+                R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
+                RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-    gfx_pass_connect(r->scene_texture[back],
-                     R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
-                     RHI_RESOURCE_STATE_RENDER_TARGET);
+    gfx_connect(r->scene_texture,
+                R_PASS_GEOMETRY, R_PASS_POSTPROCESS, 
+                RHI_RESOURCE_STATE_RENDER_TARGET);
 
     // UI
-    gfx_pass_connect(r->ui_texture[back], 
-                     -1, R_PASS_UI, 
-                     RHI_RESOURCE_STATE_RENDER_TARGET);
+    gfx_connect(r->ui_texture, 
+                -1, R_PASS_UI, 
+                RHI_RESOURCE_STATE_RENDER_TARGET);
 
     // Blt
-    gfx_pass_connect(r->ui_texture[back], 
-                     R_PASS_UI, R_PASS_COMPOSITION,
-                     RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    gfx_connect(r->ui_texture, 
+                R_PASS_UI, R_PASS_COMPOSITION,
+                RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-    gfx_pass_connect(r->scene_texture[back], 
-                     R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
-                     RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+    gfx_connect(r->scene_texture, 
+                R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
+                RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-    gfx_pass_connect(gfx_surface_texture(), 
-                     -1, R_PASS_COMPOSITION, 
-                     RHI_RESOURCE_STATE_RENDER_TARGET);
+    gfx_connect(gfx_surface_texture(), 
+                -1, R_PASS_COMPOSITION, 
+                RHI_RESOURCE_STATE_RENDER_TARGET);
   }
 
 

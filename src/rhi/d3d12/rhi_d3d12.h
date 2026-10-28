@@ -74,7 +74,7 @@ struct D3D12_Descriptor {
 };
 
 struct D3D12_Heap {
-
+  ID3D12Heap *heap_0;
 };
 
 struct D3D12_Device {
@@ -99,6 +99,8 @@ struct D3D12_Device {
   D3D12_Descriptor_Heap   sampler_heap;
 
   ID3D12RootSignature    *global_root_signature;
+
+  b8                      supports_tight_alignment;
 };
 
 struct D3D12_Surface {
@@ -178,5 +180,18 @@ void  d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffe
 
 bool  d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeline_Desc *desc);
 void  d3d12_pipeline_deinit(RHI_Pipeline *pipeline);
+
+
+// Heap. No allocation logic. Just heap of memory.
+//
+b32 
+d3d12_heap_init(RHI_Device      *device, 
+                RHI_Heap        *heap,
+                RHI_Memory_Type  memory_type, 
+                u64              size);
+
+void 
+d3d12_heap_deinit(RHI_Heap *heap);
+
 
 #endif // RTS_RHI_D3D12_H

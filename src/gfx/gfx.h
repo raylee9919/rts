@@ -13,6 +13,8 @@
 #include "rhi/rhi.h"
 #include "shaders/shared/shared.h"
 
+#define GFX_ARENA_INITIAL_SIZE     Kilobytes(64)
+
 
 #define GFX_INVALID                 UINT64_MAX
 #define GFX_MAX_PASS                64
@@ -22,16 +24,16 @@
 /* Sort Keys */
 typedef u16 GFX_Key;
 enum {
-    // The least significant key is at the top.
-    GFX_KEY_CONSTANTS,
-    GFX_KEY_PIPELINE,
+  // The least significant key is at the top.
+  GFX_KEY_CONSTANTS,
+  GFX_KEY_PIPELINE,
 
-    GFX_KEY_COUNT
+  GFX_KEY_COUNT
 };
 
 // Each bitfield's length in sort key.
 global read_only constexpr u64 gfx_key_lengths[GFX_KEY_COUNT] = {
-    16, 16
+  16, 16
 };
 
 // Each bitfield's offset in sort key. Filled at initialization.
@@ -47,87 +49,92 @@ static_assert([] {
 }(), "gfx: sum of key lengths must be <= 64.");
 
 struct GFX_Sort_Key {
-    u64 bits;      // Packed keys
-    u32 cmd_index; // Index to the actual command
+  u64 bits;      // Packed keys
+  u32 cmd_index; // Index to the actual command
 };
 
 
 // Initialization info struct
 struct GFX_Info {
-    RHI_Kind    kind;
-    b32         debug;
-    b32         break_on_warning;
+  RHI_Kind    kind;
+  b32         debug;
+  b32         break_on_warning;
 
-    void       *native_window_handle;
-    u32         width;
-    u32         height;
+  void       *native_window_handle;
+  u32         width;
+  u32         height;
 
-    b32         vsync_off;
+  b32         vsync_off;
 
-    b32         frame_latency_waitable;
+  b32         frame_latency_waitable;
+};
+
+struct GFX_Arena
+{
+  RHI_Heap heap;
 };
 
 struct GFX_Mesh { 
-    RHI_Buffer      vertex_buffer;
-    RHI_Buffer_View vertex_buffer_view;
-    RHI_Buffer      index_buffer;
-    u32             index_size;
-    u32             num_indices;
+  RHI_Buffer      vertex_buffer;
+  RHI_Buffer_View vertex_buffer_view;
+  RHI_Buffer      index_buffer;
+  u32             index_size;
+  u32             num_indices;
 };
 
 struct GFX_Texture_Entry {
-    RHI_Texture         texture;
-    RHI_Texture_View    srv;
-    RHI_Texture_View    uav;
+  RHI_Texture         texture;
+  RHI_Texture_View    srv;
+  RHI_Texture_View    uav;
 };
 
 struct GFX_Pipeline_Entry {
-    RHI_Pipeline    rhi_pipeline;
+  RHI_Pipeline    rhi_pipeline;
 };
 
 struct GFX_Viewport {
-    f32 x, y, w, h; // top-left x and y.
+  f32 x, y, w, h; // top-left x and y.
 };
 
 struct GFX_Scissor {
-    u32 x, y, w, h; // top-left x and y.
+  u32 x, y, w, h; // top-left x and y.
 };
 
 struct GFX_Pass {
-    String          name;
-    GFX_Viewport    viewport;
-    GFX_Scissor     scissor;
-    Guid            color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
-    Guid            depth_attachment;
-    f32             min_depth;
-    f32             max_depth;
+  String          name;
+  GFX_Viewport    viewport;
+  GFX_Scissor     scissor;
+  Guid            color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
+  Guid            depth_attachment;
+  f32             min_depth;
+  f32             max_depth;
 };
 
 struct GFX_Command {
-    Guid         mesh_handle;
-    u32          num_instances;
-    u32          index_offset;
-    u32          index_count;
+  Guid         mesh_handle;
+  u32          num_instances;
+  u32          index_offset;
+  u32          index_count;
 };
 
 struct GFX_Callback_Entry {
-    u64 semaphore_value_to_execute;
-    void (*proc)(GFX_Callback_Entry entry);
-    union {
-        Guid mesh_id;
-        RHI_Texture_View view;
-    };
+  u64 semaphore_value_to_execute;
+  void (*proc)(GFX_Callback_Entry entry);
+  union {
+    Guid mesh_id;
+    RHI_Texture_View view;
+  };
 };
 
 struct GFX_Push_Constants {
-    u32 data[RHI_MAX_32BIT_PUSH_CONSTANTS];
-    u32 size;
+  u32 data[RHI_MAX_32BIT_PUSH_CONSTANTS];
+  u32 size;
 };
 
 struct GFX_Edge {
-    Guid                resource;
-    u32                 dst_pass;
-    RHI_Resource_State  dst_state;
+  Guid                resource;
+  u32                 dst_pass;
+  RHI_Resource_State  dst_state;
 };
 
 
@@ -234,17 +241,22 @@ extern GFX_State *gfx;
 
 
 
-void gfx_init(GFX_Info info, u32 num_backbuffers);
-void gfx_shutdown();
+void 
+gfx_init(GFX_Info info, u32 num_backbuffers);
+
+void 
+gfx_shutdown();
+
 
 // Reserves 'size' bytes of the upload buffer and returns the offset. If it doesn't
 // fit, blocks until previous uploads are complete and wraps around to the start.
-u64  gfx_upload_reserve(u64 size, u64 alignment);
+u64  
+gfx_upload_reserve(u64 size, u64 alignment);
 
 void 
 gfx_mesh_create(Guid guid, 
                 void *vertices, u32 num_vertices, u32 vertex_size, 
-                void *indices, u32 num_indices, u32 index_size);
+                void *indices,  u32 num_indices,  u32 index_size);
 
 
 
@@ -252,39 +264,58 @@ void
 gfx_mesh_destroy(Guid guid);
 
 // Creates texture, SRV and UAV according to the desc's usage flags.
-void gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
+void 
+gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
 
 // Destroy texture. Ignores the request if the given ID is not found.
-void gfx_texture_destroy(Guid guid);
+void 
+gfx_texture_destroy(Guid guid);
 
-void gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height);
+void 
+gfx_texture_upload(Guid        guid, 
+                   RHI_Format  format, 
+                   void       *data, 
+                   u32         size, 
+                   u32         width, 
+                   u32         height);
 
 // Get SRV from texture GUID. Returns nullptr if texture doesn't exist or SRV wasn't created.
-RHI_Texture_View *gfx_srv_from_texture(Guid guid);
+RHI_Texture_View *
+gfx_srv_from_texture(Guid guid);
 
 // Get UAV from texture GUID. Returns nullptr if texture doesn't exist or UAV wasn't created.
-RHI_Texture_View *gfx_uav_from_texture(Guid guid);
+RHI_Texture_View *
+gfx_uav_from_texture(Guid guid);
 
 /*
-  Returns SRV handle of the input texture.
-  If not exist, returns 'GFX_INVALID_BINDLESS'
+Returns SRV handle of the input texture.
+If not exist, returns 'GFX_INVALID_BINDLESS'
 */
-u32 gfx_srv_bindless_from_texture(Guid guid);
+u32 
+gfx_srv_bindless_from_texture(Guid guid);
 
 /*
-  Returns UAV handle of the input texture.
-  If not exist, returns 'GFX_INVALID_BINDLESS'
+Returns UAV handle of the input texture.
+If not exist, returns 'GFX_INVALID_BINDLESS'
 */
-u32 gfx_uav_bindless_from_texture(Guid guid);
+u32 
+gfx_uav_bindless_from_texture(Guid guid);
+
 
 // The last pass state you set will be submitted to the GPU. The system isn't
 // smart enough to untangle the order in which you called them.
-void gfx_pass_begin(u32 pass_index, GFX_Pass *pass);
-void gfx_pass_end();
+void 
+gfx_pass_begin(u32 pass_index, GFX_Pass *pass);
+
+void 
+gfx_pass_end();
 
 // Immediate-mode pass connection built every frame. No need to disconnect manually.
 // Pass 'src_pass' as -1 to indicate the pass with no dependencies.
-void gfx_pass_connect(Guid resource, u32 src_pass, u32 dst_pass, RHI_Resource_State dst_state);
+void gfx_connect(Guid               resource, 
+                 u32                src_pass, 
+                 u32                dst_pass, 
+                 RHI_Resource_State dst_state);
 
 // Returns the swapchain's backbuffer index for this frame.
 u32 gfx_backbuffer_index();
@@ -320,14 +351,29 @@ gfx_draw(Guid mesh_id,
          u32  num_indices);
 
 
-void gfx_begin();
-void gfx_end(f64 dt, u32 sync_interval);
+void 
+gfx_begin();
+
+void 
+gfx_end(f64 dt, u32 sync_interval);
 
 b32 
 gfx_wait_for_frame_waitable_object();
 
 void 
 gfx_request_swapchain_resize(u32 width, u32 height);
+
+
+//
+// Arena
+//
+void 
+gfx_arena_init(GFX_Arena      *arena, 
+               RHI_Memory_Type type, 
+               uint64_t        initial_size = GFX_ARENA_INITIAL_SIZE);
+
+void 
+gfx_arena_push(GFX_Arena *arena);
 
 
 #endif // RTS_GFX_H

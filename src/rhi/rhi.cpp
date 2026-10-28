@@ -198,86 +198,104 @@ rhi_surface_wait_for_waitable_object(RHI_Surface *surface)
 //
 // Buffer
 //
-bool rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap) {
-    ProfileScope;
+bool  
+rhi_buffer_init(RHI_Device      *device, 
+                RHI_Buffer      *buffer, 
+                RHI_Buffer_Desc *desc, 
+                RHI_Heap        *heap)
+{
+  ProfileScope;
 
-    buffer->kind = device->kind;
-    buffer->desc = *desc;
+  buffer->kind = device->kind;
+  buffer->desc = *desc;
 
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            return d3d12_buffer_init(device, buffer, desc, heap);
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+      return d3d12_buffer_init(device, buffer, desc, heap);
 
-        default:
-            R_ASSERT(0);
-            return false;
-    }
+    default:
+      R_ASSERT(0);
+      return false;
+  }
 }
 
-void rhi_buffer_deinit(RHI_Buffer *buffer) {
-    switch (buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_buffer_deinit(buffer);
-            break;
+void 
+rhi_buffer_deinit(RHI_Buffer *buffer) 
+{
+  switch (buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_buffer_deinit(buffer);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
-void *rhi_buffer_map(RHI_Buffer *buffer) {
-    switch (buffer->kind) {
-        case RHI_KIND_D3D12:
-            return d3d12_buffer_map(buffer);
+void *
+rhi_buffer_map(RHI_Buffer *buffer) 
+{
+  switch (buffer->kind) {
+    case RHI_KIND_D3D12:
+      return d3d12_buffer_map(buffer);
 
-        default:
-            R_ASSERT(0);
-            return NULL;
-    }
+    default:
+    R_ASSERT(0);
+      return NULL;
+  }
 }
 
-void rhi_buffer_unmap(RHI_Buffer *buffer) {
-    switch (buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_buffer_unmap(buffer);
-            break;
+void 
+rhi_buffer_unmap(RHI_Buffer *buffer) 
+{
+  switch (buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_buffer_unmap(buffer);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
-void rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc) {
-    ProfileScope;
+void  
+rhi_buffer_view_init(RHI_Device           *device, 
+                     RHI_Buffer_View      *view, 
+                     RHI_Buffer           *buffer, 
+                     RHI_Buffer_View_Desc *desc)
+{
+  ProfileScope;
 
-    view->kind = device->kind;
-    view->desc = *desc;
+  view->kind = device->kind;
+  view->desc = *desc;
 
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_buffer_view_init(device, view, buffer, desc);
-            break;
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_buffer_view_init(device, view, buffer, desc);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
-void rhi_buffer_view_deinit(RHI_Buffer_View *view) {
-    ProfileScope;
+void 
+rhi_buffer_view_deinit(RHI_Buffer_View *view) 
+{
+  ProfileScope;
 
-    switch (view->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_buffer_view_deinit(view);
-            break;
+  switch (view->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_buffer_view_deinit(view);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
 
@@ -609,33 +627,37 @@ void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void
     }
 }
 
-void rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
-                                   RHI_Buffer *dst, 
-                                   RHI_Buffer *src, 
-                                   u64 dst_offset, 
-                                   u64 src_offset, 
-                                   u64 size) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_copy_buffer_to_buffer(cmd_buffer, dst, src, dst_offset, src_offset, size);
-            break;
+void 
+rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
+                              RHI_Buffer *dst, 
+                              RHI_Buffer *src, 
+                              u64 dst_offset, 
+                              u64 src_offset, 
+                              u64 size) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_cmd_copy_buffer_to_buffer(cmd_buffer, dst, src, dst_offset, src_offset, size);
+    break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+    R_ASSERT(0);
+    break;
+  }
 }
 
-void rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_copy_buffer_to_texture(cmd_buffer, src, src_offset, src_pitch, dst, box, mip, layer);
-            break;
+void 
+rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+    d3d12_cmd_copy_buffer_to_texture(cmd_buffer, src, src_offset, src_pitch, dst, box, mip, layer);
+    break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+    R_ASSERT(0);
+    break;
+  }
 }
 
 
@@ -655,8 +677,32 @@ rhi_is_bc_format(RHI_Format format)
     case RHI_FORMAT_BC6H_UFLOAT:
     case RHI_FORMAT_BC7_UNORM:
     case RHI_FORMAT_BC7_UNORM_SRGB:
-    return true;
+      return true;
     default:
-    return false;
+      return false;
   }
+}
+
+b32
+rhi_heap_init(RHI_Device      *device, 
+              RHI_Heap        *heap,
+              RHI_Memory_Type  memory_type, 
+              u64              size)
+{
+  heap->kind = device->kind;
+
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+      return d3d12_heap_init(device, heap, memory_type, size);
+
+    default:
+      R_ASSERT(0);
+      return false;
+  }
+}
+
+void 
+rhi_heap_deinit(RHI_Heap *heap)
+{
+
 }

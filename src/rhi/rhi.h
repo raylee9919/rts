@@ -34,7 +34,10 @@ struct RHI_Command_Buffer {
 };
 
 struct RHI_Heap {
-  RHI_Kind kind;
+  RHI_Kind        kind;
+  RHI_Memory_Type memory_type;
+  u64             size;
+  u64             used;
   union {
     D3D12_Heap d3d12;
   };
@@ -417,12 +420,33 @@ rhi_surface_wait_for_waitable_object(RHI_Surface *surface);
 
 
 
-bool  rhi_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap);
-void  rhi_buffer_deinit(RHI_Buffer *buffer);
-void *rhi_buffer_map(RHI_Buffer *buffer);
-void  rhi_buffer_unmap(RHI_Buffer *buffer);
-void  rhi_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc);
-void  rhi_buffer_view_deinit(RHI_Buffer_View *view);
+//
+// Buffer
+//
+bool  
+rhi_buffer_init(RHI_Device      *device, 
+                RHI_Buffer      *buffer, 
+                RHI_Buffer_Desc *desc, 
+                RHI_Heap        *heap);
+
+void  
+rhi_buffer_deinit(RHI_Buffer *buffer);
+
+void *
+rhi_buffer_map(RHI_Buffer *buffer);
+
+void  
+rhi_buffer_unmap(RHI_Buffer *buffer);
+
+void  
+rhi_buffer_view_init(RHI_Device           *device, 
+                     RHI_Buffer_View      *view, 
+                     RHI_Buffer           *buffer, 
+                     RHI_Buffer_View_Desc *desc);
+
+void  
+rhi_buffer_view_deinit(RHI_Buffer_View *view);
+
 
 bool  rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
 void  rhi_texture_deinit(RHI_Texture *texture);
@@ -525,5 +549,17 @@ void  rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer 
 //
 b32  
 rhi_is_bc_format(RHI_Format format);
+
+//
+// Heap
+//
+b32
+rhi_heap_init(RHI_Device      *device, 
+              RHI_Heap        *heap,
+              RHI_Memory_Type  memory_type, 
+              u64              size);
+
+void 
+rhi_heap_deinit(RHI_Heap *heap);
 
 #endif // RTS_RHI_H

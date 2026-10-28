@@ -568,10 +568,10 @@ gfx_pass_end()
 }
 
 void 
-gfx_pass_connect(Guid resource,
-                 u32 src_pass, 
-                 u32 dst_pass, 
-                 RHI_Resource_State dst_state) 
+gfx_connect(Guid               resource,
+            u32                src_pass, 
+            u32                dst_pass, 
+            RHI_Resource_State dst_state) 
 {
   R_ASSERT(resource != NULL_GUID);
   R_ASSERT( (src_pass == -1) || (src_pass < GFX_MAX_PASS && dst_pass < GFX_MAX_PASS) );
@@ -1031,4 +1031,21 @@ gfx_request_swapchain_resize(u32 width, u32 height)
   gfx->resize_requested = true;
   gfx->resize_width     = width;
   gfx->resize_height    = height;
+}
+
+//
+// Arena
+//
+void 
+gfx_arena_init(GFX_Arena      *arena, 
+               RHI_Memory_Type type,
+               uint64_t        initial_size)
+{
+  rhi_heap_init(gfx->device, &arena->heap, type, initial_size);
+}
+
+void 
+gfx_arena_push(GFX_Arena *arena)
+{
+
 }
