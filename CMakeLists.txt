@@ -71,6 +71,7 @@ target_compile_options(rts_warnings INTERFACE
 
 add_library(rts_third_party STATIC
     src/third_party/xxhash3/xxhash.c
+    src/third_party/D3D12MemoryAllocator/D3D12MemAlloc.cpp
     src/third_party/ufbx/ufbx.c # @Todo: Shouldn't be included in shipping build.
 )
 if (RTS_PROFILE)
@@ -139,7 +140,6 @@ add_library(rts_engine STATIC
     src/renderer/pass/postprocess.cpp
     src/renderer/pass/ui.cpp
     src/renderer/pass/composition.cpp
-
 
 
     src/importer/fbx.cpp # @Todo: DO NOT INCLUDE IN SHIPPING BUILD

@@ -13,6 +13,8 @@
 #include "os/os.h"
 #include "rhi/rhi_defines.h"
 
+#include "third_party/D3D12MemoryAllocator/D3D12MemAlloc.h"
+
 // DXGI
 #pragma comment(lib, "dxgi")
 #pragma comment(lib, "dxguid")
@@ -100,7 +102,7 @@ struct D3D12_Device {
 
   ID3D12RootSignature    *global_root_signature;
 
-  b8                      supports_tight_alignment;
+  D3D12MA::Allocator *d3d12ma;
 };
 
 struct D3D12_Surface {

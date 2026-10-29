@@ -302,63 +302,77 @@ rhi_buffer_view_deinit(RHI_Buffer_View *view)
 //
 // Texture
 //
-bool rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap) {
-    ProfileScope;
+bool 
+rhi_texture_init(RHI_Device       *device, 
+                 RHI_Texture      *texture, 
+                 RHI_Texture_Desc *desc, 
+                 RHI_Heap         *heap)
+{
+  ProfileScope;
 
-    texture->kind = device->kind;
-    texture->desc = *desc;
+  texture->kind = device->kind;
+  texture->desc = *desc;
 
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            return d3d12_texture_init(device, texture, desc, heap);
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+      return d3d12_texture_init(device, texture, desc, heap);
 
-        default:
-            R_ASSERT(0);
-            return false;
-    }
+    default:
+      R_ASSERT(0);
+      return false;
+  }
 }
 
-void rhi_texture_deinit(RHI_Texture *texture) {
-    switch (texture->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_texture_deinit(texture);
-            break;
+void 
+rhi_texture_deinit(RHI_Texture *texture) 
+{
+  switch (texture->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_texture_deinit(texture);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
-void rhi_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc) {
-    ProfileScope;
+void 
+rhi_texture_view_init(RHI_Device            *device, 
+                      RHI_Texture_View      *view, 
+                      RHI_Texture           *texture, 
+                      RHI_Texture_View_Desc *desc) 
+{
+  ProfileScope;
 
-    view->kind = device->kind;
-    view->desc = *desc;
+  view->kind = device->kind;
+  view->desc = *desc;
 
-    switch (device->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_texture_view_init(device, view, texture, desc);
-            break;
+  switch (device->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_texture_view_init(device, view, texture, desc);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
-void rhi_texture_view_deinit(RHI_Texture_View *view) {
-    ProfileScope;
+void 
+rhi_texture_view_deinit(RHI_Texture_View *view) 
+{
+  ProfileScope;
 
-    switch (view->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_texture_view_deinit(view);
-            break;
+  switch (view->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_texture_view_deinit(view);
+      break;
 
-        default:
-            R_ASSERT(0);
-            break;
-    }
+    default:
+      R_ASSERT(0);
+      break;
+  }
 }
 
 
@@ -535,128 +549,174 @@ void rhi_pipeline_deinit(RHI_Pipeline *pipeline) {
 //
 // Commands
 //
-void rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, 
-                             RHI_Texture *texture, 
-                             RHI_Resource_State after, 
-                             u32 mip, u32 slice) {
-
-    if (texture->state == after)  return;
-
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_texture_barrier(cmd_buffer, texture, after, mip, slice);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-
-    texture->state = after;
-}
-
-void rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_set_pipeline(cmd_buffer, pipeline);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-}
-
-void rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, float y, float width, float height, float min_depth, float max_depth) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_set_viewport(cmd_buffer, x, y, width, height, min_depth, max_depth);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-}
-
-void rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_set_scissor(cmd_buffer, x, y, width, height);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-}
-
-void rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_draw(cmd_buffer, num_vertices, num_instances, first_vertex, first_instance);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-}
-
-void rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_draw_indexed(cmd_buffer, index_buffer, index_size, num_indices, num_instances, first_index, first_vertex, first_instance);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-}
-
-void rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void *data, u32 size) {
-    switch (cmd_buffer->kind) {
-        case RHI_KIND_D3D12:
-            d3d12_cmd_push_constants(cmd_buffer, root_index, data, size);
-            break;
-
-        default:
-            R_ASSERT(0);
-            break;
-    }
-}
-
 void 
-rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
-                              RHI_Buffer *dst, 
-                              RHI_Buffer *src, 
-                              u64 dst_offset, 
-                              u64 src_offset, 
-                              u64 size) 
+rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer, 
+                        RHI_Texture        *texture, 
+                        RHI_Resource_State  after, 
+                        u32                 mip, 
+                        u32                 slice) 
 {
+  if (texture->state == after)  return;
+
   switch (cmd_buffer->kind) {
     case RHI_KIND_D3D12:
-    d3d12_cmd_copy_buffer_to_buffer(cmd_buffer, dst, src, dst_offset, src_offset, size);
+    d3d12_cmd_texture_barrier(cmd_buffer, texture, after, mip, slice);
     break;
 
     default:
     R_ASSERT(0);
     break;
   }
+
+  texture->state = after;
 }
 
 void 
-rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) 
+rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, 
+                     RHI_Pipeline       *pipeline) 
 {
   switch (cmd_buffer->kind) {
     case RHI_KIND_D3D12:
-    d3d12_cmd_copy_buffer_to_texture(cmd_buffer, src, src_offset, src_pitch, dst, box, mip, layer);
-    break;
+      d3d12_cmd_set_pipeline(cmd_buffer, pipeline);
+      break;
 
     default:
-    R_ASSERT(0);
-    break;
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void 
+rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, 
+                     float               x, 
+                     float               y, 
+                     float               width, 
+                     float               height, 
+                     float               min_depth, 
+                     float               max_depth) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_set_viewport(cmd_buffer, x, y, width, height, min_depth, max_depth);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void 
+rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, 
+                    u32                 x, 
+                    u32                 y, 
+                    u32                 width, 
+                    u32                 height) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_set_scissor(cmd_buffer, x, y, width, height);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void 
+rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, 
+             u32                 num_vertices, 
+             u32                 num_instances, 
+             u32                 first_vertex, 
+             u32                 first_instance) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_draw(cmd_buffer, num_vertices, num_instances, first_vertex, first_instance);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void 
+rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, 
+                     RHI_Buffer         *index_buffer, 
+                     u32                 index_size, 
+                     u32                 num_indices, 
+                     u32                 num_instances, 
+                     u32                 first_index, 
+                     u32                 first_vertex, 
+                     u32                 first_instance) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_draw_indexed(cmd_buffer, index_buffer, index_size, num_indices, num_instances, first_index, first_vertex, first_instance);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void 
+rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
+                              RHI_Buffer         *dst, 
+                              RHI_Buffer         *src, 
+                              u64                 dst_offset, 
+                              u64                 src_offset, 
+                              u64                 size) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_copy_buffer_to_buffer(cmd_buffer, dst, src, dst_offset, src_offset, size);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void 
+rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, 
+                               RHI_Buffer         *src, 
+                               u32                 src_offset, 
+                               u32                 src_pitch, 
+                               RHI_Texture        *dst, 
+                               RHI_Box            *box, 
+                               u32                 mip, 
+                               u32                 layer) 
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_copy_buffer_to_texture(cmd_buffer, src, src_offset, src_pitch, dst, box, mip, layer);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
+  }
+}
+
+void
+rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, 
+                       u32                 root_index, 
+                       void               *data, 
+                       u32                 size)
+{
+  switch (cmd_buffer->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_cmd_push_constants(cmd_buffer, root_index, data, size);
+      break;
+
+    default:
+      R_ASSERT(0);
+      break;
   }
 }
 

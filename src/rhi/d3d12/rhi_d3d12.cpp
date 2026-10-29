@@ -8,8 +8,8 @@
 
 extern "C"
 {
-    __declspec(dllexport) extern const u32 D3D12SDKVersion = 619;
-    __declspec(dllexport) extern const char *D3D12SDKPath = ".\\.";
+  __declspec(dllexport) extern const u32 D3D12SDKVersion = 619;
+  __declspec(dllexport) extern const char *D3D12SDKPath = ".\\.";
 }
 
 // @Todo: Allocator
@@ -596,11 +596,6 @@ d3d12_device_init(RHI_Device *device,
   }
 
 
-  { // Check for tight alignment feature supoort
-
-  }
-
-
   ID3D12Device12 *device_10 = NULL;
   if (FAILED(device_0->QueryInterface(IID_PPV_ARGS(&device_10)))) {
     log_error(S("QueryInterface() for ID3D12Device10 failed. Requires DirectX 12 Agility SDK 1.7 or later."));
@@ -669,6 +664,18 @@ d3d12_device_init(RHI_Device *device,
     }
   }
 
+
+  { // Initialize Direct3D 12 Memory Allocator
+    D3D12MA::ALLOCATOR_DESC desc = {};
+    desc.pDevice = device_10;
+
+    hr = D3D12MA::CreateAllocator(&desc, &device->d3d12.d3d12ma);
+    if (FAILED(hr)) {
+      log_error(S("D3D12MA::CreateAllocator failed."));
+      goto lb_fail;
+    }
+  }
+
   log_info(S("Initialized d3d12 device."));
   result = true;
 
@@ -698,6 +705,7 @@ d3d12_device_deinit(RHI_Device *device)
   d3d12_descriptor_heap_deinit(&d->resource_heap);
   d3d12_descriptor_heap_deinit(&d->sampler_heap);
 
+  COM_SAFE_RELEASE(&d->d3d12ma);
   COM_SAFE_RELEASE(&d->dxgi_factory_6);
   COM_SAFE_RELEASE(&d->device_10);
   COM_SAFE_RELEASE(&d->device_0);

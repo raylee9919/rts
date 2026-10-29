@@ -448,11 +448,23 @@ void
 rhi_buffer_view_deinit(RHI_Buffer_View *view);
 
 
-bool  rhi_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-void  rhi_texture_deinit(RHI_Texture *texture);
+bool 
+rhi_texture_init(RHI_Device       *device, 
+                 RHI_Texture      *texture, 
+                 RHI_Texture_Desc *desc, 
+                 RHI_Heap         *heap);
 
-void  rhi_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
-void  rhi_texture_view_deinit(RHI_Texture_View *view);
+void 
+rhi_texture_deinit(RHI_Texture *texture);
+
+void 
+rhi_texture_view_init(RHI_Device            *device, 
+                      RHI_Texture_View      *view, 
+                      RHI_Texture           *texture, 
+                      RHI_Texture_View_Desc *desc);
+
+void  
+rhi_texture_view_deinit(RHI_Texture_View *view);
 
 
 //
@@ -535,14 +547,67 @@ rhi_cmd_texture_barrier(RHI_Command_Buffer *cmd_buffer,
 //
 // Commands
 //
-void  rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, RHI_Pipeline *pipeline);
-void  rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, float x, float y, float width, float height, float min_depth, float max_depth);
-void  rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, u32 x, u32 y, u32 width, u32 height);
-void  rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, u32 num_vertices, u32 num_instances, u32 first_vertex, u32 first_instance);
-void  rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer, u32 index_size, u32 num_indices, u32 num_instances, u32 first_index, u32 first_vertex, u32 first_instance);
-void  rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void *data, u32 size);
-void  rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *dst, RHI_Buffer *src, u64 dst_offset, u64 src_offset, u64 size);
-void  rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *src, u32 src_offset, u32 src_pitch, RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer);
+void 
+rhi_cmd_set_pipeline(RHI_Command_Buffer *cmd_buffer, 
+                     RHI_Pipeline       *pipeline);
+
+void 
+rhi_cmd_set_viewport(RHI_Command_Buffer *cmd_buffer, 
+                     float               x, 
+                     float               y, 
+                     float               width, 
+                     float               height, 
+                     float               min_depth, 
+                     float               max_depth);
+
+void 
+rhi_cmd_set_scissor(RHI_Command_Buffer *cmd_buffer, 
+                    u32                 x, 
+                    u32                 y, 
+                    u32                 width, 
+                    u32                 height);
+
+void 
+rhi_cmd_draw(RHI_Command_Buffer *cmd_buffer, 
+             u32                 num_vertices, 
+             u32                 num_instances, 
+             u32                 first_vertex, 
+             u32                 first_instance);
+
+void 
+rhi_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, 
+                     RHI_Buffer         *index_buffer, 
+                     u32                 index_size, 
+                     u32                 num_indices, 
+                     u32                 num_instances, 
+                     u32                 first_index, 
+                     u32                 first_vertex, 
+                     u32                 first_instance);
+
+void 
+rhi_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
+                              RHI_Buffer         *dst, 
+                              RHI_Buffer         *src, 
+                              u64                 dst_offset, 
+                              u64                 src_offset, 
+                              u64                 size);
+
+void 
+rhi_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, 
+                               RHI_Buffer         *src, 
+                               u32                 src_offset, 
+                               u32                 src_pitch, 
+                               RHI_Texture        *dst, 
+                               RHI_Box            *box, 
+                               u32                 mip, 
+                               u32                 layer);
+
+void  
+rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, 
+                       u32                 root_index, 
+                       void               *data, 
+                       u32                 size);
+
 
 //
 // Util
