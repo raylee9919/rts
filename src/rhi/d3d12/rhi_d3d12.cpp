@@ -667,6 +667,7 @@ d3d12_device_init(RHI_Device *device,
 
   { // Initialize Direct3D 12 Memory Allocator
     D3D12MA::ALLOCATOR_DESC desc = {};
+    desc.Flags   = D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS;
     desc.pDevice = device_10;
 
     hr = D3D12MA::CreateAllocator(&desc, &device->d3d12.d3d12ma);
@@ -678,6 +679,7 @@ d3d12_device_init(RHI_Device *device,
 
   log_info(S("Initialized d3d12 device."));
   result = true;
+
 
 lb_fail:
   COM_SAFE_RELEASE(&signature_blob);
@@ -1300,42 +1302,63 @@ bool
 d3d12_buffer_init(RHI_Device      *device, 
                   RHI_Buffer      *buffer, 
                   RHI_Buffer_Desc *desc, 
-                  RHI_Heap        *heap) 
+                  RHI_Allocator   *allocator, 
+                  b32              first_fit, 
+                  b32              use_own_heap) 
 {
-  if (heap) {
-    R_ASSERT(!"Not implemented at the moment.");
-  } else {
-    D3D12_HEAP_PROPERTIES heap_prop = {};
-    heap_prop.Type = d3d12_heap_type_from_rhi_memory_type(desc->memory_type);
+  using namespace D3D12MA;
 
-    D3D12_CLEAR_VALUE *clear_value = NULL;
+  R_ASSERT(device && buffer && desc && allocator);
 
-    D3D12_RESOURCE_DESC resource_desc = {};
-    {
-      resource_desc.Dimension         = D3D12_RESOURCE_DIMENSION_BUFFER;
-      resource_desc.Alignment         = 0; // effectively 64KB
-      resource_desc.Width             = desc->size;
-      resource_desc.Height            = 1;
-      resource_desc.DepthOrArraySize  = 1;
-      resource_desc.MipLevels         = 1;
-      resource_desc.Format            = DXGI_FORMAT_UNKNOWN;
-      resource_desc.SampleDesc        = { 1, 0 };
-      resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+  if (desc->memory_type != allocator->memory_type)
+  {
+    log_error(S("Memory type mismatch: Buffer to be allocated and the allocator disagree with the memory type."));
+    return false;
+  }
 
-      // @Study: Is setting flags in buffers expensive?
-      resource_desc.Flags = (desc->memory_type == RHI_MEMORY_UPLOAD || desc->memory_type == RHI_MEMORY_READBACK ?
-                             D3D12_RESOURCE_FLAG_NONE :
-                             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    }
+  if (allocator->type != RHI_ALLOCATOR_BUFFER)
+  {
+    log_error(S("Allocator type mismatch: expected 'RHI_ALLOCATOR_BUFFER' during buffer allocation."));
+    return false;
+  }
 
-    HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE,
-                                                                  &resource_desc, D3D12_RESOURCE_STATE_COMMON,
-                                                                  clear_value, IID_PPV_ARGS(&buffer->d3d12.resource));
+  D3D12_CLEAR_VALUE *clear_value = NULL;
+  D3D12_RESOURCE_DESC resource_desc = {};
+  {
+    resource_desc.Dimension         = D3D12_RESOURCE_DIMENSION_BUFFER;
+    resource_desc.Alignment         = 0;
+    resource_desc.Width             = desc->size;
+    resource_desc.Height            = 1;
+    resource_desc.DepthOrArraySize  = 1;
+    resource_desc.MipLevels         = 1;
+    resource_desc.Format            = DXGI_FORMAT_UNKNOWN;
+    resource_desc.SampleDesc        = { 1, 0 };
+    resource_desc.Layout            = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-    if (FAILED(hr)) {
-      log_error(S("ID3D12Device::CreateCommittedResource failed."));
-      return false;
-    }
+    // @Todo: wrong?
+    resource_desc.Flags = (desc->memory_type == RHI_MEMORY_UPLOAD || desc->memory_type == RHI_MEMORY_READBACK ?
+                           D3D12_RESOURCE_FLAG_NONE :
+                           D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+  }
+
+  D3D12_RESOURCE_STATES init_state = D3D12_RESOURCE_STATE_COMMON;
+
+  D3D12MA::ALLOCATION_DESC alloc_desc = {};
+  alloc_desc.Flags |= first_fit ? ALLOCATION_FLAG_STRATEGY_MIN_TIME : ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+  if (use_own_heap)
+    alloc_desc.Flags |= ALLOCATION_FLAG_COMMITTED;
+  alloc_desc.CustomPool = allocator->d3d12.pool;
+
+  HRESULT hr = device->d3d12.d3d12ma->CreateResource(&alloc_desc, 
+                                                     &resource_desc, 
+                                                     init_state, 
+                                                     clear_value, 
+                                                     &buffer->d3d12.allocation, 
+                                                     IID_PPV_ARGS(&buffer->d3d12.resource));
+  if (FAILED(hr))
+  {
+    log_error(S("D3D12MA::Allocator::CreateResource() failed."));
+    return false;
   }
 
   log_info(S("Initialized d3d12 buffer."));
@@ -1347,6 +1370,7 @@ d3d12_buffer_deinit(RHI_Buffer *buffer)
 {
   if (buffer) {
     COM_SAFE_RELEASE(&buffer->d3d12.resource);
+    COM_SAFE_RELEASE(&buffer->d3d12.allocation);
   }
   log_info(S("Deinitialized d3d12 buffer."));
 }
@@ -1356,7 +1380,11 @@ d3d12_buffer_map(RHI_Buffer *buffer)
 {
   void *ptr;
   D3D12_RANGE read_range = { 0, 0 }; // No read.
-  buffer->d3d12.resource->Map(0, &read_range, &ptr);
+  HRESULT hr = buffer->d3d12.resource->Map(0, &read_range, &ptr);
+  if (FAILED(hr)) {
+    log_error(S("ID3D12Resource::Map() failed."));
+    return NULL;
+  }
   return ptr;
 }
 
@@ -1406,12 +1434,18 @@ bool
 d3d12_texture_init(RHI_Device       *device, 
                    RHI_Texture      *texture, 
                    RHI_Texture_Desc *desc, 
-                   RHI_Heap         *heap) 
+                   RHI_Allocator    *allocator,  
+                   b32               first_fit, 
+                   b32               use_own_heap) 
 {
+  using namespace D3D12MA;
+
+  R_ASSERT(device && texture && desc && allocator);
+
   D3D12_RESOURCE_DESC resource_desc = {};
   {
     resource_desc.Dimension         = d3d12_resource_dimension_from_rhi_texture_type(desc->type);
-    resource_desc.Alignment         = 0; // effectively 64KB
+    resource_desc.Alignment         = 0;
     resource_desc.Width             = desc->width;
     resource_desc.Height            = desc->height;
     resource_desc.DepthOrArraySize  = desc->depth;
@@ -1422,43 +1456,60 @@ d3d12_texture_init(RHI_Device       *device,
     resource_desc.Flags             = d3d12_resource_flags_from_texture_usage(desc->usage);
   }
 
-  if (heap) {
-    R_ASSERT(!"User heap not supported at the moment.");
-  } else {
-    D3D12_HEAP_PROPERTIES heap_prop = {};
-    heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-    D3D12_CLEAR_VALUE clear = {};
-
-    if (desc->clear) {
-      clear.Format = resource_desc.Format;
-      if (clear.Format == DXGI_FORMAT_D32_FLOAT) {
-        clear.DepthStencil.Depth = desc->clear_depth;
-      } else if (clear.Format == DXGI_FORMAT_D24_UNORM_S8_UINT) {
-        clear.DepthStencil.Depth = desc->clear_depth;
-        clear.DepthStencil.Stencil = desc->clear_stencil;
-      } else {
-        memcpy(&clear.Color, desc->clear_color, 16);
-      }
-    }
-
-    HRESULT hr = device->d3d12.device_10->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE, 
-                                                                  &resource_desc, D3D12_RESOURCE_STATE_COMMON, 
-                                                                  desc->clear ? &clear : NULL, IID_PPV_ARGS(&texture->d3d12.resource));
-    if (FAILED(hr)) {
-      log_error(S("HRESULT: %S, %x. CreateCommittedResource failed."), string_from_hresult(hr), hr);
+  if (resource_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET || 
+      resource_desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
+  {
+    if (allocator->type != RHI_ALLOCATOR_RT_DS_TEXTURES)
+    {
+      log_error(S("Allocator type mismatch: expected 'RHI_ALLOCATOR_RT_DS_TEXTURES'."));
       return false;
     }
-
-    // Set name
-    if (desc->name.len && desc->name.str) {
-      Utf16 name_16 = to_utf16(tctx.temp, desc->name);
-      texture->d3d12.resource->SetName((LPWSTR)name_16.str);
-    }
-
-    // Initial state
-    texture->state = RHI_RESOURCE_STATE_COMMON; // Must match the initial state of d3d12's
   }
+  else if (allocator->type != RHI_ALLOCATOR_NON_RT_DS_TEXTURES)
+  {
+    log_error(S("Allocator type mismatch: expected 'RHI_ALLOCATOR_NON_RT_DS_TEXTURES'."));
+    return false;
+  }
+
+  D3D12_CLEAR_VALUE clear = {};
+
+  if (desc->clear) {
+    clear.Format = resource_desc.Format;
+    if (clear.Format == DXGI_FORMAT_D32_FLOAT) {
+      clear.DepthStencil.Depth = desc->clear_depth;
+    } else if (clear.Format == DXGI_FORMAT_D24_UNORM_S8_UINT) {
+      clear.DepthStencil.Depth = desc->clear_depth;
+      clear.DepthStencil.Stencil = desc->clear_stencil;
+    } else {
+      memcpy(&clear.Color, desc->clear_color, 16);
+    }
+  }
+
+  D3D12MA::ALLOCATION_DESC alloc_desc = {};
+  alloc_desc.Flags |= first_fit ? ALLOCATION_FLAG_STRATEGY_MIN_TIME : ALLOCATION_FLAG_STRATEGY_MIN_MEMORY;
+  if (use_own_heap)
+    alloc_desc.Flags |= ALLOCATION_FLAG_COMMITTED;
+  alloc_desc.CustomPool = allocator->d3d12.pool;
+
+  HRESULT hr = device->d3d12.d3d12ma->CreateResource(&alloc_desc, 
+                                                     &resource_desc, 
+                                                     D3D12_RESOURCE_STATE_COMMON, 
+                                                     desc->clear ? &clear : NULL,
+                                                     &texture->d3d12.allocation, 
+                                                     IID_PPV_ARGS(&texture->d3d12.resource));
+  if (FAILED(hr)) {
+    log_error(S("D3D12MA::Allocator::CreateResource() failed."));
+    return false;
+  }
+
+  // Set name
+  if (desc->name.len && desc->name.str) {
+    Utf16 name_16 = to_utf16(tctx.temp, desc->name);
+    texture->d3d12.resource->SetName((LPWSTR)name_16.str);
+  }
+
+  // Initial state
+  texture->state = RHI_RESOURCE_STATE_COMMON; // Must match the initial state of d3d12's
 
   log_info(S("Initialized d3d12 texture."));
   return true;
@@ -1468,7 +1519,10 @@ void
 d3d12_texture_deinit(RHI_Texture *texture) 
 {
   // Make sure the texture isn't in flight!
-  COM_SAFE_RELEASE(&texture->d3d12.resource);
+  if(texture){
+    COM_SAFE_RELEASE(&texture->d3d12.resource);
+    COM_SAFE_RELEASE(&texture->d3d12.allocation);
+  }
   log_info(S("Deinitialized d3d12 texture."));
 }
 
@@ -2282,54 +2336,67 @@ d3d12_pipeline_deinit(RHI_Pipeline *pipeline)
   log_info(S("Deinitialized d3d12 pipeline."));
 }
 
-b32 
-d3d12_heap_init(RHI_Device      *device, 
-                RHI_Heap        *heap,
-                RHI_Memory_Type  memory_type, 
-                u64              size)
+bool 
+d3d12_allocator_init(RHI_Device         *device, 
+                     RHI_Allocator      *allocator,
+                     RHI_Memory_Type     memory_type, 
+                     b32                 is_linear,
+                     RHI_Allocator_Type  type, 
+                     RHI_Priority        priority)
 {
-  auto *d3d12 = device->d3d12.device_10;
+  using namespace D3D12MA;
+
+  POOL_DESC desc = {};
+  desc.Flags = D3D12MA_RECOMMENDED_POOL_FLAGS;
+  if (is_linear)
+    desc.Flags |= POOL_FLAG_ALGORITHM_LINEAR;
+
+  desc.HeapProperties.Type = d3d12_heap_type_from_rhi_memory_type(memory_type);
 
   /*
-    I was wondering why 'Alignment' of a heap must be specified upfront. 
-    Why not align the address when placing resources in the heap? 
-    I have no idea why happens internally, but the least I can say is, 
-    one cannot obtain heap's base address, thus cannot align the offset 
-    when placing.
+    NVIDIA Pascal (10 series) is heap tier 1, which means I can't just 
+    shove 'D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES' everywhere and 
+    forget about it. Sad.
   */
-  D3D12_HEAP_DESC desc = {};
-  u64 aligned_size = align_up(size, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-  desc.SizeInBytes                 = aligned_size;
-  desc.Properties.Type             = d3d12_heap_type_from_rhi_memory_type(memory_type);
-  desc.Properties.CreationNodeMask = NODE_MASK;
-  desc.Properties.VisibleNodeMask  = NODE_MASK;
+  desc.HeapFlags = D3D12MA_RECOMMENDED_HEAP_FLAGS;
+  if (type == RHI_ALLOCATOR_BUFFER) {
+    desc.HeapFlags |= D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+  } else if (type == RHI_ALLOCATOR_NON_RT_DS_TEXTURES) {
+    desc.HeapFlags |= D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+  } else if (type == RHI_ALLOCATOR_RT_DS_TEXTURES) {
+    desc.HeapFlags |= D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+  } else {
+    R_ASSERT(!"Unknown memory allocator type");
+  }
 
-  /*
-    @Incomplete
-    Heap alignment must be either D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT, or 
-    D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT if the heap will hold MSAA textures. 
-    No support for MSAA atm.
-  */
-  desc.Alignment                   = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-  desc.Flags                       = D3D12_HEAP_FLAG_NONE;
+  if (priority == RHI_PRIORITY_LOW) {
+    desc.ResidencyPriority = D3D12_RESIDENCY_PRIORITY_LOW;
+  } else if (priority == RHI_PRIORITY_NORMAL) {
+    desc.ResidencyPriority = D3D12_RESIDENCY_PRIORITY_NORMAL;
+  } else if (priority == RHI_PRIORITY_HIGH) {
+    desc.ResidencyPriority = D3D12_RESIDENCY_PRIORITY_HIGH;
+  } else {
+    R_ASSERT(!"Unknown priority.");
+  }
 
-  if (FAILED(d3d12->CreateHeap(&desc, IID_PPV_ARGS(&heap->d3d12.heap_0))))
+  HRESULT hr = device->d3d12.d3d12ma->CreatePool(&desc, &allocator->d3d12.pool);
+  if (FAILED(hr))
   {
-    log_error(S("ID3D12Device::CreateHeap() failed."));
+    log_error(S("D3D12MA::Allocator::CreatePool() failed."));
     return false;
   }
 
-  heap->memory_type = memory_type;
-  heap->size = aligned_size;
-  heap->used = 0;
+  allocator->type = type;
+  allocator->priority = priority;
 
   return true;
 }
 
-void 
-d3d12_heap_deinit(RHI_Heap *heap)
+void  
+d3d12_allocator_deinit(RHI_Allocator *allocator)
 {
-  if (heap) {
-    COM_SAFE_RELEASE(&heap->d3d12.heap_0);
+  if (allocator)
+  {
+    COM_SAFE_RELEASE(&allocator->d3d12.pool);
   }
 }

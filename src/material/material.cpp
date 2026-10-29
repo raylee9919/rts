@@ -486,7 +486,7 @@ ASSET_LOAD_PROC(image_load_proc)
     desc.mip_levels     = 1;
     desc.depth          = 1;
   }
-  gfx_texture_create(id, desc);
+  gfx_texture_create(id, desc, false);
   gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
 
   bitmap_free(&bitmap);

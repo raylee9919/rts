@@ -69,11 +69,6 @@ struct GFX_Info {
   b32         frame_latency_waitable;
 };
 
-struct GFX_Arena
-{
-  RHI_Heap heap;
-};
-
 struct GFX_Mesh { 
   RHI_Buffer      vertex_buffer;
   RHI_Buffer_View vertex_buffer_view;
@@ -174,6 +169,10 @@ struct GFX_State
   RHI_Surface                            *surface;
   Guid                                    surface_guids[RHI_MAX_BUFFER_COUNT];
 
+  // Allocators
+  RHI_Allocator                           non_rt_ds_texture_allocator;
+  RHI_Allocator                           rt_ds_texture_allocator;
+
   RHI_Sampler                             linear_sampler;
   RHI_Sampler                             dot_sampler;
   RHI_Sampler                             anisotropic_sampler;
@@ -210,7 +209,7 @@ struct GFX_State
   u64                                     context_push_constants = GFX_INVALID;
   u64                                     next_push_constants    = 0;
   Array<GFX_Push_Constants>               push_constants;
-  Table <u64, u64>                        push_constants_to_index_this_frame;
+  Table<u64, u64>                         push_constants_to_index_this_frame;
 
 
   // Buckets of sort keys and commands. Index GFX_MAX_PASS is reserved for NIL.
@@ -265,7 +264,7 @@ gfx_mesh_destroy(Guid guid);
 
 // Creates texture, SRV and UAV according to the desc's usage flags.
 void 
-gfx_texture_create(Guid guid, RHI_Texture_Desc desc);
+gfx_texture_create(Guid guid, RHI_Texture_Desc desc, b32 use_own_heap);
 
 // Destroy texture. Ignores the request if the given ID is not found.
 void 
@@ -279,11 +278,11 @@ gfx_texture_upload(Guid        guid,
                    u32         width, 
                    u32         height);
 
-// Get SRV from texture GUID. Returns nullptr if texture doesn't exist or SRV wasn't created.
+// Get SRV from texture GUID. Returns NULL if texture doesn't exist or SRV wasn't created.
 RHI_Texture_View *
 gfx_srv_from_texture(Guid guid);
 
-// Get UAV from texture GUID. Returns nullptr if texture doesn't exist or UAV wasn't created.
+// Get UAV from texture GUID. Returns NULL if texture doesn't exist or UAV wasn't created.
 RHI_Texture_View *
 gfx_uav_from_texture(Guid guid);
 
@@ -362,18 +361,5 @@ gfx_wait_for_frame_waitable_object();
 
 void 
 gfx_request_swapchain_resize(u32 width, u32 height);
-
-
-//
-// Arena
-//
-void 
-gfx_arena_init(GFX_Arena      *arena, 
-               RHI_Memory_Type type, 
-               uint64_t        initial_size = GFX_ARENA_INITIAL_SIZE);
-
-void 
-gfx_arena_push(GFX_Arena *arena);
-
 
 #endif // RTS_GFX_H

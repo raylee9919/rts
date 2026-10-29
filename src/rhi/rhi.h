@@ -33,13 +33,13 @@ struct RHI_Command_Buffer {
   };
 };
 
-struct RHI_Heap {
-  RHI_Kind        kind;
-  RHI_Memory_Type memory_type;
-  u64             size;
-  u64             used;
+struct RHI_Allocator {
+  RHI_Kind            kind;
+  RHI_Memory_Type     memory_type;
+  RHI_Allocator_Type  type;
+  RHI_Priority        priority;
   union {
-    D3D12_Heap d3d12;
+    D3D12_Allocator d3d12;
   };
 };
 
@@ -58,7 +58,7 @@ struct RHI_Buffer {
 
 struct RHI_Buffer_View_Desc {
   RHI_Buffer_View_Type type;
-  b32 writable; // things might be adjusted when tons of threads write simultaneously
+  b32 writable; // things might be adjusted when tons of threads write simultaneously.
   u64 stride;   // for structured buffer
   u64 offset;   // offset of first element in the buffer
   u64 size;     // portion of the buffer
@@ -423,11 +423,13 @@ rhi_surface_wait_for_waitable_object(RHI_Surface *surface);
 //
 // Buffer
 //
-bool  
+bool 
 rhi_buffer_init(RHI_Device      *device, 
                 RHI_Buffer      *buffer, 
                 RHI_Buffer_Desc *desc, 
-                RHI_Heap        *heap);
+                RHI_Allocator   *allocator, 
+                b32              first_fit, 
+                b32              use_own_heap);
 
 void  
 rhi_buffer_deinit(RHI_Buffer *buffer);
@@ -452,7 +454,9 @@ bool
 rhi_texture_init(RHI_Device       *device, 
                  RHI_Texture      *texture, 
                  RHI_Texture_Desc *desc, 
-                 RHI_Heap         *heap);
+                 RHI_Allocator    *allocator,  
+                 b32               first_fit, 
+                 b32               use_own_heap);
 
 void 
 rhi_texture_deinit(RHI_Texture *texture);
@@ -615,16 +619,20 @@ rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer,
 b32  
 rhi_is_bc_format(RHI_Format format);
 
-//
-// Heap
-//
-b32
-rhi_heap_init(RHI_Device      *device, 
-              RHI_Heap        *heap,
-              RHI_Memory_Type  memory_type, 
-              u64              size);
 
-void 
-rhi_heap_deinit(RHI_Heap *heap);
+//
+// Allocator
+//
+bool 
+rhi_allocator_init(RHI_Device         *device, 
+                   RHI_Allocator      *allocator,
+                   RHI_Memory_Type     memory_type, 
+                   b32                 is_linear,
+                   RHI_Allocator_Type  type, 
+                   RHI_Priority        priority);
+
+void  
+rhi_allocator_deinit(RHI_Allocator *allocator);
+
 
 #endif // RTS_RHI_H

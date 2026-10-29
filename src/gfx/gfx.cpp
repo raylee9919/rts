@@ -69,6 +69,20 @@ gfx_deinit_samplers()
   rhi_sampler_deinit(&gfx->linear_sampler);
 }
 
+static void
+gfx_init_allocators()
+{
+  rhi_allocator_init(gfx->device, &gfx->non_rt_ds_texture_allocator, RHI_MEMORY_GPU_ONLY, false, RHI_ALLOCATOR_NON_RT_DS_TEXTURES, RHI_PRIORITY_NORMAL);
+  rhi_allocator_init(gfx->device, &gfx->rt_ds_texture_allocator,     RHI_MEMORY_GPU_ONLY, false, RHI_ALLOCATOR_RT_DS_TEXTURES,     RHI_PRIORITY_NORMAL);
+}
+
+static void
+gfx_deinit_allocators()
+{
+  rhi_allocator_deinit(&gfx->non_rt_ds_texture_allocator);
+  rhi_allocator_deinit(&gfx->rt_ds_texture_allocator);
+}
+
 static void 
 gfx_swapchain_init(GFX_Info info, 
                    u32 num_back_buffers, 
@@ -263,6 +277,10 @@ gfx_init(GFX_Info info, u32 num_backbuffers)
   rhi_semaphore_init(gfx->device, &gfx->frame_semaphore);
 
 
+  // Initialize allocators
+  gfx_init_allocators();
+
+
   // Initialize samplers
   gfx_init_samplers();
 
@@ -436,11 +454,22 @@ gfx_mesh_destroy(Guid guid)
 }
 
 void 
-gfx_texture_create(Guid guid, RHI_Texture_Desc desc) 
+gfx_texture_create(Guid guid, RHI_Texture_Desc desc, b32 use_own_heap) 
 {
   GFX_Texture_Entry entry = {};
 
-  R_ASSERT( rhi_texture_init(gfx->device, &entry.texture, &desc, NULL) );
+  RHI_Allocator *allocator = &gfx->non_rt_ds_texture_allocator;
+  if (desc.usage == RHI_TEXTURE_USAGE_COLOR_ATTACHMENT || desc.usage == RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+  {
+    allocator = &gfx->rt_ds_texture_allocator;
+  }
+
+  bool ok = rhi_texture_init(gfx->device, 
+                        &entry.texture, 
+                        &desc, 
+                        allocator,
+                        false, use_own_heap);
+  R_ASSERT(ok);
 
   auto CreateView = [&](RHI_Texture_View *view, RHI_Texture_View_Type type) {
     RHI_Texture_View_Desc vdesc = {};
@@ -475,7 +504,7 @@ gfx_texture_destroy(Guid guid)
       rhi_texture_view_deinit(&entry->srv);
     }
 
-    if (entry->srv.kind != RHI_KIND_INVALID) {
+    if (entry->uav.kind != RHI_KIND_INVALID) {
       rhi_texture_view_deinit(&entry->uav);
     }
 
@@ -527,7 +556,7 @@ gfx_srv_from_texture(Guid guid)
 {
   GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
   if (entry && entry->srv.kind != RHI_KIND_INVALID)  return &entry->srv;
-  return nullptr;
+  return NULL;
 }
 
 RHI_Texture_View *
@@ -535,7 +564,7 @@ gfx_uav_from_texture(Guid guid)
 {
   GFX_Texture_Entry *entry = table_find_pointer(&gfx->texture_table, guid);
   if (entry && entry->uav.kind != RHI_KIND_INVALID)  return &entry->uav;
-  return nullptr;
+  return NULL;
 }
 
 u32 
@@ -1031,21 +1060,4 @@ gfx_request_swapchain_resize(u32 width, u32 height)
   gfx->resize_requested = true;
   gfx->resize_width     = width;
   gfx->resize_height    = height;
-}
-
-//
-// Arena
-//
-void 
-gfx_arena_init(GFX_Arena      *arena, 
-               RHI_Memory_Type type,
-               uint64_t        initial_size)
-{
-  rhi_heap_init(gfx->device, &arena->heap, type, initial_size);
-}
-
-void 
-gfx_arena_push(GFX_Arena *arena)
-{
-
 }

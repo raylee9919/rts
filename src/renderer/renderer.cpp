@@ -105,7 +105,7 @@ r_init(void *native_window_handle)
       desc.clear          = true;
       desc.clear_depth    = 1.f;
 
-      gfx_texture_create(r->scene_depth, desc);
+      gfx_texture_create(r->scene_depth, desc, true);
     }
 
     { // GBufferColor
@@ -126,7 +126,7 @@ r_init(void *native_window_handle)
       desc.clear_color[2] = 0.0f;
       desc.clear_color[3] = 1.0f;
 
-      gfx_texture_create(r->gbuffer_color, desc);
+      gfx_texture_create(r->gbuffer_color, desc, true);
     }
 
     { // Scene
@@ -144,7 +144,7 @@ r_init(void *native_window_handle)
         desc.depth          = 1;
         desc.clear          = true;
       }
-      gfx_texture_create(r->scene_texture, desc);
+      gfx_texture_create(r->scene_texture, desc, true);
     }
 
     { // UI
@@ -162,7 +162,7 @@ r_init(void *native_window_handle)
         desc.depth          = 1;
         desc.clear          = true;
       }
-      gfx_texture_create(r->ui_texture, desc);
+      gfx_texture_create(r->ui_texture, desc, true);
     }
   }
 

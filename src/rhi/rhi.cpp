@@ -198,11 +198,13 @@ rhi_surface_wait_for_waitable_object(RHI_Surface *surface)
 //
 // Buffer
 //
-bool  
+bool 
 rhi_buffer_init(RHI_Device      *device, 
                 RHI_Buffer      *buffer, 
                 RHI_Buffer_Desc *desc, 
-                RHI_Heap        *heap)
+                RHI_Allocator   *allocator, 
+                b32              first_fit, 
+                b32              use_own_heap)
 {
   ProfileScope;
 
@@ -211,7 +213,7 @@ rhi_buffer_init(RHI_Device      *device,
 
   switch (device->kind) {
     case RHI_KIND_D3D12:
-      return d3d12_buffer_init(device, buffer, desc, heap);
+      return d3d12_buffer_init(device, buffer, desc, allocator, first_fit, use_own_heap);
 
     default:
       R_ASSERT(0);
@@ -306,7 +308,9 @@ bool
 rhi_texture_init(RHI_Device       *device, 
                  RHI_Texture      *texture, 
                  RHI_Texture_Desc *desc, 
-                 RHI_Heap         *heap)
+                 RHI_Allocator    *allocator,  
+                 b32               first_fit, 
+                 b32               use_own_heap)
 {
   ProfileScope;
 
@@ -315,7 +319,7 @@ rhi_texture_init(RHI_Device       *device,
 
   switch (device->kind) {
     case RHI_KIND_D3D12:
-      return d3d12_texture_init(device, texture, desc, heap);
+      return d3d12_texture_init(device, texture, desc, allocator, first_fit, use_own_heap);
 
     default:
       R_ASSERT(0);
@@ -743,17 +747,23 @@ rhi_is_bc_format(RHI_Format format)
   }
 }
 
-b32
-rhi_heap_init(RHI_Device      *device, 
-              RHI_Heap        *heap,
-              RHI_Memory_Type  memory_type, 
-              u64              size)
+
+//
+// Allocator
+//
+bool 
+rhi_allocator_init(RHI_Device         *device, 
+                   RHI_Allocator      *allocator,
+                   RHI_Memory_Type     memory_type, 
+                   b32                 is_linear,
+                   RHI_Allocator_Type  type, 
+                   RHI_Priority        priority)
 {
-  heap->kind = device->kind;
+  allocator->kind = device->kind;
 
   switch (device->kind) {
     case RHI_KIND_D3D12:
-      return d3d12_heap_init(device, heap, memory_type, size);
+      return d3d12_allocator_init(device, allocator, memory_type, is_linear, type, priority);
 
     default:
       R_ASSERT(0);
@@ -761,8 +771,14 @@ rhi_heap_init(RHI_Device      *device,
   }
 }
 
-void 
-rhi_heap_deinit(RHI_Heap *heap)
+void  
+rhi_allocator_deinit(RHI_Allocator *allocator)
 {
+  switch (allocator->kind) {
+    case RHI_KIND_D3D12:
+      d3d12_allocator_deinit(allocator);
 
+    default:
+      R_ASSERT(0);
+  }
 }

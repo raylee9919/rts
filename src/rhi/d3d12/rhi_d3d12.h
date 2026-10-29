@@ -75,8 +75,8 @@ struct D3D12_Descriptor {
   D3D12_GPU_DESCRIPTOR_HANDLE  gpu_handle;
 };
 
-struct D3D12_Heap {
-  ID3D12Heap *heap_0;
+struct D3D12_Allocator {
+  D3D12MA::Pool *pool;
 };
 
 struct D3D12_Device {
@@ -111,11 +111,13 @@ struct D3D12_Surface {
 };
 
 struct D3D12_Buffer {
-  ID3D12Resource *resource;
+  D3D12MA::Allocation *allocation;
+  ID3D12Resource      *resource;
 };
 
 struct D3D12_Texture {
-  ID3D12Resource *resource;
+  D3D12MA::Allocation *allocation;
+  ID3D12Resource      *resource;
 };
 
 struct D3D12_Fence {
@@ -140,16 +142,40 @@ void  d3d12_submit(RHI_Device *device, u32 count, RHI_Command_Buffer **cmd_buffe
 void  d3d12_pass_begin(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass);
 void  d3d12_pass_end(RHI_Command_Buffer *cmd_buffer, RHI_Pass *pass);
 
-bool  d3d12_buffer_init(RHI_Device *device, RHI_Buffer *buffer, RHI_Buffer_Desc *desc, RHI_Heap *heap);
-void  d3d12_buffer_deinit(RHI_Buffer *buffer);
+/*
+  If 'first_fit' is false, it will use best-fit strategy internally.
+  It is recommended for big resources, such as fullscreen render targets 
+  to use its own implicit heap on top of the high-priority heap to prevent 
+  eviction from the video memory.
+*/
+bool 
+d3d12_buffer_init(RHI_Device      *device, 
+                  RHI_Buffer      *buffer, 
+                  RHI_Buffer_Desc *desc, 
+                  RHI_Allocator   *allocator, 
+                  b32              first_fit, 
+                  b32              use_own_heap);
+
+void  
+d3d12_buffer_deinit(RHI_Buffer *buffer);
+
 void *d3d12_buffer_map(RHI_Buffer *buffer);
 void  d3d12_buffer_unmap(RHI_Buffer *buffer);
 
 void  d3d12_buffer_view_init(RHI_Device *device, RHI_Buffer_View *view, RHI_Buffer *buffer, RHI_Buffer_View_Desc *desc);
 void  d3d12_buffer_view_deinit(RHI_Buffer_View *view);
 
-bool  d3d12_texture_init(RHI_Device *device, RHI_Texture *texture, RHI_Texture_Desc *desc, RHI_Heap *heap);
-void  d3d12_texture_deinit(RHI_Texture *texture);
+
+bool 
+d3d12_texture_init(RHI_Device       *device, 
+                   RHI_Texture      *texture, 
+                   RHI_Texture_Desc *desc, 
+                   RHI_Allocator    *allocator,  
+                   b32               first_fit, 
+                   b32               use_own_heap);
+
+void  
+d3d12_texture_deinit(RHI_Texture *texture);
 
 void  d3d12_texture_view_init(RHI_Device *device, RHI_Texture_View *view, RHI_Texture *texture, RHI_Texture_View_Desc *desc);
 void  d3d12_texture_view_deinit(RHI_Texture_View *view);
@@ -184,16 +210,19 @@ bool  d3d12_pipeline_init(RHI_Device *device, RHI_Pipeline *pipeline, RHI_Pipeli
 void  d3d12_pipeline_deinit(RHI_Pipeline *pipeline);
 
 
-// Heap. No allocation logic. Just heap of memory.
 //
-b32 
-d3d12_heap_init(RHI_Device      *device, 
-                RHI_Heap        *heap,
-                RHI_Memory_Type  memory_type, 
-                u64              size);
+// Allocator
+//
+bool 
+d3d12_allocator_init(RHI_Device         *device, 
+                     RHI_Allocator      *allocator,
+                     RHI_Memory_Type     memory_type, 
+                     b32                 is_linear,
+                     RHI_Allocator_Type  type, 
+                     RHI_Priority        priority);
 
-void 
-d3d12_heap_deinit(RHI_Heap *heap);
+void  
+d3d12_allocator_deinit(RHI_Allocator *allocator);
 
 
 #endif // RTS_RHI_D3D12_H

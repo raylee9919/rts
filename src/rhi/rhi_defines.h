@@ -28,13 +28,13 @@ struct RHI_Texture_View;
 struct RHI_Texture_View_Desc;
 struct RHI_Sampler;
 struct RHI_Sampler_Desc;
-struct RHI_Heap;
 struct RHI_Surface;
 struct RHI_Surface_Desc;
 struct RHI_Semaphore;
 struct RHI_Pipeline;
 struct RHI_Pipeline_Desc;
 struct RHI_Box;
+struct RHI_Allocator;
 
 
 typedef u8 RHI_Command_Type;
@@ -46,7 +46,7 @@ enum {
   RHI_COMMAND_TYPE_COUNT
 };
 
-enum RHI_Memory_Type {
+enum RHI_Memory_Type : u8 {
   RHI_MEMORY_INVALID = 0,
 
   RHI_MEMORY_GPU_ONLY,   // Suitable for the fastest GPU access.
@@ -54,7 +54,7 @@ enum RHI_Memory_Type {
   RHI_MEMORY_READBACK,   // Suitable for read back from GPU.
 };
 
-enum RHI_Resource_State {
+enum RHI_Resource_State : u8 {
   RHI_RESOURCE_STATE_COMMON,
   RHI_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
   RHI_RESOURCE_STATE_INDEX_BUFFER,
@@ -73,7 +73,7 @@ enum RHI_Resource_State {
   RHI_RESOURCE_STATE_PRESENT
 };
 
-enum RHI_Buffer_View_Type {
+enum RHI_Buffer_View_Type : u8 {
   RHI_BUFFER_VIEW_TYPE_INVALID = 0,
 
   RHI_BUFFER_VIEW_TYPE_RAW,
@@ -81,7 +81,7 @@ enum RHI_Buffer_View_Type {
   RHI_BUFFER_VIEW_TYPE_CONSTANT,
 };
 
-enum RHI_Pipeline_Type {
+enum RHI_Pipeline_Type : u8 {
   // We want pipeline type to be explicitly set.
   RHI_PIPELINE_TYPE_INVALID = 0, 
 
@@ -90,7 +90,7 @@ enum RHI_Pipeline_Type {
 };
 
 // Sampler comparison (shadow map) sampling and depth testing.
-enum RHI_Compare {
+enum RHI_Compare : u8 {
   RHI_COMPARE_ALWAYS,
   RHI_COMPARE_NEVER,
 
@@ -104,7 +104,7 @@ enum RHI_Compare {
   RHI_COMPARE_GREATER_EQUAL,
 };
 
-enum RHI_Topology {
+enum RHI_Topology : u8 {
   RHI_TOPOLOGY_INVALID = 0,
 
   RHI_TOPOLOGY_TRIANGLES,
@@ -112,7 +112,7 @@ enum RHI_Topology {
   RHI_TOPOLOGY_POINTS,
 };
 
-enum RHI_Blend_Factor {
+enum RHI_Blend_Factor : u8 {
   RHI_BLEND_FACTOR_INVALID = 0,
 
   RHI_BLEND_FACTOR_ZERO,
@@ -129,7 +129,7 @@ enum RHI_Blend_Factor {
   RHI_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
 };
 
-enum RHI_Blend_Op {
+enum RHI_Blend_Op : u8 {
   RHI_BLEND_OP_INVALID = 0,
 
   RHI_BLEND_OP_ADD,
@@ -139,15 +139,28 @@ enum RHI_Blend_Op {
   RHI_BLEND_OP_MAX,
 };
 
-enum RHI_Fill_Mode {
+enum RHI_Fill_Mode : u8 {
   RHI_FILL_SOLID = 0,
   RHI_FILL_WIREFRAME,
 };
 
-enum RHI_Cull_Mode {
+enum RHI_Cull_Mode : u8 {
   RHI_CULL_NONE = 0,
   RHI_CULL_CW,
   RHI_CULL_CCW,
 };
+
+enum RHI_Allocator_Type : u8 {
+  RHI_ALLOCATOR_BUFFER             = 0,
+  RHI_ALLOCATOR_NON_RT_DS_TEXTURES = 1,
+  RHI_ALLOCATOR_RT_DS_TEXTURES     = 2,
+};
+
+enum RHI_Priority : u8 {
+  RHI_PRIORITY_LOW    = 0,
+  RHI_PRIORITY_NORMAL = 1,
+  RHI_PRIORITY_HIGH   = 2,
+};
+
 
 #endif // RHI_ENUM
