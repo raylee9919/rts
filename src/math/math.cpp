@@ -623,7 +623,7 @@ operator * (m4x4& l, m4x4& r)
 }
 
 vec4 
-operator * (m4x4& m, vec4& v) 
+operator * (m4x4 m, vec4 v) 
 {
   vec4 v_;
   _mm_storeu_ps(v_.e, _mm_setr_ps(dotv(m.rows[0].e, v.e), 

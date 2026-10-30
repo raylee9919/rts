@@ -12,8 +12,8 @@ struct Xform
   Quaternion  rotation;
   vec3        scale;
 
-  Xform() = default;
-  Xform(vec3 t, Quaternion r, vec3 s) : translation(t), rotation(r), scale(s) {}
+  force_inline Xform() = default;
+  force_inline Xform(vec3 t, Quaternion r, vec3 s) : translation(t), rotation(r), scale(s) {}
 };
 
 struct Animation_Sample
@@ -30,10 +30,6 @@ struct Sampled_Animation
   f32 duration;
 
   Array<Animation_Sample> samples;
-};
-
-struct Animation_Player
-{
 };
 
 ASSET_LOAD_PROC(animation_load_proc);

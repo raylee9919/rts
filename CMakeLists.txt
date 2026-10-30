@@ -107,6 +107,7 @@ add_library(rts_engine STATIC
     src/rhi/d3d12/rhi_d3d12.cpp
 
     src/gfx/gfx.cpp
+    src/gfx/gfx_uploader.cpp
 
     src/renderer/renderer.cpp
     src/renderer/immediate.cpp

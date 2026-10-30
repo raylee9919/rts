@@ -28,11 +28,9 @@ union vec2
   struct { f32 x, y; };
   f32 e[2];
 
-  vec2() = default;
-
-  vec2(f32 x_, f32 y_) : x(x_), y(y_) {};
-
-  explicit vec2(f32 f) : x( f), y( f) {};
+  force_inline vec2() = default;
+  force_inline vec2(f32 x_, f32 y_) : x(x_), y(y_) {};
+  force_inline explicit vec2(f32 f) : x( f), y( f) {};
 };
 
 struct vec3 
@@ -48,10 +46,10 @@ struct vec3
     f32 e[3];
   };
 
-  vec3() = default;
-  vec3(f32 x_, f32 y_, f32 z_)  : x(x_), y(y_), z(z_) {};
-  vec3(vec2 xy_, f32 z_)        : xy(xy_), z(z_)      {};
-  explicit vec3(f32 f)          : x( f), y( f), z( f) {};
+  force_inline vec3() = default;
+  force_inline vec3(f32 x_, f32 y_, f32 z_)  : x(x_), y(y_), z(z_) {};
+  force_inline vec3(vec2 xy_, f32 z_)        : xy(xy_), z(z_)      {};
+  force_inline explicit vec3(f32 f)          : x( f), y( f), z( f) {};
 };
 
 union vec4 
@@ -78,11 +76,11 @@ union vec4
   };
   f32 e[4];
 
-  vec4() = default;
-  vec4(f32 f1, f32 f2, f32 f3, f32 f4) : x(f1), y(f2), z(f3), w(f4) {};
-  explicit vec4(f32 f)                 : x( f), y( f), z( f), w( f) {};
-  vec4(vec3 xyz, f32 w)                : x(xyz.x), y(xyz.y), z(xyz.z), w(w) {};
-  vec4(vec2 xy, f32 z, f32 w)          : x(xy.x), y(xy.y), z(z), w(w) {};
+  force_inline vec4() = default;
+  force_inline vec4(f32 f1, f32 f2, f32 f3, f32 f4) : x(f1), y(f2), z(f3), w(f4) {};
+  force_inline explicit vec4(f32 f)                 : x( f), y( f), z( f), w( f) {};
+  force_inline vec4(vec3 xyz, f32 w)                : x(xyz.x), y(xyz.y), z(xyz.z), w(w) {};
+  force_inline vec4(vec2 xy, f32 z, f32 w)          : x(xy.x), y(xy.y), z(z), w(w) {};
 };
 
 union m4x4 
@@ -310,7 +308,7 @@ m4x4
 operator * (m4x4& l, m4x4& r);
 
 vec4           
-operator * (m4x4& m, vec4& v);
+operator * (m4x4 m, vec4 v);
 
 m4x4 
 identity();

@@ -10,8 +10,6 @@ struct R_Pass_Geometry : R_Pass
 {
   #include "shaders/pass/surface.h"
 
-  u32                  skinning_used; // Reset every frame please.
-
   #include "shaders/pass/terrain.h"
   b32                  terrain_initted;
   Guid                 terrain_mesh_id;

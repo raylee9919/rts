@@ -261,14 +261,7 @@ r_end(Render_Entry *data, f64 refresh_dt)
 
   Renderer *r = renderer;
 
-  { // Build frame graph
-    // @Cleanup: Backbuffer index is a hassle. Renderer might want to make a 
-    // frame resource once and be oblivious about it?
-    //
-    // Actually no. I don't rendertarget per backbuffer. GPU is the only writer 
-    // and consumer. What was I thinking?
-
-    // -1 means no previous pass.
+  { // Build frame graph. -1 means no previous pass.
     gfx_connect(r->gbuffer_color,
                 -1, R_PASS_GEOMETRY, 
                 RHI_RESOURCE_STATE_RENDER_TARGET);
@@ -309,9 +302,11 @@ r_end(Render_Entry *data, f64 refresh_dt)
   R_Rect playfield = playfield_rect();
 
   // Append received immediate quads to render thread's local storage.
-  u32 n = min(data->num_quads, (u32)R_MAX_QUADS - num_immediate_quads);
-  memcpy(immediate_quads + num_immediate_quads, data->quads, n * sizeof(immediate_quads[0]));
-  num_immediate_quads += n;
+  {
+    u32 n = min(data->num_quads, (u32)R_MAX_QUADS - num_immediate_quads);
+    memcpy(immediate_quads + num_immediate_quads, data->quads, n * sizeof(immediate_quads[0]));
+    num_immediate_quads += n;
+  }
 
   // Execute render passes.
   // Passes are sorted and "really" executed afterward.

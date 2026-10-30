@@ -354,8 +354,7 @@ gfx_init(GFX_Info info, u32 num_backbuffers)
     gfx_key_offsets[i + 1] = gfx_key_offsets[i] + gfx_key_lengths[i];
   }
 
-
-  // @Temporary: These will go to encoding threads.
+  // @Temporary: These will go to encoding threads or whatever.
   for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
     R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
     R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));

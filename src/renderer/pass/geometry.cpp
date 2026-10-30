@@ -8,6 +8,7 @@
 #include "animation.h"
 #include "math/math.h"
 #include "camera.h"
+#include "profiler/profiler.h"
 
 #define R_MAX_SKINNING_MATRICES 65536 // @Temporary
 
@@ -30,8 +31,9 @@ R_PASS_DEINIT( RenderPassDeinit_Geometry )
 
 R_PASS_EXECUTE( RenderPassExecute_Geometry )
 {
+  ProfileScope;
+
   auto *pass = (R_Pass_Geometry *)inPass;
-  pass->skinning_used = 0;
 
   u32 res_x = inInfo.resolution_x;
   u32 res_y = inInfo.resolution_y;
@@ -58,6 +60,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     // Draw terrain
     //
     {
+      ProfileScopeN("Terrain pass");
+
       Terrain *terrain = &g->terrain;
       R_ASSERT(terrain->initted);
 
@@ -207,9 +211,11 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     data_.camera_view_id = cam.bindless;
     data_.camera_offset  = cam.offset;
 
+    // @Speed: Slow af
     entity_dfs(g, g->root, &data_, [](Game_State *g, Entity *E, u64 counter, void *data_) {
+      ProfileScope;
+
       Data *data = (Data*)data_;
-      R_Pass_Geometry *pass = data->pass;
 
       // One mesh asset may contain multiple meshes.
       Array<R_Mesh> *meshes = table_find_pointer(&renderer->mesh_table, E->mesh);
@@ -236,13 +242,18 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
 
               // Upload arguments
+              R_Pass_Geometry::Arguments arguments;
               auto arg = gfx_push(sizeof(R_Pass_Geometry::Arguments));
-              auto *args = (R_Pass_Geometry::Arguments*)arg.ptr;
-              memset(args, 0, sizeof(*args)); // @Todo: ZII?
-              m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
-              memcpy(&args->transform, &transform, sizeof(args->transform));
-              args->material_index = material->offset;
+              auto *arg_ptr = (R_Pass_Geometry::Arguments*)arg.ptr;
 
+              // Write transform
+              m4x4 T = m4x4_translate(E->position);
+              m4x4 S = m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
+              m4x4 transform = T * S;
+              memcpy(&arguments.transform, &transform, sizeof(arguments.transform));
+
+              // Write material
+              arguments.material_index = material->offset;
 
               // Skinning
               GFX_Bump_Result skin = {};
@@ -261,8 +272,9 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
                   f64 f = t * anim->frame_rate;
                   s64 i0 = (s64)f;
-                  if (i0 > (s64)anim->samples.count - 1) 
+                  if (i0 > (s64)anim->samples.count - 1) {
                     i0 = anim->samples.count - 1;
+                  }
                   s64 i1 = (i0 + 1 < (s64)anim->samples.count) ? i0 + 1 : i0;
                   f32 a = (f32)(f - (f64)i0);
 
@@ -279,18 +291,17 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                     Xform *xform0 = sample0->xforms.data + j;
                     Xform *xform1 = sample1->xforms.data + j;
 
-                    vec3 t = lerp(xform0->translation, xform1->translation, a);
+                    vec3 t       = lerp(xform0->translation, xform1->translation, a);
                     Quaternion r = nlerp_shortest(xform0->rotation, xform1->rotation, a);
-                    vec3 s = lerp(xform0->scale, xform1->scale, a);
+                    vec3 s       = lerp(xform0->scale, xform1->scale, a);
                     Xform xform(t, r, s);
 
                     m4x4 m = m4x4_from_xform(&xform);
 
-                    if (joint->parent < 0) {
+                    if (joint->parent < 0)
                       local[j] = m;
-                    } else {
+                    else
                       local[j] = local[joint->parent] * m;
-                    }
                   }
 
                   skin = gfx_push(sizeof(m3x4) * skel->num_joints);
@@ -302,16 +313,18 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                     memcpy((m3x4*)skin.ptr + j, composite + j, sizeof(m3x4));
                   }
 
-                  pass->skinning_used += skel->num_joints;
-
-                  args->num_matrices      = skel->num_joints;
-                  args->skinning_matrices = skin.offset;
+                  arguments.num_matrices      = skel->num_joints;
+                  arguments.skinning_matrices = skin.offset;
                 }
                 else
                 {
                   // @Todo
                 }
               }
+
+
+              // Write arguments once and for all.
+              memcpy(arg_ptr, &arguments, sizeof(arguments));
 
 
               // Push constants
@@ -326,7 +339,6 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               c.skinning_buffer_id     = skin.bindless;
               c.material_buffer_id     = renderer->material_buffer.view.bindless;
               gfx_push_constants(&c, sizeof(c));
-
 
 
               // @Temporary
@@ -350,28 +362,20 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                   px[i] = vec2((ndc.x*0.5f + 0.5f) * 2560, (0.5f - ndc.y*0.5f) * 1440);
                 }
 
-                // 12 edges: connect corners whose indices differ in exactly one bit
-                for (int i = 0; i < 8; ++i)
-                {
-                  for (int bit = 1; bit < 8; bit <<= 1)
-                  {
+                // Connect corners whose indices differ in exactl one bit.
+                for (int i = 0; i < 8; ++i) {
+                  for (int bit = 1; bit < 8; bit <<= 1) {
                     if (i & bit) continue;
                     int j = i | bit;
-                    if (visible[i] && visible[j])
-                    {
+                    if (visible[i] && visible[j]) {
                       if (E->selected)
-                      {
                         draw_line(px[i], px[j], vec4(1.0f, 1.0f, 0.0f, 1.f), 1.f);
-                      }
                       else
-                      {
                         draw_line(px[i], px[j], vec4(0.2f, 0.2f, 0.2f, 1.f), 1.f);
-                      }
                     }
                   }
                 }
               }
-
 
               // Draw
               gfx_draw(mesh.id, 1, index_offset, index_count);
