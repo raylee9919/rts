@@ -39,6 +39,11 @@
    - Transparent material
    - Frame slot obfuscation
 
+ [Memory]
+   - pointer, game storage, and saving games...
+   - visualize memory statistics, and memory pools might want to be 
+     shrinked periodically.
+
  [Asset]
    - As everything is GUID, I think I can do "immediate-mode" asset, where 
      the user doesn't have to care about the lifetime?
@@ -63,7 +68,6 @@
  - Color
  - SIMD CPUID and bind corresponding functions.
  - Trigonometry
- - pointer, game storage, and saving games...
 
  [Low Priority]
    - force inline math?

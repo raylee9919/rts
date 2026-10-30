@@ -209,7 +209,7 @@ struct GFX_State
   Queue<GFX_Callback_Entry>               callbacks;
 
   RHI_Semaphore                           frame_semaphore;
-  u64                                     current_frame = 1; // Indefinitely increases
+  u64                                     monotonic_frame_counter = 1; // Indefinitely increases
 
   // I'll just have a single swapchain.
   RHI_Surface                            *surface;

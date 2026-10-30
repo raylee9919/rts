@@ -6,8 +6,6 @@
 #include "math/math.h"
 #include "os/os.h"
 
-// @Todo: Overkill. Drawing debug boxes with this is bad. 
-// It takes up about 20MB.
 #define R_MAX_QUADS 65536 
 
 /*
@@ -39,8 +37,12 @@ draw_quad(f32 x, f32 y, f32 w, f32 h,
 void 
 draw_line(vec2 p0, vec2 p1, vec4 c, f32 thickness);
 
+// @Todo: Wasteful. Drawing debug boxes with debug lines is a bad idea?
 void 
-draw_box(AABB box, m4x4 view_proj, vec4 color, f32 thickness);
+draw_box(AABB box, 
+         m4x4 view_proj, 
+         vec4 color, 
+         f32 thickness);
 
 
 extern per_thread R_Quad immediate_quads[R_MAX_QUADS];
