@@ -320,8 +320,9 @@ gfx_shutdown()
   // @Todo: release resources safely..
 
   gfx_deinit_samplers();
-  rhi_semaphore_deinit(&gfx->frame_semaphore);
   gfx_swapchain_deinit();
+  gfx_deinit_allocators();
+  rhi_semaphore_deinit(&gfx->frame_semaphore);
   rhi_device_deinit(gfx->device);
 
   destroy(gfx->heap);
@@ -459,7 +460,8 @@ gfx_texture_create(Guid guid, RHI_Texture_Desc desc, b32 use_own_heap)
   GFX_Texture_Entry entry = {};
 
   RHI_Allocator *allocator = &gfx->non_rt_ds_texture_allocator;
-  if (desc.usage == RHI_TEXTURE_USAGE_COLOR_ATTACHMENT || desc.usage == RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT)
+  if (desc.usage & RHI_TEXTURE_USAGE_COLOR_ATTACHMENT ||
+      desc.usage & RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT)
   {
     allocator = &gfx->rt_ds_texture_allocator;
   }

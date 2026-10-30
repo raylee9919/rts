@@ -777,6 +777,7 @@ rhi_allocator_deinit(RHI_Allocator *allocator)
   switch (allocator->kind) {
     case RHI_KIND_D3D12:
       d3d12_allocator_deinit(allocator);
+      break;
 
     default:
       R_ASSERT(0);

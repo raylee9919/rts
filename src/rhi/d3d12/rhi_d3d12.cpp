@@ -667,8 +667,9 @@ d3d12_device_init(RHI_Device *device,
 
   { // Initialize Direct3D 12 Memory Allocator
     D3D12MA::ALLOCATOR_DESC desc = {};
-    desc.Flags   = D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS;
-    desc.pDevice = device_10;
+    desc.Flags    = D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS;
+    desc.pDevice  = device_10;
+    desc.pAdapter = adapter_1;
 
     hr = D3D12MA::CreateAllocator(&desc, &device->d3d12.d3d12ma);
     if (FAILED(hr)) {
@@ -2386,8 +2387,9 @@ d3d12_allocator_init(RHI_Device         *device,
     return false;
   }
 
-  allocator->type = type;
-  allocator->priority = priority;
+  allocator->type        = type;
+  allocator->memory_type = memory_type;
+  allocator->priority    = priority;
 
   return true;
 }
