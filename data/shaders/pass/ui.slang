@@ -18,8 +18,8 @@ struct VS_Output {
 VS_Output main_vs(uint vid : SV_VertexID, 
                   uint iid : SV_InstanceID) 
 {
-    StructuredBuffer<Quad> quads = ResourceDescriptorHeap[push.buffer_id];
-    Quad quad = quads[push.base_index + iid];
+    ByteAddressBuffer quads = ResourceDescriptorHeap[push.buffer_id];
+    Quad quad = quads.Load<Quad>(push.base_offset + iid * sizeof(Quad));
 
     float2 pos   = quad.position[vid];
     float2 uv    = quad.uv[vid];

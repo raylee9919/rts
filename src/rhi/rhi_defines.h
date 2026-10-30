@@ -46,12 +46,12 @@ enum {
   RHI_COMMAND_TYPE_COUNT
 };
 
-enum RHI_Memory_Type : u8 {
-  RHI_MEMORY_INVALID = 0,
-
-  RHI_MEMORY_GPU_ONLY,   // Suitable for the fastest GPU access.
-  RHI_MEMORY_UPLOAD,     // Suitable for per-frame data upload to GPU.
-  RHI_MEMORY_READBACK,   // Suitable for read back from GPU.
+typedef u8 RHI_Memory_Type;
+enum {
+  RHI_MEMORY_GPU_ONLY   = 0,   // Suitable for the fastest GPU access.
+  RHI_MEMORY_UPLOAD     = 1,   // Suitable for per-frame data upload to GPU.
+  RHI_MEMORY_READBACK   = 2,   // Suitable for read back from GPU.
+  RHI_MEMORY_TYPE_COUNT = 3
 };
 
 enum RHI_Resource_State : u8 {
@@ -150,10 +150,12 @@ enum RHI_Cull_Mode : u8 {
   RHI_CULL_CCW,
 };
 
-enum RHI_Allocator_Type : u8 {
+typedef u8 RHI_Allocator_Type;
+enum {
   RHI_ALLOCATOR_BUFFER             = 0,
   RHI_ALLOCATOR_NON_RT_DS_TEXTURES = 1,
   RHI_ALLOCATOR_RT_DS_TEXTURES     = 2,
+  RHI_ALLOCATOR_TYPE_COUNT         = 3
 };
 
 enum RHI_Priority : u8 {

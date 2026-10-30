@@ -168,11 +168,6 @@ struct Renderer
   Material_Buffer material_buffer;
   u64 material_buffer_used = 0;
 
-  // @Temporary
-  RHI_Buffer           camera_buffer;
-  RHI_Buffer_View      camera_view;
-  void                *camera_ptr;
-
   // Mesh table
   Table<Guid, Array<R_Mesh>, hash_guid> mesh_table;
 };

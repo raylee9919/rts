@@ -20,55 +20,6 @@ R_PASS_INIT( RenderPassInit_Geometry )
   result->deinit  = RenderPassDeinit_Geometry;
   result->execute = RenderPassExecute_Geometry;
 
-  { // Create arguments buffer and view
-    u64 stride = sizeof(R_Pass_Geometry::Arguments);
-    u64 sz     = stride * 16777216; // @Temporary
-
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_UPLOAD;
-    desc.size        = sz;
-
-    R_ASSERT(rhi_buffer_init(gfx->device, &result->arguments_buffer, &desc, NULL));
-
-    RHI_Buffer_View_Desc view_desc = {};
-    {
-      view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-      view_desc.writable = false;
-      view_desc.stride   = stride;
-      view_desc.offset   = 0;
-      view_desc.size     = sz;
-    }
-
-    rhi_buffer_view_init(gfx->device, &result->arguments_view, &result->arguments_buffer, &view_desc);
-
-    result->arguments_ptr = rhi_buffer_map(&result->arguments_buffer);
-  }
-
-  { // Create skinning buffer and view
-    u64 stride = sizeof(m3x4);
-    u64 sz     = stride * R_MAX_SKINNING_MATRICES;
-
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_UPLOAD;
-    desc.size        = sz;
-
-    R_ASSERT(rhi_buffer_init(gfx->device, &result->skinning_buffer, &desc, NULL));
-
-    RHI_Buffer_View_Desc view_desc = {};
-    {
-      view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-      view_desc.writable = false;
-      view_desc.stride   = stride;
-      view_desc.offset   = 0;
-      view_desc.size     = sz;
-    }
-
-    rhi_buffer_view_init(gfx->device, &result->skinning_view, &result->skinning_buffer, &view_desc);
-
-    result->skinning_ptr = rhi_buffer_map(&result->skinning_buffer);
-  }
-
-
   return result;
 }
 
@@ -98,7 +49,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
   // Upload camera
   GPU_Camera gpu_camera = gpu_camera_from_game(&g->camera);
-  memcpy(renderer->camera_ptr, &gpu_camera, sizeof(gpu_camera));
+  auto cam = gfx_push(sizeof(GPU_Camera));
+  memcpy(cam.ptr, &gpu_camera, sizeof(gpu_camera));
 
   gfx_pass_begin(R_PASS_GEOMETRY, &gfx_pass);
   {
@@ -228,7 +180,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
       c.vertex_buffer_id       = terrain_mesh->vertex_buffer_view.bindless;
       c.linear_sampler_id      = gfx->linear_sampler.bindless;
       c.anisotropic_sampler_id = gfx->anisotropic_sampler.bindless;
-      c.camera_buffer_id       = renderer->camera_view.bindless;
+      c.camera_buffer_id       = cam.bindless;
+      c.camera_offset          = cam.offset;
       c.material_buffer_id     = renderer->material_buffer.view.bindless;
       c.material_offset        = material_from_guid(terrain->material_id)->offset;
       gfx_push_constants(&c, sizeof(c));
@@ -245,11 +198,14 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
     struct Data {
       R_Pass_Geometry *pass;
       GPU_Camera *camera;
-      s64 num_draws;
+      u32 camera_view_id;
+      u32 camera_offset;
     } data_;
-    data_.pass = pass;
-    data_.num_draws = 0;
-    data_.camera = &gpu_camera;
+
+    data_.pass           = pass;
+    data_.camera         = &gpu_camera;
+    data_.camera_view_id = cam.bindless;
+    data_.camera_offset  = cam.offset;
 
     entity_dfs(g, g->root, &data_, [](Game_State *g, Entity *E, u64 counter, void *data_) {
       Data *data = (Data*)data_;
@@ -278,33 +234,22 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               M_Entry *material = material_from_guid(material_id);
               gfx_set_pipeline(material->pipeline);
 
-              // Push constants
-              R_Pass_Geometry::Push_Constants c = {};
-              c.vertex_buffer_id       = gfx_mesh->vertex_buffer_view.bindless;
-              c.linear_sampler_id      = gfx->linear_sampler.bindless;
-              c.anisotropic_sampler_id = gfx->anisotropic_sampler.bindless;
-              c.camera_buffer_id       = renderer->camera_view.bindless;
-              c.argument_buffer_id     = pass->arguments_view.bindless;
-              c.argument_base_index    = data->num_draws;
-              c.material_buffer_id     = renderer->material_buffer.view.bindless;
-              c.skinning_buffer_id     = pass->skinning_view.bindless;
-              gfx_push_constants(&c, sizeof(c));
 
               // Upload arguments
-              auto *args = (R_Pass_Geometry::Arguments*)pass->arguments_ptr + data->num_draws;
-              memset(args, 0, sizeof(*args));
+              auto arg = gfx_push(sizeof(R_Pass_Geometry::Arguments));
+              auto *args = (R_Pass_Geometry::Arguments*)arg.ptr;
+              memset(args, 0, sizeof(*args)); // @Todo: ZII?
               m4x4 transform = m4x4_translate(E->position) * m4x4_scale(E->scale.x, E->scale.y, E->scale.z);
               memcpy(&args->transform, &transform, sizeof(args->transform));
-              args->material_index    = material->offset;
+              args->material_index = material->offset;
 
 
+              // Skinning
+              GFX_Bump_Result skin = {};
               if (mesh.skeleton != NULL_GUID)
               {
                 Skeleton *skel = skeleton_from_guid(mesh.skeleton);
                 R_ASSERT(skel);
-
-                args->num_matrices      = skel->num_joints;
-                args->skinning_matrices = pass->skinning_used;
 
                 if (E->animation_id != NULL_GUID)
                 {
@@ -348,16 +293,41 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
                     }
                   }
 
+                  skin = gfx_push(sizeof(m3x4) * skel->num_joints);
+
                   for (s64 j = 0; j < skel->num_joints; ++j) 
                   {
                     Joint *joint = skel->joints + j;
                     composite[j] = local[j] * joint->inverse_bind_matrix;
-                    memcpy((m3x4*)pass->skinning_ptr + pass->skinning_used + j, composite + j, sizeof(m3x4));
+                    memcpy((m3x4*)skin.ptr + j, composite + j, sizeof(m3x4));
                   }
 
                   pass->skinning_used += skel->num_joints;
+
+                  args->num_matrices      = skel->num_joints;
+                  args->skinning_matrices = skin.offset;
+                }
+                else
+                {
+                  // @Todo
                 }
               }
+
+
+              // Push constants
+              R_Pass_Geometry::Push_Constants c = {};
+              c.vertex_buffer_id       = gfx_mesh->vertex_buffer_view.bindless;
+              c.linear_sampler_id      = gfx->linear_sampler.bindless;
+              c.anisotropic_sampler_id = gfx->anisotropic_sampler.bindless;
+              c.camera_buffer_id       = data->camera_view_id;
+              c.camera_offset          = data->camera_offset;
+              c.argument_buffer_id     = arg.bindless;
+              c.argument_offset        = arg.offset;
+              c.skinning_buffer_id     = skin.bindless;
+              c.material_buffer_id     = renderer->material_buffer.view.bindless;
+              gfx_push_constants(&c, sizeof(c));
+
+
 
               // @Temporary
               if (1) 
@@ -405,7 +375,6 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
               // Draw
               gfx_draw(mesh.id, 1, index_offset, index_count);
-              data->num_draws += 1;
             }
           }
         }

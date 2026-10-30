@@ -52,7 +52,7 @@ get_font_system()
         desc.height     = sz;
         desc.mip_levels = 1;
         desc.depth      = 1;
-        gfx_texture_create(_font_system.atlas, desc);
+        gfx_texture_create(_font_system.atlas, desc, false);
 
         // @Temporary
         Arena *arena = arena_alloc();

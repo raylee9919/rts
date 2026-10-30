@@ -32,11 +32,11 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
 {
     VS_Output result;
 
-    StructuredBuffer<Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
-    Vertex vert = vertex_buffer[vertex_id];
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
+    Vertex vert = vertex_buffer.Load<Vertex>(vertex_id * sizeof(Vertex));
 
-    StructuredBuffer<GPU_Camera> camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
-    GPU_Camera camera = camera_buffer[0];
+    ByteAddressBuffer camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
+    GPU_Camera camera = camera_buffer.Load<GPU_Camera>(push.camera_offset);
 
     float4 world_position = float4(vert.position, 1.0);
     float4x4 view_proj    = mul(camera.proj, camera.view);
@@ -61,8 +61,8 @@ float4 main_ps(VS_Output input) : SV_TARGET
     ByteAddressBuffer material_buffer = ResourceDescriptorHeap[push.material_buffer_id];
     Material material = material_buffer.Load<Material>(push.material_offset);
 
-    StructuredBuffer<GPU_Camera> camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
-    GPU_Camera camera = camera_buffer[0];
+    ByteAddressBuffer camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
+    GPU_Camera camera = camera_buffer.Load<GPU_Camera>(push.camera_offset);
 
     Material_Input mtl;
     mtl.position               = input.position;

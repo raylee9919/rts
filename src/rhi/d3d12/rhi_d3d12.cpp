@@ -296,6 +296,57 @@ d3d12_queue_deinit(D3D12_Command_Queue *queue)
 
 // Descriptor
 //
+static D3D12_Descriptor 
+d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) 
+{
+  u32 index = 0xffffffff;
+
+  // @Todo: One option to make it faster is making it hierarchical.
+  for (u32 i = 0; i < heap->free_list_node_count; ++i) {
+    u64 bits = heap->free_list[i];
+    u32 b = (u32)tzcnt64(bits);
+    if (b < 64) {
+      bits ^= (1ull << b);
+      index = i * 64 + b;
+      heap->free_list[i] = bits;
+      break;
+    }
+  }
+
+  // @Todo: grow?
+  R_ASSERT(index != 0xffffffff);
+
+  int offset = index * heap->descriptor_size;
+
+  D3D12_Descriptor desc = {};
+  desc.type = heap->type;
+  desc.index = index;
+  desc.my_heap = heap;
+
+  desc.cpu_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->base_cpu_handle, offset);
+  auto type = heap->type;
+  if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) desc.gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->base_gpu_handle, offset);
+  else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)     desc.gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->base_gpu_handle, offset);
+
+  heap->count += 1;
+
+  return desc;
+}
+
+static void 
+d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) 
+{
+  u64 a = descriptor->index / 64llu;
+  u64 b = descriptor->index % 64llu;
+
+  auto *heap = descriptor->my_heap;
+
+  R_ASSERT((heap->free_list[a] & (1ull << b)) == 0);
+  heap->free_list[a] |= (1ull << b);
+
+  heap->count -= 1;
+}
+
 static bool 
 d3d12_descriptor_heap_init(D3D12_Device              *device, 
                            D3D12_Descriptor_Heap     *heap, 
@@ -350,6 +401,10 @@ d3d12_descriptor_heap_init(D3D12_Device              *device,
   heap->allocated = allocated;
   heap->count     = 0;
 
+  // ID 0 should be reserved as it is defined as GFX_INVALID_BINDLESS.
+  D3D12_Descriptor null = d3d12_descriptor_alloc(heap);
+  R_ASSERT(null.index == 0);
+
   // Log
   String type_str = S("N/A");
   if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) type_str = S("CBV_SRV_UAV");
@@ -368,57 +423,6 @@ d3d12_descriptor_heap_deinit(D3D12_Descriptor_Heap *heap)
     COM_SAFE_RELEASE(&heap->heap_0);
     dealloc(heap->free_list, heap->allocator);
   }
-}
-
-static D3D12_Descriptor 
-d3d12_descriptor_alloc(D3D12_Descriptor_Heap *heap) 
-{
-  u32 index = 0xffffffff;
-
-  // @Todo: One option to make it faster is making it hierarchical.
-  for (u32 i = 0; i < heap->free_list_node_count; ++i) {
-    u64 bits = heap->free_list[i];
-    u32 b = (u32)tzcnt64(bits);
-    if (b < 64) {
-      bits ^= (1ull << b);
-      index = i * 64 + b;
-      heap->free_list[i] = bits;
-      break;
-    }
-  }
-
-  // @Todo: grow?
-  R_ASSERT(index != 0xffffffff);
-
-  int offset = index * heap->descriptor_size;
-
-  D3D12_Descriptor desc = {};
-  desc.type = heap->type;
-  desc.index = index;
-  desc.my_heap = heap;
-
-  desc.cpu_handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->base_cpu_handle, offset);
-  auto type = heap->type;
-  if      (type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) desc.gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->base_gpu_handle, offset);
-  else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)     desc.gpu_handle = CD3DX12_GPU_DESCRIPTOR_HANDLE(heap->base_gpu_handle, offset);
-
-  heap->count += 1;
-
-  return desc;
-}
-
-static void 
-d3d12_descriptor_dealloc(D3D12_Descriptor *descriptor) 
-{
-  u64 a = descriptor->index / 64llu;
-  u64 b = descriptor->index % 64llu;
-
-  auto *heap = descriptor->my_heap;
-
-  R_ASSERT((heap->free_list[a] & (1ull << b)) == 0);
-  heap->free_list[a] |= (1ull << b);
-
-  heap->count -= 1;
 }
 
 // Device

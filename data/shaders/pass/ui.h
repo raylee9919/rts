@@ -4,7 +4,7 @@ struct Push_Constants {
     uint32_t    dot_sampler_id;
     uint32_t    linear_sampler_id;
     uint32_t    buffer_id;
-    uint32_t    base_index;
+    uint32_t    base_offset;
     float       width; // Projection
     float       height;
 };

@@ -20,6 +20,9 @@
 #define GFX_MAX_PASS                64
 #define GFX_SCENE_DEPTH_FORAMT      RHI_FORMAT_D32F
 
+#define GFX_MEMORY_PAGE_SIZE        Megabytes(1)
+#define GFX_DEFAULT_ALIGNMENT       16
+
 
 /* Sort Keys */
 typedef u16 GFX_Key;
@@ -133,6 +136,49 @@ struct GFX_Edge {
 };
 
 
+//
+// Per-frame upload arena
+//
+
+struct GFX_Page {
+  RHI_Buffer       buffer;
+  RHI_Buffer_View  view;
+  u8              *cpu_ptr;
+  u64              used;
+  GFX_Page        *next;
+  GFX_Page        *prev;
+};
+
+struct GFX_Bump_Result {
+  u32 bindless; // bindless id of the buffer page.
+  u32 offset;   // actual offset of the data in the page.
+  u8 *ptr;      // mapped cpu pointer
+};
+
+/*
+  There's a permutation situation:
+    memory (gpu-only, upload, readback), 
+    view   (structured, raw, constant)
+  
+  Structured view make things little bit more complicated, 
+  as I must hand buffer views everytime the user requests allocation, 
+  therefore I'll just leave everything as raw temporarily.
+  Potential perf loss! (https://github.com/sebbbi/perftest)
+
+                                                   - swl 2026-10-30
+*/
+struct GFX_Arena {
+  RHI_Memory_Type  memory_type;
+  GFX_Page         *first;
+  GFX_Page         *last;
+};
+
+// This function isn't thread-safe, meaning, it isn't 
+// supposed to be used by threads other than the rendering thread.
+GFX_Bump_Result 
+gfx_push(u64 size, u64 alignment = GFX_DEFAULT_ALIGNMENT);
+
+
 struct GFX_State 
 {
   Allocator                               arena;
@@ -172,6 +218,16 @@ struct GFX_State
   // Allocators
   RHI_Allocator                           non_rt_ds_texture_allocator;
   RHI_Allocator                           rt_ds_texture_allocator;
+  RHI_Allocator                           mesh_allocator;
+  RHI_Allocator                           material_allocator;
+  RHI_Allocator                           upload_buffer_allocator;
+
+
+  // Per-frame upload arena
+  GFX_Arena                               frame_arenas[RHI_MAX_BUFFER_COUNT];
+  GFX_Page                               *first_free_page;
+  GFX_Page                               *last_free_page;
+
 
   RHI_Sampler                             linear_sampler;
   RHI_Sampler                             dot_sampler;

@@ -37,6 +37,7 @@
    - BC Texture upload/conversion
    - Deferred pipeline?
    - Transparent material
+   - Frame slot obfuscation
 
  [Asset]
    - As everything is GUID, I think I can do "immediate-mode" asset, where 

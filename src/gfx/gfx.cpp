@@ -74,6 +74,21 @@ gfx_init_allocators()
 {
   rhi_allocator_init(gfx->device, &gfx->non_rt_ds_texture_allocator, RHI_MEMORY_GPU_ONLY, false, RHI_ALLOCATOR_NON_RT_DS_TEXTURES, RHI_PRIORITY_NORMAL);
   rhi_allocator_init(gfx->device, &gfx->rt_ds_texture_allocator,     RHI_MEMORY_GPU_ONLY, false, RHI_ALLOCATOR_RT_DS_TEXTURES,     RHI_PRIORITY_NORMAL);
+  rhi_allocator_init(gfx->device, &gfx->mesh_allocator,              RHI_MEMORY_GPU_ONLY, false, RHI_ALLOCATOR_BUFFER,             RHI_PRIORITY_NORMAL);
+  rhi_allocator_init(gfx->device, &gfx->material_allocator,          RHI_MEMORY_GPU_ONLY, false, RHI_ALLOCATOR_BUFFER,             RHI_PRIORITY_NORMAL);
+  rhi_allocator_init(gfx->device, &gfx->upload_buffer_allocator,     RHI_MEMORY_UPLOAD,   false, RHI_ALLOCATOR_BUFFER,             RHI_PRIORITY_NORMAL);
+}
+
+static void 
+gfx_init_arenas(RHI_Memory_Type memory_type)
+{
+  for (int i = 0; i < array_count(gfx->frame_arenas); ++i)
+  {
+    GFX_Arena *arena = gfx->frame_arenas + i;
+    arena->memory_type = memory_type;
+    arena->first       = NULL;
+    arena->last        = NULL;
+  }
 }
 
 static void
@@ -81,6 +96,15 @@ gfx_deinit_allocators()
 {
   rhi_allocator_deinit(&gfx->non_rt_ds_texture_allocator);
   rhi_allocator_deinit(&gfx->rt_ds_texture_allocator);
+  rhi_allocator_deinit(&gfx->mesh_allocator);
+  rhi_allocator_deinit(&gfx->material_allocator);
+  rhi_allocator_deinit(&gfx->upload_buffer_allocator);
+}
+
+static void
+gfx_deinit_arenas()
+{
+  // @Todo
 }
 
 static void 
@@ -127,7 +151,13 @@ gfx_init_uploader(u64 buffer_size)
   desc.memory_type = RHI_MEMORY_UPLOAD;
   desc.size        = buffer_size;
 
-  R_ASSERT(rhi_buffer_init(gfx->device, &gfx->upload_buffer, &desc, NULL));
+  R_ASSERT(rhi_buffer_init(gfx->device, 
+                           &gfx->upload_buffer, 
+                           &desc, 
+                           &gfx->upload_buffer_allocator,
+                           false, 
+                           false));
+
   R_ASSERT(rhi_semaphore_init(gfx->device, &gfx->upload_semaphore));
   gfx->upload_semaphore_value = 1;
 
@@ -281,6 +311,10 @@ gfx_init(GFX_Info info, u32 num_backbuffers)
   gfx_init_allocators();
 
 
+  // Initialize per-frame arena.
+  gfx_init_arenas(RHI_MEMORY_UPLOAD);
+
+
   // Initialize samplers
   gfx_init_samplers();
 
@@ -329,31 +363,6 @@ gfx_shutdown()
   destroy(gfx->arena);
 }
 
-static void 
-gfx_create_gpu_buffer(RHI_Buffer *buffer, u32 size)
-{
-  RHI_Buffer_Desc desc = {};
-  desc.memory_type = RHI_MEMORY_GPU_ONLY;
-  desc.size        = size;
-
-  R_ASSERT(rhi_buffer_init(gfx->device, buffer, &desc, NULL));
-}
-
-static void 
-gfx_create_structured_view(RHI_Buffer_View *view, RHI_Buffer *buffer, u32 count, u32 stride)
-{
-  RHI_Buffer_View_Desc desc = {};
-  {
-    desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-    desc.writable = false;
-    desc.stride   = stride;
-    desc.offset   = 0;
-    desc.size     = stride * count;
-  }
-
-  rhi_buffer_view_init(gfx->device, view, buffer, &desc);
-}
-
 static u64 
 gfx_encode_key(const u64 *subkeys) 
 {
@@ -386,13 +395,45 @@ gfx_mesh_create(Guid guid,
                 void *vertices, u32 num_vertices, u32 vertex_size, 
                 void *indices,  u32 num_indices,  u32 index_size)
 {
-  RHI_Buffer vb        = {};
-  RHI_Buffer ib        = {};
-  RHI_Buffer_View view = {};
+  // Create vertex buffer
+  RHI_Buffer vb = {};
+  {
+    RHI_Buffer_Desc vb_desc = {};
+    vb_desc.memory_type = RHI_MEMORY_GPU_ONLY;
+    vb_desc.size        = num_vertices * vertex_size;
+    R_ASSERT(rhi_buffer_init(gfx->device, 
+                             &vb, 
+                             &vb_desc, 
+                             &gfx->mesh_allocator,
+                             false, 
+                             false));
+  }
 
-  gfx_create_gpu_buffer(&vb, num_vertices * vertex_size);
-  gfx_create_gpu_buffer(&ib, num_indices * index_size);
-  gfx_create_structured_view(&view, &vb, num_vertices, vertex_size);
+  // Create index buffer
+  RHI_Buffer ib = {};
+  {
+    RHI_Buffer_Desc ib_desc = {};
+    ib_desc.memory_type = RHI_MEMORY_GPU_ONLY;
+    ib_desc.size        = num_indices * index_size;
+    R_ASSERT(rhi_buffer_init(gfx->device, 
+                             &ib, 
+                             &ib_desc, 
+                             &gfx->mesh_allocator,
+                             false, 
+                             false));
+  }
+
+  // Create vertex buffer view
+  RHI_Buffer_View view = {};
+  {
+    RHI_Buffer_View_Desc desc = {};
+    desc.type     = RHI_BUFFER_VIEW_TYPE_RAW;
+    desc.writable = false;
+    desc.stride   = 0;
+    desc.offset   = 0;
+    desc.size     = num_vertices * vertex_size;
+    rhi_buffer_view_init(gfx->device, &view, &vb, &desc);
+  }
 
   GFX_Mesh entry = {};
   entry.vertex_buffer      = vb;
@@ -879,6 +920,116 @@ gfx_sort_frame_graph()
   return result;
 }
 
+
+//
+// Per-frame upload memory arena
+//
+static GFX_Page * 
+alloc_page_(RHI_Memory_Type memory_type, 
+            u64             size)
+{
+  GFX_Page *page = NULL;
+
+  // Find a page that has enough space in the free list.
+  for (GFX_Page *p = gfx->first_free_page;
+       p != NULL;
+       p = p->next) 
+  {
+    if (p->buffer.desc.size >= size)
+    {
+      dll_remove(gfx->first_free_page, gfx->last_free_page, p);
+      page = p;
+      break;
+    }
+  }
+
+  if (page) {
+    page->used = 0;
+    page->next = NULL;
+    page->prev = NULL;
+    // R_ASSERT(page->memory_type == memory_type); // @Robustness
+    return page;
+  }
+  
+
+  // If it doesn't exist, create one.
+  page = (GFX_Page*)alloc(sizeof(GFX_Page), gfx->heap);
+
+  RHI_Buffer_Desc desc = {};
+  desc.memory_type = memory_type;
+  desc.size        = size;
+
+  rhi_buffer_init(gfx->device, 
+                  &page->buffer, 
+                  &desc, 
+                  &gfx->upload_buffer_allocator, 
+                  false, 
+                  false);
+
+  RHI_Buffer_View_Desc view_desc = {};
+  view_desc.type     = RHI_BUFFER_VIEW_TYPE_RAW;
+  view_desc.writable = false;
+  view_desc.stride   = 0;
+  view_desc.offset   = 0;
+  view_desc.size     = size;
+
+  rhi_buffer_view_init(gfx->device, 
+                       &page->view, 
+                       &page->buffer, 
+                       &view_desc);
+
+  page->cpu_ptr = (u8*)rhi_buffer_map(&page->buffer);
+  page->used    = 0;
+  page->next    = NULL;
+  page->prev    = NULL;
+
+  return page;
+}
+
+static void 
+clear_arena_(GFX_Arena *arena)
+{
+  for (GFX_Page *p = arena->last; p;) {
+    GFX_Page *prev = p->prev;
+
+    dll_remove(arena->first, arena->last, p);
+    dll_push_back(gfx->first_free_page, gfx->last_free_page, p);
+
+    p = prev;
+  }
+  arena->last = arena->first;
+}
+
+GFX_Bump_Result 
+gfx_push(u64 size, u64 alignment)
+{
+  GFX_Arena *arena = gfx->frame_arenas + gfx_backbuffer_index();
+
+  auto align_up_no_pow2 = [](u64 x, u64 align) -> u64 {
+    R_ASSERT(align != 0);
+    return ((x + align - 1) / align) * align;
+  };
+
+  if (arena->first == NULL || 
+      align_up_no_pow2(arena->last->used, alignment) + size > arena->last->buffer.desc.size) 
+  {
+    GFX_Page *page = alloc_page_(arena->memory_type, align_up(size, GFX_MEMORY_PAGE_SIZE));
+    dll_push_back(arena->first, arena->last, page);
+  }
+
+  GFX_Page *page = arena->last;
+  R_ASSERT(page);
+  u64 aligned = align_up_no_pow2(page->used, alignment); 
+  page->used = aligned + size;
+
+  GFX_Bump_Result result = {};
+  result.bindless = page->view.bindless;
+  result.offset   = aligned;
+  result.ptr      = page->cpu_ptr + aligned;
+
+  return result;
+}
+
 void 
 gfx_begin()
 {
@@ -1041,6 +1192,10 @@ gfx_end(f64 time,
 
   // Clear per-frame data
   gfx_reset_per_frame_data();
+
+
+  // Clear frame arena to be used.
+  clear_arena_(&gfx->frame_arenas[gfx_backbuffer_index()]);
 
 
   u64 completed_value = rhi_semaphore_completed_value(&gfx->frame_semaphore);

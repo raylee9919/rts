@@ -45,14 +45,14 @@ VS_Output main_vs_static(uint vertex_id : SV_VertexID, uint instance_id : SV_Ins
 {
     VS_Output result;
 
-    StructuredBuffer<Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
-    Vertex vert = vertex_buffer[vertex_id];
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
+    Vertex vert = vertex_buffer.Load<Vertex>(vertex_id * sizeof(Vertex));
 
-    StructuredBuffer<Arguments> argument_buffer = ResourceDescriptorHeap[push.argument_buffer_id];
-    Arguments inst = argument_buffer[push.argument_base_index + instance_id];
+    ByteAddressBuffer argument_buffer = ResourceDescriptorHeap[push.argument_buffer_id];
+    Arguments inst = argument_buffer.Load<Arguments>(push.argument_offset + instance_id * sizeof(Arguments));
 
-    StructuredBuffer<GPU_Camera> camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
-    GPU_Camera camera = camera_buffer[0];
+    ByteAddressBuffer camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
+    GPU_Camera camera = camera_buffer.Load<GPU_Camera>(push.camera_offset);
 
     float3 model_position = vert.position;
     float3 model_normal   = vert.normal;
@@ -60,12 +60,12 @@ VS_Output main_vs_static(uint vertex_id : SV_VertexID, uint instance_id : SV_Ins
 
     float4 position = mul(inst.transform, float4(model_position, 1.0));
 
-    float4x4 view_proj = mul(camera.proj, camera.view);
+    float4x4 view_proj = camera.view_proj;
 
     result.sv_position = mul(view_proj, position);
     result.position    = position.xyz;
     result.uv          = vert.uv;
-    result.normal      = mul(inst.transform, float4(model_normal,  0.0)).xyz;
+    result.normal      = normalize(mul(inst.transform, float4(model_normal,  0.0)).xyz);
     result.tangent     = float4(mul(inst.transform, float4(model_tangent, 0.0)).xyz, vert.tangent.w);
     result.material_id = inst.material_index;
 
@@ -77,26 +77,26 @@ VS_Output main_vs_skeletal(uint vertex_id : SV_VertexID, uint instance_id : SV_I
 {
     VS_Output result;
 
-    StructuredBuffer<Skinned_Vertex> vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
-    Skinned_Vertex vert = vertex_buffer[vertex_id];
+    ByteAddressBuffer vertex_buffer = ResourceDescriptorHeap[push.vertex_buffer_id];
+    Skinned_Vertex vert = vertex_buffer.Load<Skinned_Vertex>(vertex_id * sizeof(Skinned_Vertex));
 
-    StructuredBuffer<Arguments> argument_buffer = ResourceDescriptorHeap[push.argument_buffer_id];
-    Arguments inst = argument_buffer[push.argument_base_index + instance_id];
+    ByteAddressBuffer argument_buffer = ResourceDescriptorHeap[push.argument_buffer_id];
+    Arguments inst = argument_buffer.Load<Arguments>(push.argument_offset + instance_id * sizeof(Arguments));
 
-    StructuredBuffer<GPU_Camera> camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
-    GPU_Camera camera = camera_buffer[0];
+    ByteAddressBuffer camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
+    GPU_Camera camera = camera_buffer.Load<GPU_Camera>(push.camera_offset);
 
-    StructuredBuffer<float3x4> skinning_buffer = ResourceDescriptorHeap[push.skinning_buffer_id];
+    ByteAddressBuffer skinning_buffer = ResourceDescriptorHeap[push.skinning_buffer_id];
 
     // Blend joint matrices (linear blend skinning).
     uint  base = inst.skinning_matrices;
     uint4 j    = min(uint4(vert.joints), inst.num_matrices - 1);   // guard against bad indices
     float4 w   = vert.weights;
 
-    float3x4 skin = w.x * skinning_buffer[base + j.x]
-                  + w.y * skinning_buffer[base + j.y]
-                  + w.z * skinning_buffer[base + j.z]
-                  + w.w * skinning_buffer[base + j.w];
+    float3x4 skin = w.x * skinning_buffer.Load<float3x4>(base + j.x * sizeof(float3x4))
+                  + w.y * skinning_buffer.Load<float3x4>(base + j.y * sizeof(float3x4))
+                  + w.z * skinning_buffer.Load<float3x4>(base + j.z * sizeof(float3x4))
+                  + w.w * skinning_buffer.Load<float3x4>(base + j.w * sizeof(float3x4));
 
     // Bind-pose model space -> current model space
     float3 model_position = mul(skin, float4(vert.position,    1.0));
@@ -129,8 +129,8 @@ float4 main_ps(VS_Output input) : SV_TARGET
     ByteAddressBuffer material_buffer = ResourceDescriptorHeap[push.material_buffer_id];
     Material material = material_buffer.Load<Material>(input.material_id);
 
-    StructuredBuffer<GPU_Camera> camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
-    GPU_Camera camera = camera_buffer[0];
+    ByteAddressBuffer camera_buffer = ResourceDescriptorHeap[push.camera_buffer_id];
+    GPU_Camera camera = camera_buffer.Load<GPU_Camera>(push.camera_offset);
 
     Material_Input mtl;
     mtl.position               = input.position;

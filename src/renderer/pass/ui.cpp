@@ -14,30 +14,6 @@ R_PASS_INIT( RenderPassInit_UI )
   result->deinit  = RenderPassDeinit_UI;
   result->execute = RenderPassExecute_UI;
 
-  { // Create quad buffers.
-    u64 stride = sizeof(R_Pass_UI::Quad);
-    u64 sz     = stride * R_MAX_QUADS * RHI_MAX_BUFFER_COUNT;
-
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_UPLOAD;
-    desc.size        = sz;
-
-    R_ASSERT(rhi_buffer_init(gfx->device, &result->quad_buffer, &desc, NULL));
-
-    RHI_Buffer_View_Desc view_desc = {};
-    {
-      view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-      view_desc.writable = false;
-      view_desc.stride   = stride;
-      view_desc.offset   = 0;
-      view_desc.size     = sz;
-    }
-
-    rhi_buffer_view_init(gfx->device, &result->quad_view, &result->quad_buffer, &view_desc);
-
-    result->quad_ptr = (u8*)rhi_buffer_map(&result->quad_buffer);
-  }
-
   // @Temporary
   String path   = S("shaders/pass/ui.slang");
   String source = read_entire_file(path, tctx.temp);
@@ -136,13 +112,16 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
   {
     gfx_set_pipeline(pass->pipeline_id);
 
-    u32 base_index = gfx_backbuffer_index() * R_MAX_QUADS;
+    u32 count = min((u32)R_MAX_QUADS, num_immediate_quads);
+    auto buf = gfx_push(sizeof(R_Pass_UI::Quad) * count, 
+                         alignof(R_Pass_UI::Quad));
 
+    // Push constants
     R_Pass_UI::Push_Constants pc = {};
     pc.dot_sampler_id    = gfx->dot_sampler.bindless;
     pc.linear_sampler_id = gfx->linear_sampler.bindless;
-    pc.buffer_id         = pass->quad_view.bindless;
-    pc.base_index        = base_index;
+    pc.buffer_id         = buf.bindless;
+    pc.base_offset       = buf.offset;
 
     // Projection
     pc.width  = res_x;
@@ -150,11 +129,12 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
 
 
     // Fill in the buffer
-    u32 N = min((u32)R_MAX_QUADS, num_immediate_quads);
-    for (u32 i = 0; i < N; ++i) {
-
+    for (u32 i = 0; i < count; ++i) 
+    {
       R_Quad quad = immediate_quads[i];
-      auto *dst = (R_Pass_UI::Quad*)pass->quad_ptr + base_index + i;
+      auto *dst = (R_Pass_UI::Quad*)buf.ptr + i;
+
+      dst->texture_id = gfx_srv_bindless_from_texture(quad.texture);
 
       for (int v = 0; v < 4; ++v) {
         dst->position[v].x = quad.vertices[v].x;
@@ -166,16 +146,14 @@ R_PASS_EXECUTE( RenderPassExecute_UI )
         dst->color[v].y = quad.colors[v].y;
         dst->color[v].z = quad.colors[v].z;
         dst->color[v].w = quad.colors[v].w;
-
-        dst->texture_id = gfx_srv_bindless_from_texture(quad.texture);
       }
     }
 
 
-    // Draw N instances
-    if (N > 0) {
+    // Instanced draw
+    if (count > 0) {
       gfx_push_constants(&pc, sizeof(pc));
-      gfx_draw(pass->quad_mesh, N, 0, 6);
+      gfx_draw(pass->quad_mesh, count, 0, 6);
     }
   }
   gfx_pass_end();

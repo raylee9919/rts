@@ -192,37 +192,17 @@ r_init(void *native_window_handle)
     RHI_Buffer_Desc desc = {};
     desc.memory_type = RHI_MEMORY_GPU_ONLY;
     desc.size        = sz;
-    rhi_buffer_init(gfx->device, &r->material_buffer.buffer, &desc, NULL);
+    rhi_buffer_init(gfx->device, 
+                    &r->material_buffer.buffer, 
+                    &desc, 
+                    &gfx->material_allocator,
+                    false, 
+                    false);
 
     RHI_Buffer_View_Desc view_desc = {};
     view_desc.type = RHI_BUFFER_VIEW_TYPE_RAW;
     view_desc.size = sz;
     rhi_buffer_view_init(gfx->device, &r->material_buffer.view, &r->material_buffer.buffer, &view_desc);
-  }
-
-
-  { // @Temporary: Create camera buffer and view
-    u64 stride = sizeof(GPU_Camera);
-    u64 sz     = sizeof(GPU_Camera) * 1;
-
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_UPLOAD;
-    desc.size        = sz;
-
-    R_ASSERT(rhi_buffer_init(gfx->device, &r->camera_buffer, &desc, NULL));
-
-    RHI_Buffer_View_Desc view_desc = {};
-    {
-      view_desc.type     = RHI_BUFFER_VIEW_TYPE_STRUCTURED;
-      view_desc.writable = false;
-      view_desc.stride   = stride;
-      view_desc.offset   = 0;
-      view_desc.size     = sz;
-    }
-
-    rhi_buffer_view_init(gfx->device, &r->camera_view, &r->camera_buffer, &view_desc);
-
-    r->camera_ptr = rhi_buffer_map(&r->camera_buffer);
   }
 
   // Tell others the renderer is ready to communicate.
