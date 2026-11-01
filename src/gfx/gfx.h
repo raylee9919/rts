@@ -179,6 +179,52 @@ GFX_Bump_Result
 gfx_push(u64 size, u64 alignment = GFX_DEFAULT_ALIGNMENT);
 
 
+/*
+  Uploader
+
+  Submitting a single copy command in a list per resource sounds wasteful. 
+  But at the same time, we want to issue commands asap, so the graphics queue 
+  won't wait too long.
+
+  So we'll batch the copy commands, but we don't want a batch to be too large. 
+  So if a accumulated memory is big enough, we'll move on to the next batch, 
+  say like 256 MB. Then, make the graphics queue wait on the semaphore of the 
+  most recently issued batch.
+*/
+struct GFX_Upload_Batch
+{
+  RHI_Command_Buffer command_buffer;
+  RHI_Buffer         src_buffer;
+  u64                used;
+  u8                *cpu_ptr;
+
+  // When the batch is done, this value is signaled, and you can
+  // check the completed value of ths semaphore and reuse this batch 
+  // from the pool.
+  u64                semaphore_value; 
+};
+
+struct GFX_Upload_Command
+{
+  RHI_Buffer  dst_buffer;
+  u32         dst_offset;
+  u32         src_offset;
+  u32         size;
+};
+
+struct GFX_Uploader
+{
+  RHI_Semaphore             semaphore;
+  u64                       next_semaphore_value;
+
+  RHI_Allocator             buffer_allocator;
+
+  Allocator                 allocator; // allocates batches and commands
+  Array<GFX_Upload_Command> commands;
+  Array<GFX_Upload_Batch*>  batch_pool;
+  GFX_Upload_Batch         *current_batch;
+};
+
 struct GFX_State 
 {
   Allocator                               arena;
@@ -229,6 +275,11 @@ struct GFX_State
   GFX_Page                               *last_free_page;
 
 
+  // Asynchronous uploader
+  GFX_Uploader                           *uploader;
+  
+
+  // Samplers
   RHI_Sampler                             linear_sampler;
   RHI_Sampler                             dot_sampler;
   RHI_Sampler                             anisotropic_sampler;
@@ -417,5 +468,19 @@ gfx_wait_for_frame_waitable_object();
 
 void 
 gfx_request_swapchain_resize(u32 width, u32 height);
+
+
+void 
+gfx_upload_buffer(RHI_Buffer dst_buffer, 
+                  u64        dst_offset, 
+                  u64        size,
+                  void      *data,
+                  void       (*proc)(u8 *ptr, u64 size, void *data));
+
+void 
+gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer, 
+                         u64        dst_offset, 
+                         u64        size,
+                         void      *data);
 
 #endif // RTS_GFX_H

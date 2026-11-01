@@ -106,6 +106,19 @@ array_pop_back(Array<T> *arr)
   arr->count -= 1;
 }
 
+template <typename T>
+void 
+array_unordered_remove_by_index(Array<T> *arr, u64 index)
+{
+  R_ASSERT(index < arr->count);
+
+  u64 last_index = arr->count - 1;
+  if (index != last_index)
+    arr->data[index] = arr->data[last_index];
+
+  arr->count -= 1;
+}
+
 // Returns index of the first occurence of `item` in the array.
 // Returns -1 if the item doesn't exist.
 template <typename T, typename Cmp> 

@@ -173,6 +173,221 @@ gfx_swapchain_resize(u32 width, u32 height)
   rhi_surface_resize(gfx->surface, width, height, in_out_textures);
 }
 
+// 
+// Uploader
+//
+
+static void 
+release_batch_(GFX_Uploader     *uploader, 
+               GFX_Upload_Batch *batch, 
+               u64               semaphore_value_to_reuse)
+{
+  batch->semaphore_value = semaphore_value_to_reuse;
+  append(&uploader->batch_pool, batch);
+}
+
+static GFX_Upload_Batch *
+alloc_batch_(GFX_Uploader *uploader, u64 size) 
+{
+  // @Cleanup
+  u64 MINIMUM_SIZE = Megabytes(4); 
+
+  GFX_Upload_Batch *batch = NULL;
+  u64 completed = rhi_semaphore_completed_value(&uploader->semaphore);
+
+  // Try to find one in the pool. 
+  for (u64 i = 0; i < uploader->batch_pool.count; ++i) 
+  {
+    auto *b = uploader->batch_pool.data[i];
+    if (completed >= b->semaphore_value && 
+        b->src_buffer.desc.size >= size)
+    {
+      array_unordered_remove_by_index(&uploader->batch_pool, i);
+
+      batch = b;
+      batch->used = 0;
+      batch->semaphore_value = 0;
+
+      break;
+    }
+  }
+
+  // Couldn't find one. Actually allocate one.
+  if (batch == NULL)
+  {
+    batch = (GFX_Upload_Batch*)alloc(sizeof(GFX_Upload_Batch), uploader->allocator);
+
+    rhi_command_buffer_init(gfx->device, &batch->command_buffer, RHI_COMMAND_TYPE_TRANSFER);
+
+    RHI_Buffer_Desc desc = {};
+    desc.memory_type = RHI_MEMORY_UPLOAD;
+    desc.size        = align_up(max(size, MINIMUM_SIZE), Kilobytes(4));
+
+    rhi_buffer_init(gfx->device, &batch->src_buffer, &desc, &gfx->upload_buffer_allocator, false, false);
+
+    batch->used = 0;
+    batch->cpu_ptr = (u8*)rhi_buffer_map(&batch->src_buffer);
+
+    batch->semaphore_value = 0;
+  }
+
+  return batch;
+}
+
+static void 
+gfx_uploader_flush(GFX_Uploader *uploader) 
+{
+  if (!uploader->current_batch)
+    return;
+
+  if (uploader->commands.count == 0)
+    return;
+
+  auto *batch = uploader->current_batch;
+
+  // Record copy commands
+  rhi_command_buffer_begin(&batch->command_buffer);
+  for (auto cmd : uploader->commands) 
+  {
+    rhi_cmd_copy_buffer_to_buffer(&batch->command_buffer, 
+                                  &cmd.dst_buffer, 
+                                  &batch->src_buffer, 
+                                  cmd.dst_offset,
+                                  cmd.src_offset, 
+                                  cmd.size);
+  }
+  rhi_command_buffer_end(&batch->command_buffer);
+
+
+  // Submit the command buffer
+  RHI_Command_Buffer *buffers[] = {&batch->command_buffer};
+  rhi_submit(gfx->device, 1, buffers);
+
+
+  // Signal semaphore
+  rhi_semaphore_signal(gfx->device, 
+                       RHI_COMMAND_TYPE_TRANSFER, 
+                       &uploader->semaphore, 
+                       uploader->next_semaphore_value);
+
+
+  // Reset uploader
+  uploader->current_batch = NULL;
+  array_reset_keeping_memory(&uploader->commands);
+
+
+  // Release batch to the pool
+  release_batch_(uploader, batch, uploader->next_semaphore_value);
+  uploader->next_semaphore_value += 1;
+}
+
+static u8 *
+gfx_uploader_acquire_pointer(u64        size, 
+                             u64        alignment, 
+                             RHI_Buffer dst_buffer, 
+                             u64        dst_offset) 
+{
+  GFX_Uploader *uploader = gfx->uploader;
+
+  GFX_Upload_Batch *batch = uploader->current_batch;
+
+  if (!batch) {
+    batch = alloc_batch_(uploader, size);
+  }
+
+  u64 aligned = align_up(batch->used, alignment);
+  u64 cap = batch->src_buffer.desc.size;
+  if (aligned + size > cap) {
+    gfx_uploader_flush(uploader);
+    batch = alloc_batch_(uploader, size);
+    aligned = 0;
+  }
+
+  uploader->current_batch = batch;
+
+  append(&uploader->commands, {});
+  GFX_Upload_Command *cmd = &uploader->commands.data[uploader->commands.count - 1];
+  cmd->dst_buffer = dst_buffer;
+  cmd->dst_offset = dst_offset;
+  cmd->src_offset = aligned;
+  cmd->size       = size;
+
+  batch->used += (aligned + size - batch->used);
+
+  return batch->cpu_ptr + aligned;
+}
+
+static void 
+gfx_uploader_end(GFX_Uploader *uploader, RHI_Command_Type command_type)
+{
+  gfx_uploader_flush(uploader);
+  u64 last_issued = uploader->next_semaphore_value - 1;
+  if (rhi_semaphore_completed_value(&uploader->semaphore) < last_issued) 
+  {
+    rhi_queue_wait(gfx->device, command_type, &uploader->semaphore, last_issued);
+  }
+}
+
+void 
+gfx_upload_buffer(RHI_Buffer dst_buffer, 
+                  u64        dst_offset, 
+                  u64        size,
+                  void      *data,
+                  void       (*proc)(u8 *ptr, u64 size, void *data))
+{
+  u8 *ptr = gfx_uploader_acquire_pointer(size, 16, dst_buffer, dst_offset);
+  proc(ptr, size, data);
+}
+
+void 
+gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer, 
+                         u64        dst_offset, 
+                         u64        size,
+                         void      *data)
+{
+  u8 *ptr = gfx_uploader_acquire_pointer(size, 16, dst_buffer, dst_offset);
+  memcpy(ptr, data, size);
+}
+
+static void 
+gfx_uploader_init(GFX_Uploader *uploader, 
+                  Allocator     allocator) 
+{
+  rhi_semaphore_init(gfx->device, &uploader->semaphore);
+  uploader->next_semaphore_value = 1;
+
+  rhi_allocator_init(gfx->device, &uploader->buffer_allocator, RHI_MEMORY_UPLOAD, false, RHI_ALLOCATOR_BUFFER, RHI_PRIORITY_NORMAL);
+
+  uploader->allocator            = allocator;
+  uploader->commands.allocator   = allocator;
+  uploader->batch_pool.allocator = allocator;
+  uploader->current_batch        = NULL;
+}
+
+static void 
+gfx_uploader_deinit(GFX_Uploader *uploader)
+{
+  gfx_uploader_flush(uploader);
+  rhi_semaphore_wait(&uploader->semaphore, uploader->next_semaphore_value - 1, -1);
+
+  for (auto *b : uploader->batch_pool)
+  {
+    rhi_buffer_unmap(&b->src_buffer);
+    rhi_buffer_deinit(&b->src_buffer);
+    rhi_command_buffer_deinit(&b->command_buffer);
+    dealloc(b, uploader->allocator);
+  }
+  array_reset(&uploader->commands); 
+  array_reset(&uploader->batch_pool); 
+
+  rhi_semaphore_deinit(&uploader->semaphore);
+  rhi_allocator_deinit(&uploader->buffer_allocator);
+}
+
+
+
+
+// @Cleanup: remove this 
 static void 
 gfx_init_uploader(u64 buffer_size) 
 {
@@ -345,6 +560,11 @@ gfx_init(GFX_Info info, u32 num_backbuffers)
   gfx_init_arenas(RHI_MEMORY_UPLOAD);
 
 
+  // Initialize asynchronous uploader.
+  gfx->uploader = (GFX_Uploader*)alloc(sizeof(GFX_Uploader), gfx->heap);
+  gfx_uploader_init(gfx->uploader, gfx->heap);
+
+
   // Initialize samplers
   gfx_init_samplers();
 
@@ -382,6 +602,7 @@ gfx_shutdown()
 
   // @Todo: release resources safely..
 
+  gfx_uploader_deinit(gfx->uploader);
   gfx_deinit_samplers();
   gfx_swapchain_deinit();
   gfx_deinit_allocators();
@@ -476,23 +697,9 @@ gfx_mesh_create(Guid guid,
   { // Upload vertex buffer and index buffer.
     u64 vb_sz = num_vertices * vertex_size;
     u64 ib_sz = num_indices * index_size;
-    u64 total = vb_sz + ib_sz;
 
-    u64 offset = gfx_upload_reserve(total, 16);
-    u8 *dst = gfx->upload_buffer_mapped + offset;
-
-    memcpy(dst,         vertices, vb_sz);
-    memcpy(dst + vb_sz, indices,  ib_sz);
-
-    rhi_command_buffer_begin(&gfx->copy_buffer);
-    {
-      rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &vb, &gfx->upload_buffer, 0, offset,         vb_sz);
-      rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &ib, &gfx->upload_buffer, 0, offset + vb_sz, ib_sz);
-    }
-    rhi_command_buffer_end(&gfx->copy_buffer);
-    RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-    rhi_submit(gfx->device, 1, buffers);
-    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
+    gfx_upload_buffer_memcpy(vb, 0, vb_sz, vertices);
+    gfx_upload_buffer_memcpy(ib, 0, ib_sz, indices);
   }
 }
 
@@ -537,10 +744,10 @@ gfx_texture_create(Guid guid, RHI_Texture_Desc desc, b32 use_own_heap)
   }
 
   bool ok = rhi_texture_init(gfx->device, 
-                        &entry.texture, 
-                        &desc, 
-                        allocator,
-                        false, use_own_heap);
+                             &entry.texture, 
+                             &desc, 
+                             allocator,
+                             false, use_own_heap);
   R_ASSERT(ok);
 
   auto CreateView = [&](RHI_Texture_View *view, RHI_Texture_View_Type type) {
@@ -1090,11 +1297,17 @@ gfx_end(f64 time,
   }
 
 
+  // @Cleanup
   // Wait on resource upload semaphore.
   u64 value_to_wait = gfx->upload_semaphore_value - 1;
   rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->upload_semaphore, value_to_wait);
   rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_COMPUTE,  &gfx->upload_semaphore, value_to_wait);
   gfx->upload_buffer_used = 0;
+
+
+  // Internally, flush the batch and 
+  // make the graphics queue wait on the semaphore.
+  gfx_uploader_end(gfx->uploader, RHI_COMMAND_TYPE_GRAPHICS);
 
 
   // Sort frame graph dependencies
