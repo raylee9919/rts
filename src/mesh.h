@@ -78,7 +78,8 @@ s64
 vertex_size_from_attributes(Array<Vertex_Attribute> *attributes);
 
 b32 
-mesh_has_attribute(Triangle_Mesh *mesh, String attribute_name);
+mesh_has_attribute(Triangle_Mesh *mesh, 
+                   String         attribute_name);
 
 b32 
 mesh_is_skeletal(Triangle_Mesh *mesh);
@@ -98,7 +99,7 @@ parse_and_eval_mesh_asset(Asset_Lexer *lexer,
 ASSET_LOAD_PROC(mesh_load_proc);
 
 //
-// S k e l e t o n
+// Skeleton
 //
 struct Joint 
 {

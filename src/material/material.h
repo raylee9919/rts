@@ -10,7 +10,6 @@
 struct Shader_Compiler;
 struct Material_Field_Info;
 
-// ------------------------------------------------------------------------- //
 
 #define MAX_MATERIAL_FIELDS     32
 #define MAX_CPU_MATERIAL_SIZE  256
@@ -95,8 +94,6 @@ material_from_guid(Guid id);
 
 ASSET_LOAD_PROC(material_load_proc);
 
-
-// ------------------------------------------------------------------------- //
 
 struct Bitmap {
     RHI_Format      format;

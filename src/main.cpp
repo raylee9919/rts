@@ -29,15 +29,16 @@
 /*
  @Todo
 
- [Renderer]
-   - Vertex quantization (with bindless/vertex pulling?)
-   - Upload buffer (command list/allocator)
-   - Per-frame resource, memory allocation strategy
-   - Resource alloc/release
-   - BC Texture upload/conversion
-   - Deferred pipeline?
-   - Transparent material
-   - Frame slot obfuscation
+ [GFX/Renderer]
+   [V] Per-frame buffer
+   [V] Uploader
+   [ ] "GC" old upload pages?
+   [ ] Vertex quantization (with bindless/vertex pulling?)
+   [ ] Resource alloc/release
+   [ ] BC Texture upload/conversion
+   [ ] Deferred pipeline?
+   [ ] Transparent material
+   [ ] Frame slot obfuscation
 
  [Memory]
    - pointer, game storage, and saving games...

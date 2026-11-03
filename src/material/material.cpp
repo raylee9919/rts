@@ -491,4 +491,3 @@ ASSET_LOAD_PROC(image_load_proc)
 
   bitmap_free(&bitmap);
 }
-

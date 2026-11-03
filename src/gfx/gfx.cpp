@@ -349,6 +349,13 @@ gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer,
   memcpy(ptr, data, size);
 }
 
+void
+gfx_upload_texture(RHI_Texture dst_texture)
+{
+  u8 *ptr = acquire_pointer();
+}
+
+
 static void 
 gfx_uploader_init(GFX_Uploader *uploader, 
                   Allocator     allocator) 
@@ -732,7 +739,9 @@ gfx_mesh_destroy(Guid guid)
 }
 
 void 
-gfx_texture_create(Guid guid, RHI_Texture_Desc desc, b32 use_own_heap) 
+gfx_texture_create(Guid             guid, 
+                   RHI_Texture_Desc desc, 
+                   b32              use_own_heap) 
 {
   GFX_Texture_Entry entry = {};
 
@@ -793,41 +802,43 @@ gfx_texture_destroy(Guid guid)
 }
 
 void 
-gfx_texture_upload(Guid guid, RHI_Format format, void *data, u32 size, u32 width, u32 height) 
+gfx_texture_upload(Guid        guid, 
+                   RHI_Format  format, 
+                   void       *data, 
+                   u32         size, 
+                   u32         width, 
+                   u32         height) 
 {
   GFX_Texture_Entry *tex = table_find_pointer(&gfx->texture_table, guid);
+  R_ASSERT(tex);
 
-  if (tex) {
-    // @Todo: I know, I know. Correct alignment for BC and other formats and
-    // RHI abstraction of D3D12 and Vulkan. Those must be resolved...
-    u32 pitch = size / height;
-    u32 aligned_pitch = align_up(pitch, 256);
-    u64 total = height * aligned_pitch;
+  u32 pitch = size / height;
+  u32 aligned_pitch = align_up(pitch, 256);
+  u64 total = height * aligned_pitch;
 
-    u64 offset = gfx_upload_reserve(total, 512); // @Temporary: FUCKING HATE ALIGNMENT
-    u8 *dst = gfx->upload_buffer_mapped + offset;
-    u8 *src = (u8 *)data;
+  u64 offset = gfx_upload_reserve(total, 512); // @Temporary: FUCKING HATE ALIGNMENT
+  u8 *dst = gfx->upload_buffer_mapped + offset;
+  u8 *src = (u8 *)data;
 
-    for (u32 r = 0; r < height; ++r) {
-      memcpy(dst, src, pitch);
-      dst += aligned_pitch;
-      src += pitch;
-    }
-
-    RHI_Box box = {};
-    box.width  = width;
-    box.height = height;
-    box.depth  = 1;
-
-    rhi_command_buffer_begin(&gfx->copy_buffer);
-    {
-      rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, offset, aligned_pitch, &tex->texture, &box, 0, 0);
-    }
-    rhi_command_buffer_end(&gfx->copy_buffer);
-    RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-    rhi_submit(gfx->device, 1, buffers);
-    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
+  for (u32 r = 0; r < height; ++r) {
+    memcpy(dst, src, pitch);
+    dst += aligned_pitch;
+    src += pitch;
   }
+
+  RHI_Box box = {};
+  box.width  = width;
+  box.height = height;
+  box.depth  = 1;
+
+  rhi_command_buffer_begin(&gfx->copy_buffer);
+  {
+    rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, offset, aligned_pitch, &tex->texture, &box, 0, 0);
+  }
+  rhi_command_buffer_end(&gfx->copy_buffer);
+  RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
+  rhi_submit(gfx->device, 1, buffers);
+  rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
 }
 
 RHI_Texture_View *
@@ -872,7 +883,7 @@ gfx_pass_begin(u32 pass_index, GFX_Pass *pass)
 void 
 gfx_pass_end() 
 {
-    gfx->context_pass = GFX_INVALID;
+  gfx->context_pass = GFX_INVALID;
 }
 
 void 

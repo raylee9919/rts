@@ -2112,21 +2112,36 @@ d3d12_cmd_draw_indexed(RHI_Command_Buffer *cmd_buffer, RHI_Buffer *index_buffer,
   cmd_buffer->d3d12.list_7->DrawIndexedInstanced(num_indices, num_instances, first_index, first_vertex, first_instance);
 }
 
-void d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, u32 root_index, void *data, u32 size) {
-    cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(root_index, size / 4, data, 0);
+void 
+d3d12_cmd_push_constants(RHI_Command_Buffer *cmd_buffer, 
+                         u32                 root_index, 
+                         void               *data, 
+                         u32                 size) 
+{
+  cmd_buffer->d3d12.list_7->SetGraphicsRoot32BitConstants(root_index, size / 4, data, 0);
 }
 
-void d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, 
-                                     RHI_Buffer *dst, RHI_Buffer *src, 
-                                     u64 dst_offset, u64 src_offset, u64 size) {
-    cmd_buffer->d3d12.list_7->CopyBufferRegion(dst->d3d12.resource, dst_offset, src->d3d12.resource, src_offset, size);
+void 
+d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer, 
+                                RHI_Buffer         *dst, 
+                                RHI_Buffer         *src, 
+                                u64                 dst_offset, 
+                                u64                 src_offset, 
+                                u64                 size) 
+{
+  cmd_buffer->d3d12.list_7->CopyBufferRegion(dst->d3d12.resource, dst_offset, src->d3d12.resource, src_offset, size);
 }
 
 // @Incomplete
 void 
 d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, 
-                                 RHI_Buffer *src, u32 src_offset, u32 src_pitch,  
-                                 RHI_Texture *dst, RHI_Box *box, u32 mip, u32 layer) 
+                                 RHI_Buffer         *src, 
+                                 u32                 src_offset, 
+                                 u32                 src_pitch,  
+                                 RHI_Texture        *dst, 
+                                 RHI_Box            *box, 
+                                 u32                 mip, 
+                                 u32                 layer) 
 {
   R_ASSERT(src_pitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
   R_ASSERT(src_offset % D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT == 0);
@@ -2210,9 +2225,9 @@ d3d12_queue_wait(RHI_Device       *device,
 // Pipeline
 //
 bool 
-d3d12_pipeline_init(RHI_Device        *device, 
-                    RHI_Pipeline      *pipeline, 
-                    RHI_Pipeline_Desc *desc) 
+d3d12_pipeline_init(RHI_Device         *device, 
+                    RHI_Pipeline       *pipeline, 
+                    RHI_Pipeline_Desc  *desc) 
 {
     HRESULT hr = S_OK;
 
