@@ -185,26 +185,6 @@ r_init(void *native_window_handle)
   r_pass_create(RenderPassInit_Composition);
 
 
-  // Create material buffer
-  // @Todo: Cleanup
-  {
-    u64 sz = Megabytes(4); // @Temporary
-    RHI_Buffer_Desc desc = {};
-    desc.memory_type = RHI_MEMORY_GPU_ONLY;
-    desc.size        = sz;
-    rhi_buffer_init(gfx->device, 
-                    &r->material_buffer.buffer, 
-                    &desc, 
-                    &gfx->material_allocator,
-                    false, 
-                    false);
-
-    RHI_Buffer_View_Desc view_desc = {};
-    view_desc.type = RHI_BUFFER_VIEW_TYPE_RAW;
-    view_desc.size = sz;
-    rhi_buffer_view_init(gfx->device, &r->material_buffer.view, &r->material_buffer.buffer, &view_desc);
-  }
-
   // Tell others the renderer is ready to communicate.
   atomic_store(&r->initted, true);
 }

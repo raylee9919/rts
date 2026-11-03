@@ -333,7 +333,7 @@ upload_atlas_if_dirty()
   Font_System *sys = get_font_system();
   if (sys->atlas_dirty)
   {
-    gfx_texture_update(sys->atlas, 0, 0, get_font_system()->atlas_data, sys->atlas_size*4, sys->atlas_size, sys->atlas_size, sys->atlas_size);
+    gfx_texture_upload(sys->atlas, 0, 0, get_font_system()->atlas_data, sys->atlas_size*4, sys->atlas_size, sys->atlas_size, sys->atlas_size);
     sys->atlas_dirty = false;
   }
 }

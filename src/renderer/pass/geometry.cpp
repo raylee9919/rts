@@ -186,8 +186,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
       c.anisotropic_sampler_id = gfx->anisotropic_sampler.bindless;
       c.camera_buffer_id       = cam.bindless;
       c.camera_offset          = cam.offset;
-      c.material_buffer_id     = renderer->material_buffer.view.bindless;
-      c.material_offset        = material_from_guid(terrain->material_id)->offset;
+      c.material_buffer_id     = material_from_guid(terrain->material_id)->view.bindless;
+      c.material_offset        = 0;
       gfx_push_constants(&c, sizeof(c));
 
 
@@ -253,7 +253,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               memcpy(&arguments.transform, &transform, sizeof(arguments.transform));
 
               // Write material
-              arguments.material_index = material->offset;
+              arguments.material_index = 0;
 
               // Skinning
               GFX_Bump_Result skin = {};
@@ -337,7 +337,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
               c.argument_buffer_id     = arg.bindless;
               c.argument_offset        = arg.offset;
               c.skinning_buffer_id     = skin.bindless;
-              c.material_buffer_id     = renderer->material_buffer.view.bindless;
+              c.material_buffer_id     = material->view.bindless;
               gfx_push_constants(&c, sizeof(c));
 
 

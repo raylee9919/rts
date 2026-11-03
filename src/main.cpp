@@ -35,10 +35,10 @@
    [V] BC, DDS
    [ ] Frame slot obfuscation
    [ ] "GC" old upload pages?
-   [ ] Vertex quantization (with bindless/vertex pulling?)
-   [ ] Resource alloc/release
-   [ ] Deferred pipeline?
    [ ] Transparent material
+   [ ] Vertex Quantization
+   [ ] Meshoptimizer Additional Passes
+   [ ] Compute Skinning -> LSPSM
 
  [Memory]
    - pointer, game storage, and saving games...
@@ -104,7 +104,7 @@ fixed_tick(Game_State *g, f64 dt)
     camera_tick(camera, dt);
   }
 
-  entity_dfs(g, g->root, NULL, [](Game_State *g, Entity *e, u64 index, void *data){
+  entity_dfs(g, g->root, NULL, [](Game_State *g, Entity *e, u64 index, void *data) {
     Handle h = handle_from_entity(g, e);
     f32 u = (f32)h.generational_id;
     e->position.x = m_cos(g->time*m_sin(u))*0.25f*u;
@@ -196,7 +196,7 @@ main_entry(int argc, char **argv)
     my_entity->position.x = ((f32)xorshift32() / (f32)UINT32_MAX - 0.5f) * 64.f;
     my_entity->position.z = terrain_height(game_state, my_entity->position.x, my_entity->position.y); // @Temporary
     my_entity->radius = 16.f;
-    my_entity->tight_box = aabbv_make(-0.52f, -0.25f, -0.01f, 0.52f, 0.28f, 1.6f);
+    my_entity->tight_box = aabbv_make(-0.52f, -0.25f, -0.01f, 0.52f, 0.28f, 1.6f); // @Temporary
     my_entity->loose_box_local = my_entity->tight_box;
     aabbv_expand(&my_entity->loose_box_local, 0.50f);
 
@@ -256,7 +256,6 @@ main_entry(int argc, char **argv)
     // Tick with fixed timestep
     // @Todo: Ditch floating point?
     while (accumulator >= dt) {
-      ProfileScopeN("TickGame");
       accumulator -= dt;
       fixed_tick(game_state, dt);
     }

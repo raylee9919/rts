@@ -67,7 +67,11 @@ struct M_Entry
   Guid type_id; // key into `material_type_table`
   Guid pipeline;
   u64  offset;  // offset into gpu buffer
+  // @Cleanup
+  RHI_Buffer buffer;
+  RHI_Buffer_View view;
   alignas(16) u8 data[MAX_CPU_MATERIAL_SIZE];
+
 };
 
 
@@ -96,11 +100,11 @@ ASSET_LOAD_PROC(material_load_proc);
 
 
 struct Bitmap {
-    RHI_Format      format;
-    void            *data;
-    u64             size;
-    u32             width;
-    u32             height;
+  RHI_Format      format;
+  void            *data;
+  u64             size;
+  u32             width;
+  u32             height;
 };
 
 ASSET_LOAD_PROC(wic_load_proc);

@@ -164,11 +164,6 @@ struct Renderer
   // Registered Passes
   Array<R_Pass*> passes;
 
-  // @Temporary
-  RHI_Allocator material_allocator;
-  Material_Buffer material_buffer;
-  u64 material_buffer_used = 0;
-
   // Mesh table
   Table<Guid, Array<R_Mesh>, hash_guid> mesh_table;
 };

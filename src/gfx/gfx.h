@@ -139,7 +139,6 @@ struct GFX_Edge {
 //
 // Per-frame upload arena
 //
-
 struct GFX_Page {
   RHI_Buffer       buffer;
   RHI_Buffer_View  view;
@@ -303,19 +302,7 @@ struct GFX_State
   RHI_Sampler                             dot_sampler;
   RHI_Sampler                             anisotropic_sampler;
 
-  // @Fix
-  // At the moment, queues are waiting for the upload semaphore 
-  // only once at gfx_end. Proper API and alignment is required.
-  // Seems like command buffer pool is required? Also, this isn't 
-  // thread safe.
-  //         -swl 2026-09-23
-  RHI_Buffer                              upload_buffer;
-  RHI_Semaphore                           upload_semaphore;
-  u64                                     upload_semaphore_value = 1;
-  u8                                     *upload_buffer_mapped;
-  u64                                     upload_buffer_used;
 
-  RHI_Command_Buffer                      copy_buffer; // One copy buffer should be enough. Right? Nope.
   RHI_Command_Buffer                      command_buffers[RHI_MAX_BUFFER_COUNT];
   RHI_Command_Buffer                      compute_buffers[RHI_MAX_BUFFER_COUNT];
 
@@ -397,7 +384,7 @@ void
 gfx_texture_destroy(Guid guid);
 
 void 
-gfx_texture_update(Guid   texture_id,
+gfx_texture_upload(Guid   texture_id,
                    u32    mip_index,  
                    u32    array_index,
                    void  *data, 
@@ -491,11 +478,12 @@ void
 gfx_request_swapchain_resize(u32 width, u32 height);
 
 
+
 void 
 gfx_upload_buffer(RHI_Buffer dst_buffer, 
                   u64        dst_offset, 
                   u64        size,
-                  void      *data,
+                  void      *user_data,
                   void       (*proc)(u8 *ptr, u64 size, void *data));
 
 void 

@@ -356,13 +356,13 @@ void
 gfx_upload_buffer(RHI_Buffer dst_buffer, 
                   u64        dst_offset, 
                   u64        size,
-                  void      *data,
+                  void      *user_data,
                   void       (*proc)(u8 *ptr, u64 size, void *data))
 {
   u8 *ptr = gfx_uploader_acquire_pointer(size, 16);
   u64 src_offset = ptr - gfx->uploader->current_batch->cpu_ptr;
   gfx_uploader_push_copy_buffer_command(gfx->uploader, dst_buffer, dst_offset, src_offset, size);
-  proc(ptr, size, data);
+  proc(ptr, size, user_data);
 }
 
 void 
@@ -403,7 +403,7 @@ gfx_uploader_push_copy_texture_command(GFX_Uploader *uploader,
 }
 
 void 
-gfx_texture_update(Guid   texture_id,
+gfx_texture_upload(Guid   texture_id,
                    u32    mip_index,  
                    u32    array_index,
                    void  *data, 
@@ -474,50 +474,6 @@ gfx_uploader_deinit(GFX_Uploader *uploader)
   rhi_allocator_deinit(&uploader->buffer_allocator);
 }
 
-
-
-
-// @Cleanup: remove this 
-static void 
-gfx_init_uploader(u64 buffer_size) 
-{
-  // @Todo: Shutdown
-  RHI_Buffer_Desc desc = {};
-  desc.memory_type = RHI_MEMORY_UPLOAD;
-  desc.size        = buffer_size;
-
-  R_ASSERT(rhi_buffer_init(gfx->device, 
-                           &gfx->upload_buffer, 
-                           &desc, 
-                           &gfx->upload_buffer_allocator,
-                           false, 
-                           false));
-
-  R_ASSERT(rhi_semaphore_init(gfx->device, &gfx->upload_semaphore));
-  gfx->upload_semaphore_value = 1;
-
-  gfx->upload_buffer_mapped = (u8*)rhi_buffer_map(&gfx->upload_buffer);
-  gfx->upload_buffer_used   = 0;
-}
-
-u64 
-gfx_upload_reserve(u64 size, u64 alignment) 
-{
-  // @Cleanup: wtf?
-  u64 capacity = gfx->upload_buffer.desc.size;
-  R_ASSERT(size <= capacity);
-
-  u64 offset = align_up(gfx->upload_buffer_used, alignment);
-
-  // Out of room. Wait until every copy issued so far is done, then start over.
-  if (offset + size > capacity) {
-    rhi_semaphore_wait(&gfx->upload_semaphore, gfx->upload_semaphore_value - 1, -1);
-    offset = 0;
-  }
-
-  gfx->upload_buffer_used = offset + size;
-  return offset;
-}
 
 static void 
 gfx_reset_per_frame_data() 
@@ -669,11 +625,6 @@ gfx_init(GFX_Info info, u32 num_backbuffers)
     R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->command_buffers[i], RHI_COMMAND_TYPE_GRAPHICS));
     R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->compute_buffers[i], RHI_COMMAND_TYPE_COMPUTE));
   }
-
-  R_ASSERT(rhi_command_buffer_init(gfx->device, &gfx->copy_buffer, RHI_COMMAND_TYPE_TRANSFER));
-
-
-  gfx_init_uploader(Megabytes(128)); // @Temporary
 }
 
 void 
@@ -687,8 +638,6 @@ gfx_shutdown()
     rhi_command_buffer_deinit(&gfx->command_buffers[i]);
     rhi_command_buffer_deinit(&gfx->compute_buffers[i]);
   }
-
-  rhi_command_buffer_deinit(&gfx->copy_buffer);
 
   // @Todo: release resources safely..
 
@@ -1349,14 +1298,6 @@ gfx_end(f64 time,
   if (gfx->monotonic_frame_counter > gfx_backbuffer_count()) {
     rhi_semaphore_wait(&gfx->frame_semaphore, gfx->monotonic_frame_counter - gfx_backbuffer_count(), -1);
   }
-
-
-  // @Cleanup
-  // Wait on resource upload semaphore.
-  u64 value_to_wait = gfx->upload_semaphore_value - 1;
-  rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->upload_semaphore, value_to_wait);
-  rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_COMPUTE,  &gfx->upload_semaphore, value_to_wait);
-  gfx->upload_buffer_used = 0;
 
 
   // Internally, flush the batch and 

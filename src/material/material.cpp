@@ -48,8 +48,11 @@ write_gpu_material(M_TypeInfo *info,
   // can convert and wrtie data to GPU-side buffer.
   auto convert = [](u8 *src, M_FieldType cpu_type, M_FieldType gpu_type) -> u8* {
     u8 *data = src;
-    if (cpu_type == gpu_type) return data;
-    if (cpu_type == MTL_FIELD_GUID) {
+    if (cpu_type == gpu_type)
+      return data;
+
+    if (cpu_type == MTL_FIELD_GUID) 
+    {
       R_ASSERT(gpu_type == MTL_FIELD_TEXTURE);
       data = alloc(4, tctx.temp);
       Guid guid = *(Guid*)src;
@@ -59,7 +62,8 @@ write_gpu_material(M_TypeInfo *info,
     return data;
   };
 
-  for (u32 i = 0; i < info->num_fields; ++i) {
+  for (u32 i = 0; i < info->num_fields; ++i) 
+  {
     M_Field field = info->fields[i];
     u8 *dst = (u8*)gpu_ptr  + field.gpu_offset;
     u8 *src = convert((u8*)material + field.cpu_offset, field.cpu_type, field.gpu_type);
@@ -232,16 +236,27 @@ material_system_shutdown()
   destroy(material_system_allocator);
 }
 
-// @Todo: Entities can share a material, thus we can't 
-// blindly alloc/dealloc material.
+// @Cleanup
 M_Entry *
-alloc_material(Guid id) 
+alloc_material(Guid id, u64 gpu_size) 
 {
   M_Entry *entry = table_add(&material_table, id, {});
+  {
+    RHI_Buffer_Desc desc = {};
+    desc.memory_type = RHI_MEMORY_GPU_ONLY;
+    desc.size = gpu_size;
+    rhi_buffer_init(gfx->device, &entry->buffer, &desc, &gfx->material_allocator, false, false);
+  }
+  {
+    RHI_Buffer_View_Desc desc = {};
+    desc.type = RHI_BUFFER_VIEW_TYPE_RAW;
+    desc.size = gpu_size;
+    rhi_buffer_view_init(gfx->device, &entry->view, &entry->buffer, &desc);
+  }
   return entry;
 }
 
-// @Todo: This as well.
+// @Cleanup
 void 
 free_material(Guid id) 
 {
@@ -262,8 +277,6 @@ material_from_guid(Guid id)
   }
 }
 
-// @Todo: If material is *static*, we just need one material allocated.
-// If it is *dynamic*, we need it per owner.
 void 
 upload_material(Guid id) 
 {
@@ -273,22 +286,17 @@ upload_material(Guid id)
   M_TypeInfo *type_info = table_find_pointer(&material_type_table, entry->type_id);
   u64 gpu_size = type_info->gpu_size;
 
-  { // @Temporary
-    u64 upload_offset = gfx_upload_reserve(gpu_size, 16);
-    u8 *ptr = gfx->upload_buffer_mapped + upload_offset;
-    write_gpu_material(type_info, ptr, entry->data);
+  struct param_t {
+    u8 *cpu_data;
+    M_TypeInfo *type_info;
+  } param;
+  param.cpu_data = entry->data;
+  param.type_info = type_info;
 
-    rhi_command_buffer_begin(&gfx->copy_buffer);
-    {
-      rhi_cmd_copy_buffer_to_buffer(&gfx->copy_buffer, &renderer->material_buffer.buffer, &gfx->upload_buffer, renderer->material_buffer_used, upload_offset, gpu_size);
-      entry->offset = renderer->material_buffer_used;
-      renderer->material_buffer_used += gpu_size;
-    }
-    rhi_command_buffer_end(&gfx->copy_buffer);
-    RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-    rhi_submit(gfx->device, 1, buffers);
-    rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
-  }
+  gfx_upload_buffer(entry->buffer, 0, gpu_size, &param, [](u8 *mapped_ptr, u64 size, void *user_data) {
+    param_t *param = (param_t*)user_data;
+    write_gpu_material(param->type_info, mapped_ptr, param->cpu_data);
+  });
 }
 
 ASSET_LOAD_PROC(material_load_proc)
@@ -316,7 +324,7 @@ ASSET_LOAD_PROC(material_load_proc)
   }
 
   /* Material entry to fill in */
-  M_Entry *material = alloc_material(id);
+  M_Entry *material = alloc_material(id, type_info->gpu_size);
   material->type_id = type_id;
 
   auto parse_key_val = [&](Asset_Lexer *lexer) {
@@ -430,7 +438,6 @@ bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit)
 static Bitmap 
 bitmap_import(void *loaded_data, u64 size) 
 {
-  stbi_set_flip_vertically_on_load(0);
   Bitmap result = {};
 
   u8 *data = (u8*)loaded_data;
@@ -490,7 +497,7 @@ ASSET_LOAD_PROC(wic_load_proc)
     desc.depth          = 1;
   }
   gfx_texture_create(id, desc, false);
-  gfx_texture_update(id, 0, 0, bitmap.data, (u32)(bitmap.size / bitmap.height), bitmap.height, bitmap.width, bitmap.height);
+  gfx_texture_upload(id, 0, 0, bitmap.data, (u32)(bitmap.size / bitmap.height), bitmap.height, bitmap.width, bitmap.height);
 
   bitmap_free(&bitmap);
 }
@@ -570,7 +577,7 @@ ASSET_LOAD_PROC(dds_load_proc)
       u32 row_pitch = (u32)image->rowPitch;
       u32 num_rows  = (u32)(image->slicePitch / image->rowPitch);
 
-      gfx_texture_update(id, mip_index, array_index, 
+      gfx_texture_upload(id, mip_index, array_index, 
                          image->pixels, row_pitch, num_rows, 
                          (u32)image->width, (u32)image->height);
     }
