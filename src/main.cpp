@@ -32,13 +32,13 @@
  [GFX/Renderer]
    [V] Per-frame buffer
    [V] Uploader
+   [V] BC, DDS
+   [ ] Frame slot obfuscation
    [ ] "GC" old upload pages?
    [ ] Vertex quantization (with bindless/vertex pulling?)
    [ ] Resource alloc/release
-   [ ] BC Texture upload/conversion
    [ ] Deferred pipeline?
    [ ] Transparent material
-   [ ] Frame slot obfuscation
 
  [Memory]
    - pointer, game storage, and saving games...
@@ -183,7 +183,7 @@ main_entry(int argc, char **argv)
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
 
-  for (s32 i = 0; i < 256; ++i) 
+  for (s32 i = 0; i < 32; ++i) 
   {
     Entity *my_entity = entity_alloc(game_state);
     my_entity->mesh = mesh_id;

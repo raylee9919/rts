@@ -342,7 +342,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
 
               // @Temporary
-              if (1) 
+              if (0) 
               {
                 m4x4 mvp = data->camera->view_proj * transform;
                 vec3 lo = *((vec3*)&E->tight_box.lo);

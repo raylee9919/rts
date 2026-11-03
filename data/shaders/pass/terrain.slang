@@ -52,7 +52,7 @@ VS_Output main_vs(uint vertex_id : SV_VertexID)
 
 // @Temporary: single directional light
 static const float3 TO_LIGHT        = normalize(float3(0.5, -0.5, 1.0));
-static const float3 LIGHT_RADIANCE  = float3(1.0, 1.0, 1.0) * 4.0;
+static const float3 LIGHT_RADIANCE  = float3(1.0, 1.0, 1.0) * 5.0;
 static const float3 SKY_LIGHT       = float3(0.55, 0.62, 0.75) * 0.6;
 
 [shader("pixel")]

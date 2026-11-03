@@ -3,6 +3,6 @@
 @"shaders/material/default.slang"
 
 albedo_id : @"./Armor_BaseColor.dds"
-roughness_id : @"./Armor_Roughness.png"
-metallic_id : @"./Armor_Metalness.png"
+roughness_id : @"./Armor_Roughness.dds"
+metallic_id : @"./Armor_Metalness.dds"
 normal_id : @"./Armor_Normal.dds"

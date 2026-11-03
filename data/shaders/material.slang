@@ -62,7 +62,7 @@ public float3 brdf_cook_torrance(float3 n, float3 wi, float3 wo, float3 albedo, 
     float3 f  = schlick_fresnel(f0, max(0.0, dot(h, wi)));
     float3 kd = (1.0 - f) * (1.0 - metallic);
 
-    float3 diffuse_brdf  = kd * albedo;
+    float3 diffuse_brdf  = kd * albedo / 3.141592;
     float3 specular_brdf = (f * ndf_ggx(ndoth, roughness) * schlick_ggx(ndoti, ndoto, roughness)) / max(4.0 * ndoti * ndoto, 0.001);
 
     return (diffuse_brdf + specular_brdf) * ndoti;

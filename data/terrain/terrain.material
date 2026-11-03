@@ -3,6 +3,6 @@
 @"shaders/material/default.slang"
 
 albedo_id : @"./wispy-grass-meadow_albedo.dds"
-roughness_id : @"./wispy-grass-meadow_roughness.png"
-metallic_id : @"./wispy-grass-meadow_metallic.png"
+roughness_id : @"./wispy-grass-meadow_roughness.dds"
+metallic_id : @"./wispy-grass-meadow_metallic.dds"
 normal_id : @"./wispy-grass-meadow_normal.dds"
