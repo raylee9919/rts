@@ -223,7 +223,7 @@ alloc_batch_(GFX_Uploader *uploader, u64 size)
     desc.memory_type = RHI_MEMORY_UPLOAD;
     desc.size        = align_up(max(size, MINIMUM_SIZE), Kilobytes(4));
 
-    rhi_buffer_init(gfx->device, &batch->src_buffer, &desc, &gfx->upload_buffer_allocator, false, false);
+    rhi_buffer_init(gfx->device, &batch->src_buffer, &desc, &uploader->buffer_allocator, false, false);
 
     batch->used = 0;
     batch->cpu_ptr = (u8*)rhi_buffer_map(&batch->src_buffer);
@@ -240,8 +240,7 @@ gfx_uploader_flush(GFX_Uploader *uploader)
   if (!uploader->current_batch)
     return;
 
-  if (uploader->commands.count == 0)
-    return;
+  R_ASSERT(uploader->commands.count > 0, "There's no upload command to execute!");
 
   auto *batch = uploader->current_batch;
 
@@ -249,12 +248,30 @@ gfx_uploader_flush(GFX_Uploader *uploader)
   rhi_command_buffer_begin(&batch->command_buffer);
   for (auto cmd : uploader->commands) 
   {
-    rhi_cmd_copy_buffer_to_buffer(&batch->command_buffer, 
-                                  &cmd.dst_buffer, 
-                                  &batch->src_buffer, 
-                                  cmd.dst_offset,
-                                  cmd.src_offset, 
-                                  cmd.size);
+    if (cmd.type == GFX_UPLOAD_BUFFER)
+    {
+      rhi_cmd_copy_buffer_to_buffer(&batch->command_buffer, 
+                                    &cmd.buffer.dst, 
+                                    &batch->src_buffer, 
+                                    cmd.buffer.dst_offset,
+                                    cmd.buffer.src_offset, 
+                                    cmd.buffer.size);
+    }
+    else if (cmd.type == GFX_UPLOAD_TEXTURE)
+    {
+      rhi_cmd_copy_buffer_to_texture(&batch->command_buffer, 
+                                     &batch->src_buffer, 
+                                     cmd.texture.src_offset, 
+                                     cmd.texture.src_pitch, 
+                                     &cmd.texture.dst,
+                                     &cmd.texture.box, 
+                                     cmd.texture.mip_index, 
+                                     cmd.texture.array_index);
+    }
+    else
+    {
+      R_ASSERT(false, "Invalid gfx upload command type.");
+    }
   }
   rhi_command_buffer_end(&batch->command_buffer);
 
@@ -282,10 +299,7 @@ gfx_uploader_flush(GFX_Uploader *uploader)
 }
 
 static u8 *
-gfx_uploader_acquire_pointer(u64        size, 
-                             u64        alignment, 
-                             RHI_Buffer dst_buffer, 
-                             u64        dst_offset) 
+gfx_uploader_acquire_pointer(u64 size, u64 alignment) 
 {
   GFX_Uploader *uploader = gfx->uploader;
 
@@ -305,27 +319,37 @@ gfx_uploader_acquire_pointer(u64        size,
 
   uploader->current_batch = batch;
 
-  append(&uploader->commands, {});
-  GFX_Upload_Command *cmd = &uploader->commands.data[uploader->commands.count - 1];
-  cmd->dst_buffer = dst_buffer;
-  cmd->dst_offset = dst_offset;
-  cmd->src_offset = aligned;
-  cmd->size       = size;
-
-  batch->used += (aligned + size - batch->used);
+  batch->used = aligned + size;
 
   return batch->cpu_ptr + aligned;
 }
 
 static void 
-gfx_uploader_end(GFX_Uploader *uploader, RHI_Command_Type command_type)
+gfx_uploader_end(GFX_Uploader *uploader)
 {
   gfx_uploader_flush(uploader);
   u64 last_issued = uploader->next_semaphore_value - 1;
   if (rhi_semaphore_completed_value(&uploader->semaphore) < last_issued) 
   {
-    rhi_queue_wait(gfx->device, command_type, &uploader->semaphore, last_issued);
+    rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &uploader->semaphore, last_issued);
+    rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &uploader->semaphore, last_issued);
   }
+}
+
+static void 
+gfx_uploader_push_copy_buffer_command(GFX_Uploader *uploader, 
+                                      RHI_Buffer    dst_buffer, 
+                                      u64           dst_offset, 
+                                      u64           src_offset,
+                                      u64           size)
+{
+  append(&uploader->commands, {});
+  GFX_Upload_Command *cmd = &uploader->commands.data[uploader->commands.count - 1];
+  cmd->type              = GFX_UPLOAD_BUFFER;
+  cmd->buffer.dst        = dst_buffer;
+  cmd->buffer.dst_offset = dst_offset;
+  cmd->buffer.src_offset = src_offset;
+  cmd->buffer.size       = size;
 }
 
 void 
@@ -335,7 +359,9 @@ gfx_upload_buffer(RHI_Buffer dst_buffer,
                   void      *data,
                   void       (*proc)(u8 *ptr, u64 size, void *data))
 {
-  u8 *ptr = gfx_uploader_acquire_pointer(size, 16, dst_buffer, dst_offset);
+  u8 *ptr = gfx_uploader_acquire_pointer(size, 16);
+  u64 src_offset = ptr - gfx->uploader->current_batch->cpu_ptr;
+  gfx_uploader_push_copy_buffer_command(gfx->uploader, dst_buffer, dst_offset, src_offset, size);
   proc(ptr, size, data);
 }
 
@@ -345,8 +371,72 @@ gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer,
                          u64        size,
                          void      *data)
 {
-  u8 *ptr = gfx_uploader_acquire_pointer(size, 16, dst_buffer, dst_offset);
-  memcpy(ptr, data, size);
+  gfx_upload_buffer(dst_buffer, dst_offset, size,data,
+                    [](u8 *ptr, u64 size, void *data) { memcpy(ptr, data, size); });
+}
+
+static void 
+gfx_uploader_push_copy_texture_command(GFX_Uploader *uploader, 
+                                       RHI_Texture   dst_texture, 
+                                       u32           src_offset,
+                                       u32           src_pitch,
+                                       u32           mip_index, 
+                                       u32           array_index, 
+                                       u32           width, 
+                                       u32           height, 
+                                       u32           depth)
+{
+  append(&uploader->commands, {});
+  GFX_Upload_Command *cmd = &uploader->commands.data[uploader->commands.count - 1];
+  cmd->type                = GFX_UPLOAD_TEXTURE;
+  cmd->texture.dst         = dst_texture;
+  cmd->texture.src_offset  = src_offset;
+  cmd->texture.src_pitch   = src_pitch;
+  cmd->texture.mip_index   = mip_index; 
+  cmd->texture.array_index = array_index;
+  cmd->texture.box.x       = 0;
+  cmd->texture.box.y       = 0;
+  cmd->texture.box.z       = 0;
+  cmd->texture.box.width   = width;
+  cmd->texture.box.height  = height;
+  cmd->texture.box.depth   = depth;
+}
+
+void 
+gfx_texture_update(Guid   texture_id,
+                   u32    mip_index,  
+                   u32    array_index,
+                   void  *data, 
+                   u32    row_pitch, 
+                   u32    row_count, 
+                   u32    width, 
+                   u32    height)
+{
+  GFX_Texture_Entry *tex = table_find_pointer(&gfx->texture_table, texture_id);
+  if (tex)
+  {
+    // @Todo: alignments are hard-coded atm while they are API-dependent.
+    u32 aligned_pitch = align_up(row_pitch, 256);
+    u64 size          = (u64)aligned_pitch * row_count;
+    u8 *ptr           = gfx_uploader_acquire_pointer(size, 512);
+    u64 src_offset    = ptr - gfx->uploader->current_batch->cpu_ptr;
+
+    u8 *src = (u8*)data;
+    for (u32 r = 0; r < row_count; ++r) 
+      memcpy(ptr + (u64)r * aligned_pitch, src + (u64)r * row_pitch, row_pitch);
+
+    u32 depth = 1;
+    gfx_uploader_push_copy_texture_command(gfx->uploader, 
+                                           tex->texture,
+                                           src_offset, 
+                                           aligned_pitch, 
+                                           mip_index, array_index, 
+                                           width, height, depth);
+  }
+  else
+  {
+    log_warning(S("Texture is not found in the table."));
+  }
 }
 
 static void 
@@ -792,46 +882,6 @@ gfx_texture_destroy(Guid guid)
     rhi_texture_deinit(&entry->texture);
     table_remove(&gfx->texture_table, guid);
   }
-}
-
-void 
-gfx_texture_upload(Guid        guid, 
-                   RHI_Format  format, 
-                   void       *data, 
-                   u32         size, 
-                   u32         width, 
-                   u32         height) 
-{
-  GFX_Texture_Entry *tex = table_find_pointer(&gfx->texture_table, guid);
-  R_ASSERT(tex);
-
-  u32 pitch = size / height;
-  u32 aligned_pitch = align_up(pitch, 256);
-  u64 total = height * aligned_pitch;
-
-  u64 offset = gfx_upload_reserve(total, 512); // @Temporary: FUCKING HATE ALIGNMENT
-  u8 *dst = gfx->upload_buffer_mapped + offset;
-  u8 *src = (u8 *)data;
-
-  for (u32 r = 0; r < height; ++r) {
-    memcpy(dst, src, pitch);
-    dst += aligned_pitch;
-    src += pitch;
-  }
-
-  RHI_Box box = {};
-  box.width  = width;
-  box.height = height;
-  box.depth  = 1;
-
-  rhi_command_buffer_begin(&gfx->copy_buffer);
-  {
-    rhi_cmd_copy_buffer_to_texture(&gfx->copy_buffer, &gfx->upload_buffer, offset, aligned_pitch, &tex->texture, &box, 0, 0);
-  }
-  rhi_command_buffer_end(&gfx->copy_buffer);
-  RHI_Command_Buffer *buffers[] = {&gfx->copy_buffer};
-  rhi_submit(gfx->device, 1, buffers);
-  rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &gfx->upload_semaphore, gfx->upload_semaphore_value++);
 }
 
 RHI_Texture_View *
@@ -1311,7 +1361,7 @@ gfx_end(f64 time,
 
   // Internally, flush the batch and 
   // make the graphics queue wait on the semaphore.
-  gfx_uploader_end(gfx->uploader, RHI_COMMAND_TYPE_GRAPHICS);
+  gfx_uploader_end(gfx->uploader);
 
 
   // Sort frame graph dependencies

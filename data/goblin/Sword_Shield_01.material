@@ -2,7 +2,7 @@
 
 @"shaders/material/default.slang"
   
-albedo_id    : @"./Sword_Shield_BaseColor.png"
+albedo_id    : @"./Sword_Shield_BaseColor.dds"
 roughness_id : @"./Sword_Shield_Roughness.png"
 metallic_id  : @"./Sword_Shield_Metalness.png"
-normal_id    : @"./Sword_Shield_Normal.png"
+normal_id    : @"./Sword_Shield_Normal.dds"

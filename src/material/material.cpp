@@ -430,7 +430,7 @@ bitmap_compute_format(int num_channels, b32 is_hdr, b32 is_16_bit)
 static Bitmap 
 bitmap_import(void *loaded_data, u64 size) 
 {
-  stbi_set_flip_vertically_on_load(1);
+  stbi_set_flip_vertically_on_load(0);
   Bitmap result = {};
 
   u8 *data = (u8*)loaded_data;
@@ -490,7 +490,7 @@ ASSET_LOAD_PROC(wic_load_proc)
     desc.depth          = 1;
   }
   gfx_texture_create(id, desc, false);
-  gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
+  gfx_texture_update(id, 0, 0, bitmap.data, (u32)(bitmap.size / bitmap.height), bitmap.height, bitmap.width, bitmap.height);
 
   bitmap_free(&bitmap);
 }
@@ -507,9 +507,9 @@ ASSET_LOAD_PROC(dds_load_proc)
   String contents = read_entire_file(path, tctx.temp);
 
   TexMetadata meta;
-  ScratchImage image;
+  ScratchImage scratch_image;
 
-  if (FAILED(LoadFromDDSMemory(contents.str, contents.len, DDS_FLAGS_NONE, &meta, image)))
+  if (FAILED(LoadFromDDSMemory(contents.str, contents.len, DDS_FLAGS_NONE, &meta, scratch_image)))
   {
     log_error(S("Failed to load '%S' from memory"), path);
     return;
@@ -560,6 +560,19 @@ ASSET_LOAD_PROC(dds_load_proc)
 
   gfx_texture_create(id, desc, false);
 
-  // @Todo
-  // gfx_texture_upload();
+  for (u32 array_index = 0; array_index < (u32)meta.arraySize; ++array_index)
+  {
+    for (u32 mip_index = 0; mip_index < (u32)meta.mipLevels; ++mip_index)
+    {
+      size_t slice = 0;
+      const Image *image = scratch_image.GetImage(mip_index, array_index, slice);
+
+      u32 row_pitch = (u32)image->rowPitch;
+      u32 num_rows  = (u32)(image->slicePitch / image->rowPitch);
+
+      gfx_texture_update(id, mip_index, array_index, 
+                         image->pixels, row_pitch, num_rows, 
+                         (u32)image->width, (u32)image->height);
+    }
+  }
 }

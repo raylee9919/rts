@@ -428,6 +428,7 @@ import_mesh_internal(ufbx_node*                               node,
           // generated even if it doesn't exist. 
           // @Todo: use xatlas or something and generate uv
           vec2 uv = has_uv ? to_vec2(ufbx_get_vertex_vec2(&mesh->vertex_uv, index)) : vec2{};
+          uv.y = 1.f - uv.y; // flip
           append(&uvs, uv);
 
           // Normal

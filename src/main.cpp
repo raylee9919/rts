@@ -178,7 +178,8 @@ main_entry(int argc, char **argv)
   FBX_Import_Options options = {};
   options.generate_normals_with_mesh_optimizer = true;
   options.overwrite_existing_file = true;
-  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Mixamo/OrcWalk.fbx"), S(""), options) );
+  // R_ASSERT( fbx_import(S("C:/Arts/Goblin/Mixamo/OrcWalk.fbx"), S(""), options) );
+  R_ASSERT( fbx_import(S("C:/Arts/Goblin/Export/Goblin.fbx"), S(""), options) );
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
 

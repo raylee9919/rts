@@ -204,12 +204,31 @@ struct GFX_Upload_Batch
   u64                semaphore_value; 
 };
 
+enum GFX_Upload_Type : u8 {
+  GFX_UPLOAD_INVALID = 0,
+  GFX_UPLOAD_BUFFER  = 1, // Copy to buffer  from upload buffer
+  GFX_UPLOAD_TEXTURE = 2  // Copy to texture from upload buffer
+};
+
 struct GFX_Upload_Command
 {
-  RHI_Buffer  dst_buffer;
-  u32         dst_offset;
-  u32         src_offset;
-  u32         size;
+  GFX_Upload_Type type;
+  union {
+    struct {
+      RHI_Buffer  dst;
+      u32         dst_offset;
+      u32         src_offset;
+      u32         size;
+    } buffer;
+    struct {
+      RHI_Texture dst;
+      u32         src_offset;
+      u32         src_pitch;
+      RHI_Box     box;
+      u32         mip_index; 
+      u32         array_index; // aka, layer
+    } texture;
+  };
 };
 
 struct GFX_Uploader
@@ -378,12 +397,14 @@ void
 gfx_texture_destroy(Guid guid);
 
 void 
-gfx_texture_upload(Guid        guid, 
-                   RHI_Format  format, 
-                   void       *data, 
-                   u32         size, 
-                   u32         width, 
-                   u32         height);
+gfx_texture_update(Guid   texture_id,
+                   u32    mip_index,  
+                   u32    array_index,
+                   void  *data, 
+                   u32    row_pitch, 
+                   u32    row_count, 
+                   u32    width, 
+                   u32    height);
 
 // Get SRV from texture GUID. Returns NULL if texture doesn't exist or SRV wasn't created.
 RHI_Texture_View *
@@ -482,5 +503,4 @@ gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer,
                          u64        dst_offset, 
                          u64        size,
                          void      *data);
-
 #endif // RTS_GFX_H

@@ -27,7 +27,13 @@ struct M_Default : IMaterial
 
         if ( albedo_id != GFX_INVALID_BINDLESS ) {
             Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(albedo_id)];
-            albedo = linear_from_sRGB( t.Sample(anisotropic_sampler, input.uv).rgb );
+            albedo = t.Sample(anisotropic_sampler, input.uv).rgb;
+        }
+
+        if ( normal_id != GFX_INVALID_BINDLESS ) {
+            Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(normal_id)];
+            float2 xy = t.Sample(anisotropic_sampler, input.uv).rg * 2.0 - 1.0;
+            n = float3(xy, sqrt(saturate(1.0 - dot(xy, xy))));
         }
         
         if ( roughness_id != GFX_INVALID_BINDLESS ) {
@@ -38,11 +44,6 @@ struct M_Default : IMaterial
         if ( metallic_id != GFX_INVALID_BINDLESS ) {
             Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(metallic_id)];
             metallic = t.Sample(anisotropic_sampler, input.uv).r;
-        }
-
-        if ( normal_id != GFX_INVALID_BINDLESS ) {
-            Texture2D<float4> t = ResourceDescriptorHeap[NonUniformResourceIndex(normal_id)];
-            n = t.Sample(anisotropic_sampler, input.uv).rgb * 2.0 - 1.0;
         }
 
         // Tangent space to world
