@@ -132,7 +132,7 @@ bool rhi_surface_init(RHI_Device       *device,
   if (desc->num_back_buffers < RHI_MIN_BUFFER_COUNT || 
       desc->num_back_buffers > RHI_MAX_BUFFER_COUNT) 
   {
-    log(LOG_ERROR, S("Number of backbuffers must be an integer between [%d, %d]."), RHI_MIN_BUFFER_COUNT, RHI_MAX_BUFFER_COUNT);
+    log_error(S("Number of backbuffers must be an integer between [%d, %d]."), RHI_MIN_BUFFER_COUNT, RHI_MAX_BUFFER_COUNT);
     return false;
   }
 
@@ -747,6 +747,94 @@ rhi_is_bc_format(RHI_Format format)
   }
 }
 
+RHI_Format 
+rhi_format_from_dxgi(DXGI_FORMAT format)
+{
+  switch (format) {
+    case DXGI_FORMAT_UNKNOWN:
+      return RHI_FORMAT_UNKNOWN;
+
+    case DXGI_FORMAT_R8_UNORM:
+      return RHI_FORMAT_R8_UNORM;
+
+    case DXGI_FORMAT_R8G8_UNORM:
+      return RHI_FORMAT_RG8_UNORM;
+
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+      return RHI_FORMAT_RGBA8_UNORM;
+
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+      return RHI_FORMAT_BGRA8_UNORM;
+
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+      return RHI_FORMAT_RGBA8_UNORM_SRGB;
+
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+      return RHI_FORMAT_BGRA8_UNORM_SRGB;
+
+    case DXGI_FORMAT_R16_UNORM:
+      return RHI_FORMAT_R16_UNORM;
+
+    case DXGI_FORMAT_R16G16_UNORM:
+      return RHI_FORMAT_RG16_UNORM;
+
+    case DXGI_FORMAT_R16G16B16A16_UNORM:
+      return RHI_FORMAT_RGBA16_UNORM;
+
+    case DXGI_FORMAT_R16_FLOAT:
+      return RHI_FORMAT_R16F;
+
+    case DXGI_FORMAT_R16G16_FLOAT:
+      return RHI_FORMAT_RG16F;
+
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+      return RHI_FORMAT_RGBA16F;
+
+    case DXGI_FORMAT_R32_FLOAT:
+      return RHI_FORMAT_R32F;
+
+    case DXGI_FORMAT_R32G32_FLOAT:
+      return RHI_FORMAT_RG32F;
+
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+      return RHI_FORMAT_RGBA32F;
+
+    case DXGI_FORMAT_D32_FLOAT:
+      return RHI_FORMAT_D32F;
+
+    case DXGI_FORMAT_BC1_UNORM:
+      return RHI_FORMAT_BC1_UNORM;
+
+    case DXGI_FORMAT_BC1_UNORM_SRGB:
+      return RHI_FORMAT_BC1_UNORM_SRGB;
+
+    case DXGI_FORMAT_BC3_UNORM:
+      return RHI_FORMAT_BC3_UNORM;
+
+    case DXGI_FORMAT_BC3_UNORM_SRGB:
+      return RHI_FORMAT_BC3_UNORM_SRGB;
+
+    case DXGI_FORMAT_BC4_UNORM:
+      return RHI_FORMAT_BC4_UNORM;
+
+    case DXGI_FORMAT_BC5_UNORM:
+      return RHI_FORMAT_BC5_UNORM;
+
+    case DXGI_FORMAT_BC6H_UF16:
+      return RHI_FORMAT_BC6H_UFLOAT;
+
+    case DXGI_FORMAT_BC7_UNORM:
+      return RHI_FORMAT_BC7_UNORM;
+
+    case DXGI_FORMAT_BC7_UNORM_SRGB:
+      return RHI_FORMAT_BC7_UNORM_SRGB;
+
+    default:
+      R_ASSERT(!"Unknown D3D12 texture format.");
+      return RHI_FORMAT_UNKNOWN;
+  }
+}
+
 
 //
 // Allocator
@@ -783,3 +871,4 @@ rhi_allocator_deinit(RHI_Allocator *allocator)
       R_ASSERT(0);
   }
 }
+

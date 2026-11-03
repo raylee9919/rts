@@ -18,6 +18,9 @@
 #include "third_party/stb/stb_image_write.h"
 
 
+#include "third_party/directxtex/DirectXTex/DirectXTex.h"
+
+
 
 //
 // Material System
@@ -470,7 +473,7 @@ bitmap_free(Bitmap *bitmap)
   stbi_image_free(bitmap->data);
 }
 
-ASSET_LOAD_PROC(image_load_proc)
+ASSET_LOAD_PROC(wic_load_proc)
 {
   String path     = asset_name_from_guid(id);
   String contents = read_entire_file(path, tctx.temp);
@@ -490,4 +493,73 @@ ASSET_LOAD_PROC(image_load_proc)
   gfx_texture_upload(id, desc.format, bitmap.data, bitmap.size, bitmap.width, bitmap.height);
 
   bitmap_free(&bitmap);
+}
+
+
+//
+// DDS
+//
+ASSET_LOAD_PROC(dds_load_proc)
+{
+  using namespace DirectX;
+
+  String path     = asset_name_from_guid(id);
+  String contents = read_entire_file(path, tctx.temp);
+
+  TexMetadata meta;
+  ScratchImage image;
+
+  if (FAILED(LoadFromDDSMemory(contents.str, contents.len, DDS_FLAGS_NONE, &meta, image)))
+  {
+    log_error(S("Failed to load '%S' from memory"), path);
+    return;
+  }
+
+  // @Temporary: 1D, 3D, Cube Array aren't supported.
+  if (meta.dimension != TEX_DIMENSION_TEXTURE2D)
+  {
+    log_error(S("'%S': only 2D/array/cube DDS is supported at the moment."), path);
+    return;
+  }
+
+  if (meta.IsCubemap() && meta.arraySize != 6)
+  {
+    log_error(S("'%S': Cube array isn't supported."), path);
+    return;
+  }
+
+  RHI_Texture_Type type;
+  if (meta.IsCubemap())
+  {
+    type = RHI_TEXTURE_TYPE_CUBE;
+  }
+  else if (meta.arraySize > 1)
+  {
+    type = RHI_TEXTURE_TYPE_2D_ARRAY;
+  }
+  else
+  {
+    type = RHI_TEXTURE_TYPE_2D;
+  }
+
+  RHI_Format format = rhi_format_from_dxgi(meta.format);
+  if (format == RHI_FORMAT_UNKNOWN)
+  {
+    log_error(S("'%S': unsupported DXGI format %u."), path, (u32)meta.format);
+    return;
+  }
+
+  RHI_Texture_Desc desc = {};
+  desc.type       = type;
+  desc.format     = format;
+  desc.usage      = RHI_TEXTURE_USAGE_SAMPLED;
+  desc.width      = (u32)meta.width;
+  desc.height     = (u32)meta.height;
+  desc.mip_levels = (u32)meta.mipLevels;
+  desc.depth      = (u32)meta.arraySize;
+
+  gfx_texture_create(id, desc, false);
+
+  // @Todo
+  // gfx_texture_upload();
 }

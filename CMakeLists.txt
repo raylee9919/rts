@@ -79,6 +79,22 @@ if (RTS_PROFILE)
 endif()
 target_link_libraries(rts_third_party PUBLIC rts_options)
 
+set(rts_dxtex_dir "${CMAKE_SOURCE_DIR}/src/third_party/directxtex/DirectXTex")
+set(rts_dxtex_sources
+    ${rts_dxtex_dir}/DirectXTexDDS.cpp
+    ${rts_dxtex_dir}/DirectXTexImage.cpp
+    ${rts_dxtex_dir}/DirectXTexUtil.cpp
+    ${rts_dxtex_dir}/DirectXTexConvert.cpp
+    ${rts_dxtex_dir}/DirectXTexMipmaps.cpp
+    ${rts_dxtex_dir}/DirectXTexCompress.cpp
+    ${rts_dxtex_dir}/BC.cpp
+    ${rts_dxtex_dir}/BC4BC5.cpp
+    ${rts_dxtex_dir}/BC6HBC7.cpp
+)
+target_sources(rts_third_party PRIVATE ${rts_dxtex_sources})
+set_source_files_properties(${rts_dxtex_sources} PROPERTIES COMPILE_OPTIONS "/EHsc")
+target_link_libraries(rts_third_party PUBLIC ole32 windowscodecs)
+
 
 add_library(rts_engine STATIC
     src/basic/allocator.cpp
@@ -148,6 +164,12 @@ add_library(rts_engine STATIC
     src/third_party/meshoptimizer/tangentspace.cpp
     src/third_party/meshoptimizer/indexgenerator.cpp
 )
+
+set_source_files_properties(src/asset/dds.cpp PROPERTIES
+    COMPILE_OPTIONS "/EHsc"
+    SKIP_PRECOMPILE_HEADERS ON)
+
+
 target_link_libraries(rts_engine
     PUBLIC  rts_options rts_third_party "${CMAKE_SOURCE_DIR}/src/third_party/slang/lib/slang.lib"
     PRIVATE rts_warnings

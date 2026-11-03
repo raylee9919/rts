@@ -349,13 +349,6 @@ gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer,
   memcpy(ptr, data, size);
 }
 
-void
-gfx_upload_texture(RHI_Texture dst_texture)
-{
-  u8 *ptr = acquire_pointer();
-}
-
-
 static void 
 gfx_uploader_init(GFX_Uploader *uploader, 
                   Allocator     allocator) 
@@ -1040,7 +1033,7 @@ gfx_draw(Guid mesh_id,
   } 
   else if (gfx->info.debug) 
   {
-    log(LOG_WARNING, S("Draw attempted with an unregistered mesh."));
+    log_warning(S("Draw attempted with an unregistered mesh."));
   }
 }
 

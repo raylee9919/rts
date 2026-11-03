@@ -619,6 +619,9 @@ rhi_cmd_push_constants(RHI_Command_Buffer *cmd_buffer,
 b32  
 rhi_is_bc_format(RHI_Format format);
 
+RHI_Format 
+rhi_format_from_dxgi(DXGI_FORMAT format);
+
 
 //
 // Allocator

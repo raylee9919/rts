@@ -33,18 +33,18 @@ enum Log_Level : u8 {
     LOG_FATAL,
 };
 
-#define log(level, fmt, ...) \
+#define R_LOG(level, fmt, ...) \
     _log_internal(level, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__)
 void _log_internal(Log_Level level, String msg, String file, int line, bool just_print = false);
 
 #define print(fmt, ...) _log_internal(LOG_INFO, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__, true)
 
-#define log_trace(fmt, ...)     log(LOG_TRACE,   fmt, ##__VA_ARGS__)
-#define log_debug(fmt, ...)     log(LOG_DEBUG,   fmt, ##__VA_ARGS__)
-#define log_info(fmt, ...)      log(LOG_INFO,    fmt, ##__VA_ARGS__)
-#define log_warning(fmt, ...)   log(LOG_WARNING, fmt, ##__VA_ARGS__)
-#define log_error(fmt, ...)     log(LOG_ERROR,   fmt, ##__VA_ARGS__)
-#define log_fatal(fmt, ...)     log(LOG_FATAL,   fmt, ##__VA_ARGS__)
+#define log_trace(fmt, ...)     R_LOG(LOG_TRACE,   fmt, ##__VA_ARGS__)
+#define log_debug(fmt, ...)     R_LOG(LOG_DEBUG,   fmt, ##__VA_ARGS__)
+#define log_info(fmt, ...)      R_LOG(LOG_INFO,    fmt, ##__VA_ARGS__)
+#define log_warning(fmt, ...)   R_LOG(LOG_WARNING, fmt, ##__VA_ARGS__)
+#define log_error(fmt, ...)     R_LOG(LOG_ERROR,   fmt, ##__VA_ARGS__)
+#define log_fatal(fmt, ...)     R_LOG(LOG_FATAL,   fmt, ##__VA_ARGS__)
 
 
 #endif // RTS_LOG_H

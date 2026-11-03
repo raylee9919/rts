@@ -176,7 +176,7 @@ d3d12_log_message(D3D12_MESSAGE_SEVERITY severity,
       break;
   }
 
-  log(level, S("%S: %s"), s, description);
+  R_LOG(level, S("%S: %s"), s, description);
 }
 
 static void 
@@ -980,94 +980,6 @@ dxgi_format_from_rhi(RHI_Format format)
   }
 }
 
-static RHI_Format 
-rhi_texture_format_from_d3d12(DXGI_FORMAT format) 
-{
-  switch (format) {
-    case DXGI_FORMAT_UNKNOWN:
-      return RHI_FORMAT_UNKNOWN;
-
-    case DXGI_FORMAT_R8_UNORM:
-      return RHI_FORMAT_R8_UNORM;
-
-    case DXGI_FORMAT_R8G8_UNORM:
-      return RHI_FORMAT_RG8_UNORM;
-
-    case DXGI_FORMAT_R8G8B8A8_UNORM:
-      return RHI_FORMAT_RGBA8_UNORM;
-
-    case DXGI_FORMAT_B8G8R8A8_UNORM:
-      return RHI_FORMAT_BGRA8_UNORM;
-
-    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-      return RHI_FORMAT_RGBA8_UNORM_SRGB;
-
-    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-      return RHI_FORMAT_BGRA8_UNORM_SRGB;
-
-    case DXGI_FORMAT_R16_UNORM:
-      return RHI_FORMAT_R16_UNORM;
-
-    case DXGI_FORMAT_R16G16_UNORM:
-      return RHI_FORMAT_RG16_UNORM;
-
-    case DXGI_FORMAT_R16G16B16A16_UNORM:
-      return RHI_FORMAT_RGBA16_UNORM;
-
-    case DXGI_FORMAT_R16_FLOAT:
-      return RHI_FORMAT_R16F;
-
-    case DXGI_FORMAT_R16G16_FLOAT:
-      return RHI_FORMAT_RG16F;
-
-    case DXGI_FORMAT_R16G16B16A16_FLOAT:
-      return RHI_FORMAT_RGBA16F;
-
-    case DXGI_FORMAT_R32_FLOAT:
-      return RHI_FORMAT_R32F;
-
-    case DXGI_FORMAT_R32G32_FLOAT:
-      return RHI_FORMAT_RG32F;
-
-    case DXGI_FORMAT_R32G32B32A32_FLOAT:
-      return RHI_FORMAT_RGBA32F;
-
-    case DXGI_FORMAT_D32_FLOAT:
-      return RHI_FORMAT_D32F;
-
-    case DXGI_FORMAT_BC1_UNORM:
-      return RHI_FORMAT_BC1_UNORM;
-
-    case DXGI_FORMAT_BC1_UNORM_SRGB:
-      return RHI_FORMAT_BC1_UNORM_SRGB;
-
-    case DXGI_FORMAT_BC3_UNORM:
-      return RHI_FORMAT_BC3_UNORM;
-
-    case DXGI_FORMAT_BC3_UNORM_SRGB:
-      return RHI_FORMAT_BC3_UNORM_SRGB;
-
-    case DXGI_FORMAT_BC4_UNORM:
-      return RHI_FORMAT_BC4_UNORM;
-
-    case DXGI_FORMAT_BC5_UNORM:
-      return RHI_FORMAT_BC5_UNORM;
-
-    case DXGI_FORMAT_BC6H_UF16:
-      return RHI_FORMAT_BC6H_UFLOAT;
-
-    case DXGI_FORMAT_BC7_UNORM:
-      return RHI_FORMAT_BC7_UNORM;
-
-    case DXGI_FORMAT_BC7_UNORM_SRGB:
-      return RHI_FORMAT_BC7_UNORM_SRGB;
-
-    default:
-      R_ASSERT(!"Unknown D3D12 texture format.");
-      return RHI_FORMAT_UNKNOWN;
-  }
-}
-
 static D3D12_RESOURCE_DIMENSION 
 d3d12_resource_dimension_from_rhi_texture_type(RHI_Texture_Type type) 
 {
@@ -1761,7 +1673,7 @@ bool d3d12_surface_init(RHI_Device *device,
         out_tex->kind = RHI_KIND_D3D12;
         out_tex->desc.type           = RHI_TEXTURE_TYPE_2D;
         out_tex->desc.name           = S("SwapChain");
-        out_tex->desc.format         = rhi_texture_format_from_d3d12(format);
+        out_tex->desc.format         = rhi_format_from_dxgi(format);
         out_tex->desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT;
         out_tex->desc.width          = desc->width;
         out_tex->desc.height         = desc->height;
@@ -2132,7 +2044,33 @@ d3d12_cmd_copy_buffer_to_buffer(RHI_Command_Buffer *cmd_buffer,
   cmd_buffer->d3d12.list_7->CopyBufferRegion(dst->d3d12.resource, dst_offset, src->d3d12.resource, src_offset, size);
 }
 
-// @Incomplete
+/*
+  Texture management in d3d12 is dreadful.
+
+  Copying texture must be done through 'CopyTextureRegion', according to MSDN,
+  and one must specify 'D3D12_TEXTURE_COPY_LOCATION', which is a discriminated 
+  union, for both source and destination resources. There are two tags: 
+  'SUBRESOURCE_INDEX' and 'PLACED_FOOTPRINT'.
+
+  Simple thing first. You just compute the destination texture's 
+  'SUBRESOURCE_INDEX' via 'D3D12CalcSubresource'.
+
+  'D3D12_PLACED_SUBRESOURCE_FOOTPRINT' consists of two fields: 'Offset' and 'Footprint'. 
+
+  'Offset' is just an offset in d3d12 resource buffer, and it should be aligned 
+  to D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, which is 512 bytes.
+
+  One must specify dimension (width, height, depth) and pitch in a 'Footprint'.
+  You know what? the pitch must be aligned to D3D12_TEXTURE_DATA_PITCH_ALIGNMENT.
+
+  One must specify "origin" of the destination in 'CopyTextureRegion', and 
+  it is represented as three unsigned ints. Understandable.
+
+  There's also an optional 'srcBox' parameter that specifies the source origin 
+  and the dimensions of both the source and destination.
+
+  All this hassle just to draw a texture!
+*/
 void 
 d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer, 
                                  RHI_Buffer         *src, 
@@ -2177,13 +2115,10 @@ d3d12_cmd_copy_buffer_to_texture(RHI_Command_Buffer *cmd_buffer,
 
 
   // Destination
-  UINT subresource_index = D3D12CalcSubresource(mip, layer, 0/*plane slice*/, 
-                                                dst->desc.mip_levels, dst->desc.depth);
-
   D3D12_TEXTURE_COPY_LOCATION dst_loc = {};
   dst_loc.pResource        = dst->d3d12.resource;
   dst_loc.Type             = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-  dst_loc.SubresourceIndex = subresource_index;
+  dst_loc.SubresourceIndex = D3D12CalcSubresource(mip, layer, 0, dst->desc.mip_levels, dst->desc.depth);
 
   D3D12_BOX b = {};
   b.right  = copy_width;

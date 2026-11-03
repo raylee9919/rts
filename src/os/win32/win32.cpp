@@ -371,7 +371,7 @@ File file_open(String name, bool for_writing, bool keep_existing_content) {
 
     if (handle == INVALID_HANDLE_VALUE) {
         DWORD error_code = GetLastError();
-        log(LOG_ERROR, S("Could not open file %S: code %d"), name, error_code);
+        log_error(S("Could not open file %S: code %d"), name, error_code);
         return {};
     }
 

@@ -103,7 +103,8 @@ struct Bitmap {
     u32             height;
 };
 
-ASSET_LOAD_PROC(image_load_proc);
+ASSET_LOAD_PROC(wic_load_proc);
+ASSET_LOAD_PROC(dds_load_proc);
 
 
 #endif // RTS_MATERIALH

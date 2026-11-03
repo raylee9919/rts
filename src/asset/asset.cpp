@@ -97,7 +97,8 @@ asset_system_init()
   asset_system->type_infos.allocator   = heap;
 
   asset_type_register({S("material"),           material_load_proc});
-  asset_type_register({S("png"),                image_load_proc});
+  asset_type_register({S("png"),                wic_load_proc});
+  asset_type_register({S("dds"),                dds_load_proc});
   asset_type_register({S("triangle_mesh"),      mesh_load_proc});
   asset_type_register({S("skeleton"),           skeleton_load_proc});
   asset_type_register({S("sampled_animation"),  animation_load_proc});

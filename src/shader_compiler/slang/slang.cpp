@@ -29,7 +29,7 @@ log_diagnostics(slang::IBlob *diagnostics)
 {
   if (diagnostics && diagnostics->getBufferSize() > 0) 
   {
-    log(LOG_ERROR, S("Error message from Slang: %s"), (char *)diagnostics->getBufferPointer());
+    log_error(S("Error message from Slang: %s"), (char *)diagnostics->getBufferPointer());
   }
 }
 
