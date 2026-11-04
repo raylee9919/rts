@@ -13,8 +13,6 @@
 #include "rhi/rhi.h"
 #include "shaders/shared/shared.h"
 
-#define GFX_ARENA_INITIAL_SIZE     Kilobytes(64)
-
 
 #define GFX_INVALID                 UINT64_MAX
 #define GFX_MAX_PASS                64
@@ -24,7 +22,7 @@
 #define GFX_DEFAULT_ALIGNMENT       16
 
 
-/* Sort Keys */
+// Sort keys
 typedef u16 GFX_Key;
 enum {
   // The least significant key is at the top.
@@ -42,8 +40,8 @@ global read_only constexpr u64 gfx_key_lengths[GFX_KEY_COUNT] = {
 // Each bitfield's offset in sort key. Filled at initialization.
 extern u64 gfx_key_offsets[GFX_KEY_COUNT];
 
-global read_only constexpr u64 GFX_MAX_PIPELINES        = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
-global read_only constexpr u64 GFX_MAX_PUSH_CONSTANTS   = (1ull << gfx_key_lengths[GFX_KEY_CONSTANTS]);
+global read_only constexpr u64 GFX_MAX_PIPELINES      = (1ull << gfx_key_lengths[GFX_KEY_PIPELINE]);
+global read_only constexpr u64 GFX_MAX_PUSH_CONSTANTS = (1ull << gfx_key_lengths[GFX_KEY_CONSTANTS]);
 
 static_assert([] {
     u64 sum = 0;
@@ -52,8 +50,11 @@ static_assert([] {
 }(), "gfx: sum of key lengths must be <= 64.");
 
 struct GFX_Sort_Key {
-  u64 bits;      // Packed keys
-  u32 cmd_index; // Index to the actual command
+  // Packed keys
+  u64 bits;
+
+  // Index to the actual command
+  u32 cmd_index; 
 };
 
 
@@ -140,12 +141,17 @@ struct GFX_Edge {
 // Per-frame upload arena
 //
 struct GFX_Page {
-  RHI_Buffer       buffer;
+  RHI_Buffer buffer;
   RHI_Buffer_View  view;
-  u8              *cpu_ptr;
-  u64              used;
-  GFX_Page        *next;
-  GFX_Page        *prev;
+  u8 *cpu_ptr;
+  u64  used;
+
+  // Check if the completed semaphore value is greater or equal in order to reuse the page.
+  u64 semaphore_value;
+
+  // Chain in the arena or in the free-list.
+  GFX_Page *next;
+  GFX_Page *prev;
 };
 
 struct GFX_Bump_Result {
@@ -306,6 +312,7 @@ struct GFX_State
   RHI_Command_Buffer                      command_buffers[RHI_MAX_BUFFER_COUNT];
   RHI_Command_Buffer                      compute_buffers[RHI_MAX_BUFFER_COUNT];
 
+
   // gfx's draw calls encode commands into the buffer by the current context.
   // Later commands get sorted by key and submitted to the GPU.
   u64                                     context_pass = GFX_INVALID;
@@ -359,12 +366,6 @@ gfx_init(GFX_Info info, u32 num_backbuffers);
 void 
 gfx_shutdown();
 
-
-// Reserves 'size' bytes of the upload buffer and returns the offset. If it doesn't
-// fit, blocks until previous uploads are complete and wraps around to the start.
-u64  
-gfx_upload_reserve(u64 size, u64 alignment);
-
 void 
 gfx_mesh_create(Guid guid, 
                 void *vertices, u32 num_vertices, u32 vertex_size, 
@@ -401,17 +402,13 @@ gfx_srv_from_texture(Guid guid);
 RHI_Texture_View *
 gfx_uav_from_texture(Guid guid);
 
-/*
-Returns SRV handle of the input texture.
-If not exist, returns 'GFX_INVALID_BINDLESS'
-*/
+// Returns SRV handle of the input texture.
+// If not exist, returns 'GFX_INVALID_BINDLESS'
 u32 
 gfx_srv_bindless_from_texture(Guid guid);
 
-/*
-Returns UAV handle of the input texture.
-If not exist, returns 'GFX_INVALID_BINDLESS'
-*/
+// Returns UAV handle of the input texture.
+// If not exist, returns 'GFX_INVALID_BINDLESS'
 u32 
 gfx_uav_bindless_from_texture(Guid guid);
 
@@ -426,19 +423,11 @@ gfx_pass_end();
 
 // Immediate-mode pass connection built every frame. No need to disconnect manually.
 // Pass 'src_pass' as -1 to indicate the pass with no dependencies.
-void gfx_connect(Guid               resource, 
-                 u32                src_pass, 
-                 u32                dst_pass, 
-                 RHI_Resource_State dst_state);
-
-// Returns the swapchain's backbuffer index for this frame.
-u32 gfx_backbuffer_index();
-
-// Returns the swapchain's texture for this frame.
-Guid gfx_surface_texture();
-
-// Returns current number of backbuffers.
-u32 gfx_backbuffer_count();
+void 
+gfx_connect(Guid               resource, 
+            u32                src_pass, 
+            u32                dst_pass, 
+            RHI_Resource_State dst_state);
 
 // Returns Swapchain textures' format.
 RHI_Format gfx_surface_format();
@@ -474,6 +463,9 @@ gfx_end(f64 dt, u32 sync_interval);
 b32 
 gfx_wait_for_frame_waitable_object();
 
+Guid 
+gfx_current_swapchain_texture();
+
 void 
 gfx_request_swapchain_resize(u32 width, u32 height);
 
@@ -491,4 +483,6 @@ gfx_upload_buffer_memcpy(RHI_Buffer dst_buffer,
                          u64        dst_offset, 
                          u64        size,
                          void      *data);
+
+
 #endif // RTS_GFX_H

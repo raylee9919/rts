@@ -272,7 +272,7 @@ r_end(Render_Entry *data, f64 refresh_dt)
                 R_PASS_POSTPROCESS, R_PASS_COMPOSITION, 
                 RHI_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 
-    gfx_connect(gfx_surface_texture(), 
+    gfx_connect(gfx_current_swapchain_texture(),
                 -1, R_PASS_COMPOSITION, 
                 RHI_RESOURCE_STATE_RENDER_TARGET);
   }

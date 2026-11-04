@@ -137,6 +137,30 @@ gfx_deinit_arenas()
   gfx->last_free_page = NULL;
 }
 
+Guid 
+gfx_current_swapchain_texture() 
+{
+  return gfx->surface_guids[gfx->surface->current_frame_index];
+}
+
+static u32 
+backbuffer_count_()
+{
+  return gfx->surface->desc.num_back_buffers;
+}
+
+static u32 
+frame_slot()
+{
+  return gfx->monotonic_frame_counter % RHI_MAX_BUFFER_COUNT;
+}
+
+RHI_Format 
+gfx_surface_format() 
+{
+  return rhi_texture_from_guid(gfx->surface_guids[0])->desc.format;
+}
+
 static void 
 gfx_swapchain_init(GFX_Info info, 
                    u32 num_back_buffers, 
@@ -166,7 +190,7 @@ gfx_swapchain_resize(u32 width, u32 height)
   RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT] = {};
   u32 ptr = 0;
 
-  for (u32 i = 0; i < gfx_backbuffer_count(); ++i) {
+  for (u32 i = 0; i < backbuffer_count_(); ++i) {
     in_out_textures[ptr++] = rhi_texture_from_guid(gfx->surface_guids[i]);
   }
 
@@ -176,7 +200,6 @@ gfx_swapchain_resize(u32 width, u32 height)
 // 
 // Uploader
 //
-
 static void 
 release_batch_(GFX_Uploader     *uploader, 
                GFX_Upload_Batch *batch, 
@@ -642,6 +665,7 @@ gfx_shutdown()
   // @Todo: release resources safely..
 
   gfx_uploader_deinit(gfx->uploader);
+  gfx_deinit_arenas();
   gfx_deinit_samplers();
   gfx_swapchain_deinit();
   gfx_deinit_allocators();
@@ -897,30 +921,6 @@ gfx_connect(Guid               resource,
   append(&gfx->out_edges[src_pass], edge);
 }
 
-u32 
-gfx_backbuffer_index() 
-{
-  return gfx->surface->current_frame_index;
-}
-
-Guid 
-gfx_surface_texture() 
-{
-  return gfx->surface_guids[gfx_backbuffer_index()];
-}
-
-u32 
-gfx_backbuffer_count()
-{
-  return gfx->surface->desc.num_back_buffers;
-}
-
-RHI_Format 
-gfx_surface_format() 
-{
-  return rhi_texture_from_guid(gfx->surface_guids[0])->desc.format;
-}
-
 void 
 gfx_pipeline_create(Guid guid, RHI_Pipeline_Desc desc) 
 {
@@ -1169,12 +1169,15 @@ alloc_page_(RHI_Memory_Type memory_type,
 {
   GFX_Page *page = NULL;
 
+  u64 completed= rhi_semaphore_completed_value(&gfx->frame_semaphore);
+
   // Find a page that has enough space in the free list.
   for (GFX_Page *p = gfx->first_free_page;
        p != NULL;
        p = p->next) 
   {
-    if (p->buffer.desc.size >= size)
+    if (completed >= p->semaphore_value && 
+        p->buffer.desc.size >= size)
     {
       dll_remove(gfx->first_free_page, gfx->last_free_page, p);
       page = p;
@@ -1226,7 +1229,7 @@ alloc_page_(RHI_Memory_Type memory_type,
 }
 
 static void 
-clear_arena_(GFX_Arena *arena)
+gfx_clear_arena(GFX_Arena *arena, u64 semaphore_value)
 {
   for (GFX_Page *p = arena->last; p;) {
     GFX_Page *prev = p->prev;
@@ -1234,15 +1237,16 @@ clear_arena_(GFX_Arena *arena)
     dll_remove(arena->first, arena->last, p);
     dll_push_back(gfx->first_free_page, gfx->last_free_page, p);
 
+    p->semaphore_value = semaphore_value;
+
     p = prev;
   }
-  arena->last = arena->first;
 }
 
 GFX_Bump_Result 
 gfx_push(u64 size, u64 alignment)
 {
-  GFX_Arena *arena = gfx->frame_arenas + gfx_backbuffer_index();
+  GFX_Arena *arena = &gfx->frame_arenas[frame_slot()];
 
   auto align_up_no_pow2 = [](u64 x, u64 align) -> u64 {
     R_ASSERT(align != 0);
@@ -1292,11 +1296,11 @@ gfx_end(f64 time,
   // Update shader time
   gfx->time = time; // @Todo: do dt trick from Witness.
 
-  RHI_Command_Buffer *cmd_buffer = &gfx->command_buffers[gfx_backbuffer_index()];
+  RHI_Command_Buffer *cmd_buffer = &gfx->command_buffers[frame_slot()];
 
   // Wait on frame semaphore.
-  if (gfx->monotonic_frame_counter > gfx_backbuffer_count()) {
-    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->monotonic_frame_counter - gfx_backbuffer_count(), -1);
+  if (gfx->monotonic_frame_counter > backbuffer_count_()) {
+    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->monotonic_frame_counter - backbuffer_count_(), -1);
   }
 
 
@@ -1310,14 +1314,15 @@ gfx_end(f64 time,
 
 
   // Sort keys
-  for (u32 i = 0; i < GFX_MAX_PASS; ++i) {
+  for (u32 i = 0; i < GFX_MAX_PASS; ++i) 
+  {
     radix_sort_u64(gfx->sort_keys[i].data,
                    gfx->sort_keys[i].count, 
                    sizeof(GFX_Sort_Key),
                    offsetof(GFX_Sort_Key, bits));
   }
 
-  // @Temporary
+
   rhi_command_buffer_begin(cmd_buffer);
   {
     // Execute passes in sorted order
@@ -1411,7 +1416,7 @@ gfx_end(f64 time,
     } // for each pass
 
     rhi_cmd_texture_barrier(cmd_buffer, 
-                            rhi_texture_from_guid(gfx->surface_guids[gfx_backbuffer_index()]),
+                            rhi_texture_from_guid(gfx_current_swapchain_texture()),
                             RHI_RESOURCE_STATE_PRESENT, RHI_ALL_MIPS, RHI_ALL_LAYERS);
   }
   rhi_command_buffer_end(cmd_buffer);
@@ -1431,8 +1436,8 @@ gfx_end(f64 time,
   gfx_reset_per_frame_data();
 
 
-  // Clear frame arena to be used.
-  clear_arena_(&gfx->frame_arenas[gfx_backbuffer_index()]);
+  // Release chain of pages in the current frame arena. 
+  gfx_clear_arena(&gfx->frame_arenas[frame_slot()], gfx->monotonic_frame_counter);
 
 
   u64 completed_value = rhi_semaphore_completed_value(&gfx->frame_semaphore);

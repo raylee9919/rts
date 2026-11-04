@@ -89,7 +89,7 @@ R_PASS_EXECUTE( RenderPassExecute_Composition )
   gfx_pass.name                 = inPass->name;
   gfx_pass.viewport             = {inInfo.x, inInfo.y, inInfo.w, inInfo.h};
   gfx_pass.scissor              = {(u32)inInfo.x, (u32)inInfo.y, (u32)inInfo.w, (u32)inInfo.h};
-  gfx_pass.color_attachments[0] = gfx_surface_texture();
+  gfx_pass.color_attachments[0] = gfx_current_swapchain_texture();
 
   gfx_pass_begin(R_PASS_COMPOSITION, &gfx_pass);
   {

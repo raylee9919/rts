@@ -32,35 +32,37 @@
  [GFX/Renderer]
    [V] Per-frame buffer
    [V] Uploader
-   [V] BC, DDS
+   [V] BCn, DDS
    [ ] Frame slot obfuscation
-   [ ] "GC" old upload pages?
-   [ ] Transparent material
+   [ ] "GC" old upload-memory pages? Sizes are *uneven*.
    [ ] Vertex Quantization
+   [ ] Compute Skinning -> LSPSM seems like a great fit for top-down rts game!
+   [ ] Transparent material
+   [ ] Cleanup material system. 'M_Entry' is a mess.
+ 
+ [Asset - Offline]
    [ ] Meshoptimizer Additional Passes
-   [ ] Compute Skinning -> LSPSM
+   [ ] Mesh LoD: meshoptimizer and authored LoD (Maya, Blender..)
+
+ [Asset - Runtime]
+   - As everything is GUID, I think I can do "immediate-mode" asset, where 
+     the user doesn't have to care about the lifetime?
 
  [Memory]
    - pointer, game storage, and saving games...
    - visualize memory statistics, and memory pools might want to be 
      shrinked periodically.
-
- [Asset]
-   - As everything is GUID, I think I can do "immediate-mode" asset, where 
-     the user doesn't have to care about the lifetime?
-
- [Memory]
    - I need heaps! not a single global heap. `mimalloc`? Roll my own? ;)
    - Pass allocator when initializing subsystems. Better that way.
-
- [Build]
-   - Not urgent, but I want to ditch CMake and do my own build system at some point,
-     because CMake is a crime against humanity.
 
  [Development]
    - I'm not a fan of separate editor binary, like Unreal.
      I want developemnt tools to be embedded and be hoisted out cleanly 
      in shipping build.
+
+ [Build]
+   - Not urgent, but I want to ditch CMake and do my own build system at some point,
+     because CMake is a crime against humanity.
 
  - I had no idea asset loading function pointers would be hard to debug...
  - Shader compiler debug option
