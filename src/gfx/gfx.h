@@ -16,7 +16,6 @@
 
 #define GFX_INVALID                 UINT64_MAX
 #define GFX_MAX_PASS                64
-#define GFX_SCENE_DEPTH_FORAMT      RHI_FORMAT_D32F
 
 #define GFX_MEMORY_PAGE_SIZE        Megabytes(1)
 #define GFX_DEFAULT_ALIGNMENT       16

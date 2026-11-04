@@ -67,6 +67,7 @@ gfx_deinit_samplers()
 {
   rhi_sampler_deinit(&gfx->dot_sampler);
   rhi_sampler_deinit(&gfx->linear_sampler);
+  rhi_sampler_deinit(&gfx->anisotropic_sampler);
 }
 
 static void
@@ -1404,8 +1405,6 @@ gfx_end(f64 time,
         auto *edge = &edges->data[i];
 
         auto *tex = rhi_texture_from_guid(edge->resource);
-        R_ASSERT(tex);
-
         if (tex) {
           rhi_cmd_texture_barrier(cmd_buffer, tex, edge->dst_state, RHI_ALL_MIPS, RHI_ALL_LAYERS);
         } else {

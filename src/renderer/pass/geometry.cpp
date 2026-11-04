@@ -10,7 +10,6 @@
 #include "camera.h"
 #include "profiler/profiler.h"
 
-#define R_MAX_SKINNING_MATRICES 65536 // @Temporary
 
 R_PASS_INIT( RenderPassInit_Geometry )
 {
@@ -110,8 +109,8 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
             vert->position[1] = terrain->corner_y + y*cell_size;
             vert->position[2] = height;
             
-            vert->uv[0] = (f32)x / (f32)terrain->vertices_x;
-            vert->uv[1] = (f32)y / (f32)terrain->vertices_y;
+            vert->uv[0] = (f32)x / (f32)(terrain->vertices_x - 1);
+            vert->uv[1] = (f32)y / (f32)(terrain->vertices_y - 1);
 
             s64 xl = max(x - 1, (s64)0);
             s64 xr = min(x + 1, terrain->vertices_x - 1);
@@ -242,7 +241,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
 
               // Upload arguments
-              R_Pass_Geometry::Arguments arguments;
+              R_Pass_Geometry::Arguments arguments = {};
               auto arg = gfx_push(sizeof(R_Pass_Geometry::Arguments));
               auto *arg_ptr = (R_Pass_Geometry::Arguments*)arg.ptr;
 
@@ -342,7 +341,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
 
 
               // @Temporary
-              if (0) 
+              if (1) 
               {
                 m4x4 mvp = data->camera->view_proj * transform;
                 vec3 lo = *((vec3*)&E->tight_box.lo);

@@ -7,8 +7,10 @@
 #include "asset/asset.h"
 
 
-#define TERRAIN_CLIFF_HEIGHT       4.f
-#define TERRAIN_MAX_SLOPE_DEGREES 45.f // Cells steeper than this are impassable.
+#define TERRAIN_CLIFF_HEIGHT         4.f
+
+// Cells steeper than this are impassable.
+#define TERRAIN_MAX_SLOPE_DEGREES   45.f
 
 
 static b32

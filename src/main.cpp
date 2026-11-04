@@ -41,12 +41,16 @@
  
  [Asset - Offline]
    [V] Meshoptimizer Additional Passes
-   [ ] Meshoptimizer shadow/z-prepass indices
    [ ] Mesh LoD: meshoptimizer and authored LoD (Maya, Blender..)
+   [ ] Meshoptimizer shadow/z-prepass indices
 
  [Asset - Runtime]
-   - As everything is GUID, I think I can do "immediate-mode" asset, where 
-     the user doesn't have to care about the lifetime?
+   [ ] As everything is GUID, I think I can do "immediate-mode" asset, where 
+       the user doesn't have to care about the lifetime? But assets are often 
+       preloaded, not just on demand. Needs research!
+
+ [Engine/System]
+   [ ] Time
 
  [Memory]
    - pointer, game storage, and saving games...
@@ -71,9 +75,6 @@
  - Color
  - SIMD CPUID and bind corresponding functions.
  - Trigonometry
-
- [Low Priority]
-   - force inline math?
 */
 
 void 

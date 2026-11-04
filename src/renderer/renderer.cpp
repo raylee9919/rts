@@ -34,8 +34,8 @@ gpu_camera_from_game(Camera *camera)
 {
   GPU_Camera result = {};
 
-  f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
-  vec3 fwd = camera_forward(camera);
+  // f32 aspect_ratio = (f32)RESOLUTION_X / (f32)RESOLUTION_Y;
+  // vec3 fwd = camera_forward(camera);
 
   result.position  = vec4(camera->position, 1.f);
   result.view      = camera->view;
@@ -96,7 +96,7 @@ r_init(void *native_window_handle)
       RHI_Texture_Desc desc = {}; 
       desc.name           = S("SceneDepth");
       desc.type           = RHI_TEXTURE_TYPE_2D;
-      desc.format         = R_DEPTH_FORMAT;
+      desc.format         = RHI_FORMAT_D32F;
       desc.usage          = RHI_TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT;
       desc.width          = width;
       desc.height         = height;
@@ -114,7 +114,7 @@ r_init(void *native_window_handle)
       RHI_Texture_Desc desc = {};
       desc.name           = S("GBufferColor");
       desc.type           = RHI_TEXTURE_TYPE_2D;
-      desc.format         = R_COLOR_FORMAT;
+      desc.format         = RHI_FORMAT_RGBA16F;
       desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
       desc.width          = width;
       desc.height         = height;
@@ -136,7 +136,7 @@ r_init(void *native_window_handle)
       {
         desc.name           = S("Scene");
         desc.type           = RHI_TEXTURE_TYPE_2D;
-        desc.format         = R_COLOR_FORMAT;
+        desc.format         = RHI_FORMAT_RGBA16F;
         desc.usage          = RHI_TEXTURE_USAGE_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_STORAGE | RHI_TEXTURE_USAGE_SAMPLED;
         desc.width          = width;
         desc.height         = height;
@@ -369,8 +369,8 @@ r_entry(void *param)
 
 
   /* Cleanup */
-  gfx_shutdown();
   r_shutdown();
+  gfx_shutdown();
 }
 
 // @Cleanup: I don't like this a single bit.
@@ -385,7 +385,7 @@ r_pipeline_create(Guid            id,
   String shader_source = read_entire_file(shader_filepath, tctx.temp, true);
   if (!shader_source)
   {
-    log_error(S("Failed to read material shader: '%S'"), material_shader);
+    log_error(S("Failed to read material shader: '%S'"), shader_filepath);
     return;
   }
 
