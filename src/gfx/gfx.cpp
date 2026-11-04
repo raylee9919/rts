@@ -6,7 +6,7 @@
 #include "os/os.h"
 #include "profiler/profiler.h"
 
-#include "third_party/xxhash3/xxhash.h"
+#include "third_party/xxHash3/xxhash.h"
 
 GFX_State *gfx;
 u64        gfx_key_offsets[GFX_KEY_COUNT] = { 0 };
@@ -153,7 +153,7 @@ backbuffer_count_()
 static u32 
 frame_slot()
 {
-  return gfx->monotonic_frame_counter % RHI_MAX_BUFFER_COUNT;
+  return gfx->frame_counter % RHI_MAX_BUFFER_COUNT;
 }
 
 RHI_Format 
@@ -186,7 +186,7 @@ gfx_swapchain_deinit()
 static void 
 gfx_swapchain_resize(u32 width, u32 height) 
 {
-  rhi_semaphore_wait(&gfx->frame_semaphore, gfx->monotonic_frame_counter - 1, -1);
+  rhi_semaphore_wait(&gfx->frame_semaphore, gfx->frame_counter - 1, -1);
 
   RHI_Texture *in_out_textures[RHI_MAX_BUFFER_COUNT] = {};
   u32 ptr = 0;
@@ -655,7 +655,7 @@ void
 gfx_shutdown() 
 {
   // Wait until all pending frames are finished.
-  rhi_semaphore_wait(&gfx->frame_semaphore, gfx->monotonic_frame_counter - 1, -1);
+  rhi_semaphore_wait(&gfx->frame_semaphore, gfx->frame_counter - 1, -1);
 
   // @Temporary: These will go to encoding threads.
   for (u32 i = 0; i < RHI_MAX_BUFFER_COUNT; ++i) {
@@ -788,7 +788,7 @@ gfx_mesh_destroy(Guid guid)
   // @Todo: This isn't settled yet.. Async asset loading, sorting pass, after-frame 
   // callbacks,...
   GFX_Callback_Entry entry = {};
-  entry.semaphore_value_to_execute = gfx->monotonic_frame_counter;
+  entry.semaphore_value_to_execute = gfx->frame_counter;
   entry.proc    = gfx_mesh_destroy_callback;
   entry.mesh_id = guid;
 
@@ -1082,7 +1082,7 @@ rhi_pass_from_gfx(GFX_Pass *pass)
   // As I'm regarding RTV and DSV as transient, release them after this frame.
   auto DeferReleaseViewAfterFrame = [](RHI_Texture_View view) {
     GFX_Callback_Entry callback = {};
-    callback.semaphore_value_to_execute = gfx->monotonic_frame_counter;
+    callback.semaphore_value_to_execute = gfx->frame_counter;
     callback.view = view;
     callback.proc = [](GFX_Callback_Entry CE) {
       rhi_texture_view_deinit(&CE.view);
@@ -1300,8 +1300,8 @@ gfx_end(f64 time,
   RHI_Command_Buffer *cmd_buffer = &gfx->command_buffers[frame_slot()];
 
   // Wait on frame semaphore.
-  if (gfx->monotonic_frame_counter > backbuffer_count_()) {
-    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->monotonic_frame_counter - backbuffer_count_(), -1);
+  if (gfx->frame_counter > backbuffer_count_()) {
+    rhi_semaphore_wait(&gfx->frame_semaphore, gfx->frame_counter - backbuffer_count_(), -1);
   }
 
 
@@ -1428,7 +1428,7 @@ gfx_end(f64 time,
 
   // @Study: Present and Signal ordering...
   rhi_surface_present(gfx->surface, sync_interval);
-  rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->frame_semaphore, gfx->monotonic_frame_counter);
+  rhi_semaphore_signal(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &gfx->frame_semaphore, gfx->frame_counter);
 
 
   // Clear per-frame data
@@ -1436,13 +1436,13 @@ gfx_end(f64 time,
 
 
   // Release chain of pages in the current frame arena. 
-  gfx_clear_arena(&gfx->frame_arenas[frame_slot()], gfx->monotonic_frame_counter);
+  gfx_clear_arena(&gfx->frame_arenas[frame_slot()], gfx->frame_counter);
 
 
   u64 completed_value = rhi_semaphore_completed_value(&gfx->frame_semaphore);
   gfx_execute_callbacks(completed_value);
 
-  gfx->monotonic_frame_counter += 1;
+  gfx->frame_counter += 1;
 }
 
 b32 

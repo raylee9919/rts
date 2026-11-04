@@ -33,18 +33,16 @@ union vec2
   force_inline explicit vec2(f32 f) : x( f), y( f) {};
 };
 
-struct vec3 
+union vec3 
 {
-  union {
-    struct {
-      union {
-        vec2 xy;
-        struct { f32 x, y; };
-      };
-      f32 z;
+  struct {
+    union {
+      vec2 xy;
+      struct { f32 x, y; };
     };
-    f32 e[3];
+    f32 z;
   };
+  f32 e[3];
 
   force_inline vec3() = default;
   force_inline vec3(f32 x_, f32 y_, f32 z_)  : x(x_), y(y_), z(z_) {};
@@ -94,6 +92,20 @@ union m4x4
     f32 _41, _42, _43, _44; 
   };
   vec4 rows[4];
+
+  m4x4() = default;
+
+  force_inline 
+  m4x4(f32 n11, f32 n12, f32 n13, f32 n14, 
+       f32 n21, f32 n22, f32 n23, f32 n24, 
+       f32 n31, f32 n32, f32 n33, f32 n34, 
+       f32 n41, f32 n42, f32 n43, f32 n44)
+  {
+    _mm_storeu_ps(&_11, _mm_setr_ps(n11, n12, n13, n14));
+    _mm_storeu_ps(&_21, _mm_setr_ps(n21, n22, n23, n24));
+    _mm_storeu_ps(&_31, _mm_setr_ps(n31, n32, n33, n34));
+    _mm_storeu_ps(&_41, _mm_setr_ps(n41, n42, n43, n44));
+  }
 };
 
 union m3x4 
@@ -150,12 +162,12 @@ f64        m_abs(f64 d);
 f32        m_exp(f32 f);
 
 
-//// Square roots
+// Square roots
 f32        m_sqrt(f32 f);
 f32        m_rsqrt(f32 f);
 
 
-//// Easing functions
+// Easing functions
 f32        
 lerp(f32 a, f32 b, f32 t);
 

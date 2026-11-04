@@ -108,7 +108,7 @@ R_PASS_EXECUTE( RenderPassExecute_Geometry )
             vert->position[0] = terrain->corner_x + x*cell_size;
             vert->position[1] = terrain->corner_y + y*cell_size;
             vert->position[2] = height;
-            
+
             vert->uv[0] = (f32)x / (f32)(terrain->vertices_x - 1);
             vert->uv[1] = (f32)y / (f32)(terrain->vertices_y - 1);
 

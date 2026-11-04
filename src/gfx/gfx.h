@@ -109,10 +109,10 @@ struct GFX_Pass {
 };
 
 struct GFX_Command {
-  Guid         mesh_handle;
-  u32          num_instances;
-  u32          index_offset;
-  u32          index_count;
+  Guid  mesh_handle;
+  u32   num_instances;
+  u32   index_offset;
+  u32   index_count;
 };
 
 struct GFX_Callback_Entry {
@@ -160,7 +160,7 @@ struct GFX_Bump_Result {
 };
 
 /*
-  There's a permutation situation:
+  There's a permutation situation going on:
     memory (gpu-only, upload, readback), 
     view   (structured, raw, constant)
   
@@ -278,7 +278,7 @@ struct GFX_State
   Queue<GFX_Callback_Entry>               callbacks;
 
   RHI_Semaphore                           frame_semaphore;
-  u64                                     monotonic_frame_counter = 1; // Indefinitely increases
+  u64                                     frame_counter = 1; // Monotonically increases
 
   // I'll just have a single swapchain.
   RHI_Surface                            *surface;

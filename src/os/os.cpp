@@ -2,7 +2,7 @@
 
 #include "os/os.h"
 #include "basic/string.h"
-#include "third_party/xxhash3/xxhash.h"
+#include "third_party/xxHash3/xxhash.h"
 
 Array<String> file_list(String path, 
                         Allocator allocator, 

@@ -70,7 +70,7 @@ target_compile_options(rts_warnings INTERFACE
 
 
 add_library(rts_third_party STATIC
-    src/third_party/xxhash3/xxhash.c
+    src/third_party/xxHash3/xxhash.c
     src/third_party/D3D12MemoryAllocator/D3D12MemAlloc.cpp
     src/third_party/ufbx/ufbx.c # @Todo: Shouldn't be included in shipping build.
 )

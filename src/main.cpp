@@ -24,7 +24,7 @@
 #include "importer/fbx.h"
 
 // Third Party
-#include "third_party/xxhash3/xxhash.h"
+#include "third_party/xxHash3/xxhash.h"
 
 /*
  @Todo
@@ -33,8 +33,9 @@
    [V] Per-frame buffer
    [V] Uploader
    [V] BCn, DDS
+   [ ] Shader binary
    [ ] Vertex Quantization
-   [ ] Compute Skinning -> LSPSM seems like a great fit for top-down rts game!
+   [ ] Compute Skinning -> LiSPSM seems like a great fit for top-down rts game. Thanks Taha!
    [ ] Transparent material
    [ ] Cleanup material system. 'M_Entry' is a mess.
    [ ] "GC" old upload-memory pages? Sizes are *uneven*.
@@ -50,6 +51,7 @@
        preloaded, not just on demand. Needs research!
 
  [Engine/System]
+   [ ] Introspection
    [ ] Time
 
  [Memory]
@@ -62,7 +64,7 @@
  [Development]
    - I'm not a fan of separate editor binary, like Unreal.
      I want developemnt tools to be embedded and be hoisted out cleanly 
-     in shipping build.
+     in shipping build. I HATE CMAKE. WHY DID I SWITCH FROM BUILD.BAT!!!!!!!!
 
  [Build]
    - Not urgent, but I want to ditch CMake and do my own build system at some point,
@@ -157,11 +159,10 @@ main_entry(int argc, char **argv)
   Thread audio_thread = thread_launch(audio_entry, NULL);
 
   // Spin-lock until renderer is initted.
-  for (;;) 
+  for ( ;; ) 
   {
     auto *r = (volatile Renderer *)renderer;
     if (r && r->initted) break;
-    _mm_pause(); // @Temporary
   }
 
   // Init material system.
