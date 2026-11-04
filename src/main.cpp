@@ -33,15 +33,15 @@
    [V] Per-frame buffer
    [V] Uploader
    [V] BCn, DDS
-   [ ] Frame slot obfuscation
-   [ ] "GC" old upload-memory pages? Sizes are *uneven*.
    [ ] Vertex Quantization
    [ ] Compute Skinning -> LSPSM seems like a great fit for top-down rts game!
    [ ] Transparent material
    [ ] Cleanup material system. 'M_Entry' is a mess.
+   [ ] "GC" old upload-memory pages? Sizes are *uneven*.
  
  [Asset - Offline]
-   [ ] Meshoptimizer Additional Passes
+   [V] Meshoptimizer Additional Passes
+   [ ] Meshoptimizer shadow/z-prepass indices
    [ ] Mesh LoD: meshoptimizer and authored LoD (Maya, Blender..)
 
  [Asset - Runtime]
@@ -185,7 +185,7 @@ main_entry(int argc, char **argv)
 #endif
   Guid mesh_id = guid_from_string(S("goblin/Goblin.triangle_mesh"));
 
-  for (s32 i = 0; i < 32; ++i) 
+  for (s32 i = 0; i < 256; ++i) 
   {
     Entity *my_entity = entity_alloc(game_state);
     my_entity->mesh = mesh_id;

@@ -355,7 +355,7 @@ gfx_uploader_end(GFX_Uploader *uploader)
   if (rhi_semaphore_completed_value(&uploader->semaphore) < last_issued) 
   {
     rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_GRAPHICS, &uploader->semaphore, last_issued);
-    rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_TRANSFER, &uploader->semaphore, last_issued);
+    rhi_queue_wait(gfx->device, RHI_COMMAND_TYPE_COMPUTE,  &uploader->semaphore, last_issued);
   }
 }
 

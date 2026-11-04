@@ -29,8 +29,6 @@
    - Semantic name ("position") is a promise between assets and the engine. 
      So, should I need to bake offset/size information in the asset?
 
-   - More optimizations
-
    - Find way for LoD generation
 
    - Meshlet asset for mesh shader? Sounds fun, but low priority.
@@ -335,7 +333,7 @@ import_mesh_internal(ufbx_node*                               node,
     }
 
     if (skin) {
-      R_ASSERT(mesh->skin_deformers.count == 1); // @Robustness: PLEASE!!!
+      R_ASSERT(mesh->skin_deformers.count == 1); // @Robustness: I'm basically praying the assert never fires.
     }
 
 
@@ -548,21 +546,58 @@ import_mesh_internal(ufbx_node*                               node,
     //
     // Afterwards is optimizations, and meshoptimizer does all the heavy work.
     //
-    // 1. Indexing
-    //
-    //    Since we reserved vertices up to the number of indices,
-    //    it's time to deduplicate vertices.
+    // 1. Deduplicate vertices
     //
     u32 *remap = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
     s64 num_vertices = meshopt_generateVertexRemap(remap,
                                                    NULL, num_indices,
                                                    vertices, num_indices, vertex_size);
 
-    u32 *new_indices = (u32*)alloc(sizeof(u32)*num_indices, allocator);
-    meshopt_remapIndexBuffer(new_indices, NULL, num_indices, remap);
+    u32 *indices_1 = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
+    meshopt_remapIndexBuffer(indices_1, NULL, num_indices, remap);
 
-    u8 *new_vertices = alloc(vertex_size*num_vertices, allocator);
-    meshopt_remapVertexBuffer(new_vertices, vertices, num_indices, vertex_size, remap);
+    u8 *vertices_1 = alloc(vertex_size*num_vertices, tctx.temp);
+    meshopt_remapVertexBuffer(vertices_1, vertices, num_indices, vertex_size, remap);
+
+
+    //
+    // 2. Vertex Cache 
+    //    .. is flushed periodically once a certain number of vertices have been 
+    //    dispatched. So it's better to keep reused vertices close together.
+    //
+    u32 *indices_2 = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
+    for (u64 i = 0; i < parts.count; ++i) {
+      Mesh_Part p = parts[i];
+      meshopt_optimizeVertexCache(indices_2 + p.offset, indices_1 + p.offset, p.count, num_vertices);
+    }
+
+
+    //
+    // 3. Overdraw
+    //    reorders indices to reduce the number of GPU vertex shader invocations and the pixel overdraw.
+    //
+    u32 *indices_3 = (u32*)alloc(sizeof(u32)*num_indices, tctx.temp);
+    for (u64 i = 0; i < parts.count; ++i) {
+      Mesh_Part p = parts[i];
+      meshopt_optimizeOverdraw(indices_3 + p.offset, indices_2 + p.offset, p.count, (float*)vertices_1, num_vertices, vertex_size, 1.05f);
+    }
+
+
+    //
+    // 4. Vertex Fetch
+    //    I don't know what's going on. I trust Zeux.
+    //
+    u8 *vertices_4 = alloc(vertex_size*num_vertices, tctx.temp);
+    num_vertices = meshopt_optimizeVertexFetch(vertices_4, indices_3, num_indices, vertices_1, num_vertices, vertex_size);
+
+
+    // Finalize vertices and indices
+    u8  *vertices_final = (u8 *)alloc(vertex_size*num_vertices, allocator);
+    u32 *indices_final  = (u32*)alloc(sizeof(u32)*num_indices,  allocator);
+    memcpy(vertices_final, vertices_4, vertex_size*num_vertices);
+    memcpy(indices_final,   indices_3, sizeof(u32)*num_indices);
+
+
 
 
     //
@@ -572,11 +607,11 @@ import_mesh_internal(ufbx_node*                               node,
 
     m.attributes   = attributes;
     m.num_vertices = num_vertices;
-    m.vertices     = new_vertices;
+    m.vertices     = vertices_final;
     m.vertex_size  = vertex_size;
 
     m.num_indices  = num_indices;
-    m.indices      = new_indices;
+    m.indices      = indices_final;
 
     m.num_parts    = parts.count;
     m.parts        = (Mesh_Part*)alloc(sizeof(Mesh_Part)*m.num_parts, allocator);
@@ -1339,6 +1374,7 @@ import_animations(Import_State *state, Allocator allocator)
   return result;
 }
 
+#if 0
 static void
 _print(ufbx_node *node, int depth)
 {
@@ -1350,6 +1386,7 @@ _print(ufbx_node *node, int depth)
     _print(child, depth+1);
   }
 }
+#endif
 
 b32
 fbx_import(String             filepath, 

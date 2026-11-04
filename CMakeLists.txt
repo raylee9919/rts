@@ -163,6 +163,9 @@ add_library(rts_engine STATIC
     # @Todo: EXCLUDE IN SHIPPING BUILD
     src/third_party/meshoptimizer/tangentspace.cpp
     src/third_party/meshoptimizer/indexgenerator.cpp
+    src/third_party/meshoptimizer/vcacheoptimizer.cpp
+    src/third_party/meshoptimizer/vfetchoptimizer.cpp
+    src/third_party/meshoptimizer/overdrawoptimizer.cpp
 )
 
 set_source_files_properties(src/asset/dds.cpp PROPERTIES

@@ -66,7 +66,6 @@ struct M_Entry
 {
   Guid type_id; // key into `material_type_table`
   Guid pipeline;
-  u64  offset;  // offset into gpu buffer
   // @Cleanup
   RHI_Buffer buffer;
   RHI_Buffer_View view;
