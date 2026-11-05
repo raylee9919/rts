@@ -25,16 +25,16 @@
 #define ANSI_COLOR_BRIGHT_WHITE     "\033[97m"
 
 enum Log_Level : u8 {
-    LOG_TRACE,
-    LOG_DEBUG,
-    LOG_INFO,
-    LOG_WARNING,
-    LOG_ERROR,
-    LOG_FATAL,
+  LOG_TRACE,
+  LOG_DEBUG,
+  LOG_INFO,
+  LOG_WARNING,
+  LOG_ERROR,
+  LOG_FATAL,
 };
 
 #define R_LOG(level, fmt, ...) \
-    _log_internal(level, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__)
+  _log_internal(level, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__)
 void _log_internal(Log_Level level, String msg, String file, int line, bool just_print = false);
 
 #define print(fmt, ...) _log_internal(LOG_INFO, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__, true)

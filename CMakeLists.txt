@@ -105,6 +105,7 @@ add_library(rts_engine STATIC
     src/basic/log.cpp
     src/basic/string.cpp
     src/basic/string_builder.cpp
+    src/basic/int128.cpp
     src/basic/type.cpp
 
     src/math/math.cpp

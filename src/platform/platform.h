@@ -30,45 +30,45 @@ int main_entry(int argc, char** argv);
 // Handle
 //
 struct OS_Handle {
-    u64 e[1];
+  u64 e[1];
 };
 
 
 // Thread
 //
 struct Thread {
-    OS_Handle handle;
-    u64       tid;
+  OS_Handle handle;
+  u64       tid;
 
-    void (*proc)(void *);
-    void *param;
+  void (*proc)(void *);
+  void *param;
 };
 
 struct Work_Entry {
-    Work_Entry *next;
+  Work_Entry *next;
 
-    void       (*proc)(void*);
-    void       *param;
+  void       (*proc)(void*);
+  void       *param;
 
-    s32        thread_index; // thread of an index in the group that handled the work.
+  s32        thread_index; // thread of an index in the group that handled the work.
 };
 
 struct Work_List {
-    Work_Entry *first;
-    Work_Entry *last;
-    s32         count;
+  Work_Entry *first;
+  Work_Entry *last;
+  s32         count;
 
-    Mutex       mutex;
-    Semaphore   semaphore;
+  Mutex       mutex;
+  Semaphore   semaphore;
 };
 
 struct Worker_Info {
-    Work_List     available;
+  Work_List     available;
 
-    Thread        thread;
+  Thread        thread;
 
-    Thread_Group *group;
-    s32           index; // Synonym of 'lane' index.
+  Thread_Group *group;
+  s32           index; // Synonym of 'lane' index.
 };
 
 //
@@ -77,38 +77,62 @@ struct Worker_Info {
 // own queue so that cache coherency isn't a problem. Job-stealing is a @Todo.
 //
 struct Thread_Group {
-    String          name;
+  String          name;
 
-    Arena          *arena;
-    Temporary_Arena temp;
+  Arena          *arena;
+  Temporary_Arena temp;
 
-    s32             next_worker_index;
+  s32             next_worker_index;
 
-    Worker_Info    *worker_info;
-    s32             count;
-    
-    // @Todo: This is bad. Cache coherency. Multiple threads will write to those and invalidate the cache.
-    s64 volatile    completed;
-    s64 volatile    added;
+  Worker_Info    *worker_info;
+  s32             count;
 
-    b32             initted;
-    b32             should_shutdown;
+  // @Todo: This is bad. Cache coherency. Multiple threads will write to those and invalidate the cache.
+  s64 volatile    completed;
+  s64 volatile    added;
+
+  b32             initted;
+  b32             should_shutdown;
 };
 
 enum Wait_Result : u8 {
-    WAIT_RESULT_SUCCESS = 0,
-    WAIT_RESULT_ERROR   = 1,
-    WAIT_RESULT_TIMEOUT = 2,
+  WAIT_RESULT_SUCCESS = 0,
+  WAIT_RESULT_ERROR   = 1,
+  WAIT_RESULT_TIMEOUT = 2,
+};
+
+
+/* 
+  Time
+  
+  int128 is better as it gives way wider range of time and femtoseconds
+  granularity, just as in Jai, but int128 arithmetic is out of my capability 
+  currently, so I'll just stick to int64, and be content with 10-nanoseconds 
+  granularity and plus-minus 2924-years of range.
+*/
+struct Time {
+  s64 s;
+};
+
+struct Calendar_Time {
+  s32 year;
+  s8  month;         // [0,11]
+  s8  day_of_month;  // [0,30]
+  s8  day_of_week;   // [0, 6]
+  s8  hour;
+  s8  minute;
+  s8  second;
+  s16 millisecond;
 };
 
 
 // GFX
 //
 struct OS_Window {
-    OS_Window *next;
-    OS_Window *prev;
+  OS_Window *next;
+  OS_Window *prev;
 
-    OS_Handle  handle;
+  OS_Handle  handle;
 };
 
 enum Event_Type : u32 {
@@ -230,84 +254,84 @@ enum {
 };
 
 struct Event {
-    struct Modifier_Flags {
-        union {
-            u32 packed = 0;
-            struct {
-                b8 shift_pressed;
-                b8 ctrl_pressed;
-                b8 alt_pressed;
-                b8 cmd_meta_pressed;
-            };
-        };
+  struct Modifier_Flags {
+    union {
+      u32 packed = 0;
+      struct {
+        b8 shift_pressed;
+        b8 ctrl_pressed;
+        b8 alt_pressed;
+        b8 cmd_meta_pressed;
+      };
     };
+  };
 
-    Event_Type type = EVENT_UNINITIALIZED;
+  Event_Type type = EVENT_UNINITIALIZED;
 
-    u32 key_pressed; // If not pressed, it's a key release.
-    Key_Code key_code = KEY_UNKNOWN;
+  u32 key_pressed; // If not pressed, it's a key release.
+  Key_Code key_code = KEY_UNKNOWN;
 
-    Modifier_Flags modifier_flags;
+  Modifier_Flags modifier_flags;
 
-    u32 utf32;              // If TEXT_INPUT event.
-    b32 repeat = false;     // If KEYBOARD event.
-    u16 text_input_count;   // If KEYBOARD event that also generated TEXT_INPUT events, this will tell you how many TEXT_INPUT events after this KEYBOARD event were generated.
+  u32 utf32;              // If TEXT_INPUT event.
+  b32 repeat = false;     // If KEYBOARD event.
+  u16 text_input_count;   // If KEYBOARD event that also generated TEXT_INPUT events, this will tell you how many TEXT_INPUT events after this KEYBOARD event were generated.
 
-    s32 typical_wheel_delta; // Used only for mouse events.
-    s32 wheel_delta;         // Used only for mouse events.
+  s32 typical_wheel_delta; // Used only for mouse events.
+  s32 wheel_delta;         // Used only for mouse events.
 
-    Array<String> files;     // Used for drag and drop files.
+  Array<String> files;     // Used for drag and drop files.
 };
 
 
 // Thing (Discriminated Union)
 //
 enum OS_Thing_Kind : u8 {
-    OS_THING_KIND_INVALID = 0,
+  OS_THING_KIND_INVALID = 0,
 
-    OS_THING_KIND_THREAD,
+  OS_THING_KIND_THREAD,
 
-    OS_THING_KIND_COUNT
+  OS_THING_KIND_COUNT
 };
 
 struct OS_Thing {
-    OS_Thing_Kind kind;
-    OS_Thing *next;
-    OS_Thing *prev;
-    union {
-        Thread thread;
-    };
+  OS_Thing_Kind kind;
+  OS_Thing *next;
+  OS_Thing *prev;
+  union {
+    Thread thread;
+  };
 };
 
 
 // GUID
 //
 struct Guid {
-    union {
-        struct {
-            u32 data1;
-            u16 data2;
-            u16 data3;
-            u8  data4[8];
-        };
-        u8   u[16];
-        u16 _16[8];
-        u32 _32[4];
-        u64 _64[2];
+  union {
+    struct {
+      u32 data1;
+      u16 data2;
+      u16 data3;
+      u8  data4[8];
     };
+    u8   u[16];
+    u16 _16[8];
+    u32 _32[4];
+    u64 _64[2];
+  };
 
-    bool operator == (const Guid& other) {
-        return memcmp(u, other.u, sizeof(u)) == 0;
-    }
+  bool operator == (const Guid& other) {
+    return memcmp(u, other.u, sizeof(u)) == 0;
+  }
 
-    bool operator != (const Guid& other) {
-        return memcmp(u, other.u, sizeof(u)) != 0;
-    }
+  bool operator != (const Guid& other) {
+    return memcmp(u, other.u, sizeof(u)) != 0;
+  }
 };
 global read_only const Guid NULL_GUID = {};
 
 force_inline u32 hash_guid(Guid guid) {
-    return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
+  return guid._32[0] ^ guid._32[1] ^ guid._32[2] ^ guid._32[3];
 }
 
 
@@ -385,21 +409,21 @@ void*              get_native_window_handle(OS_Handle window);
 // File
 //
 struct File {
-    HANDLE handle;
+  HANDLE handle;
 };
 
 struct File_Visit_Info {
-    String short_name;
-    String full_name;
+  String short_name;
+  String full_name;
 
-    // @Todo: Time
-    s64    size;
+  // @Todo: Time
+  s64    size;
 
-    b32    had_error;
-    b32    is_symlink;
-    b32    is_directory;
+  b32    had_error;
+  b32    is_symlink;
+  b32    is_directory;
 
-    b32    descend_into_directory;
+  b32    descend_into_directory;
 };
 
 File 
@@ -533,40 +557,42 @@ void               atomic_store(volatile s64 *dst, s64 val);
 b32                set_working_directory(String s);
 
 template<typename F> 
-void parallel_for(Thread_Group *group, s64 count, F&& func) {
-    if (count <= 0)  return;
+void 
+parallel_for(Thread_Group *group, s64 count, F&& func) 
+{
+  if (count <= 0)  return;
 
-    s64 chunk_size = (count + group->count - 1) / group->count;
+  s64 chunk_size = (count + group->count - 1) / group->count;
 
-    struct Context {
-        F  *func;
-        s64 begin;
-        s64 end;
-    };
+  struct Context {
+    F  *func;
+    s64 begin;
+    s64 end;
+  };
 
-    auto proc = [](void *param) {
-        Context *ctx = (Context *)param;
+  auto proc = [](void *param) {
+    Context *ctx = (Context *)param;
 
-        for (s64 i = ctx->begin; i < ctx->end; ++i) {
-            (*ctx->func)(i);
-        }
-    };
-
-    for (s32 i = 0; i < group->count; ++i) {
-        s64 begin = i * chunk_size;
-        s64 end   = min(begin + chunk_size, count);
-
-        if (begin >= end)  break;
-
-        Context *ctx = push_struct(group->arena, Context);
-        ctx->func  = &func;
-        ctx->begin = begin;
-        ctx->end   = end;
-
-        thread_group_add_work(group, proc, ctx);
+    for (s64 i = ctx->begin; i < ctx->end; ++i) {
+      (*ctx->func)(i);
     }
+  };
 
-    thread_group_complete_all_work(group);
+  for (s32 i = 0; i < group->count; ++i) {
+    s64 begin = i * chunk_size;
+    s64 end   = min(begin + chunk_size, count);
+
+    if (begin >= end)  break;
+
+    Context *ctx = push_struct(group->arena, Context);
+    ctx->func  = &func;
+    ctx->begin = begin;
+    ctx->end   = end;
+
+    thread_group_add_work(group, proc, ctx);
+  }
+
+  thread_group_complete_all_work(group);
 }
 
 
