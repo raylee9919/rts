@@ -3,7 +3,7 @@
 #include "gfx/gfx.h"
 #include "basic/arena.h"
 #include "basic/log.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "profiler/profiler.h"
 
 #include "third_party/xxHash3/xxhash.h"

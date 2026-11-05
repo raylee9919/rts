@@ -2,7 +2,7 @@
 
 #include "audio.h"
 #include "basic/string.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 void audio_entry(void *param)
 {

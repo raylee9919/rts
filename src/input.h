@@ -4,7 +4,7 @@
 #define RTS_INPUT_H
 
 
-#include "os/os.h"
+#include "platform/platform.h"
 
 struct Input_State
 {

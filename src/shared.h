@@ -4,7 +4,7 @@
 #define RTS_SHARED_H
 
 #include "basic/string.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 struct Arena;
 struct Shader_Compiler;

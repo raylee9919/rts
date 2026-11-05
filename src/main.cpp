@@ -6,7 +6,7 @@
 #include "basic/log.h"
 #include "basic/string.h"
 #include "basic/context.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "math/math.h"
 #include "shared.h"
 #include "renderer/renderer.h"
@@ -34,7 +34,7 @@
    [V] Uploader
    [V] BCn, DDS
    [ ] Shader binary
-   [ ] Vertex Quantization
+   [ ] Vertex Quantization. Position is trickier than I thought. Normal and tangent first?
    [ ] Compute Skinning -> LiSPSM seems like a great fit for top-down rts game. Thanks Taha!
    [ ] Transparent material
    [ ] Cleanup material system. 'M_Entry' is a mess.
@@ -64,7 +64,7 @@
  [Development]
    - I'm not a fan of separate editor binary, like Unreal.
      I want developemnt tools to be embedded and be hoisted out cleanly 
-     in shipping build. I HATE CMAKE. WHY DID I SWITCH FROM BUILD.BAT!!!!!!!!
+     in shipping build.
 
  [Build]
    - Not urgent, but I want to ditch CMake and do my own build system at some point,

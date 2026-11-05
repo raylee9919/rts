@@ -2,7 +2,7 @@
 
 #include "game.h"
 #include "basic/log.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "shared.h"
 #include "renderer/renderer.h"

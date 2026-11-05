@@ -4,7 +4,7 @@
 #define RTS_RENDERER_H
 
 #include "basic/core.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "rhi/rhi.h"
 #include "gfx/gfx.h"
 #include "renderer/immediate.h"

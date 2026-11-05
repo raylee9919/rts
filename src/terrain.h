@@ -3,7 +3,7 @@
 #ifndef RTS_TERRAIN_H
 #define RTS_TERRAIN_H
 
-#include "os/os.h"
+#include "platform/platform.h"
 #include "handle.h"
 
 struct Game_State;

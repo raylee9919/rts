@@ -4,7 +4,7 @@
 #define RTS_RENDERER_IMMEDIATE_H
 
 #include "math/math.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 #define R_MAX_QUADS 65536 
 

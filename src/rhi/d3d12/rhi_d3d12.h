@@ -10,7 +10,7 @@
 #include "third_party/DirectX/Include/d3dx12/d3dx12.h"
 
 #include "basic/core.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "rhi/rhi_defines.h"
 
 #include "third_party/D3D12MemoryAllocator/D3D12MemAlloc.h"

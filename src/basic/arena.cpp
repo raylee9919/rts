@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "basic/arena.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 Arena* 
 arena_alloc_(u64 rsv_size_in, u64 cmt_size_in)

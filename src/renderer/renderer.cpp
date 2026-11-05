@@ -5,7 +5,7 @@
 #include "basic/log.h"
 #include "gfx/gfx.h"
 #include "math/math.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "profiler/profiler.h"
 #include "third_party/xxhash3/xxhash.h"
 #include "game.h"

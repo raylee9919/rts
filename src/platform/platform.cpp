@@ -1,6 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#include "os/os.h"
+#include "./platform.h"
 #include "basic/string.h"
 #include "third_party/xxHash3/xxhash.h"
 

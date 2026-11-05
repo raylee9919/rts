@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "./material.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "basic/context.h"
 #include "basic/log.h"
 #include "renderer/renderer.h"

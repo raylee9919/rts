@@ -11,7 +11,7 @@
 #include "third_party/xxhash3/xxhash.c"
 #include "Basic/include.h"
 #include "math/math.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "asset/system.h"
 #include "asset/texture.h"
 #include "asset.h"
@@ -24,7 +24,7 @@
 //
 #include "Basic/include.cpp"
 #include "math/math.cpp"
-#include "os/os.cpp"
+#include "platform/platform.cpp"
 
 #pragma warning(push)
 #pragma warning(disable : 4456)

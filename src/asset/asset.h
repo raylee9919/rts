@@ -5,7 +5,7 @@
 
 #include "basic/allocator.h"
 #include "basic/hash_table.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 
 #define ASSET_LOAD_PROC(Name) void Name(Guid id, Guid referrer, void *user_data)

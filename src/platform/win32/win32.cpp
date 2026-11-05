@@ -1,6 +1,6 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#include "os/os.h"
+#include "platform/platform.h"
 #include "basic/arena.h"
 #include "basic/string.h"
 #include "basic/context.h"

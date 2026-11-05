@@ -2,7 +2,7 @@
 
 #include "font/font.h"
 #include "basic/log.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "font/font.h"
 #include "gfx/gfx.h"
 #include "rect_pack/rect_pack.h"

@@ -6,7 +6,7 @@
 #include "basic/core.h"
 #include "basic/string.h"
 #include "math/math.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 struct Game_State;
 

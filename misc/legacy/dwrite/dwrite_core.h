@@ -11,7 +11,7 @@
 
 #include "basic/core.h"
 #include "basic/string.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "math/math.h"
 
 struct Dwrite_Text_Analysis_Source final : IDWriteTextAnalysisSource

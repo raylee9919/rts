@@ -5,7 +5,7 @@
 #include "basic/log.h"
 #include "basic/string.h"
 #include "basic/string_builder.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "shader_compiler/shader.h"
 #include "material/codegen.h"
 #include "shared.h"
@@ -51,7 +51,7 @@ void material_codegen(Shader_Compiler *shader_compiler,
 #define RTS_GENERATED_MATERIAL_H
 
 #include "basic/core.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "gfx/gfx.h"
 #include "shaders/shared/shared.h"
 

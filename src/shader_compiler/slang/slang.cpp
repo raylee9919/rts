@@ -5,7 +5,8 @@
 #include "basic/context.h"
 #include "basic/log.h"
 #include "basic/string_builder.h"
-#include "os/os.h"
+#include "platform/platform.h"
+
 
 #include "third_party/slang/include/slang-com-ptr.h"
 

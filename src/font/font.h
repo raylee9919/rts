@@ -7,7 +7,7 @@
 #include "basic/array.h"
 #include "basic/hash_table.h"
 #include "basic/string.h"
-#include "os/os.h"
+#include "platform/platform.h"
 
 struct hb_face_t;
 struct hb_font_t;

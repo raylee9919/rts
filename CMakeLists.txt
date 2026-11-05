@@ -109,8 +109,8 @@ add_library(rts_engine STATIC
 
     src/math/math.cpp
 
-    src/os/os.cpp
-    src/os/win32/win32.cpp
+    src/platform/platform.cpp
+    src/platform/win32/win32.cpp
 
     src/random/random.cpp
 

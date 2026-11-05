@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
 #include "./mesh.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "basic/context.h"
 #include "basic/string_builder.h"
 #include "asset/asset.h"

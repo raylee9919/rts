@@ -9,7 +9,7 @@
 #include "basic/queue.h"
 #include "basic/hash_table.h"
 #include "math/math.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "rhi/rhi.h"
 #include "shaders/shared/shared.h"
 

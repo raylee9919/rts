@@ -1,7 +1,7 @@
 // Copyright Seong Woo Lee. All Rights Reserved.
 
-#ifndef OPERATING_SYSTEM_H
-#define OPERATING_SYSTEM_H
+#ifndef RTS_PLATFORM_H
+#define RTS_PLATFORM_H
 
 #include "basic/core.h"
 #include "basic/arena.h"
@@ -11,7 +11,7 @@
 #include "math/math.h"
 
 #if OS_WINDOWS
-#  include "os/win32/win32.h"
+#  include "platform/win32/win32.h"
 #else
 #  error Undefined OS
 #endif
@@ -570,4 +570,4 @@ void parallel_for(Thread_Group *group, s64 count, F&& func) {
 }
 
 
-#endif // OPERATING_SYSTEM_H
+#endif // RTS_PLATFORM_H

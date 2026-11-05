@@ -19,7 +19,7 @@
 //
 #include "third_party/xxhash3/xxhash.c"
 #include "basic/includes.h"
-#include "os/rts_os.h"
+#include "platform/platform.h"
 #include "asset.h"
 
 #include "rts_assimp.h"

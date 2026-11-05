@@ -4,7 +4,7 @@
 #define RTS_GAME_H
 
 #include "basic/core.h"
-#include "os/os.h"
+#include "platform/platform.h"
 #include "math/math.h"
 #include "handle.h"
 #include "terrain.h"
