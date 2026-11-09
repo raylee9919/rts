@@ -42,6 +42,7 @@
  
  [Asset - Offline]
    [V] Meshoptimizer Additional Passes
+   [ ] Neighbor quaternions in samples
    [ ] Mesh LoD: meshoptimizer and authored LoD (Maya, Blender..)
    [ ] Meshoptimizer shadow/z-prepass indices
 
