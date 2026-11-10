@@ -75,16 +75,21 @@ force_inline u128
 operator * (u128 a, u128 b)
 {
 #if COMPILER_CL 
-  // @Speed: I believe there's a room of improvement!
+  // @Speed: I believe there's a room for improvement!
   {
     u128 c;
 
     u64 hi;
     c.lo = _umul128(a.lo, b.lo, &hi);
-
+    
+    /*
     u64 unused;
     u64 lo_1 = _umul128(a.hi, b.lo, &unused);
     u64 lo_2 = _umul128(a.lo, b.hi, &unused);
+    */
+
+    u64 lo_1 = a.hi * b.lo;
+    u64 lo_2 = a.lo * b.hi;
 
     c.hi = hi + lo_1 + lo_2;
 
@@ -92,7 +97,7 @@ operator * (u128 a, u128 b)
   }
 #else 
   {
-
+    static_assert(!"Not implemented"); // @Todo
   }
 #endif
 }
@@ -129,6 +134,28 @@ operator - (s128 a)
   b.lo += 1;
   if (b.lo == 0) b.hi += 1;
   return b;
+}
+
+force_inline s128 
+operator * (s128 a, s128 b)
+{
+  bool negate = false;
+
+  if (a.hi < 0) {
+    negate = true;
+    a = -a;
+  }
+
+  if (b.hi < 0) {
+    negate = !negate;
+    b = -b;
+  }
+
+  u128 u = ( (*(u128*)&a) * (*(u128*)&b) );
+  s128 c = *(s128*)&u;
+
+  if (negate) c = -c;
+  return c;
 }
 
 
