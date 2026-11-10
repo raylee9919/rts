@@ -8,12 +8,14 @@
 
 #include "basic/core.h"
 
-//
-// u128
-//
 struct u128 {
   u64 lo;
   u64 hi;
+};
+
+struct s128 {
+  u64 lo;
+  s64 hi;
 };
 
 force_inline bool 
@@ -102,14 +104,53 @@ operator * (u128 a, u128 b)
 #endif
 }
 
-
-//
-// s128
-//
-struct s128 {
-  u64 lo;
-  s64 hi;
+struct udiv_128_64_result_t {
+  u64 quotient;
+  u64 remainder;
+  b32 error;
 };
+
+force_inline udiv_128_64_result_t
+udiv_128_64(u128 l, u64 r)
+{
+#if COMPILER_CL
+  {
+    if (l.hi >= r) {
+      return { UINT64_MAX, UINT64_MAX, true };
+    }
+
+    u64 remainder;
+    u64 quotient = _udiv128(l.hi, l.lo, r, &remainder);
+    return { quotient, remainder, false };
+  }
+#else
+#  error "not implemented."
+#endif
+}
+
+struct div_128_128_result_t {
+  s128 quotient;
+  s128 remainder;
+  b32  error;
+};
+
+struct udiv_128_128_result_t {
+  u128 quotient;
+  u128 remainder;
+  b32  error;
+};
+
+force_inline udiv_128_128_result_t 
+udiv_128_128(u128 l, u128 r)
+{
+  // @Todo
+}
+
+force_inline div_128_128_result_t 
+div_128_128(u128 l, u128 r)
+{
+  // @Todo
+}
 
 force_inline bool 
 operator == (s128 a, s128 b)
@@ -139,6 +180,7 @@ operator - (s128 a)
 force_inline s128 
 operator * (s128 a, s128 b)
 {
+  // @Todo: turns out there's a better way for two's complement?
   bool negate = false;
 
   if (a.hi < 0) {

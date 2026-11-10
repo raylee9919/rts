@@ -432,11 +432,35 @@ force_inline void *align_up(void *x, uintptr_t alignment) {
 // Returns 64 if there's no set bit. That's why TZCNT is better than BSF.
 // @Todo: Some old chips might not support tzcnt
 force_inline u64 tzcnt64(u64 x) {
-    return _tzcnt_u64(x);
+#if COMPILER_CL
+  return _tzcnt_u64(x);
+#else
+
+#endif
 }
 
 force_inline u32 tzcnt32(u32 x) {
-    return _tzcnt_u32(x);
+#if COMPILER_CL
+  return _tzcnt_u32(x);
+#else
+
+#endif
+}
+
+force_inline u64 lzcnt64(u64 x) {
+#if COMPILER_CL
+  return _lzcnt_u64(x);
+#else
+
+#endif
+}
+
+force_inline u32 lzcnt32(u32 x) {
+#if COMPILER_CL
+  return _lzcnt_u32(x);
+#else
+
+#endif
 }
 
 // Placement new
