@@ -3,8 +3,13 @@
 #ifndef RTS_INT128_H
 #define RTS_INT128_H
 
-// Generated code:
-// https://godbolt.org/z/7Wq8EefYf
+/*
+
+  INT128_MIN and negation have some tricky edge cases that aren't handled, 
+  but I don't think they're worth worrying about... at least for now!
+
+                                                           -swL 2026-11-10
+*/
 
 #include "basic/core.h"
 
@@ -19,8 +24,8 @@ struct s128 {
 };
 
 
-// Returns this on error
 const read_only u128 U128_ERROR = { UINT64_MAX, UINT64_MAX };
+const read_only s128 S128_ERROR = { UINT64_MAX,         -1 };
 
 
 force_inline bool 
@@ -30,7 +35,19 @@ operator == (u128 a, u128 b)
 }
 
 force_inline bool 
+operator == (s128 a, s128 b)
+{
+  return (a.lo == b.lo) && (a.hi == b.hi);
+}
+
+force_inline bool 
 operator != (u128 a, u128 b)
+{
+  return (a.lo != b.lo) || (a.hi != b.hi);
+}
+
+force_inline bool 
+operator != (s128 a, s128 b)
 {
   return (a.lo != b.lo) || (a.hi != b.hi);
 }
@@ -129,6 +146,13 @@ operator + (u128 a, u128 b)
 #endif
 }
 
+force_inline s128 
+operator + (s128 a, s128 b)
+{
+  u128 c = u128{a.lo, (u64)a.hi} + u128{b.lo, (u64)b.hi};
+  return s128{c.lo, (s64)c.hi};
+}
+
 force_inline u128 
 operator - (u128 a, u128 b)
 {
@@ -148,6 +172,18 @@ operator - (u128 a, u128 b)
     return c;
   }
 #endif
+}
+
+force_inline s128 
+operator - (s128 a)
+{
+  // Two's complement negation.
+  s128 b;
+  b.lo = ~a.lo;
+  b.hi = ~a.hi;
+  b.lo += 1;
+  if (b.lo == 0) b.hi += 1;
+  return b;
 }
 
 force_inline u128&
@@ -181,7 +217,6 @@ force_inline u128
 operator * (u128 a, u128 b)
 {
 #if COMPILER_CL 
-  // @Speed: I believe there's a room for improvement!
   {
     u128 c;
 
@@ -239,8 +274,13 @@ struct udiv_128_128_result_t {
 force_inline udiv_128_128_result_t 
 udiv_128_128(u128 u, u128 v)
 {
-  // Code adapted from 'Hacker's Delight 2nd Edition, 9-5'.
-
+  /*
+    Code adapted from 'Hacker's Delight 2nd Edition, 9-5'.
+   
+    @Study
+      To be honest, I have no idea what's going on in the case 
+      where 'v.hi' isn't zero.
+  */
   if (v.lo == 0 && v.hi == 0) {
     return { U128_ERROR, U128_ERROR, true };
   }
@@ -294,41 +334,80 @@ udiv_128_128(u128 u, u128 v)
   return { q0, remainder, false };
 }
 
+/*
+  We truncate.
+
+  >>> TRUNCATING <<<
+       MODULUS       
+        FLOOR        
+  
+  e.g.
+        7  /   3   =   2 rem  1
+      (-7) /   3   =  -2 rem -1
+        7  / (-3)  =  -2 rem  1
+      (-7) / (-3)  =   2 rem -1
+*/
 force_inline div_128_128_result_t 
-div_128_128(u128 l, u128 r)
+div_128_128(s128 u, s128 v)
 {
-  // @Todo
+  bool neg_quot = false;
+  bool neg_rem  = false;
+
+  if (u.hi < 0) {
+    u = -u;
+    neg_quot = true;
+    neg_rem  = true;
+  }
+
+  if (v.hi < 0) {
+    v = -v;
+    neg_quot = !neg_quot;
+  }
+
+  auto [q, r, error] = udiv_128_128( { u.lo, (u64)u.hi }, { v.lo, (u64)v.hi } );
+  if (error) {
+    return { s128{ q.lo, (s64)q.hi }, s128{ r.lo, (s64)r.hi }, true };
+  }
+
+  s128 q_ = s128{ q.lo, (s64)q.hi };
+  s128 r_  = s128{ r.lo, (s64)r.hi };
+
+  if (neg_quot) q_ = -q_;
+  if (neg_rem)  r_ = -r_;
+
+  return { q_, r_, false };
 }
 
-force_inline bool 
-operator == (s128 a, s128 b)
+force_inline u128 
+operator / (u128 a, u128 b)
 {
-  return (a.lo == b.lo) && (a.hi == b.hi);
+  R_ASSERT( (b.lo != 0 || b.hi != 0), "division by zero error" );
+  return udiv_128_128(a, b).quotient;
 }
 
 force_inline s128 
-operator + (s128 a, s128 b)
+operator / (s128 a, s128 b)
 {
-  u128 c = u128{a.lo, (u64)a.hi} + u128{b.lo, (u64)b.hi};
-  return s128{c.lo, (s64)c.hi};
+  R_ASSERT( (b.lo != 0 || b.hi != 0), "division by zero error" );
+  return div_128_128(a, b).quotient;
 }
 
-force_inline s128 
-operator - (s128 a)
+force_inline u128&
+operator /= (u128& a, u128 b)
 {
-  // Two's complement negation.
-  s128 b;
-  b.lo = ~a.lo;
-  b.hi = ~a.hi;
-  b.lo += 1;
-  if (b.lo == 0) b.hi += 1;
-  return b;
+  return a = a / b;
+}
+
+force_inline s128&
+operator /= (s128& a, s128 b)
+{
+  return a = a / b;
 }
 
 force_inline s128 
 operator * (s128 a, s128 b)
 {
-  // @Todo: turns out there's a better way for two's complement?
+  // @Todo: better way for two's complement?
   bool negate = false;
 
   if (a.hi < 0) {
@@ -341,8 +420,8 @@ operator * (s128 a, s128 b)
     b = -b;
   }
 
-  u128 u = ( (*(u128*)&a) * (*(u128*)&b) );
-  s128 c = *(s128*)&u;
+  u128 u = u128{ a.lo, (u64)a.hi } * u128{ b.lo, (u64)b.hi };
+  s128 c = { u.lo, (s64)u.hi };
 
   if (negate) c = -c;
   return c;
