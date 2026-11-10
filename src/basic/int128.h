@@ -18,10 +18,21 @@ struct s128 {
   s64 hi;
 };
 
+
+// Returns this on error
+const read_only u128 U128_ERROR = { UINT64_MAX, UINT64_MAX };
+
+
 force_inline bool 
 operator == (u128 a, u128 b)
 {
   return (a.lo == b.lo) && (a.hi == b.hi);
+}
+
+force_inline bool 
+operator != (u128 a, u128 b)
+{
+  return (a.lo != b.lo) || (a.hi != b.hi);
 }
 
 force_inline bool 
@@ -41,6 +52,60 @@ operator < (u128 a, u128 b)
     return a.lo < b.lo;
   }
 #endif
+}
+
+force_inline bool 
+operator > (u128 a, u128 b)
+{
+  return b < a;
+}
+
+force_inline bool 
+operator >= (u128 a, u128 b)
+{
+  return !(a < b);
+}
+
+force_inline bool 
+operator <= (u128 a, u128 b)
+{
+  return !(b < a);
+}
+
+force_inline u128
+operator << (u128 a, int b)
+{
+  if (b == 0) return a;
+
+  if (b >= 64) {
+    return { 0, a.lo << (b - 64) };
+  } else {
+    return { a.lo << b, (a.hi << b) | (a.lo >> (64 - b)) };
+  }
+}
+
+force_inline u128
+operator >> (u128 a, int b)
+{
+  if (b == 0) return a;
+
+  if (b >= 64) {
+    return { a.hi >> (b - 64), 0 };
+  } else {
+    return { (a.lo >> b) | (a.hi << (64 - b)), a.hi >> b };
+  }
+}
+
+force_inline u128&
+operator <<= (u128& a, int b)
+{
+  return a = (a << b);
+}
+
+force_inline u128&
+operator >>= (u128& a, int b)
+{
+  return a = (a >> b);
 }
 
 force_inline u128 
@@ -65,12 +130,51 @@ operator + (u128 a, u128 b)
 }
 
 force_inline u128 
+operator - (u128 a, u128 b)
+{
+#if COMPILER_CL 
+  {
+    u128 c;
+    _subborrow_u64(_subborrow_u64(0, a.lo, b.lo, &c.lo), a.hi, b.hi, &c.hi);
+    return c;
+  }
+#else 
+  {
+    // @Speed
+    u128 c;
+    c.lo = a.lo - b.lo;
+    c.hi = a.hi - b.hi;
+    if (c.lo > a.lo) c.hi -= 1;
+    return c;
+  }
+#endif
+}
+
+force_inline u128&
+operator += (u128& a, u128 b)
+{
+  return a = a + b;
+}
+
+force_inline u128&
+operator -= (u128& a, u128 b)
+{
+  return a = a - b;
+}
+
+force_inline u128 
 operator & (u128 a, u128 b)
 {
   u128 c;
   c.lo = a.lo & b.lo;
   c.hi = a.hi & b.hi;
   return c;
+}
+
+force_inline u128&
+operator &= (u128& a, u128 b)
+{
+  return a = (a & b);
 }
 
 force_inline u128 
@@ -84,12 +188,6 @@ operator * (u128 a, u128 b)
     u64 hi;
     c.lo = _umul128(a.lo, b.lo, &hi);
     
-    /*
-    u64 unused;
-    u64 lo_1 = _umul128(a.hi, b.lo, &unused);
-    u64 lo_2 = _umul128(a.lo, b.hi, &unused);
-    */
-
     u64 lo_1 = a.hi * b.lo;
     u64 lo_2 = a.lo * b.hi;
 
@@ -98,9 +196,7 @@ operator * (u128 a, u128 b)
     return c;
   }
 #else 
-  {
-    static_assert(!"Not implemented"); // @Todo
-  }
+#  error "not implemented."
 #endif
 }
 
@@ -141,9 +237,61 @@ struct udiv_128_128_result_t {
 };
 
 force_inline udiv_128_128_result_t 
-udiv_128_128(u128 l, u128 r)
+udiv_128_128(u128 u, u128 v)
 {
-  // @Todo
+  // Code adapted from 'Hacker's Delight 2nd Edition, 9-5'.
+
+  if (v.lo == 0 && v.hi == 0) {
+    return { U128_ERROR, U128_ERROR, true };
+  }
+
+  if (v.hi == 0) {
+    if (u.hi < v.lo) {
+      // if u/v cannot overflow, just do one division.
+      auto [q, r, error] = udiv_128_64(u, v.lo);
+
+      if (error) return { U128_ERROR, U128_ERROR, true };
+      else       return { { q, 0 }, { r, 0 }, false };
+
+    } else {
+      // if u/v would overflow, break u up into two halves.
+      u64 q1 = u.hi / v.lo;
+      u64  k = u.hi - q1*v.lo;
+      u128 c = { u.lo, k };
+      auto [q0, r, error] = udiv_128_64(c, v.lo);
+
+      if (error) return { U128_ERROR, U128_ERROR, true };
+      else       return { { q0, q1 }, { r, 0 }, false };
+    }
+  }
+
+  u64   n = lzcnt64(v.hi); // 0 <= n <= 63
+  u64  v1 = (v << n).hi;   // Normalize the divisor so its MSB is 1.
+  u128 u1 = u >> 1;        // To ensure no overflow.
+
+  auto [q1, _, error] = udiv_128_64(u1, v1);
+  if (error) return { U128_ERROR, U128_ERROR, true };
+
+  u128 q0 = ( (u128{ q1, 0 } << n) >> 63 ); // Undo normalization and division of u by 2.
+
+  // Make q0 correct or too small by 1.
+  if (q0.lo || q0.hi) {
+    if (q0.lo == 0) {
+      q0.hi -= 1;
+    }
+    q0.lo -= 1;
+  }
+
+  u128 remainder = u - q0*v;
+  if (remainder >= v) {
+    q0.lo += 1;
+    if (q0.lo == 0) {
+      q0.hi += 1; // Now q0 is correct.
+    }
+    remainder -= v;
+  }
+
+  return { q0, remainder, false };
 }
 
 force_inline div_128_128_result_t 
