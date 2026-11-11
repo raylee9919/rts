@@ -8,6 +8,7 @@
 #include "basic/allocator.h"
 #include "basic/string.h"
 #include "basic/array.h"
+#include "basic/int128.h"
 #include "math/math.h"
 
 #if OS_WINDOWS
@@ -27,6 +28,7 @@ int main_entry(int argc, char** argv);
 #endif
 
 
+//
 // Handle
 //
 struct OS_Handle {
@@ -34,6 +36,7 @@ struct OS_Handle {
 };
 
 
+//
 // Thread
 //
 struct Thread {
@@ -102,17 +105,16 @@ enum Wait_Result : u8 {
 };
 
 
-/* 
+/*
   Time
+
+  since '2023-03-04 21:30 UTC', the moment I woke up and was finally 
+  discharged from the military shithole, with femtoseconds precision. 
   
-  int128 is better as it gives way wider range of time and femtoseconds
-  granularity, just as in Jai, but int128 arithmetic is out of my capability 
-  currently, so I'll just stick to int64, and be content with 10-nanoseconds 
-  granularity and plus-minus 2924-years of range.
+  milliseconds(ms)  microseconds(us)  nanoseconds(ns)  picoseconds  femtoseconds
+       1e-3              1e-6              1e-9           1e-12        1e-15
 */
-struct Time {
-  s64 s;
-};
+typedef s128 Time;
 
 struct Calendar_Time {
   s32 year;
@@ -125,7 +127,52 @@ struct Calendar_Time {
   s16 millisecond;
 };
 
+struct Convert_Time_Result {
+  s64 result;
+  b32 success;
+};
 
+
+Time
+time_from_seconds(s64 x);
+
+Time
+time_from_milliseconds(s64 x);
+
+Time
+time_from_microseconds(s64 x);
+
+Time
+time_from_nanoseconds(s64 x);
+
+
+Convert_Time_Result
+seconds_from_time(Time t, b32 do_rounding);
+
+Convert_Time_Result
+milliseconds_from_time(Time t, b32 do_rounding);
+
+Convert_Time_Result
+microseconds_from_time(Time t, b32 do_rounding);
+
+Convert_Time_Result
+nanoseconds_from_time(Time t, b32 do_rounding);
+
+
+Time 
+current_time_consensus();
+
+Time 
+current_time_monotonic();
+
+Calendar_Time 
+calendar_from_time(Time t);
+
+Time 
+time_from_calendar(Calendar_Time t);
+
+
+//
 // GFX
 //
 struct OS_Window {
@@ -343,8 +390,9 @@ struct OS_State
   Allocator arena;
   Allocator event_arena;
 
-  // Platform-specific
-  void *native;
+
+  void *native; 
+  // e.g., cast to 'Win32_State' on windows.
 
 
   //

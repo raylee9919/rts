@@ -14,8 +14,8 @@
 
 extern "C"
 {
-    __declspec(dllexport) DWORD NvOptimusEnablement = 1;
-    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+  __declspec(dllexport) DWORD NvOptimusEnablement = 1;
+  __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
 
@@ -32,6 +32,9 @@ static bool shift_state = false;
 static bool ctrl_state  = false;
 static bool alt_state   = false;
 static Array<RAWINPUT> raw_input_buffer;
+
+
+static constexpr read_only s128 FILETIME_ORIGIN_IN_DISCHARGE_TIME = { 2484217848982142976, -722211 };
 
 
 static struct VK_To_Key_Code {
@@ -667,6 +670,179 @@ get_absolute_path(String    relative_path,
 
   return wide_to_utf8(absolute_path_wide, final_length, allocator);
 }
+
+
+//
+// Time
+//
+static force_inline Time 
+time_from_filetime(FILETIME ft)
+{
+  u64 lo = ( (u64)ft.dwHighDateTime << 32 ) | ft.dwLowDateTime;
+  Time t = { lo, 0 };
+
+  t *= 1'00'000'000LL; // FILETIME is 100-nanoseconds (1e-7) interval
+
+  return t;
+}
+
+Time
+time_from_seconds(s64 x)
+{
+  s64 factor = 1'000'000'000'000'000LL;
+  return make_s128(x) * factor;
+}
+
+Time
+time_from_milliseconds(s64 x)
+{
+  s64 factor = 1'000'000'000'000LL;
+  return make_s128(x) * factor;
+}
+
+Time
+time_from_microseconds(s64 x)
+{
+  s64 factor = 1'000'000'000LL;
+  return make_s128(x) * factor;
+}
+
+Time
+time_from_nanoseconds(s64 x)
+{
+  s64 factor = 1'000'000LL;
+  return make_s128(x) * factor;
+}
+
+
+static force_inline Convert_Time_Result  
+div_time_(Time dividend, u64 divisor, bool do_rounding)
+{
+  auto [q, remainder, overflow] = div_128_128(dividend, {divisor, 0});
+
+  // Quotient will fit in 64-bits, only if the high 64-bits are either all cleared or set.
+  overflow =  overflow || ((q.hi != 0) && (q.hi != UINT64_MAX));
+
+  s64 quotient = (s64)q.lo;
+
+  if (do_rounding) {
+    // @Todo
+  }
+
+  /*
+     Still, it could have overflowed. For example:
+  
+                   1111 0111  ->  0111
+                      -9            7
+  
+     as the low 4-bits aren't enough to represent '-9'.
+
+     Since the divisor is unsigned, we check if the quotient 
+     has a same sign as the dividend.
+   */
+
+  overflow =  overflow || (quotient != 0 && ((dividend.hi < 0) != (quotient < 0)));
+
+  return { quotient, overflow };
+}
+
+Convert_Time_Result
+seconds_from_time(Time t, b32 do_rounding)
+{
+  return div_time_(t, 1'000'000'000'000'000LLU, do_rounding);
+}
+
+Convert_Time_Result
+milliseconds_from_time(Time t, b32 do_rounding)
+{
+  return div_time_(t, 1'000'000'000'000LLU, do_rounding);
+}
+
+Convert_Time_Result
+microseconds_from_time(Time t, b32 do_rounding)
+{
+  return div_time_(t, 1'000'000'000LLU, do_rounding);
+}
+
+Convert_Time_Result
+nanoseconds_from_time(Time t, b32 do_rounding)
+{
+  return div_time_(t, 1'000'000LLU, do_rounding);
+}
+
+/*
+static force_inline Time
+get_1601_01_01_as_time()
+{
+  FILETIME ft = {};
+  Time t = time_from_filetime(ft);
+  return t;
+}
+
+static force_inline FILETIME 
+get_discharge_filetime()
+{
+  // 2023-03-04 21:30 UTC
+  SYSTEMTIME st;
+  st.wYear         = 2023;
+  st.wMonth        = 3;
+  st.wDayOfWeek    = 0;
+  st.wDay          = 4;
+  st.wHour         = 21;
+  st.wMinute       = 30;
+  st.wSecond       = 0;
+  st.wMilliseconds = 0;
+
+  FILETIME ft;
+  R_ASSERT( SystemTimeToFileTime(&st, &ft) );
+
+  return ft;
+}
+*/
+
+Time 
+current_time_consensus()
+{
+  FILETIME ft;
+  GetSystemTimePreciseAsFileTime(&ft);
+  Time t = time_from_filetime(ft);
+  return t;
+}
+
+Time 
+current_time_monotonic()
+{
+  Win32_State *win32 = (Win32_State *)os->native;
+
+  LARGE_INTEGER pc;
+  QueryPerformanceCounter(&pc);
+
+  Time t = { (u64)pc.QuadPart, 0 };
+
+  t *= 1'000'000'000'000'000LL;
+  t /= win32->qpc_frequency;
+
+  return t;
+}
+
+static FILETIME 
+filetime_from_time(Time t)
+{
+}
+
+Calendar_Time
+calendar_from_time(Time t)
+{
+  return {};
+}
+
+Time 
+time_from_calendar(Calendar_Time t)
+{
+  return {};
+}
+
+
 
 //
 // GFX
