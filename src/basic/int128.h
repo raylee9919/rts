@@ -158,6 +158,12 @@ operator + (s128 a, s128 b)
   return s128{c.lo, (s64)c.hi};
 }
 
+force_inline s128&
+operator += (s128& a, s128 b)
+{
+  return a = a + b;
+}
+
 force_inline u128 
 operator - (u128 a, u128 b)
 {

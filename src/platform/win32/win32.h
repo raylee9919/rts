@@ -22,32 +22,32 @@ typedef CRITICAL_SECTION Critical_Section;
 
 
 struct Win32_Window {
-    Win32_Window    *next;
-    Win32_Window    *prev;
-    HWND            handle;
-    WINDOWPLACEMENT placement;
+  Win32_Window    *next;
+  Win32_Window    *prev;
+  HWND            handle;
+  WINDOWPLACEMENT placement;
 };
 
 struct Win32_State {
-    Arena *window_arena;
-    Win32_Window *window_first;
-    Win32_Window *window_last;
-    Win32_Window *window_free_first;
-    Win32_Window *window_free_last;
+  Arena *window_arena;
+  Win32_Window *window_first;
+  Win32_Window *window_last;
+  Win32_Window *window_free_first;
+  Win32_Window *window_free_last;
 
-    uint64_t    qpc_frequency;
+  uint64_t    qpc_frequency;
 };
 
 struct Mutex {
-    SRWLOCK lock;
+  SRWLOCK lock;
 };
 
 struct Condvar {
-    CONDITION_VARIABLE var;
+  CONDITION_VARIABLE var;
 };
 
 struct Semaphore {
-    HANDLE event;
+  HANDLE event;
 };
 
 

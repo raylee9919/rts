@@ -116,15 +116,21 @@ enum Wait_Result : u8 {
 */
 typedef s128 Time;
 
+enum Time_Zone : s16 {
+  TIME_ZONE_LOCAL,
+  TIME_ZONE_UTC,
+};
+
 struct Calendar_Time {
-  s32 year;
-  s8  month;         // [0,11]
-  s8  day_of_month;  // [0,30]
-  s8  day_of_week;   // [0, 6]
-  s8  hour;
-  s8  minute;
-  s8  second;
-  s16 millisecond;
+  Time_Zone  time_zone;
+  s32        year;
+  s8         month;         // [0,11]
+  s8         day_of_month;  // [0,30]
+  s8         day_of_week;   // [0, 6]
+  s8         hour;
+  s8         minute;
+  s8         second;
+  s16        millisecond;
 };
 
 struct Convert_Time_Result {
@@ -166,7 +172,7 @@ Time
 current_time_monotonic();
 
 Calendar_Time 
-calendar_from_time(Time t);
+calendar_from_time(Time t, Time_Zone time_zone = TIME_ZONE_UTC);
 
 Time 
 time_from_calendar(Calendar_Time t);

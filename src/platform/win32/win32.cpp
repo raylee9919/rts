@@ -34,7 +34,13 @@ static bool alt_state   = false;
 static Array<RAWINPUT> raw_input_buffer;
 
 
-static constexpr read_only s128 FILETIME_ORIGIN_IN_DISCHARGE_TIME = { 2484217848982142976, -722211 };
+static constexpr read_only 
+Time filetime_in_mytime = Time{ 2484217848982142976, -722211 }; 
+// '1601-01-01 00:00 UTC' in 'Time' (1e-15 seconds)
+
+static constexpr read_only 
+FILETIME mytime_in_filetime = { 2036218880, 31018720 }; 
+// '2023-03-04 21:30 UTC' in 'FILETIME' (1e-7 seconds)
 
 
 static struct VK_To_Key_Code {
@@ -264,36 +270,37 @@ static void os_thing_dealloc(OS_Thing *thing) {
 // Memory
 //
 void *os_reserve(u64 size) {
-    void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
-    return result;
+  void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
+  return result;
 }
 
 bool os_commit(void* ptr, u64 size) {
-    bool result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
-    // @Todo: RIORegisterBuffer()
-    // Also, check out (https://github.com/cmuratori/largepages)
-    // The problem with RIO is that now it cannot be evicted, so it's somewhat dangerous to ship.
-    return result;
+  bool result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
+  // @Todo: RIORegisterBuffer()
+  // Also, check out (https://github.com/cmuratori/largepages)
+  // The problem with RIO is that now it cannot be evicted, so it's somewhat dangerous to ship.
+  return result;
 }
 
 void os_decommit(void* ptr, u64 size) {
-    VirtualFree(ptr, size, MEM_DECOMMIT);
+  VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
 void os_release(void* ptr, u64 size) {
-    // Size isn't required on Windows, but is required on other OSes.
-    VirtualFree(ptr, 0, MEM_RELEASE);
+  // Size isn't required on Windows, but is required on other OSes.
+  VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
 void *os_heap_alloc(u64 size) {
-    return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
+  return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
 void os_heap_free(void* ptr) {
-    HeapFree(GetProcessHeap(), 0, ptr);
+  HeapFree(GetProcessHeap(), 0, ptr);
 }
 
 
+//
 // System Info.
 //
 u32 os_query_core_count() {
@@ -315,6 +322,7 @@ u32 os_query_caret_blink_time() {
 
 // Time
 // @Todo: This is kinda sloppy...
+// @Cleanup: Use new time API
 f64 time_seconds() {
     Win32_State *win32 = (Win32_State *)os->native;
     LARGE_INTEGER li;
@@ -675,17 +683,6 @@ get_absolute_path(String    relative_path,
 //
 // Time
 //
-static force_inline Time 
-time_from_filetime(FILETIME ft)
-{
-  u64 lo = ( (u64)ft.dwHighDateTime << 32 ) | ft.dwLowDateTime;
-  Time t = { lo, 0 };
-
-  t *= 1'00'000'000LL; // FILETIME is 100-nanoseconds (1e-7) interval
-
-  return t;
-}
-
 Time
 time_from_seconds(s64 x)
 {
@@ -715,6 +712,7 @@ time_from_nanoseconds(s64 x)
 }
 
 
+// @Robustness
 static force_inline Convert_Time_Result  
 div_time_(Time dividend, u64 divisor, bool do_rounding)
 {
@@ -725,8 +723,25 @@ div_time_(Time dividend, u64 divisor, bool do_rounding)
 
   s64 quotient = (s64)q.lo;
 
-  if (do_rounding) {
-    // @Todo
+  if (do_rounding) 
+  {
+    u64 half_divisor_floored = divisor / 2;
+    if (dividend.hi >= 0) 
+    {
+      if (remainder.lo > half_divisor_floored || 
+          divisor % 2 == 0 && 
+          remainder.lo == half_divisor_floored) 
+      {
+        quotient += 1;
+      }
+    } 
+    else 
+    {
+      if (remainder.lo > half_divisor_floored) 
+      {
+        quotient -= 1;
+      }
+    }
   }
 
   /*
@@ -743,7 +758,7 @@ div_time_(Time dividend, u64 divisor, bool do_rounding)
 
   overflow =  overflow || (quotient != 0 && ((dividend.hi < 0) != (quotient < 0)));
 
-  return { quotient, overflow };
+  return { quotient, !overflow };
 }
 
 Convert_Time_Result
@@ -770,35 +785,14 @@ nanoseconds_from_time(Time t, b32 do_rounding)
   return div_time_(t, 1'000'000LLU, do_rounding);
 }
 
-/*
-static force_inline Time
-get_1601_01_01_as_time()
+static Time 
+time_from_filetime(FILETIME ft)
 {
-  FILETIME ft = {};
-  Time t = time_from_filetime(ft);
+  Time t = { ((u64)ft.dwHighDateTime << 32) | ft.dwLowDateTime, 0 };
+  t *= 100'000'000;
+  t += filetime_in_mytime;
   return t;
 }
-
-static force_inline FILETIME 
-get_discharge_filetime()
-{
-  // 2023-03-04 21:30 UTC
-  SYSTEMTIME st;
-  st.wYear         = 2023;
-  st.wMonth        = 3;
-  st.wDayOfWeek    = 0;
-  st.wDay          = 4;
-  st.wHour         = 21;
-  st.wMinute       = 30;
-  st.wSecond       = 0;
-  st.wMilliseconds = 0;
-
-  FILETIME ft;
-  R_ASSERT( SystemTimeToFileTime(&st, &ft) );
-
-  return ft;
-}
-*/
 
 Time 
 current_time_consensus()
@@ -825,21 +819,107 @@ current_time_monotonic()
   return t;
 }
 
-static FILETIME 
+struct Filetime_From_Time_Result {
+  FILETIME ft;
+  b32 success;
+};
+
+static Filetime_From_Time_Result 
 filetime_from_time(Time t)
 {
+  auto [result, success] = div_time_(t, 1'00'000'000, true);
+
+  u64 result1 = (u64)result;
+  u64 quad_word = ((u64)mytime_in_filetime.dwHighDateTime << 32) | mytime_in_filetime.dwLowDateTime;
+  result += quad_word;
+
+  // @Incomplete: check for the overflow results due to the addition.
+
+  FILETIME ft;
+  ft.dwLowDateTime  = (u32)result;
+  ft.dwHighDateTime = (u32)(result >> 32);
+
+  return { ft, success };
 }
 
 Calendar_Time
-calendar_from_time(Time t)
+calendar_from_time(Time t, Time_Zone time_zone)
 {
-  return {};
+  auto [ft, success] = filetime_from_time(t);
+
+  R_ASSERT(success, "Input time overflowed?");
+
+  // Convert to local filetime if needed.
+  if (time_zone == TIME_ZONE_LOCAL)
+  {
+    FILETIME ft_local;
+    if ( FileTimeToLocalFileTime(&ft, &ft_local) )
+    {
+      ft = ft_local;
+    }
+    else
+    {
+      R_ASSERT(false, "FileTimeToLocalFileTime() failed.");
+    }
+  }
+
+  // Convert to system time.
+  SYSTEMTIME st;
+
+  if ( !FileTimeToSystemTime(&ft, &st) )
+  {
+    R_ASSERT(false, "FileTimeToSystemTime() failed.");
+  }
+
+  // Fill out calendar time
+  Calendar_Time ct;
+  ct.time_zone    = time_zone;
+  ct.year         = st.wYear;
+  ct.month        = (s8) (st.wMonth - 1);
+  ct.day_of_month = (s8) (st.wDay - 1);
+  ct.day_of_week  = (s8) (st.wDayOfWeek);
+  ct.hour         = (s8) (st.wHour);
+  ct.minute       = (s8) (st.wMinute);
+  ct.second       = (s8) (st.wSecond);
+  ct.millisecond  = (s16)(st.wMilliseconds);
+
+  return ct;
 }
 
 Time 
-time_from_calendar(Calendar_Time t)
+time_from_calendar(Calendar_Time ct)
 {
-  return {};
+  SYSTEMTIME st;
+  st.wYear         = ct.year;
+  st.wMonth        = ct.month + 1;
+  st.wDayOfWeek    = ct.day_of_week;
+  st.wDay          = ct.day_of_month + 1;
+  st.wHour         = ct.hour;
+  st.wMinute       = ct.minute;
+  st.wSecond       = ct.second;
+  st.wMilliseconds = ct.millisecond;
+
+  FILETIME ft;
+  if ( !SystemTimeToFileTime(&st, &ft) )
+  {
+    R_ASSERT(false, "SystemTimeToFileTime() failed.");
+  }
+
+  if (ct.time_zone == TIME_ZONE_LOCAL)
+  {
+    FILETIME ft_local;
+    if (LocalFileTimeToFileTime(&ft, &ft_local))
+    {
+      ft = ft_local;
+    }
+    else
+    {
+      R_ASSERT(false, "LocalFileTimeToFileTime() failed.");
+    }
+  }
+
+  Time t = time_from_filetime(ft);
+  return t;
 }
 
 
