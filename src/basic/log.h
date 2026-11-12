@@ -34,10 +34,10 @@ enum Log_Level : u8 {
 };
 
 #define R_LOG(level, fmt, ...) \
-  _log_internal(level, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__)
-void _log_internal(Log_Level level, String msg, String file, int line, bool just_print = false);
+  log_internal_(level, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__)
+void log_internal_(Log_Level level, String msg, String file, int line, bool just_print = false);
 
-#define print(fmt, ...) _log_internal(LOG_INFO, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__, true)
+#define print(fmt, ...) log_internal_(LOG_INFO, tprint(fmt, ##__VA_ARGS__), S(__FILE__), __LINE__, true)
 
 #define log_trace(fmt, ...)     R_LOG(LOG_TRACE,   fmt, ##__VA_ARGS__)
 #define log_debug(fmt, ...)     R_LOG(LOG_DEBUG,   fmt, ##__VA_ARGS__)

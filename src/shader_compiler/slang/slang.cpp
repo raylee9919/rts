@@ -128,7 +128,6 @@ shader_compiler_init(Shader_Compiler *compiler)
 
   compiler->global_session = global_session;
 
-  log_info(S("Initialized Slang."));
   return true;
 }
 
@@ -136,7 +135,6 @@ void
 shader_compiler_shutdown(Shader_Compiler *compiler) 
 {
   COM_SAFE_RELEASE(&compiler->global_session);
-  log_info(S("Deinitialized Slang."));
 }
 
 static bool 
@@ -217,11 +215,11 @@ create_session(Shader_Compiler  *compiler,
 }
 
 b32
-shader_compile(Shader_Compiler       *compiler,
-               Shader_Compile_Options options,
-               bool                   debug,
-               Shader_Compile_Result *out_result,
-               Allocator              allocator) 
+shader_compile(Shader_Compiler        *compiler,
+               Shader_Compile_Options  options,
+               bool                    debug,
+               Shader_Compile_Result  *out_result,
+               Allocator               allocator) 
 {
   using namespace slang;
 
@@ -329,7 +327,7 @@ shader_compile(Shader_Compiler       *compiler,
   out_result->stage = options.stage;
 
 
-  log_info(S("Compiled shader."));
+  log_info(S("Compiled shader from '%S'."), options.path);
   return true;
 }
 

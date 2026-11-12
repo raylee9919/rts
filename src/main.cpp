@@ -42,7 +42,7 @@
  
  [Asset - Offline]
    [V] Meshoptimizer Additional Passes
-   [ ] Neighbor quaternions in samples
+   [ ] Neighbor quaternions in samples (not blend!)
    [ ] Mesh LoD: meshoptimizer and authored LoD (Maya, Blender..)
    [ ] Meshoptimizer shadow/z-prepass indices
 
@@ -52,8 +52,9 @@
        preloaded, not just on demand. Needs research!
 
  [Engine/System]
-   [ ] Introspection
-   [ ] Time
+   [V] Time
+   [ ] Introspection <--------- C++ fucking sucks. 
+   [ ] File Watcher
 
  [Memory]
    - pointer, game storage, and saving games...
@@ -76,8 +77,9 @@
  - Not fond of guid generation...
  - Cull terrain by "chunk" granularity.
  - Color
- - SIMD CPUID and bind corresponding functions.
+ - SIMD CPUID and run corresponding functions.
  - Trigonometry
+ - Rewrite CDT for the third time  <-------  I'm a mad man.
 */
 
 void 

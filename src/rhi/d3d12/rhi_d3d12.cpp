@@ -280,7 +280,6 @@ d3d12_queue_init(D3D12_Device           *device,
   }
 
   queue->type = type;
-  log_info(S("Initialized d3d12 command queue."));
   return true;
 }
 
@@ -290,7 +289,6 @@ d3d12_queue_deinit(D3D12_Command_Queue *queue)
   if (queue) {
     COM_SAFE_RELEASE(&queue->queue_0);
   }
-  log_info(S("Deinitialized d3d12 command queue."));
 }
 
 
@@ -412,7 +410,6 @@ d3d12_descriptor_heap_init(D3D12_Device              *device,
   else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)         type_str = S("RTV");
   else if (type == D3D12_DESCRIPTOR_HEAP_TYPE_DSV)         type_str = S("DSV");
 
-  log_info(S("Initialized d3d12 descriptor heap, type: %S"), type_str);
   return true;
 }
 
@@ -682,7 +679,6 @@ d3d12_device_init(RHI_Device *device,
     }
   }
 
-  log_info(S("Initialized d3d12 device."));
   result = true;
 
 
@@ -741,9 +737,6 @@ d3d12_device_deinit(RHI_Device *device)
     FreeLibrary(d->dxgi_debug_dll_handle);
     d->dxgi_debug_dll_handle = {};
   }
-
-
-  log_info(S("Deinitialized d3d12 device"));
 }
 
 // Command List
@@ -777,7 +770,6 @@ d3d12_command_list_init(RHI_Device *device, RHI_Command_Buffer *cmd_buffer, RHI_
   if (type == RHI_COMMAND_TYPE_COMPUTE)  type_str = S("COMPUTE");
   if (type == RHI_COMMAND_TYPE_TRANSFER) type_str = S("TRANSFER");
 
-  log_info(S("Initialized d3d12 command list, type: %S"), type_str);
   return true;
 }
 
@@ -1278,7 +1270,6 @@ d3d12_buffer_init(RHI_Device      *device,
     return false;
   }
 
-  log_info(S("Initialized d3d12 buffer."));
   return true;
 }
 
@@ -1289,7 +1280,6 @@ d3d12_buffer_deinit(RHI_Buffer *buffer)
     COM_SAFE_RELEASE(&buffer->d3d12.resource);
     COM_SAFE_RELEASE(&buffer->d3d12.allocation);
   }
-  log_info(S("Deinitialized d3d12 buffer."));
 }
 
 void *
@@ -1335,8 +1325,6 @@ d3d12_buffer_view_init(RHI_Device           *device,
       device->d3d12.device_10->CreateShaderResourceView(resource, &srv_desc, view->d3d12.cpu_handle);
     }
   }
-
-  log_info(S("Initialized d3d12 buffer view."));
 }
 
 void 
@@ -1344,7 +1332,6 @@ d3d12_buffer_view_deinit(RHI_Buffer_View *view)
 {
   d3d12_descriptor_dealloc(&view->d3d12);
   memset(view, 0, sizeof(*view));
-  log_info(S("Deinitialized d3d12 buffer view."));
 }
 
 bool 
@@ -1427,8 +1414,6 @@ d3d12_texture_init(RHI_Device       *device,
 
   // Initial state
   texture->state = RHI_RESOURCE_STATE_COMMON; // Must match the initial state of d3d12's
-
-  log_info(S("Initialized d3d12 texture."));
   return true;
 }
 
@@ -1440,7 +1425,6 @@ d3d12_texture_deinit(RHI_Texture *texture)
     COM_SAFE_RELEASE(&texture->d3d12.resource);
     COM_SAFE_RELEASE(&texture->d3d12.allocation);
   }
-  log_info(S("Deinitialized d3d12 texture."));
 }
 
 static D3D12_SHADER_RESOURCE_VIEW_DESC d3d12_srv_desc(RHI_Texture_View_Desc *desc) {
@@ -1573,15 +1557,11 @@ void d3d12_sampler_init(RHI_Device *device, RHI_Sampler *sampler, RHI_Sampler_De
         sampler_desc.MaxLOD         = desc->max_lod;
     }
     device->d3d12.device_10->CreateSampler(&sampler_desc, sampler->d3d12.cpu_handle);
-
-    log_info(S("Initialized d3d12 sampler."));
 }
 
 void d3d12_sampler_deinit(RHI_Sampler *sampler) {
     d3d12_descriptor_dealloc(&sampler->d3d12);
     sampler->bindless = 0;
-
-    log_info(S("Deinitialized d3d12 sampler."));
 }
 
 // Surface
@@ -1708,8 +1688,6 @@ bool d3d12_surface_init(RHI_Device *device,
         }
     }
 
-
-    log_info(S("Initialized d3d12 surface."));
     return true;
 }
 
@@ -1767,7 +1745,6 @@ bool d3d12_fence_init(RHI_Device *device, RHI_Semaphore *fence) {
 
     fence->d3d12.event = CreateEvent(NULL, FALSE, FALSE, NULL);
 
-    log_info(S("Initialized d3d12 fence."));
     return true;
 }
 
@@ -1777,8 +1754,6 @@ void d3d12_fence_deinit(RHI_Semaphore *fence) {
         CloseHandle(fence->d3d12.event);
         fence->d3d12.event = {};
     }
-
-    log_info(S("Deinitialized d3d12 fence."));
 }
 
 void d3d12_fence_wait(RHI_Semaphore *fence, u64 value, s32 milliseconds) {
@@ -2280,7 +2255,6 @@ d3d12_pipeline_init(RHI_Device         *device,
         } break;
     }
 
-    log_info(S("Initialized d3d12 pipeline."));
     return true;
 }
 
@@ -2288,7 +2262,6 @@ void
 d3d12_pipeline_deinit(RHI_Pipeline *pipeline) 
 {
   COM_SAFE_RELEASE(&pipeline->d3d12.state);
-  log_info(S("Deinitialized d3d12 pipeline."));
 }
 
 bool 

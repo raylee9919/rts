@@ -177,6 +177,9 @@ calendar_from_time(Time t, Time_Zone time_zone = TIME_ZONE_UTC);
 Time 
 time_from_calendar(Calendar_Time t);
 
+String 
+string_from_calender(Calendar_Time t);
+
 
 //
 // GFX
@@ -445,10 +448,8 @@ u32                os_query_core_count();
 u32                os_query_page_size();
 u32                os_query_caret_blink_time();
 
-// Time
+// Time @Cleanup: use new API
 f64                time_seconds();
-f64                time_ms();
-f64                time_us();
 
 // Handle Translation
 bool               operator == (OS_Handle& l, OS_Handle& r);

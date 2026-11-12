@@ -267,14 +267,19 @@ static void os_thing_dealloc(OS_Thing *thing) {
 }
 
 
+//
 // Memory
 //
-void *os_reserve(u64 size) {
+void *
+os_reserve(u64 size) 
+{
   void *result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_READWRITE);
   return result;
 }
 
-bool os_commit(void* ptr, u64 size) {
+bool 
+os_commit(void* ptr, u64 size) 
+{
   bool result = (VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE) != 0);
   // @Todo: RIORegisterBuffer()
   // Also, check out (https://github.com/cmuratori/largepages)
@@ -282,20 +287,28 @@ bool os_commit(void* ptr, u64 size) {
   return result;
 }
 
-void os_decommit(void* ptr, u64 size) {
+void 
+os_decommit(void* ptr, u64 size) 
+{
   VirtualFree(ptr, size, MEM_DECOMMIT);
 }
 
-void os_release(void* ptr, u64 size) {
+void 
+os_release(void* ptr, u64 size) 
+{
   // Size isn't required on Windows, but is required on other OSes.
   VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-void *os_heap_alloc(u64 size) {
+void *
+os_heap_alloc(u64 size) 
+{
   return HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
-void os_heap_free(void* ptr) {
+void 
+os_heap_free(void* ptr) 
+{
   HeapFree(GetProcessHeap(), 0, ptr);
 }
 
@@ -303,43 +316,45 @@ void os_heap_free(void* ptr) {
 //
 // System Info.
 //
-u32 os_query_core_count() {
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    return info.dwNumberOfProcessors;
+u32 
+os_query_core_count() 
+{
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwNumberOfProcessors;
 }
 
-u32 os_query_page_size() {
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    return info.dwPageSize;
+u32 
+os_query_page_size() 
+{
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwPageSize;
 }
 
-u32 os_query_caret_blink_time() {
-    return GetCaretBlinkTime();
+u32 
+os_query_caret_blink_time() 
+{
+  return GetCaretBlinkTime();
 }
 
 
 // Time
 // @Todo: This is kinda sloppy...
 // @Cleanup: Use new time API
-f64 time_seconds() {
-    Win32_State *win32 = (Win32_State *)os->native;
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-    f64 seconds = (f64)li.QuadPart / (f64)win32->qpc_frequency;
-    return seconds;
-}
-
-f64 time_ms() {
-    return time_seconds() * 1000.0;
-}
-
-f64 time_us() {
-    return time_seconds() * 1000000.0;
+f64 
+time_seconds() 
+{
+  Win32_State *win32 = (Win32_State *)os->native;
+  LARGE_INTEGER li;
+  QueryPerformanceCounter(&li);
+  f64 seconds = (f64)li.QuadPart / (f64)win32->qpc_frequency;
+  return seconds;
 }
 
 
+
+//
 // Handle Translation
 //
 bool operator == (OS_Handle& l, OS_Handle& r) {
@@ -920,6 +935,20 @@ time_from_calendar(Calendar_Time ct)
 
   Time t = time_from_filetime(ft);
   return t;
+}
+
+String 
+string_from_calender(Calendar_Time t)
+{
+  R_ASSERT(t.month >= 0 && t.month <= 11);
+  R_ASSERT(t.day_of_month >= 0 && t.day_of_month <= 30);
+
+  R_ASSERT(t.time_zone == TIME_ZONE_UTC, "Time zone must be UTC."); // @Temporary
+
+  String s = tprint(S("%d-%02d-%02d %02d:%02d:%02d.%03d"), 
+                    t.year, t.month + 1, t.day_of_month + 1, 
+                    t.hour, t.minute, t.second, t.millisecond);
+  return s;
 }
 
 

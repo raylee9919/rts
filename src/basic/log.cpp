@@ -2,13 +2,31 @@
 
 #include "basic/log.h"
 #include "basic/string.h"
+#include "platform/platform.h"
 
 #include <stdio.h>
 
 
-void _log_internal(Log_Level level, String msg, String file, int line, bool just_print)
+void 
+log_internal_(Log_Level level, 
+              String    msg, 
+              String    file, 
+              int       line, 
+              bool      just_print)
 {
-  if (!just_print) {
+  if (!just_print) 
+  {
+    // Print calendar time
+    {
+      Time t = current_time_consensus();
+      Calendar_Time ct = calendar_from_time(t);
+      String s = string_from_calender(ct);
+
+      String time = tprint(S("[%S]"), s);
+      printf((char *)time.str);
+    }
+
+    // Print level
     {
       String str_level = {};
       if      (level == LOG_TRACE)   str_level = tprint(S("[%s%+5s%s] "),        ANSI_COLOR_CYAN,   "TRACE", ANSI_COLOR_RESET);
@@ -21,6 +39,7 @@ void _log_internal(Log_Level level, String msg, String file, int line, bool just
       printf((char *)str_level.str);
     }
 
+    // Print file and line
     if (0)
     {
       String file_line_fmt = S("%S(%d)  ");
@@ -29,6 +48,7 @@ void _log_internal(Log_Level level, String msg, String file, int line, bool just
     }
   }
 
+  // Print contents
   printf("%.*s", (int)msg.len, msg.str);
 
   printf("\n");

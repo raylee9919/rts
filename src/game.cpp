@@ -65,8 +65,6 @@ game_init()
 
   // Init camera
   camera_init(game_state, &game_state->camera, vec3(0.f, 0.f, 0.f), 0.f, 32.f);
-
-  log_info(S("Initialized game state."));
 }
 
 void 
