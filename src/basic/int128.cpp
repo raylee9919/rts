@@ -36,6 +36,8 @@ udiv_128_128(u128 u, u128 v)
     }
   }
 
+  // HERE. I HAVE NO IDEA WHAT'S GOING ON.
+
   u64   n = lzcnt64(v.hi); // 0 <= n <= 63
   u64  v1 = (v << n).hi;   // Normalize the divisor so its MSB is 1.
   u128 u1 = u >> 1;        // To ensure no overflow.

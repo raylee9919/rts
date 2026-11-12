@@ -5,6 +5,7 @@
 #include "shader_compiler/shader.h"
 #include "renderer/immediate.h"
 
+
 R_PASS_INIT( RenderPassInit_UI )
 {
   auto *result = (R_Pass_UI *)alloc(sizeof(R_Pass_UI), renderer->heap);
@@ -54,16 +55,16 @@ R_PASS_INIT( RenderPassInit_UI )
       desc.blend_alpha_op[0]           = RHI_BLEND_OP_ADD;
     }
 
-    desc.fill_mode                      = RHI_FILL_SOLID;
-    desc.cull_mode                      = RHI_CULL_NONE;
+    desc.fill_mode                     = RHI_FILL_SOLID;
+    desc.cull_mode                     = RHI_CULL_NONE;
 
-    desc.topology                       = RHI_TOPOLOGY_TRIANGLES;
+    desc.topology                      = RHI_TOPOLOGY_TRIANGLES;
 
-    desc.vs_data                        = vs.data;
-    desc.vs_size                        = vs.size;
+    desc.vs_data                       = vs.data;
+    desc.vs_size                       = vs.size;
 
-    desc.ps_data                        = ps.data;
-    desc.ps_size                        = ps.size;
+    desc.ps_data                       = ps.data;
+    desc.ps_size                       = ps.size;
   }
 
   gfx_pipeline_create(result->pipeline_id, desc);

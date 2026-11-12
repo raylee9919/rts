@@ -55,12 +55,13 @@
    [V] Time
    [ ] Introspection <--------- C++ fucking sucks. 
    [ ] File Watcher
+   [ ] Log to a file and console
 
  [Memory]
    - pointer, game storage, and saving games...
    - visualize memory statistics, and memory pools might want to be 
      shrinked periodically.
-   - I need heaps! not a single global heap. `mimalloc`? Roll my own? ;)
+   - I need heaps! not a single global heap. mimalloc? rpmalloc? Roll my own? ;)
    - Pass allocator when initializing subsystems. Better that way.
 
  [Development]
@@ -80,6 +81,7 @@
  - SIMD CPUID and run corresponding functions.
  - Trigonometry
  - Rewrite CDT for the third time  <-------  I'm a mad man.
+
 */
 
 void 
